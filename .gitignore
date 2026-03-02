@@ -9,3 +9,4 @@ uploads/
 node_modules/
 .DS_Store
 Thumbs.db
+SAMPLE_CSV_DATA.csv
