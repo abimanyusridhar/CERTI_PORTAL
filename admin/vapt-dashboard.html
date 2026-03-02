@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synergy Admin — VAPT Certificate Control Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0A1628;--navy-mid:#112240;--navy-light:#1D3557;
+      --gold:#D4A843;--gold-light:#F0C96A;--gold-dim:rgba(212,168,67,0.10);
+      --teal:#64FFDA;--teal-dim:rgba(100,255,218,0.06);
+      --surface:#0F1E35;--surface-hover:#152840;
+      --border:rgba(255,255,255,0.07);--border-gold:rgba(212,168,67,0.22);
+      --text:#CCD6F6;--text-sec:#8892B0;--text-bright:#E6F1FF;
+      --valid:#64FFDA;--invalid:#FF6B8A;--warn:#FFB347;
+      --sent:#64FFDA;--not-sent:#FF6B8A;
+    }
+    html,body{height:100%;overflow:hidden}
+    body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text)}
+
+    /* ── LOGIN ── */
+    #loginWrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 30% 40%,rgba(212,168,67,.06) 0%,transparent 60%),radial-gradient(ellipse at 70% 70%,rgba(100,255,218,.04) 0%,transparent 60%),var(--navy);position:relative}
+    .login-bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(100,255,218,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+    .login-card{position:relative;z-index:1;width:400px;padding:48px;background:rgba(15,30,53,.95);border:1px solid var(--border-gold);border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,.6);backdrop-filter:blur(20px)}
+    .login-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;margin:0 auto 24px}
+    .login-title{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;text-align:center;color:var(--text-bright);margin-bottom:6px}
+    .login-sub{font-size:.68rem;letter-spacing:.2em;color:var(--gold);text-align:center;text-transform:uppercase;margin-bottom:36px}
+    .login-err{background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.25);border-radius:10px;padding:11px 16px;font-size:.8rem;color:var(--invalid);margin-bottom:18px;display:none}
+
+    /* ── APP SHELL ── */
+    #appWrap{display:none;height:100vh}
+    .sidebar{width:242px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+    .sb-brand{padding:22px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+    .sb-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .sb-name{font-family:'Playfair Display',serif;font-size:1rem;color:var(--text-bright);line-height:1}
+    .sb-sub{font-size:.55rem;letter-spacing:.18em;color:var(--gold);text-transform:uppercase;margin-top:3px}
+    .sb-nav{flex:1;padding:14px 10px;overflow-y:auto}
+    .nav-sec{font-size:.52rem;letter-spacing:.22em;color:var(--text-sec);text-transform:uppercase;padding:0 8px;margin:16px 0 6px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:.8rem;font-weight:500;color:var(--text-sec);transition:all .15s;margin-bottom:2px;border:1px solid transparent}
+    .nav-item:hover{background:var(--surface-hover);color:var(--text)}
+    .nav-item.active{background:var(--gold-dim);color:var(--gold);border-color:var(--border-gold)}
+    .nav-badge{margin-left:auto;background:var(--navy-light);color:var(--teal);font-size:.58rem;padding:2px 8px;border-radius:10px;font-weight:600}
+    .side-mini{padding:8px 18px}
+    .side-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:.75rem}
+    .side-row span:first-child{color:var(--text-sec)}
+    .sb-foot{padding:12px 10px;border-top:1px solid var(--border)}
+    .admin-tag{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--gold-dim);border:1px solid var(--border-gold);margin-bottom:8px}
+    .admin-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#8B6914);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--navy);flex-shrink:0}
+    .admin-nm{font-size:.8rem;font-weight:600;color:var(--text-bright)}
+    .admin-rl{font-size:.6rem;color:var(--text-sec)}
+    .logout-btn{width:100%;padding:9px;background:rgba(255,107,138,.07);border:1px solid rgba(255,107,138,.2);border-radius:9px;color:var(--invalid);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+    .logout-btn:hover{background:rgba(255,107,138,.14)}
+
+    /* ── MAIN ── */
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .topbar{padding:16px 28px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:16px;flex-shrink:0}
+    .tb-title{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--text-bright)}
+    .tb-bread{font-size:.62rem;letter-spacing:.12em;color:var(--text-sec);margin-top:2px}
+    .tb-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .page{flex:1;overflow-y:auto;padding:24px 28px}
+
+    /* ── BUTTONS ── */
+    .btn{padding:8px 16px;border-radius:9px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:1px solid transparent;transition:all .15s;display:inline-flex;align-items:center;gap:7px}
+    .btn-primary{background:linear-gradient(135deg,var(--gold),#8B6914);color:var(--navy)}
+    .btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+    .btn-ghost{background:var(--surface-hover);border-color:var(--border);color:var(--text-sec)}
+    .btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.15)}
+    .btn-danger{background:rgba(255,107,138,.08);border-color:rgba(255,107,138,.25);color:var(--invalid)}
+    .btn-danger:hover{background:rgba(255,107,138,.15)}
+    .btn-teal{background:rgba(100,255,218,.08);border-color:rgba(100,255,218,.25);color:var(--teal)}
+    .btn-teal:hover{background:rgba(100,255,218,.14)}
+    .btn-issue{background:linear-gradient(135deg,rgba(100,255,218,.15),rgba(100,255,218,.05));border-color:rgba(100,255,218,.3);color:var(--teal)}
+    .btn-issue:hover{background:rgba(100,255,218,.2)}
+    .btn-sm{padding:6px 12px;font-size:.65rem}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+    /* ── STATS ── */
+    .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+    .stat-card{padding:18px 20px;border-radius:14px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+    .stat-card.gold::before{background:linear-gradient(90deg,var(--gold),transparent)}
+    .stat-card.green::before{background:linear-gradient(90deg,var(--teal),transparent)}
+    .stat-card.red::before{background:linear-gradient(90deg,var(--invalid),transparent)}
+    .stat-card.orange::before{background:linear-gradient(90deg,var(--warn),transparent)}
+    .stat-card.blue::before{background:linear-gradient(90deg,#7EB8F7,transparent)}
+    .snum{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;line-height:1}
+    .stat-card.gold .snum{color:var(--gold)}
+    .stat-card.green .snum{color:var(--teal)}
+    .stat-card.red .snum{color:var(--invalid)}
+    .stat-card.orange .snum{color:var(--warn)}
+    .stat-card.blue .snum{color:#7EB8F7}
+    .slabel{font-size:.58rem;letter-spacing:.15em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+
+    /* ── ANALYTICS ── */
+    .analytics-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+    .analytics-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .analytics-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .analytics-title{font-family:'Playfair Display',serif;font-size:.9rem;color:var(--gold)}
+    .analytics-sub{font-size:.6rem;color:var(--text-sec);margin-top:2px}
+    .analytics-pill{font-size:.58rem;letter-spacing:.12em;background:var(--gold-dim);color:var(--gold);border:1px solid var(--border-gold);border-radius:8px;padding:3px 9px;text-transform:uppercase}
+    .analytics-chart-wrap{padding:16px;height:160px;position:relative}
+    .analytics-body{padding:14px 18px}
+    .analytics-chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+    .analytics-chip{font-size:.6rem;padding:3px 10px;border-radius:8px;font-weight:600;letter-spacing:.1em}
+    .analytics-list{list-style:none;font-size:.74rem;color:var(--text-sec);line-height:2.2;padding-left:0}
+    .analytics-list li::before{content:'›';color:var(--gold);margin-right:6px}
+
+    /* ── NEAR EXPIRY CARD ── */
+    .near-expiry-card{background:var(--surface);border:1px solid rgba(255,179,71,.25);border-radius:14px;overflow:hidden}
+    .near-expiry-card .ne-hdr{padding:12px 16px;border-bottom:1px solid rgba(255,179,71,.15);display:flex;align-items:center;gap:8px;background:rgba(255,179,71,.04)}
+    .ne-days-badge{min-width:48px;text-align:center;padding:4px 8px;border-radius:8px;font-size:.62rem;font-weight:700;letter-spacing:.08em}
+    .ne-days-badge.crit{background:rgba(255,107,138,.15);color:var(--invalid);border:1px solid rgba(255,107,138,.3)}
+    .ne-days-badge.warn{background:rgba(255,179,71,.15);color:var(--warn);border:1px solid rgba(255,179,71,.3)}
+    .ne-days-badge.ok{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.2)}
+
+    /* ── TABLE ── */
+    .table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .tbl-hdr{padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .tbl-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold)}
+    .mini-search{display:flex;align-items:center;gap:7px;background:var(--navy-mid);border:1px solid var(--border);border-radius:8px;padding:7px 12px}
+    .mini-search input{background:none;border:none;outline:none;color:var(--text-bright);font-size:.8rem;width:200px}
+    table{width:100%;border-collapse:collapse}
+    th{padding:9px 14px;text-align:left;font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;background:var(--navy-mid);border-bottom:1px solid var(--border);white-space:nowrap}
+    td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text);vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    .cid{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)}
+    .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+    .pill.valid{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.25)}
+    .pill.expired{background:rgba(255,107,138,.1);color:var(--invalid);border:1px solid rgba(255,107,138,.25)}
+    .pill.revoked{background:rgba(255,179,71,.1);color:var(--warn);border:1px solid rgba(255,179,71,.25)}
+    .pill.pending{background:rgba(126,184,247,.1);color:#7EB8F7;border:1px solid rgba(126,184,247,.25)}
+    .pill.sent{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.25)}
+    .pill.not-sent{background:rgba(255,107,138,.08);color:var(--invalid);border:1px solid rgba(255,107,138,.2)}
+    .act-grp{display:flex;gap:5px;flex-wrap:wrap}
+    .thumb{width:50px;height:36px;border-radius:5px;object-fit:cover;border:1px solid var(--border-gold);cursor:zoom-in;background:var(--navy-mid);display:inline-block;vertical-align:middle}
+    .no-img{width:50px;height:36px;border-radius:5px;border:1px dashed var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:.55rem;color:var(--text-sec);vertical-align:middle}
+    .empty-state{padding:60px;text-align:center;color:var(--text-sec)}
+    .empty-state h3{font-family:'Playfair Display',serif;color:var(--text);margin-bottom:8px}
+
+    /* ── ISSUE PAGE LAYOUT ── */
+    .issue-layout{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start}
+    .issue-section-title{font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:8px}
+    .issue-cert-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;cursor:pointer;border:1px solid transparent;background:var(--navy-mid);margin-bottom:7px;transition:all .15s}
+    .issue-cert-row:hover{background:var(--surface-hover);border-color:var(--border)}
+    .issue-cert-row.selected{border-color:var(--border-gold);background:var(--gold-dim)}
+    .issue-cert-row.done{border-color:rgba(100,255,218,.2);background:rgba(100,255,218,.04)}
+    .issue-cert-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.6rem;flex-shrink:0;transition:all .15s}
+    .issue-cert-row.selected .issue-cert-check{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
+    .issue-cert-row.done .issue-cert-check{border-color:var(--teal);background:rgba(100,255,218,.1);color:var(--teal)}
+    .send-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .send-panel-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--navy-mid)}
+    .send-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+    .send-stat{background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:center}
+    .send-stat .ss-num{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700}
+    .send-stat .ss-label{font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-sec);margin-top:2px}
+    .send-stat.ss-sent .ss-num{color:var(--teal)}
+    .send-stat.ss-pending .ss-num{color:var(--invalid)}
+
+    /* ── ADD PAGE (two-col layout like training portal) ── */
+    .add-layout{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+    .section-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px}
+    .section-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);margin-bottom:14px}
+
+    /* ── VAPT CERT CANVAS (Live Preview) ── */
+    .cert-preview-outer{background:linear-gradient(135deg,#0c1f3a 0%,#0a1628 100%);border:1px solid var(--border-gold);border-radius:16px;padding:2px;margin-bottom:14px}
+    .cert-preview-inner{border-radius:14px;overflow:hidden;position:relative}
+    .cert-canvas{width:100%;aspect-ratio:1.41/1;position:relative;background:linear-gradient(135deg,#071120 0%,#0d1e36 60%,#112240 100%);display:flex;flex-direction:column;padding:22px 26px 18px;overflow:hidden;font-family:'DM Sans',sans-serif}
+    .cert-canvas::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(212,168,67,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(212,168,67,.025) 1px,transparent 1px);background-size:28px 28px}
+    .cert-corner{position:absolute;width:46px;height:46px}
+    .cc-tl{top:10px;left:10px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);border-radius:4px 0 0 0}
+    .cc-tr{top:10px;right:10px;border-top:2px solid var(--gold);border-right:2px solid var(--gold);border-radius:0 4px 0 0}
+    .cc-bl{bottom:10px;left:10px;border-bottom:2px solid var(--gold);border-left:2px solid var(--gold);border-radius:0 0 0 4px}
+    .cc-br{bottom:10px;right:10px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);border-radius:0 0 4px 0}
+    .cert-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-family:'Playfair Display',serif;font-size:5rem;font-weight:800;letter-spacing:.3em;pointer-events:none;z-index:0;opacity:.03;color:#fff;user-select:none}
+    .cert-header-row{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;margin-bottom:10px}
+    .cert-logo-area{display:flex;align-items:center;gap:8px}
+    .cert-logo-box{width:28px;height:28px;border-radius:6px;background:var(--gold-dim);border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .cert-org-name{font-family:'Playfair Display',serif;font-size:.68rem;color:var(--text-bright);line-height:1}
+    .cert-org-sub{font-size:.45rem;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin-top:2px}
+    .cert-id-badge{font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--gold);background:var(--gold-dim);border:1px solid var(--border-gold);border-radius:6px;padding:3px 8px}
+    .cert-title-area{text-align:center;position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .cert-presents{font-size:.46rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:5px}
+    .cert-name-display{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--text-bright);letter-spacing:.02em;margin-bottom:6px}
+    .cert-divider{width:60px;height:1.5px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0 auto 6px}
+    .cert-type{font-size:.44rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px}
+    .cert-training-display{font-size:.7rem;color:var(--gold);font-weight:600;font-family:'Playfair Display',serif}
+    .cert-meta-row{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(255,255,255,.06);position:relative;z-index:1;margin-top:8px}
+    .cert-meta-item{padding:8px 6px;text-align:center;border-right:1px solid rgba(255,255,255,.06)}
+    .cert-meta-item:last-child{border-right:none}
+    .cert-meta-label{font-size:.4rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:3px}
+    .cert-meta-value{font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--text-bright);font-weight:500}
+    .cert-footer-row{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)}
+    .cert-sig-area{flex:1}
+    .cert-sig-line{height:1px;background:rgba(255,255,255,.15);margin-bottom:4px;width:70px}
+    .cert-sig-name{font-size:.5rem;color:var(--text-sec)}
+    .cert-stamp{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border-gold);background:var(--gold-dim);display:flex;align-items:center;justify-content:center}
+
+    /* ── COMPLETION PANEL ── */
+    .cp-item{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px;font-size:.72rem;transition:background .15s}
+    .cp-item.done{color:var(--teal)}
+    .cp-item.missing{color:var(--text-sec)}
+    .cp-item.warn{color:var(--warn)}
+    .cp-check{width:18px;height:18px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:.55rem;flex-shrink:0;transition:all .2s}
+    .cp-item.done .cp-check{background:rgba(100,255,218,.12);border-color:var(--teal);color:var(--teal)}
+    .cp-item.missing .cp-check{background:transparent;border-color:var(--border);color:transparent}
+    .cp-item.warn .cp-check{background:rgba(255,179,71,.12);border-color:var(--warn);color:var(--warn)}
+    .cp-item .cp-label{flex:1}
+    .cp-item .cp-tag{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:5px}
+    .cp-item.done .cp-tag{background:rgba(100,255,218,.08);color:var(--teal);border:1px solid rgba(100,255,218,.2)}
+    .cp-item.missing .cp-tag{background:rgba(255,107,138,.06);color:var(--invalid);border:1px solid rgba(255,107,138,.15)}
+    .cp-item.warn .cp-tag{background:rgba(255,179,71,.08);color:var(--warn);border:1px solid rgba(255,179,71,.2)}
+
+    /* ── FORM ── */
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .form-full{grid-column:1/-1}
+    .fgroup{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+    .flabel{font-size:.6rem;letter-spacing:.15em;color:var(--text-sec);text-transform:uppercase}
+    .fcontrol{background:var(--navy-mid);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text-bright);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+    .fcontrol:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,168,67,.12)}
+    select.fcontrol option{background:var(--navy-mid)}
+    textarea.fcontrol{min-height:80px;resize:vertical}
+    .field-hint{font-size:.62rem;color:var(--text-sec);margin-top:2px}
+    .field-hint.warn{color:var(--invalid)}
+    .field-hint.ok{color:var(--teal)}
+    .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--navy-mid);position:relative}
+    .upload-zone:hover,.upload-zone.drag-over{border-color:var(--border-gold);background:var(--gold-dim)}
+    .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .upload-text{font-size:.78rem;color:var(--text-sec);margin-top:7px}
+    .upload-hint{font-size:.6rem;color:var(--text-sec);opacity:.6;margin-top:3px}
+    .prev-wrap{margin-top:10px;display:inline-block;position:relative}
+    .prev-wrap img{max-height:100px;border-radius:8px;border:1px solid var(--border-gold)}
+    .rm-img{position:absolute;top:-8px;right:-8px;background:var(--invalid);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center}
+
+    /* ── CSV ── */
+    .csv-drop{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--navy-mid);position:relative}
+    .csv-drop:hover,.csv-drop.drag-over{border-color:var(--border-gold);background:var(--gold-dim)}
+    .csv-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .info-banner{background:rgba(212,168,67,.06);border:1px solid var(--border-gold);border-radius:12px;padding:14px 18px;font-size:.78rem;color:var(--gold);margin-bottom:18px}
+    .vapt-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);border-radius:8px;padding:4px 10px;font-size:.6rem;letter-spacing:.12em;color:var(--teal);text-transform:uppercase;font-weight:600}
+
+    /* ── MODAL ── */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:36px 18px;backdrop-filter:blur(10px)}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;width:100%;max-width:720px;overflow:hidden;animation:pop .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+    .modal-sm{max-width:420px}
+    @keyframes pop{from{opacity:0;transform:scale(.94) translateY(-14px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .modal-hdr{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+    .modal-title{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--text-bright)}
+    .modal-body{padding:20px 24px;max-height:60vh;overflow-y:auto}
+    .modal-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+
+    /* ── TOAST / LIGHTBOX / SPINNER ── */
+    #toast{position:fixed;bottom:22px;right:22px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:.82rem;font-weight:500;transform:translateY(70px);opacity:0;transition:all .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+    #toast.show{transform:translateY(0);opacity:1}
+    #toast.ok{background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);color:var(--teal)}
+    #toast.err{background:rgba(255,107,138,.1);border:1px solid rgba(255,107,138,.25);color:var(--invalid)}
+    #toast.warn{background:rgba(255,179,71,.1);border:1px solid rgba(255,179,71,.25);color:var(--warn)}
+    #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+    #lightbox img{max-width:100%;max-height:90vh;border-radius:12px;border:1px solid var(--border-gold)}
+    .lb-x{position:absolute;top:20px;right:24px;color:#fff;font-size:1.8rem;cursor:pointer;opacity:.5;transition:opacity .2s}
+    .lb-x:hover{opacity:1}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{width:15px;height:15px;border:2px solid rgba(212,168,67,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite}
+  </style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginWrap">
+  <div class="login-bg-grid"></div>
+  <div class="login-card">
+    <div class="login-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+    </div>
+    <div class="login-title">Admin Access</div>
+    <div class="login-sub">VAPT Certificate Control Panel</div>
+    <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
+    <div class="fgroup" style="margin-bottom:14px">
+      <label class="flabel">Username</label>
+      <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" />
+    </div>
+    <div class="fgroup" style="margin-bottom:26px">
+      <label class="flabel">Password</label>
+      <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:.82rem" onclick="doLogin()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+      <span id="lBtnTxt">Login to Admin Panel</span>
+    </button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="appWrap" style="display:flex">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg></div>
+      <div>
+        <div class="sb-name">Synergy VPT</div>
+        <div class="sb-sub">VAPT Admin</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
+      <a href="/VPT" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        VPT Public Portal
+      </a>
+      <a href="/CST/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        Switch → CST Admin
+      </a>
+      <div class="nav-sec">VAPT Management</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard <span class="nav-badge" id="nbTotal">0</span>
+      </div>
+      <div class="nav-item" id="nav-certs" onclick="showPage('certs',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        All VAPT Certificates
+      </div>
+      <div class="nav-item" id="nav-add" onclick="startAdd()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+        Add Certificate
+      </div>
+      <div class="nav-item" id="nav-csv" onclick="showPage('csv',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        Import CSV
+      </div>
+      <div class="nav-item" id="nav-issue" onclick="showPage('issue',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+        Issue Credentials
+      </div>
+      <div class="nav-sec" style="margin-top:18px">Quick Stats</div>
+      <div class="side-mini">
+        <div class="side-row"><span>Valid</span><span style="color:var(--teal)" id="svValid">—</span></div>
+        <div class="side-row"><span>Expired</span><span style="color:var(--warn)" id="svExpired">—</span></div>
+        <div class="side-row"><span>Near Expiry</span><span style="color:var(--gold)" id="svNearExpiry">—</span></div>
+        <div class="side-row"><span>Emails Sent</span><span style="color:#7EB8F7" id="svEmailSent">—</span></div>
+        <div class="side-row"><span>Pending Send</span><span style="color:var(--invalid)" id="svEmailPending">—</span></div>
+      </div>
+      <div class="nav-sec" style="margin-top:10px">Navigation</div>
+      <div class="nav-item" onclick="window.open('/VPT','_blank')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        Public VPT Portal
+      </div>
+      <div class="nav-item" onclick="window.open('/CST/admin/','_blank')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        CST Training Admin
+      </div>
+    </nav>
+    <div class="sb-foot">
+      <div class="admin-tag">
+        <div class="admin-av">A</div>
+        <div>
+          <div class="admin-nm">Administrator</div>
+          <div class="admin-rl">Full Access · Synergy Group</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">⎋ &nbsp;Logout</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="tb-title" id="pageTitle">VAPT Dashboard</div>
+        <div class="tb-bread" id="pageBread">Admin › VAPT › Overview</div>
+      </div>
+      <div class="tb-actions">
+        <span class="vapt-badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+          VAPT Certificates
+        </span>
+        <button class="btn btn-ghost btn-sm" onclick="window.open('/vapt','_blank')">🌐 Public Portal</button>
+        <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue Credentials</button>
+        <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add Certificate</button>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD PAGE ══ -->
+    <div class="page" id="page-dashboard">
+      <div class="stats-row">
+        <div class="stat-card gold"><div class="snum" id="stTotal">0</div><div class="slabel">Total VAPT Certs</div></div>
+        <div class="stat-card green"><div class="snum" id="stValid">0</div><div class="slabel">Active &amp; Valid</div></div>
+        <div class="stat-card red"><div class="snum" id="stExpired">0</div><div class="slabel">Expired</div></div>
+        <div class="stat-card orange"><div class="snum" id="stNearExpiry">0</div><div class="slabel">Expiring ≤30 Days</div></div>
+        <div class="stat-card blue"><div class="snum" id="stEmailSent">0</div><div class="slabel">Credentials Sent</div></div>
+      </div>
+
+      <!-- Analytics row -->
+      <div class="analytics-row">
+        <div class="analytics-card">
+          <div class="analytics-head">
+            <div><div class="analytics-title">Status Distribution</div><div class="analytics-sub">Registry health snapshot</div></div>
+            <span class="analytics-pill">Live</span>
+          </div>
+          <div class="analytics-chart-wrap"><canvas id="statusChart"></canvas></div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-head">
+            <div><div class="analytics-title">Expiry Radar</div><div class="analytics-sub">Upcoming validity windows</div></div>
+            <span class="analytics-pill">Validity</span>
+          </div>
+          <div class="analytics-chart-wrap"><canvas id="expiryChart"></canvas></div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-head">
+            <div><div class="analytics-title">Insights</div><div class="analytics-sub">Registry health indicators</div></div>
+          </div>
+          <div class="analytics-body">
+            <div class="analytics-chip-row" id="insightChips"></div>
+            <ul class="analytics-list" id="insightList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alert panels -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+        <div class="near-expiry-card">
+          <div class="ne-hdr">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span style="font-size:.78rem;font-weight:600;color:var(--warn)">Near Expiry</span>
+            <span id="neCountBadge" style="margin-left:auto;font-size:.6rem;background:rgba(255,179,71,.12);color:var(--warn);border:1px solid rgba(255,179,71,.3);border-radius:10px;padding:2px 8px">0</span>
+          </div>
+          <div id="nearExpiryList" style="max-height:260px;overflow-y:auto">
+            <div style="padding:28px;text-align:center;color:var(--text-sec);font-size:.78rem">All VAPT certificates healthy — no urgent expiries</div>
+          </div>
+        </div>
+        <div class="near-expiry-card" style="border-color:rgba(255,107,138,.2)">
+          <div class="ne-hdr" style="border-bottom-color:rgba(255,107,138,.12);background:rgba(255,107,138,.03)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span style="font-size:.78rem;font-weight:600;color:var(--invalid)">Credentials Pending Send</span>
+            <span id="pendingSendBadge" style="margin-left:auto;font-size:.6rem;background:rgba(255,107,138,.1);color:var(--invalid);border:1px solid rgba(255,107,138,.25);border-radius:10px;padding:2px 8px">0</span>
+          </div>
+          <div id="pendingSendList" style="max-height:260px;overflow-y:auto">
+            <div style="padding:28px;text-align:center;color:var(--text-sec);font-size:.78rem">All credentials dispatched</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent certs table -->
+      <div class="table-card">
+        <div class="tbl-hdr">
+          <div class="tbl-title">Recent VAPT Certificates</div>
+          <div class="mini-search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search vessel, IMO, cert no…" oninput="renderTbl('dashTbl',this.value)" />
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="startAdd()">+ Add New</button>
+        </div>
+        <div id="dashTbl"></div>
+      </div>
+    </div>
+
+    <!-- ══ ALL CERTS PAGE ══ -->
+    <div class="page" id="page-certs" style="display:none">
+      <div class="table-card">
+        <div class="tbl-hdr">
+          <div class="tbl-title">All VAPT Certificates</div>
+          <div class="mini-search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search vessel, IMO, cert number…" oninput="renderTbl('allTbl',this.value)" />
+          </div>
+          <select class="fcontrol" style="width:130px;padding:7px 12px;font-size:.72rem" onchange="filterStatus=this.value;renderTbl('allTbl','')">
+            <option value="">All Status</option>
+            <option value="VALID">Valid</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="REVOKED">Revoked</option>
+            <option value="PENDING">Pending</option>
+          </select>
+        </div>
+        <div id="allTbl"></div>
+      </div>
+    </div>
+
+    <!-- ══ ADD/EDIT PAGE ══ -->
+    <div class="page" id="page-add" style="display:none">
+      <div class="add-layout">
+        <!-- LEFT: Form -->
+        <div>
+          <div class="section-card">
+            <div class="section-title" id="addPageTitle">Add VAPT Certificate</div>
+            <div class="form-grid">
+              <div class="fgroup">
+                <label class="flabel">Certificate ID / Number *</label>
+                <input type="text" id="fId" class="fcontrol" placeholder="VAP-9491666-0226" oninput="updatePreview()" />
+                <div class="field-hint" id="idHint"></div>
+              </div>
+              <div class="fgroup">
+                <label class="flabel">Vessel IMO *</label>
+                <input type="text" id="fImo" class="fcontrol" placeholder="9491666" oninput="autoGenId();updatePreview()" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="fgroup">
+                <label class="flabel">Vessel Name *</label>
+                <input type="text" id="fVesselName" class="fcontrol" placeholder="MV Efficiency OL" oninput="updatePreview()" />
+              </div>
+              <div class="fgroup">
+                <label class="flabel">Recipient Name *</label>
+                <input type="text" id="fRecipientName" class="fcontrol" placeholder="MV Efficiency OL" oninput="updatePreview()" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="fgroup">
+                <label class="flabel">Date of Assessment *</label>
+                <input type="date" id="fAssessmentDate" class="fcontrol" oninput="autoSetValidUntil();updatePreview()" onchange="autoSetValidUntil();updatePreview()" />
+              </div>
+              <div class="fgroup">
+                <label class="flabel">Valid Until * <span style="color:var(--text-sec);font-size:.58rem">(auto: +1 year)</span></label>
+                <input type="date" id="fValidUntil" class="fcontrol" oninput="updatePreview()" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="fgroup">
+                <label class="flabel">Verified By</label>
+                <input type="text" id="fVerifiedBy" class="fcontrol" value="Gaurav Singh" oninput="updatePreview()" />
+              </div>
+              <div class="fgroup">
+                <label class="flabel">Verifier Title</label>
+                <input type="text" id="fVerifierTitle" class="fcontrol" value="CISO — Synergy Group" oninput="updatePreview()" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="fgroup">
+                <label class="flabel">Assessing Organisation</label>
+                <input type="text" id="fAssessingOrg" class="fcontrol" value="Synergy Cybersecurity team" />
+              </div>
+              <div class="fgroup">
+                <label class="flabel">Status</label>
+                <select id="fStatus" class="fcontrol" onchange="updatePreview()">
+                  <option value="VALID">VALID</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="EXPIRED">EXPIRED</option>
+                  <option value="REVOKED">REVOKED</option>
+                </select>
+              </div>
+            </div>
+            <div class="fgroup">
+              <label class="flabel">Frameworks / Standards</label>
+              <input type="text" id="fFrameworks" class="fcontrol" value="Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013" />
+            </div>
+            <div class="fgroup">
+              <label class="flabel">Scope Items <span style="color:var(--text-sec);font-size:.58rem">(comma-separated)</span></label>
+              <textarea id="fScopeItems" class="fcontrol">Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups &amp; Disaster Recovery,IT Drills &amp; Internal Audits</textarea>
+            </div>
+            <div class="form-grid">
+              <div class="fgroup">
+                <label class="flabel">Recipient Email</label>
+                <input type="email" id="fRecipientEmail" class="fcontrol" placeholder="master@vessel.com" oninput="updateCompletion()" />
+              </div>
+              <div class="fgroup">
+                <label class="flabel">Issuer Email</label>
+                <input type="email" id="fIssuerEmail" class="fcontrol" value="vapt@synergyship.com" />
+              </div>
+            </div>
+            <div class="fgroup">
+              <label class="flabel">Notes</label>
+              <textarea id="fNotes" class="fcontrol">Re-assessment recommended within 2 weeks from date of participation.</textarea>
+            </div>
+            <div class="fgroup">
+              <label class="flabel" style="display:flex;align-items:center;gap:6px">
+                Certificate Image <span style="color:var(--teal);font-size:.58rem">(attach physical cert — shown on public portal)</span>
+                <span id="imgRequiredTag" style="font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:rgba(255,107,138,.06);color:var(--invalid);border:1px solid rgba(255,107,138,.15)">Required</span>
+              </label>
+              <div class="upload-zone" id="dropZone" ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+                <input type="file" accept="image/*" onchange="onFileSelect(this)" />
+                <div id="uploadDefault">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.4" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  <div class="upload-text">Drag &amp; drop or click to upload certificate image</div>
+                  <div class="upload-hint">PNG, JPG, WEBP — max 5MB</div>
+                </div>
+                <div id="uploadPrev" style="display:none">
+                  <div class="prev-wrap"><img id="prevImg" src="" alt="Preview" /><button class="rm-img" onclick="clearImg(event)">✕</button></div>
+                  <div class="upload-hint" style="margin-top:6px" id="prevName"></div>
+                </div>
+              </div>
+            </div>
+            <!-- ── PDF ATTACHMENTS ── -->
+            <div class="fgroup">
+              <label class="flabel" style="display:flex;align-items:center;gap:6px">
+                Reference Documents <span style="color:var(--teal);font-size:.58rem">(PDFs shown on public portal per cert)</span>
+              </label>
+              <div id="attachList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+              <div style="position:relative;border:2px dashed var(--border);border-radius:10px;padding:14px 16px;text-align:center;cursor:pointer;background:var(--navy-mid);transition:border-color .2s" id="pdfDropZone"
+                ondragover="pdfDragOver(event)" ondragleave="pdfDragLeave()" ondrop="pdfDrop(event)">
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple id="pdfFileInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="pdfFileSelect(this)" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.4" style="margin:0 auto 6px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <div style="font-size:.75rem;color:var(--text-sec)">Click or drag PDFs or images to attach reference documents</div>
+                <div style="font-size:.62rem;color:var(--text-sec);margin-top:3px;opacity:.6">PDF, JPG, PNG, WEBP · Multiple files · Max 10MB each</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:6px">
+              <button class="btn btn-primary" id="saveBtn" style="flex:1;justify-content:center;padding:12px" onclick="saveCert()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span id="saveTxt">Save Certificate</span>
+              </button>
+              <button class="btn btn-ghost" onclick="showPage('certs',document.getElementById('nav-certs'))">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Live Preview + Completion Panel -->
+        <div>
+          <div style="font-size:.7rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:10px">Live Preview</div>
+          <div class="cert-preview-outer" style="margin-bottom:14px">
+            <div class="cert-preview-inner">
+              <div class="cert-canvas" id="certCanvas">
+                <div class="cert-watermark" id="pv-watermark">VALID</div>
+                <div class="cert-corner cc-tl"></div>
+                <div class="cert-corner cc-tr"></div>
+                <div class="cert-corner cc-bl"></div>
+                <div class="cert-corner cc-br"></div>
+                <div class="cert-header-row">
+                  <div class="cert-logo-area">
+                    <div class="cert-logo-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg></div>
+                    <div>
+                      <div class="cert-org-name">Synergy Marine Group</div>
+                      <div class="cert-org-sub">Cyber Security Division</div>
+                    </div>
+                  </div>
+                  <div class="cert-id-badge" id="pv-id">—</div>
+                </div>
+                <div class="cert-title-area">
+                  <div class="cert-presents">This certifies that</div>
+                  <div class="cert-name-display" id="pv-name">Vessel / Recipient Name</div>
+                  <div class="cert-divider"></div>
+                  <div class="cert-type">Certificate of Cybersecurity — VAPT</div>
+                  <div class="cert-training-display">Vulnerability Assessment &amp; Penetration Testing</div>
+                </div>
+                <div class="cert-meta-row">
+                  <div class="cert-meta-item">
+                    <div class="cert-meta-label">IMO</div>
+                    <div class="cert-meta-value" id="pv-imo">—</div>
+                  </div>
+                  <div class="cert-meta-item">
+                    <div class="cert-meta-label">Assessed</div>
+                    <div class="cert-meta-value" id="pv-assessed">—</div>
+                  </div>
+                  <div class="cert-meta-item">
+                    <div class="cert-meta-label">Valid Until</div>
+                    <div class="cert-meta-value" id="pv-until">—</div>
+                  </div>
+                  <div class="cert-meta-item">
+                    <div class="cert-meta-label">Status</div>
+                    <div class="cert-meta-value" id="pv-status">VALID</div>
+                  </div>
+                </div>
+                <div class="cert-footer-row">
+                  <div class="cert-sig-area">
+                    <div class="cert-sig-line"></div>
+                    <div class="cert-sig-name" id="pv-verifier">Gaurav Singh, CISO</div>
+                  </div>
+                  <div class="cert-stamp">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                  </div>
+                  <div class="cert-sig-area" style="text-align:right">
+                    <div class="cert-sig-line" style="margin-left:auto"></div>
+                    <div class="cert-sig-name">Synergy Cybersecurity Team</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completion panel -->
+          <div id="completionPanel" style="border:1px solid var(--border);border-radius:12px;overflow:hidden">
+            <div id="cpHeader" style="padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--border);background:var(--navy-mid)">
+              <div id="cpHeaderIcon" style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.3);color:var(--warn)">?</div>
+              <div>
+                <div id="cpHeaderTitle" style="font-size:.75rem;font-weight:600;color:var(--warn)">Incomplete</div>
+                <div id="cpHeaderSub" style="font-size:.6rem;color:var(--text-sec);margin-top:1px">Complete required fields to activate</div>
+              </div>
+              <div id="cpProgressBadge" style="margin-left:auto;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.25);color:var(--warn)">0/5</div>
+            </div>
+            <div style="height:3px;background:var(--border)">
+              <div id="cpBar" style="height:100%;width:0%;background:var(--warn);transition:width .3s,background .3s"></div>
+            </div>
+            <div style="padding:10px 14px;display:flex;flex-direction:column;gap:4px" id="cpItems"></div>
+            <div id="cpAction" style="padding:10px 14px;border-top:1px solid var(--border);background:var(--navy-mid)">
+              <div id="cpActionText" style="font-size:.68rem;color:var(--text-sec);line-height:1.65">
+                · Fill all required fields to enable full activation<br>
+                · Certificate can be saved as <strong style="color:#7EB8F7">PENDING</strong> at any time<br>
+                · Set status to <strong style="color:var(--teal)">VALID</strong> once image is attached
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ISSUE CREDENTIALS PAGE ══ -->
+    <div class="page" id="page-issue" style="display:none">
+      <div class="issue-layout">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- Cert selector -->
+          <div class="table-card" style="padding:20px">
+            <div class="issue-section-title" style="margin-bottom:12px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+              Select VAPT Certificate
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:14px">
+              <div class="mini-search" style="flex:1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" id="issueSearch" placeholder="Search by vessel, IMO, cert ID…" style="width:100%" oninput="renderIssueList(this.value)" />
+              </div>
+              <select class="fcontrol" style="width:130px;padding:7px 12px;font-size:.75rem" id="issueFilter" onchange="renderIssueList(document.getElementById('issueSearch').value)">
+                <option value="">All</option>
+                <option value="NOT_SENT">Pending</option>
+                <option value="SENT">Sent</option>
+              </select>
+            </div>
+            <div id="issueCertList" style="max-height:340px;overflow-y:auto"></div>
+          </div>
+
+          <!-- Email compose panel -->
+          <div class="table-card" style="padding:20px">
+            <div class="issue-section-title" style="margin-bottom:12px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              Issue Credential — Compose Email
+            </div>
+            <div style="padding:30px;text-align:center;color:var(--text-sec);font-size:.82rem" id="issueSelectPrompt">
+              Select a VAPT certificate above to generate the credential email
+            </div>
+            <div id="issueComposeForm" style="display:none">
+              <div style="background:var(--navy-mid);border:1px solid var(--border-gold);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--gold)" id="issueSelectedId"></div>
+                <div style="font-size:.82rem;color:var(--text-bright);margin-top:3px" id="issueSelectedName"></div>
+              </div>
+              <div class="fgroup" style="margin-bottom:14px">
+                <label class="flabel">Recipient Email <span style="color:var(--text-sec);font-size:.6rem">(for reference — send manually)</span></label>
+                <input id="issueRecipEmail" class="fcontrol" type="email" placeholder="master@vessel.com" oninput="updateIssueEmailPreview()" />
+              </div>
+              <div style="margin-bottom:10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <div style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase">Email Body — Copy &amp; Send Manually</div>
+                  <button onclick="copyMailBody()" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s">
+                    <span id="copyBtnTxt">⎘ Copy</span>
+                  </button>
+                </div>
+                <div id="issueEmailPreview" style="background:var(--navy);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.75rem;color:var(--text);line-height:1.9;white-space:pre-wrap;font-family:'DM Sans',sans-serif;min-height:160px;user-select:text"></div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:14px">
+                <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="markSentBtn" onclick="markAsSent()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  <span id="markSentTxt">Mark as Sent</span>
+                </button>
+                <button class="btn btn-ghost" onclick="clearIssueSelection()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Stats + Sent Log -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="send-panel">
+            <div class="send-panel-hdr">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              <span style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Dispatch Stats</span>
+            </div>
+            <div style="padding:16px">
+              <div class="send-stats">
+                <div class="send-stat ss-sent">
+                  <div class="ss-num" id="dispatchSent">0</div>
+                  <div class="ss-label">Sent</div>
+                </div>
+                <div class="send-stat ss-pending">
+                  <div class="ss-num" id="dispatchPending">0</div>
+                  <div class="ss-label">Pending</div>
+                </div>
+              </div>
+              <div style="font-size:.7rem;color:var(--text-sec);line-height:1.8;margin-top:4px">
+                · Select a certificate → copy the email body<br>
+                · Send it manually from your mail client<br>
+                · Click <strong style="color:var(--teal)">Mark as Sent</strong> to record it here
+              </div>
+            </div>
+          </div>
+          <div class="send-panel">
+            <div class="send-panel-hdr">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              <span style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Sent Log</span>
+            </div>
+            <div style="max-height:380px;overflow-y:auto;padding:12px" id="sentLogList">
+              <div style="text-align:center;padding:24px;color:var(--text-sec);font-size:.78rem">No credentials marked as sent yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CSV IMPORT PAGE ══ -->
+    <div class="page" id="page-csv" style="display:none">
+      <div class="info-banner">
+        📋 <strong>VAPT CSV Format:</strong> Required: <code>imo_number</code>, <code>vessel_name</code>, <code>assessment_date</code> — Optional: <code>cert_number</code>, <code>recipient_email</code>, <code>notes</code>
+        &nbsp;·&nbsp; <button class="btn btn-ghost btn-sm" onclick="downloadSampleCsv()">Download Sample CSV</button>
+      </div>
+      <div class="section-card">
+        <div class="section-title">Upload VAPT CSV File</div>
+        <div class="csv-drop" id="csvDrop" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleCsvDrop(event)">
+          <input type="file" id="csvFileInput" accept=".csv,.txt" onchange="loadCsvFile(this.files[0])" />
+          <div id="csvUploadDefault">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <div class="upload-text">Drop VAPT CSV here or click to browse</div>
+            <div style="font-size:.6rem;color:var(--text-sec);opacity:.6;margin-top:4px">Columns: imo_number, vessel_name, assessment_date, cert_number, recipient_email</div>
+          </div>
+          <div id="csvUploadLoaded" style="display:none;align-items:center;gap:12px;justify-content:center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span id="csvLoadedName" style="color:var(--text-bright);font-size:.82rem"></span>
+            <button class="btn btn-ghost btn-sm" onclick="clearCsvFile(event)">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+      <div id="csvPreviewWrap" style="display:none">
+        <div class="section-card">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div class="section-title" style="margin-bottom:0">Preview</div>
+            <span id="csvPreviewCount" style="color:var(--teal);font-family:'JetBrains Mono',monospace;font-size:.75rem">0</span>
+            <span style="color:var(--text-sec);font-size:.72rem">records</span>
+            <button class="btn btn-primary btn-sm" id="csvImportBtn" onclick="doImportCsv()" disabled style="margin-left:auto">
+              <span id="csvImportTxt">Import All Records</span>
+            </button>
+          </div>
+          <div id="csvWarnBox" style="display:none;background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.25);border-radius:9px;padding:10px 14px;font-size:.75rem;color:var(--warn);margin-bottom:12px"></div>
+          <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border-radius:8px;background:var(--navy-mid)">
+            <div id="csvPreviewTable"></div>
+          </div>
+        </div>
+        <div id="csvResultLog" style="display:none;background:var(--navy-mid);border:1px solid var(--border);border-radius:12px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:.7rem;max-height:260px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ══ VIEW MODAL ══ -->
+<div class="overlay" id="viewOverlay" style="display:none" onclick="if(event.target===this)closeView()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+      <div class="modal-title" id="viewTitle">VAPT Certificate</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeView()" style="margin-left:auto">✕ Close</button>
+    </div>
+    <div class="modal-body" id="viewBody"></div>
+    <div class="modal-foot" id="viewFoot"></div>
+  </div>
+</div>
+
+<!-- ══ DELETE MODAL ══ -->
+<div class="overlay" id="delOverlay" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-hdr">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+      <div class="modal-title">Delete VAPT Certificate</div>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-sec);font-size:.85rem">Are you sure you want to permanently delete certificate <strong id="delId" style="color:var(--gold)"></strong>? This cannot be undone.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeDel()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="lightbox" onclick="closeLB()"><span class="lb-x" onclick="closeLB()">✕</span><img id="lbImg" src="" alt="" /></div>
+
+<!-- PDF Viewer Modal -->
+<div id="pdfViewerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9500;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)closePdfViewer()">
+  <div style="width:100%;max-width:960px;background:var(--surface);border:1px solid var(--border-gold);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--navy-mid);border-bottom:1px solid var(--border)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span id="pdfViewerTitle" style="font-size:.84rem;font-weight:600;color:var(--text-bright);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <a id="pdfViewerLink" href="#" target="_blank" style="font-size:.65rem;color:var(--teal);text-decoration:none;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);border-radius:7px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.06em;white-space:nowrap;flex-shrink:0">↗ Open in New Tab</a>
+      <button onclick="closePdfViewer()" style="background:none;border:none;color:var(--text-sec);font-size:1.3rem;cursor:pointer;padding:0 6px;line-height:1;font-family:'DM Sans',sans-serif;margin-left:4px;flex-shrink:0">✕</button>
+    </div>
+    <iframe id="pdfViewerFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="PDF Viewer"></iframe>
+  </div>
+</div>
+
+<script>
+  const API = '/api';
+  let TOKEN = sessionStorage.getItem('adminToken') || '';
+  let CERTS = [];
+  let STATUS_CHART = null, EXPIRY_CHART = null;
+  let editingId = null, imgFile = null, deleteTargetId = null;
+  let filterStatus = '';
+  let csvParsedRows = [];
+  let selectedIssueCertId = null;
+
+  // ── AUTH ──
+  async function doLogin() {
+    const u = document.getElementById('lUser').value.trim();
+    const p = document.getElementById('lPass').value;
+    document.getElementById('lBtnTxt').textContent = 'Authenticating…';
+    try {
+      const r = await fetch(API + '/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u,password:p}) });
+      const d = await r.json();
+      if (!r.ok) throw new Error();
+      TOKEN = d.token;
+      sessionStorage.setItem('adminToken', TOKEN);
+      document.getElementById('loginWrap').style.display = 'none';
+      document.getElementById('appWrap').style.display = 'flex';
+      initApp();
+    } catch { document.getElementById('loginErr').style.display = 'block'; }
+    document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
+  }
+  function doLogout() {
+    sessionStorage.removeItem('adminToken'); TOKEN = '';
+    document.getElementById('loginWrap').style.display = 'flex';
+    document.getElementById('appWrap').style.display = 'none';
+  }
+
+  // ── INIT ──
+  async function initApp() { await refreshStats(); renderTbl('dashTbl',''); }
+
+  async function refreshStats() {
+    try {
+      const r = await fetch(API + '/vapt/certs', { headers:{ Authorization:'Bearer '+TOKEN } });
+      if (r.status === 401) { toast('Session expired.','err'); doLogout(); return; }
+      CERTS = await r.json();
+      const now = new Date();
+      let valid=0,expired=0,emailSent=0,emailPending=0,nearExpiry=[],pendingSend=[];
+      CERTS.forEach(c => {
+        const vu = c.validUntil ? new Date(c.validUntil) : null;
+        const isV = c.status==='VALID' && (!vu || vu>=now);
+        if (isV) valid++; else if (c.status!=='PENDING'&&c.status!=='REVOKED') expired++;
+        if (c.emailStatus==='SENT') emailSent++; else emailPending++;
+        const dl = daysUntil(c.validUntil);
+        if (dl!==null && dl>=0 && dl<=30) nearExpiry.push({...c,daysLeft:dl});
+        if (c.emailStatus!=='SENT' && c.recipientEmail && isV) pendingSend.push(c);
+      });
+      nearExpiry.sort((a,b)=>a.daysLeft-b.daysLeft);
+      // Update stat cards
+      document.getElementById('stTotal').textContent = CERTS.length;
+      document.getElementById('stValid').textContent = valid;
+      document.getElementById('stExpired').textContent = expired;
+      document.getElementById('stNearExpiry').textContent = nearExpiry.length;
+      document.getElementById('stEmailSent').textContent = emailSent;
+      document.getElementById('nbTotal').textContent = CERTS.length;
+      // Sidebar
+      document.getElementById('svValid').textContent = valid;
+      document.getElementById('svExpired').textContent = expired;
+      document.getElementById('svNearExpiry').textContent = nearExpiry.length;
+      document.getElementById('svEmailSent').textContent = emailSent;
+      document.getElementById('svEmailPending').textContent = emailPending;
+      // Issue page
+      document.getElementById('dispatchSent').textContent = emailSent;
+      document.getElementById('dispatchPending').textContent = emailPending;
+      // Alert panels
+      document.getElementById('neCountBadge').textContent = nearExpiry.length;
+      document.getElementById('pendingSendBadge').textContent = pendingSend.length;
+      renderNearExpiry(nearExpiry);
+      renderPendingSend(pendingSend);
+      updateCharts({valid,expired,nearExpiry,total:CERTS.length});
+      updateInsights({valid,expired,emailSent,emailPending,nearExpiry,total:CERTS.length});
+    } catch {}
+  }
+
+  function daysUntil(d) {
+    if (!d) return null;
+    const t=new Date(d),now=new Date();
+    return Math.round((t.setHours(0,0,0,0)-now.setHours(0,0,0,0))/86400000);
+  }
+  function fmt(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  function fmtTiny(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+  }
+
+  function renderNearExpiry(list) {
+    const el = document.getElementById('nearExpiryList');
+    if (!list.length) { el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:.78rem">All VAPT certificates healthy — no urgent expiries</div>'; return; }
+    el.innerHTML = list.map(c => {
+      const dl=c.daysLeft;
+      const bc=dl<=7?'crit':dl<=20?'warn':'ok';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="editCert('${c.id}')">
+        <div class="ne-days-badge ${bc}">${dl===0?'TODAY':dl+'d'}</div>
+        <div style="flex:1">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
+          <div style="font-size:.76rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
+          <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)}</div>
+        </div>
+        <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();editCert('${c.id}')">Edit</button>
+      </div>`;
+    }).join('');
+  }
+
+  function renderPendingSend(list) {
+    const el = document.getElementById('pendingSendList');
+    if (!list.length) { el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:.78rem">All credentials dispatched</div>'; return; }
+    el.innerHTML = list.slice(0,12).map(c => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="flex:1">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
+          <div style="font-size:.76rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
+          <div style="font-size:.62rem;color:var(--text-sec)">${c.recipientEmail||'No email'}</div>
+        </div>
+        <button class="btn btn-issue btn-sm" onclick="goIssue('${c.id}')">Send</button>
+      </div>`).join('');
+  }
+
+  function goIssue(id) {
+    showPage('issue',document.getElementById('nav-issue'));
+    setTimeout(() => { selectIssueCert(id); },100);
+  }
+
+  // ── CHARTS ──
+  function updateCharts(a) {
+    const chartDefaults = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#8892B0', font:{ size:10 }, boxWidth:10, padding:8 } } } };
+    if (STATUS_CHART) STATUS_CHART.destroy();
+    const sc = document.getElementById('statusChart').getContext('2d');
+    STATUS_CHART = new Chart(sc, {
+      type:'doughnut',
+      data:{ labels:['Valid','Expired','Other'], datasets:[{ data:[a.valid,a.expired,a.total-a.valid-a.expired], backgroundColor:['rgba(100,255,218,.7)','rgba(255,107,138,.7)','rgba(255,179,71,.5)'], borderWidth:0, hoverOffset:4 }] },
+      options:{ ...chartDefaults, cutout:'68%' }
+    });
+    if (EXPIRY_CHART) EXPIRY_CHART.destroy();
+    const ec = document.getElementById('expiryChart').getContext('2d');
+    const exp30=a.nearExpiry.filter(x=>x.daysLeft<=30).length;
+    const exp7=a.nearExpiry.filter(x=>x.daysLeft<=7).length;
+    EXPIRY_CHART = new Chart(ec, {
+      type:'doughnut',
+      data:{ labels:['Critical (≤7d)','Soon (≤30d)','Healthy'], datasets:[{ data:[exp7,exp30-exp7,a.total-exp30], backgroundColor:['rgba(255,107,138,.7)','rgba(255,179,71,.6)','rgba(100,255,218,.4)'], borderWidth:0, hoverOffset:4 }] },
+      options:{ ...chartDefaults, cutout:'68%' }
+    });
+  }
+
+  function updateInsights(a) {
+    const chips = document.getElementById('insightChips');
+    const list = document.getElementById('insightList');
+    const validPct = a.total>0 ? Math.round(a.valid/a.total*100) : 0;
+    const sentPct = a.total>0 ? Math.round(a.emailSent/a.total*100) : 0;
+    chips.innerHTML = `
+      <span class="analytics-chip" style="background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.2)">${validPct}% Valid</span>
+      <span class="analytics-chip" style="background:rgba(126,184,247,.1);color:#7EB8F7;border:1px solid rgba(126,184,247,.2)">${sentPct}% Sent</span>
+      ${a.nearExpiry.length>0?`<span class="analytics-chip" style="background:rgba(255,179,71,.1);color:var(--warn);border:1px solid rgba(255,179,71,.2)">${a.nearExpiry.length} Near Expiry</span>`:''}
+    `;
+    const insights = [];
+    if (a.emailPending>0) insights.push(`${a.emailPending} credential(s) not yet dispatched`);
+    if (a.nearExpiry.length>0) insights.push(`${a.nearExpiry.filter(x=>x.daysLeft<=7).length} cert(s) expiring within 7 days`);
+    if (validPct>=90) insights.push('Registry health: Excellent');
+    else if (validPct>=70) insights.push('Registry health: Good');
+    else insights.push('Registry health: Needs attention');
+    if (a.expired>0) insights.push(`${a.expired} expired cert(s) — consider renewal`);
+    list.innerHTML = insights.map(i=>`<li>${i}</li>`).join('');
+  }
+
+  // ── TABLE ──
+  function renderTbl(id, q) {
+    const el = document.getElementById(id);
+    let list = CERTS;
+    if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').toLowerCase().includes(ql)); }
+    if (filterStatus) list=list.filter(c=>c.status===filterStatus);
+    if (!list.length) { el.innerHTML='<div class="empty-state"><h3>No VAPT certificates found</h3><p>Add one to get started.</p></div>'; return; }
+    el.innerHTML = `<table><thead><tr>
+      <th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Image</th><th>Actions</th>
+    </tr></thead><tbody>` + list.slice(0,60).map(c => {
+      const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
+      const isV=c.status==='VALID'&&(!vu||vu>=now);
+      const pillCls=c.status==='PENDING'?'pending':(isV?'valid':'expired');
+      const dl=daysUntil(c.validUntil);
+      let vlStr=fmt(c.validUntil);
+      if (dl!==null){if(dl>0)vlStr+=` · in ${dl}d`;else if(dl===0)vlStr+=' · today';else vlStr+=` · ${Math.abs(dl)}d ago`;}
+      const imgEl = c.certificateImage
+        ? `<img class="thumb" src="${c.certificateImage}" loading="lazy" onclick="openLB(this.src)" onerror="this.style.display='none';this.nextSibling.style.display='inline-flex'" /><div class="no-img" style="display:none">—</div>`
+        : '<div class="no-img">—</div>';
+      const emailCls=c.emailStatus==='SENT'?'sent':'not-sent';
+      const canSend=c.recipientEmail&&c.emailStatus!=='SENT';
+      return `<tr>
+        <td><span class="cid">${c.id}</span></td>
+        <td style="color:var(--text-bright);font-weight:500">${c.recipientName||'—'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-sec)">${c.vesselIMO||'—'}</td>
+        <td style="font-size:.78rem">${fmt(c.assessmentDate)}</td>
+        <td><span class="pill ${pillCls}">${isV?'✓ ':' '}${c.status}</span></td>
+        <td style="color:${isV?'var(--teal)':'var(--invalid)'};font-size:.78rem">${vlStr}</td>
+        <td><span class="pill ${emailCls}" title="${c.recipientEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'— Pending'}</span></td>
+        <td>${imgEl}</td>
+        <td><div class="act-grp">
+          <button class="btn btn-ghost btn-sm" onclick="viewCert('${c.id}')">View</button>
+          <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.55rem">🔒 URL</button>
+          ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${c.id}')">Send</button>`:''}
+          <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Del</button>
+        </div></td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+  }
+
+  // ── PAGES ──
+  function showPage(name, el) {
+    ['dashboard','certs','add','issue','csv'].forEach(p => {
+      document.getElementById('page-'+p).style.display = p===name?'':'none';
+    });
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const titles={
+      dashboard:['VAPT Dashboard','Admin › VAPT › Overview'],
+      certs:['All VAPT Certificates','Admin › VAPT › Certificates'],
+      add:[editingId?'Edit VAPT Certificate':'Add VAPT Certificate','Admin › VAPT › '+(editingId?'Edit':'Add')],
+      issue:['Issue VAPT Credentials','Admin › VAPT › Issue Credentials'],
+      csv:['Import VAPT CSV','Admin › VAPT › CSV Import']
+    };
+    const [t,b]=titles[name]||['',''];
+    document.getElementById('pageTitle').textContent=t;
+    document.getElementById('pageBread').textContent=b;
+    if (name==='certs') renderTbl('allTbl','');
+    if (name==='issue') { renderIssueList(''); refreshStats(); renderSentLog(); }
+  }
+
+  // ── ADD / EDIT ──
+  function startAdd() {
+    editingId=null; imgFile=null;
+    document.getElementById('addPageTitle').textContent='Add VAPT Certificate';
+    document.getElementById('saveTxt').textContent='Save Certificate';
+    clearForm();
+    document.getElementById('fAssessmentDate').value=new Date().toISOString().slice(0,10);
+    autoSetValidUntil(); updatePreview(); updateCompletion();
+    showPage('add',document.getElementById('nav-add'));
+  }
+
+  function autoSetValidUntil() {
+    const ad=document.getElementById('fAssessmentDate').value;
+    if (!ad) return;
+    const d=new Date(ad); d.setFullYear(d.getFullYear()+1);
+    document.getElementById('fValidUntil').value=d.toISOString().slice(0,10);
+  }
+  function autoGenId() {
+    if (editingId) return;
+    const imo=document.getElementById('fImo').value.trim();
+    const ad=document.getElementById('fAssessmentDate').value;
+    if (!imo||!ad||document.getElementById('fId').value) return;
+    const d=new Date(ad);
+    const mm=String(d.getMonth()+1).padStart(2,'0');
+    const yy=String(d.getFullYear()).slice(-2);
+    document.getElementById('fId').value=`VAP-${imo}-${mm}${yy}`;
+    updatePreview();
+  }
+
+  function clearForm() {
+    ['fId','fImo','fVesselName','fRecipientName','fRecipientEmail'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('fAssessmentDate').value='';
+    document.getElementById('fValidUntil').value='';
+    document.getElementById('fVerifiedBy').value='Gaurav Singh';
+    document.getElementById('fVerifierTitle').value='CISO — Synergy Group';
+    document.getElementById('fAssessingOrg').value='Synergy Cybersecurity team';
+    document.getElementById('fStatus').value='VALID';
+    document.getElementById('fFrameworks').value='Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013';
+    document.getElementById('fScopeItems').value='Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits';
+    document.getElementById('fIssuerEmail').value='vapt@synergyship.com';
+    document.getElementById('fNotes').value='Re-assessment recommended within 2 weeks from date of participation.';
+    document.getElementById('uploadDefault').style.display='block';
+    document.getElementById('uploadPrev').style.display='none';
+    imgFile=null;
+    pendingPdfs=[]; savedAttachments=[]; renderAttachList();
+  }
+
+  function editCert(id) {
+    const c=CERTS.find(x=>x.id===id); if (!c) return;
+    editingId=id; imgFile=null;
+    document.getElementById('addPageTitle').textContent='Edit VAPT Certificate';
+    document.getElementById('saveTxt').textContent='Update Certificate';
+    document.getElementById('fId').value=c.id;
+    document.getElementById('fImo').value=c.vesselIMO||'';
+    document.getElementById('fVesselName').value=c.vesselName||'';
+    document.getElementById('fRecipientName').value=c.recipientName||'';
+    document.getElementById('fAssessmentDate').value=c.assessmentDate||'';
+    document.getElementById('fValidUntil').value=c.validUntil||'';
+    document.getElementById('fVerifiedBy').value=c.verifiedBy||'Gaurav Singh';
+    document.getElementById('fVerifierTitle').value=c.verifierTitle||'CISO — Synergy Group';
+    document.getElementById('fAssessingOrg').value=c.assessingOrg||'Synergy Cybersecurity team';
+    document.getElementById('fStatus').value=c.status||'VALID';
+    document.getElementById('fFrameworks').value=c.frameworks||'';
+    document.getElementById('fScopeItems').value=c.scopeItems||'';
+    document.getElementById('fRecipientEmail').value=c.recipientEmail||'';
+    document.getElementById('fIssuerEmail').value=c.issuerEmail||'vapt@synergyship.com';
+    document.getElementById('fNotes').value=c.notes||'';
+    if (c.certificateImage) {
+      document.getElementById('uploadDefault').style.display='none';
+      document.getElementById('uploadPrev').style.display='block';
+      document.getElementById('prevImg').src=c.certificateImage;
+      document.getElementById('prevName').textContent='Existing image';
+      document.getElementById('imgRequiredTag').style.display='none';
+    }
+    // Load existing attachments
+    pendingPdfs=[]; savedAttachments=Array.isArray(c.attachments)?c.attachments:[]; renderAttachList();
+    updatePreview(); updateCompletion();
+    showPage('add',document.getElementById('nav-add'));
+  }
+
+  // ── LIVE PREVIEW ──
+  function updatePreview() {
+    const v=id=>document.getElementById(id)?.value||'';
+    document.getElementById('pv-id').textContent=v('fId')||'—';
+    document.getElementById('pv-name').textContent=v('fRecipientName')||v('fVesselName')||'Vessel / Recipient Name';
+    document.getElementById('pv-imo').textContent=v('fImo')||'—';
+    document.getElementById('pv-assessed').textContent=v('fAssessmentDate')?fmtTiny(v('fAssessmentDate')):'—';
+    document.getElementById('pv-until').textContent=v('fValidUntil')?fmtTiny(v('fValidUntil')):'—';
+    document.getElementById('pv-status').textContent=v('fStatus')||'VALID';
+    document.getElementById('pv-verifier').textContent=(v('fVerifiedBy')||'Gaurav Singh')+(v('fVerifierTitle')?', '+v('fVerifierTitle').split('—')[0].trim():'');
+    document.getElementById('pv-watermark').textContent=v('fStatus')||'VALID';
+    updateCompletion();
+  }
+  function fmtTiny(d){if(!d)return'—';return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+
+  // ── COMPLETION PANEL ──
+  function updateCompletion() {
+    const v=id=>document.getElementById(id)?.value.trim()||'';
+    const hasImg = !!document.getElementById('prevImg')?.src || !!imgFile;
+    const checks = [
+      { label:'Certificate ID', done:!!v('fId'), key:'id' },
+      { label:'Vessel Name & Recipient', done:!!(v('fVesselName')&&v('fRecipientName')), key:'vessel' },
+      { label:'Assessment & Validity Dates', done:!!(v('fAssessmentDate')&&v('fValidUntil')), key:'dates' },
+      { label:'Recipient Email', done:!!v('fRecipientEmail'), warn:!v('fRecipientEmail'), key:'email' },
+      { label:'Certificate Image', done:hasImg, key:'image' },
+    ];
+    const doneCount=checks.filter(c=>c.done).length;
+    const pct=Math.round(doneCount/checks.length*100);
+    const allDone=doneCount===checks.length;
+    const cpBar=document.getElementById('cpBar');
+    const cpHeader=document.getElementById('cpHeader');
+    cpBar.style.width=pct+'%';
+    cpBar.style.background=allDone?'var(--teal)':doneCount>=3?'var(--gold)':'var(--warn)';
+    document.getElementById('cpProgressBadge').textContent=`${doneCount}/${checks.length}`;
+    document.getElementById('cpHeaderTitle').textContent=allDone?'Ready to Save':'Incomplete';
+    document.getElementById('cpHeaderTitle').style.color=allDone?'var(--teal)':doneCount>=3?'var(--gold)':'var(--warn)';
+    document.getElementById('cpHeaderSub').textContent=allDone?'All fields complete — certificate ready':'Complete required fields to activate';
+    document.getElementById('cpProgressBadge').style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,179,71,.12)';
+    document.getElementById('cpProgressBadge').style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,179,71,.25)';
+    document.getElementById('cpProgressBadge').style.color=allDone?'var(--teal)':'var(--warn)';
+    const icon=document.getElementById('cpHeaderIcon');
+    icon.textContent=allDone?'✓':'?';
+    icon.style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,179,71,.12)';
+    icon.style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,179,71,.3)';
+    icon.style.color=allDone?'var(--teal)':'var(--warn)';
+    document.getElementById('cpItems').innerHTML=checks.map(c=>`
+      <div class="cp-item ${c.done?'done':c.warn?'warn':'missing'}">
+        <div class="cp-check">${c.done?'✓':c.warn?'⚠':''}</div>
+        <span class="cp-label">${c.label}</span>
+        <span class="cp-tag">${c.done?'Done':c.warn?'Optional':'Required'}</span>
+      </div>`).join('');
+  }
+
+  // ── SAVE ──
+  async function saveCert() {
+    const v=id=>document.getElementById(id)?.value.trim()||'';
+    if (!v('fId')||!v('fVesselName')||!v('fAssessmentDate')||!v('fValidUntil')) { toast('Fill required fields','err'); return; }
+    const btn=document.getElementById('saveBtn'); btn.disabled=true;
+    document.getElementById('saveTxt').textContent='Saving…';
+    try {
+      // Always use FormData so we can include pending PDF attachments
+      const fd = new FormData();
+      fd.append('id', v('fId'));
+      fd.append('vesselIMO', v('fImo'));
+      fd.append('vesselName', v('fVesselName'));
+      fd.append('recipientName', v('fRecipientName'));
+      fd.append('assessmentDate', v('fAssessmentDate'));
+      fd.append('validUntil', v('fValidUntil'));
+      fd.append('verifiedBy', v('fVerifiedBy'));
+      fd.append('verifierTitle', v('fVerifierTitle'));
+      fd.append('assessingOrg', v('fAssessingOrg'));
+      fd.append('status', v('fStatus'));
+      fd.append('frameworks', v('fFrameworks'));
+      fd.append('scopeItems', v('fScopeItems'));
+      fd.append('recipientEmail', v('fRecipientEmail'));
+      fd.append('issuerEmail', v('fIssuerEmail'));
+      fd.append('notes', v('fNotes'));
+
+      // Certificate image
+      if (imgFile) {
+        fd.append('certificateImage', imgFile);
+      } else {
+        const existing = CERTS.find(x=>x.id===(editingId||v('fId')));
+        if (existing?.certificateImage) fd.append('certificateImageUrl', existing.certificateImage);
+      }
+
+      // Existing saved attachments (passed as JSON so server knows what to keep)
+      fd.append('attachments', JSON.stringify(savedAttachments));
+
+      // New PDF files
+      pendingPdfs.forEach((p, i) => fd.append(`attachment${i}`, p.file, p.name));
+
+      const url=editingId?`${API}/vapt/certs/${editingId}`:`${API}/vapt/certs`;
+      const method=editingId?'PUT':'POST';
+      const r=await fetch(url,{method,headers:{Authorization:'Bearer '+TOKEN},body:fd});
+      if (!r.ok) { const d=await r.json(); throw new Error(d.error||'Save failed'); }
+      const saved = await r.json();
+      // Update local state
+      savedAttachments = Array.isArray(saved.attachments) ? saved.attachments : [];
+      pendingPdfs = [];
+      renderAttachList();
+      toast(editingId?'Certificate updated!':'Certificate saved!','ok');
+      await refreshStats(); renderTbl('dashTbl','');
+      showPage('certs',document.getElementById('nav-certs'));
+    } catch(e) { toast(e.message||'Save failed','err'); }
+    btn.disabled=false;
+    document.getElementById('saveTxt').textContent=editingId?'Update Certificate':'Save Certificate';
+  }
+
+  // ── VIEW ──
+  // ── VIEW ATTACHMENTS HELPER ──
+  function buildViewAttachments(atts) {
+    if (!atts || !atts.length) return '';
+    var rows = '';
+    for (var i = 0; i < atts.length; i++) {
+      var a = atts[i];
+      var url  = a.url  || '';
+      var name = a.name || ('Document ' + (i + 1));
+      var uL   = url.toLowerCase(), nL = name.toLowerCase();
+      var isPdf = uL.endsWith('.pdf') || nL.endsWith('.pdf');
+      var isImg = /\.(jpg|jpeg|png|webp|gif)$/.test(uL) || /\.(jpg|jpeg|png|webp|gif)$/.test(nL);
+      var ext  = name.split('.').pop().toUpperCase() || 'FILE';
+      var safeUrl  = url.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var iconColor = isPdf ? 'var(--gold)' : 'var(--teal)';
+      var iconPath  = isPdf
+        ? 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+        : 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z';
+      if (isPdf) {
+        rows +=
+          '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--navy-mid);margin-bottom:6px">' +
+            '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px">' +
+              '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
+              '<span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
+              '<span style="font-size:.56rem;font-weight:700;color:var(--gold);letter-spacing:.06em;background:var(--gold-dim);border:1px solid var(--border-gold);border-radius:4px;padding:2px 6px;flex-shrink:0">' + ext + '</span>' +
+              '<button onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeUrl + '\',\'_blank\')" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:6px;padding:4px 10px;font-size:.62rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:600;letter-spacing:.06em;flex-shrink:0;margin-left:2px">👁 View</button>' +
+              '<a href="' + safeUrl + '" download="' + safeName + '" onclick="event.stopPropagation()" title="Download" style="display:inline-flex;align-items:center;justify-content:center;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);color:var(--teal);border-radius:6px;padding:4px 8px;margin-left:4px;text-decoration:none;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>' +
+            '</div>' +
+          '</div>';
+      } else if (isImg) {
+        rows +=
+          '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--navy-mid);margin-bottom:6px">' +
+            '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px">' +
+              '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
+              '<span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
+              '<span style="font-size:.56rem;font-weight:700;color:var(--teal);letter-spacing:.06em;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);border-radius:4px;padding:2px 6px;flex-shrink:0">' + ext + '</span>' +
+              '<button onclick="openLB(\'' + safeUrl + '\')" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);color:var(--teal);border-radius:6px;padding:4px 10px;font-size:.62rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:600;letter-spacing:.06em;flex-shrink:0;margin-left:2px">🔍 Zoom</button>' +
+            '</div>' +
+            '<img src="' + url + '" style="width:100%;max-height:200px;object-fit:contain;background:var(--navy);display:block;border-top:1px solid var(--border);cursor:zoom-in" onclick="openLB(\'' + safeUrl + '\')" />' +
+          '</div>';
+      } else {
+        rows +=
+          '<a href="' + url + '" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--navy-mid);color:var(--gold);font-size:.76rem;text-decoration:none;margin-bottom:6px">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' +
+            '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
+            '<span style="font-size:.56rem;font-weight:700;color:var(--text-sec);letter-spacing:.06em;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;padding:2px 6px;flex-shrink:0">' + ext + '</span>' +
+          '</a>';
+      }
+    }
+    return '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">' +
+      '<div style="font-size:.6rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">' +
+        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>' +
+        'Reference Documents (' + atts.length + ')' +
+      '</div>' +
+      rows +
+    '</div>';
+  }
+
+  function viewCert(id) {
+    const c=CERTS.find(x=>x.id===id); if (!c) return;
+    const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
+    const isV=c.status==='VALID'&&(!vu||vu>=now);
+    document.getElementById('viewTitle').textContent=`VAPT — ${c.id}`;
+    const atts = Array.isArray(c.attachments) ? c.attachments : [];
+    document.getElementById('viewBody').innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Vessel / Recipient</div>
+          <div style="color:var(--text-bright);font-weight:500">${c.recipientName||'—'}</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">IMO Number</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--gold)">${c.vesselIMO||'—'}</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Status</div>
+          <span class="pill ${isV?'valid':'expired'}">${isV?'✓ VALID':c.status}</span>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Valid Until</div>
+          <div style="color:${isV?'var(--teal)':'var(--invalid)'};font-size:.82rem">${fmt(c.validUntil)}</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Assessment Date</div>
+          <div style="color:var(--text-bright)">${fmt(c.assessmentDate)}</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Email Status</div>
+          <span class="pill ${c.emailStatus==='SENT'?'sent':'not-sent'}">${c.emailStatus==='SENT'?'✓ Sent':'Pending'}</span>
+        </div>
+      </div>
+      ${c.certificateImage?`<img src="${c.certificateImage}" style="width:100%;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;margin-bottom:${atts.length?'14px':'0'}" onclick="openLB(this.src)" />`:''}
+      ${buildViewAttachments(atts)}
+    `;
+    document.getElementById('viewFoot').innerHTML=`
+      <button class="btn btn-teal btn-sm" onclick="closeView();editCert('${c.id}')">Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="copyEncUrl('${c.id}',this)">🔒 Copy URL</button>
+      ${c.recipientEmail&&c.emailStatus!=='SENT'?`<button class="btn btn-issue btn-sm" onclick="closeView();goIssue('${c.id}')">Send Credential</button>`:''}
+    `;
+    document.getElementById('viewOverlay').style.display='flex';
+  }
+  function closeView(){document.getElementById('viewOverlay').style.display='none';}
+
+  // ── DELETE ──
+  function askDelete(id){ deleteTargetId=id; document.getElementById('delId').textContent=id; document.getElementById('delOverlay').style.display='flex'; }
+  function closeDel(){ document.getElementById('delOverlay').style.display='none'; }
+  async function confirmDelete() {
+    if (!deleteTargetId) return;
+    try {
+      const r=await fetch(`${API}/vapt/certs/${deleteTargetId}`,{method:'DELETE',headers:{Authorization:'Bearer '+TOKEN}});
+      if (r.ok){toast('Deleted','ok');await refreshStats();renderTbl('dashTbl','');renderTbl('allTbl','');}
+      else toast('Delete failed','err');
+    } catch { toast('Network error','err'); }
+    closeDel();
+  }
+
+  // ── COPY URL ──
+  async function copyEncUrl(id, btn) {
+    try {
+      const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
+      if (r.ok){
+        const d=await r.json();
+        const url = d.url || `${window.location.origin}/VPT/${encodeURIComponent(id)}`;
+        await navigator.clipboard.writeText(url);
+        if(btn){const t=btn.textContent;btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent=t,2000);}
+        toast('Verification URL copied!','ok');
+      } else toast('URL generation failed','err');
+    } catch { toast('Could not copy URL','err'); }
+  }
+
+  // ── ISSUE / SEND ──
+  let _issueEmailCache={};
+  function renderIssueList(q) {
+    const filter=document.getElementById('issueFilter')?.value||'';
+    let list=CERTS;
+    if (q){const ql=q.toLowerCase();list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').toLowerCase().includes(ql));}
+    if (filter) list=list.filter(c=>c.emailStatus===filter||(filter==='NOT_SENT'&&c.emailStatus!=='SENT'));
+    const el=document.getElementById('issueCertList');
+    if (!list.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:.82rem">No certificates found</div>';return;}
+    el.innerHTML=list.slice(0,40).map(c=>{
+      const done=c.emailStatus==='SENT';
+      const sel=c.id===selectedIssueCertId;
+      return `<div class="issue-cert-row ${sel?'selected':done?'done':''}" onclick="selectIssueCert('${c.id}')">
+        <div class="issue-cert-check">${sel?'▶':done?'✓':''}</div>
+        <div class="issue-cert-meta" style="flex:1">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
+          <div style="font-size:.78rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
+          <div style="font-size:.62rem;color:var(--text-sec)">${c.recipientEmail||'No email'} · IMO: ${c.vesselIMO||'—'}</div>
+        </div>
+        <span class="pill ${done?'sent':'not-sent'}">${done?'✓ Sent':'Pending'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function selectIssueCert(id) {
+    selectedIssueCertId=id;
+    const c=CERTS.find(x=>x.id===id); if(!c) return;
+    renderIssueList(document.getElementById('issueSearch')?.value||'');
+    document.getElementById('issueSelectPrompt').style.display='none';
+    document.getElementById('issueComposeForm').style.display='block';
+    document.getElementById('issueSelectedId').textContent=c.id;
+    document.getElementById('issueSelectedName').textContent=c.recipientName||c.vesselName||'—';
+    document.getElementById('issueRecipEmail').value=c.recipientEmail||'';
+    updateIssueEmailPreview();
+  }
+
+  async function updateIssueEmailPreview() {
+    const c=CERTS.find(x=>x.id===selectedIssueCertId); if(!c) return;
+    // Fetch the real encrypted cert URL from the server
+    let certUrl = `${window.location.origin}/VPT/cert/${encodeURIComponent(c.id)}`;
+    try {
+      const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(c.id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
+      if (r.ok) { const d=await r.json(); if(d.url) certUrl=d.url; }
+    } catch { /* fallback to plain URL */ }
+    const body=
+`Subject: Your VAPT Certificate — ${c.id} — Synergy Group
+
+Dear ${c.recipientName||'Vessel Master / Company Representative'},
+
+Please find below your Vulnerability Assessment & Penetration Testing (VAPT) certificate details from Synergy Marine Group Cyber Security Division.
+
+🔐 Certificate ID:     ${c.id}
+🚢 Vessel:             ${c.recipientName||c.vesselName||'—'}
+📍 IMO Number:         ${c.vesselIMO||'—'}
+📅 Assessment Date:    ${fmt(c.assessmentDate)}
+✅ Valid Until:         ${fmt(c.validUntil)}
+
+You may verify and view your certificate at any time using the secure link below:
+${certUrl}
+
+Frameworks Assessed: ${c.frameworks||'OWASP / IMO Framework / ISO 27001:2013'}
+
+If you have any questions or require a re-assessment, please contact us at vapt@synergyship.com.
+
+Regards,
+${c.verifiedBy||'Gaurav Singh'}
+${c.verifierTitle||'CISO — Synergy Group'}
+Synergy Marine Group · Cyber Security Division`;
+    document.getElementById('issueEmailPreview').textContent=body;
+    _issueEmailCache[c.id]=body;
+  }
+
+  async function copyMailBody() {
+    const txt=document.getElementById('issueEmailPreview').textContent;
+    try{await navigator.clipboard.writeText(txt);document.getElementById('copyBtnTxt').textContent='✓ Copied!';setTimeout(()=>document.getElementById('copyBtnTxt').textContent='⎘ Copy',2000);}
+    catch{toast('Copy failed','err');}
+  }
+
+  async function markAsSent() {
+    if (!selectedIssueCertId) return;
+    const btn=document.getElementById('markSentBtn');
+    btn.disabled=true;
+    document.getElementById('markSentTxt').textContent='Marking…';
+    try {
+      const fd = new FormData();
+      fd.append('emailStatus', 'SENT');
+      fd.append('emailSentAt', new Date().toISOString());
+      const r=await fetch(`${API}/vapt/certs/${encodeURIComponent(selectedIssueCertId)}`,{method:'PUT',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+      if (r.ok){
+        // Update local state immediately
+        const c=CERTS.find(x=>x.id===selectedIssueCertId);
+        if(c){ c.emailStatus='SENT'; c.emailSentAt=new Date().toISOString(); }
+        // Show permanent success state — keep button disabled
+        document.getElementById('markSentTxt').textContent='✓ Marked as Sent';
+        btn.style.background='rgba(100,255,218,.12)';
+        btn.style.borderColor='rgba(100,255,218,.35)';
+        btn.style.color='var(--teal)';
+        toast('✓ Credential marked as sent!','ok');
+        await refreshStats();
+        renderIssueList(document.getElementById('issueSearch')?.value||'');
+        renderSentLog();
+        return; // ← exit early, do NOT re-enable button
+      } else {
+        toast('Failed to mark as sent','err');
+      }
+    } catch { toast('Network error — please retry','err'); }
+    // Only reached on failure — re-enable
+    btn.disabled=false;
+    btn.style.background=''; btn.style.borderColor=''; btn.style.color='';
+    document.getElementById('markSentTxt').textContent='Mark as Sent';
+  }
+
+  function clearIssueSelection(){
+    selectedIssueCertId=null;
+    document.getElementById('issueSelectPrompt').style.display='block';
+    document.getElementById('issueComposeForm').style.display='none';
+    renderIssueList(document.getElementById('issueSearch')?.value||'');
+  }
+
+  function renderSentLog() {
+    const sent=CERTS.filter(c=>c.emailStatus==='SENT').sort((a,b)=>new Date(b.emailSentAt||0)-new Date(a.emailSentAt||0));
+    const el=document.getElementById('sentLogList');
+    if (!sent.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:.78rem">No credentials marked as sent yet</div>';return;}
+    el.innerHTML=sent.slice(0,20).map(c=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></div>
+        <div style="flex:1">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--gold)">${c.id}</div>
+          <div style="font-size:.72rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
+        </div>
+        <div style="font-size:.62rem;color:var(--text-sec)">${c.emailSentAt?fmt(c.emailSentAt):''}</div>
+      </div>`).join('');
+  }
+
+  // ── IMAGE UPLOAD ──
+  function onFileSelect(input){if(input.files&&input.files[0])setImg(input.files[0]);}
+  function onDragOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('drag-over');}
+  function onDragLeave(){document.getElementById('dropZone').classList.remove('drag-over');}
+  function onDrop(e){e.preventDefault();document.getElementById('dropZone').classList.remove('drag-over');if(e.dataTransfer.files[0])setImg(e.dataTransfer.files[0]);}
+
+  // ── PDF ATTACHMENTS ──
+  let pendingPdfs = []; // {file, name} — queued to upload on save
+  let savedAttachments = []; // {name, url} — already saved on server
+
+  function renderAttachList() {
+    const el = document.getElementById('attachList'); if (!el) return;
+    const all = [
+      ...savedAttachments.map((a, i) => ({ ...a, kind: 'saved', idx: i })),
+      ...pendingPdfs.map((p, i) => ({ name: p.name, kind: 'pending', idx: i }))
+    ];
+    if (!all.length) { el.innerHTML = ''; return; }
+    el.innerHTML = all.map(a => {
+      const ext = (a.name || '').split('.').pop().toLowerCase();
+      const typeColor = ext === 'pdf' ? 'var(--gold)' : 'var(--teal)';
+      const typeLabel = ext.toUpperCase() || 'FILE';
+      const isPdf = ext === 'pdf';
+      const isImg = ['jpg','jpeg','png','webp','gif'].includes(ext);
+      const safeUrl = (a.url || '').replace(/'/g, "\\'");
+      const safeName = (a.name || '').replace(/'/g, "\\'");
+      const viewBtn = a.kind === 'saved' && a.url
+        ? isPdf
+          ? `<button onclick="event.preventDefault();event.stopPropagation();window.open('${safeUrl}','_blank')" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:5px;padding:3px 8px;font-size:.58rem;cursor:pointer;font-weight:600;flex-shrink:0">👁 View</button>` + `<a href="${safeUrl}" download="${safeName}" onclick="event.stopPropagation()" title="Download" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.3);color:var(--teal);border-radius:5px;padding:3px 8px;font-size:.58rem;text-decoration:none;flex-shrink:0;margin-left:4px;display:inline-flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>`
+          : isImg
+            ? `<button onclick="openLB('${safeUrl}')" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);color:var(--teal);border-radius:5px;padding:3px 8px;font-size:.58rem;cursor:pointer;font-weight:600;flex-shrink:0">🔍 Zoom</button>`
+            : `<a href="${safeUrl}" target="_blank" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text-sec);border-radius:5px;padding:3px 8px;font-size:.58rem;text-decoration:none;font-weight:600;flex-shrink:0">↗ Open</a>`
+        : '';
+      return `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--navy-mid)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${typeColor}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.name || ''}">${a.name || 'Unnamed file'}</span>
+        <span style="font-size:.58rem;font-weight:600;color:${typeColor};letter-spacing:.06em;flex-shrink:0">${typeLabel}</span>
+        <span style="font-size:.6rem;color:${a.kind==='pending'?'var(--warn)':'var(--teal)'};flex-shrink:0">${a.kind==='pending'?'⏳ Pending':'✓ Saved'}</span>
+        ${viewBtn}
+        <button onclick="${a.kind==='saved'?`removeServerAttachment(${a.idx})`:`removePendingPdf(${a.idx})`}" style="background:none;border:none;color:var(--invalid);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px;flex-shrink:0" title="Remove">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  function pdfFileSelect(input) {
+    if (!input.files) return;
+    const allowed = ['.pdf','.jpg','.jpeg','.png','.webp'];
+    for (const f of input.files) {
+      const ext = '.' + f.name.split('.').pop().toLowerCase();
+      if (!allowed.includes(ext)) { toast(`${f.name}: unsupported file type (PDF, JPG, PNG, WEBP only)`, 'err'); continue; }
+      if (f.size > 10 * 1024 * 1024) { toast(`${f.name} exceeds 10MB limit`, 'err'); continue; }
+      pendingPdfs.push({ file: f, name: f.name });
+    }
+    input.value = '';
+    renderAttachList();
+  }
+  function pdfDragOver(e) { e.preventDefault(); document.getElementById('pdfDropZone').style.borderColor='var(--border-gold)'; }
+  function pdfDragLeave() { document.getElementById('pdfDropZone').style.borderColor=''; }
+  function pdfDrop(e) {
+    e.preventDefault(); pdfDragLeave();
+    const allowed = ['.pdf','.jpg','.jpeg','.png','.webp'];
+    for (const f of e.dataTransfer.files) {
+      const ext = '.' + f.name.split('.').pop().toLowerCase();
+      if (!allowed.includes(ext)) { toast(`${f.name}: unsupported file type (PDF, JPG, PNG, WEBP only)`, 'err'); continue; }
+      if (f.size > 10 * 1024 * 1024) { toast(`${f.name} exceeds 10MB limit`, 'err'); continue; }
+      pendingPdfs.push({ file: f, name: f.name });
+    }
+    renderAttachList();
+  }
+  function removePendingPdf(idx) { pendingPdfs.splice(idx, 1); renderAttachList(); }
+  async function removeServerAttachment(idx) {
+    if (!editingId) return;
+    try {
+      const r = await fetch(`${API}/vapt/certs/${editingId}/attachments/${idx}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (r.ok) { const d = await r.json(); savedAttachments = d.attachments || []; renderAttachList(); toast('Removed', 'ok'); }
+      else toast('Remove failed', 'err');
+    } catch { toast('Network error', 'err'); }
+  }
+  function setImg(f){
+    imgFile=f;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      document.getElementById('uploadDefault').style.display='none';
+      document.getElementById('uploadPrev').style.display='block';
+      document.getElementById('prevImg').src=e.target.result;
+      document.getElementById('prevName').textContent=f.name;
+      document.getElementById('imgRequiredTag').style.display='none';
+      updateCompletion();
+    };
+    reader.readAsDataURL(f);
+  }
+  function clearImg(evt){
+    if(evt)evt.stopPropagation();
+    imgFile=null;
+    document.getElementById('uploadDefault').style.display='block';
+    document.getElementById('uploadPrev').style.display='none';
+    document.getElementById('prevImg').src='';
+    document.getElementById('imgRequiredTag').style.display='';
+    updateCompletion();
+  }
+
+  // ── CSV IMPORT ──
+  function handleCsvDrop(e){e.preventDefault();document.getElementById('csvDrop').classList.remove('drag-over');if(e.dataTransfer.files[0])loadCsvFile(e.dataTransfer.files[0]);}
+  function loadCsvFile(f){
+    if(!f) return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const text=e.target.result;
+      const rows=text.split('\n').map(r=>r.trim()).filter(Boolean);
+      const headers=rows[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
+      csvParsedRows=rows.slice(1).map(row=>{
+        const vals=row.split(',').map(v=>v.trim().replace(/"/g,''));
+        return Object.fromEntries(headers.map((h,i)=>[h,vals[i]||'']));
+      }).filter(r=>r.imo_number||r.vessel_name);
+      document.getElementById('csvUploadDefault').style.display='none';
+      document.getElementById('csvUploadLoaded').style.display='flex';
+      document.getElementById('csvLoadedName').textContent=f.name+' ('+csvParsedRows.length+' rows)';
+      renderCsvPreview();
+    };
+    reader.readAsText(f);
+  }
+  function buildVaptCertFromRow(row){
+    const imo=row.imo_number||'';
+    const ad=row.assessment_date||'';
+    let dateStr='';
+    if(ad){
+      const p=ad.split(/[-\/]/);
+      if(p.length===3){
+        const y=p[2]?.length===4?p[2]:'20'+p[2];
+        dateStr=`${y}-${p[1]?.padStart(2,'0')}-${p[0]?.padStart(2,'0')}`;
+      }
+    }
+    let certId=row.cert_number||'';
+    if(!certId&&imo&&dateStr){
+      const d=new Date(dateStr);
+      const mm=String(d.getMonth()+1).padStart(2,'0');
+      const yy=String(d.getFullYear()).slice(-2);
+      certId=`VAP-${imo}-${mm}${yy}`;
+    }
+    let vu='';
+    if(dateStr){const d=new Date(dateStr);d.setFullYear(d.getFullYear()+1);vu=d.toISOString().slice(0,10);}
+    const notes=row.notes||'Re-assessment recommended within 2 weeks from date of participation.';
+    const email=row.recipient_email||'';
+    return {id:certId,vesselIMO:imo,vesselName:row.vessel_name||'',recipientName:row.vessel_name||'',assessmentDate:dateStr,validUntil:vu,verifiedBy:'Gaurav Singh',verifierTitle:'CISO — Synergy Group',assessingOrg:'Synergy Cybersecurity team',frameworks:'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013',scopeItems:'Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits',status:'PENDING',recipientEmail:email,issuerEmail:'vapt@synergyship.com',emailStatus:'NOT_SENT',emailSentAt:null,notes,certificateImage:null};
+  }
+  function renderCsvPreview(){
+    const records=csvParsedRows.map(buildVaptCertFromRow);
+    const dups=[];
+    document.getElementById('csvPreviewWrap').style.display='block';
+    document.getElementById('csvPreviewCount').textContent=records.length;
+    document.getElementById('csvImportBtn').disabled=false;
+    let html='<table style="width:100%;border-collapse:collapse"><thead><tr style="position:sticky;top:0;background:var(--navy-mid)">';
+    ['#','Cert ID','Vessel','IMO','Assessment Date','Valid Until','Status'].forEach(h=>html+=`<th style="padding:8px 10px;text-align:left;font-size:.6rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap">${h}</th>`);
+    html+='</tr></thead><tbody>';
+    records.forEach((c,i)=>{
+      const existing=CERTS.find(x=>x.id===c.id);
+      const idStyle=existing?'color:var(--warn)':'color:var(--teal)';
+      const status=existing?'⚠ Exists':'✓ New';
+      const statusColor=existing?'var(--warn)':'var(--teal)';
+      if(existing)dups.push(c.id);
+      html+=`<tr style="${existing?'background:rgba(255,179,71,.05)':''};border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;color:var(--text-sec);font-size:.65rem">${i+1}</td>
+        <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:.63rem;${idStyle}">${c.id||'—'}</td>
+        <td style="padding:7px 10px;font-size:.67rem;color:var(--text-bright)">${c.recipientName||'—'}</td>
+        <td style="padding:7px 10px;font-size:.67rem">${c.vesselIMO||'—'}</td>
+        <td style="padding:7px 10px;font-size:.65rem">${c.assessmentDate||'—'}</td>
+        <td style="padding:7px 10px;font-size:.65rem;color:var(--teal)">${c.validUntil||'—'}</td>
+        <td style="padding:7px 10px;font-size:.65rem;color:${statusColor}">${status}</td></tr>`;
+    });
+    html+='</tbody></table>';
+    document.getElementById('csvPreviewTable').innerHTML=html;
+    const warnBox=document.getElementById('csvWarnBox');
+    if(dups.length>0){warnBox.style.display='block';warnBox.textContent=`⚠ ${dups.length} record(s) already exist and will be SKIPPED: ${dups.slice(0,4).join(', ')}${dups.length>4?'…':''}`;}
+    else warnBox.style.display='none';
+  }
+  async function doImportCsv(){
+    if(!csvParsedRows.length){toast('No CSV data loaded.','err');return;}
+    const records=csvParsedRows.map(buildVaptCertFromRow);
+    const btn=document.getElementById('csvImportBtn');btn.disabled=true;
+    document.getElementById('csvImportTxt').textContent='Importing…';
+    const log=document.getElementById('csvResultLog');log.style.display='block';log.innerHTML='';
+    const toImport=records.filter(c=>c.id&&!CERTS.find(x=>x.id===c.id));
+    const skipped=records.filter(c=>!c.id||CERTS.find(x=>x.id===c.id));
+    skipped.forEach(c=>{
+      if(!c.id)log.innerHTML+=`<div style="color:var(--warn)">⚠ Skipped row — could not generate ID</div>`;
+      else log.innerHTML+=`<div style="color:var(--warn)">⚠ Skipped ${c.id} — already exists</div>`;
+    });
+    if(toImport.length>0){
+      try{
+        const r=await fetch(API+'/vapt/import-csv',{method:'POST',headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify(toImport)});
+        const d=await r.json();
+        if(r.ok){
+          d.results.forEach(res=>{
+            if(res.status==='created')log.innerHTML+=`<div style="color:var(--teal)">✓ Created ${res.id}</div>`;
+            else if(res.status==='skipped')log.innerHTML+=`<div style="color:var(--warn)">⚠ Skipped ${res.id}: ${res.reason}</div>`;
+            else log.innerHTML+=`<div style="color:var(--invalid)">✗ Failed ${res.id}: ${res.reason}</div>`;
+          });
+          log.innerHTML+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--gold)">Done — ✓ ${d.added} created · ⚠ ${d.skipped+skipped.length} skipped · ✗ ${d.failed} failed</div>`;
+          await refreshStats(); renderTbl('dashTbl',''); renderTbl('allTbl','');
+          if(d.added>0)toast(`${d.added} VAPT certificate(s) imported!`,'ok');
+        } else log.innerHTML+=`<div style="color:var(--invalid)">✗ Import failed: ${d.error||'Unknown error'}</div>`;
+      } catch { log.innerHTML+=`<div style="color:var(--invalid)">✗ Network error during import</div>`; }
+    }
+    document.getElementById('csvImportTxt').textContent='Import All Records';
+    btn.disabled=false;
+  }
+  function clearCsvFile(e){
+    if(e)e.stopPropagation();
+    csvParsedRows=[];
+    document.getElementById('csvFileInput').value='';
+    document.getElementById('csvUploadDefault').style.display='block';
+    document.getElementById('csvUploadLoaded').style.display='none';
+    document.getElementById('csvPreviewWrap').style.display='none';
+    document.getElementById('csvResultLog').style.display='none';
+    document.getElementById('csvImportBtn').disabled=true;
+  }
+  function downloadSampleCsv(){
+    const csv='imo_number,vessel_name,assessment_date,cert_number,recipient_email,notes\n9491666,MV Efficiency OL,10-02-2026,VAP-9491666-0226,master@efficiency.com,Sample VAPT cert\n9623740,MV Nord Kudu,15-03-2026,,master@nordkudu.com,\n9689536,MT BW Chinook,20-03-2026,VAP-9689536-0326,,';
+    const blob=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vapt_sample.csv';a.click();
+  }
+
+  // ── UTILS ──
+  function openLB(src){document.getElementById('lbImg').src=src;document.getElementById('lightbox').style.display='flex';}
+  function closeLB(){document.getElementById('lightbox').style.display='none';}
+  function openPdfViewer(url, name){
+    document.getElementById('pdfViewerTitle').textContent = name || 'Document';
+    document.getElementById('pdfViewerFrame').src = url;
+    document.getElementById('pdfViewerLink').href = url;
+    document.getElementById('pdfViewerOverlay').style.display = 'flex';
+  }
+  function closePdfViewer(){
+    document.getElementById('pdfViewerOverlay').style.display = 'none';
+    document.getElementById('pdfViewerFrame').src = '';
+  }
+  function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;setTimeout(()=>t.className='',3500);}
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeLB();closeView();closeDel();closePdfViewer();}});
+
+  // ── BOOT ──
+  if(TOKEN){
+    try{
+      const parts=TOKEN.split('.');
+      if(parts.length===3){
+        const payload=JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+        if(Date.now()>payload.exp*1000){sessionStorage.removeItem('adminToken');TOKEN='';}
+      }else{sessionStorage.removeItem('adminToken');TOKEN='';}
+    }catch{sessionStorage.removeItem('adminToken');TOKEN='';}
+  }
+  if(TOKEN){
+    document.getElementById('loginWrap').style.display='none';
+    document.getElementById('appWrap').style.display='flex';
+    initApp();
+  }else{
+    document.getElementById('appWrap').style.display='none';
+  }
+</script>
+</body>
+</html>

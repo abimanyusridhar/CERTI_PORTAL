@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synergy Group — VAPT Assessment Verification</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0A1628;--navy-mid:#112240;--navy-light:#1D3557;
+      --gold:#D4A843;--gold-light:#F0C96A;--gold-dim:rgba(212,168,67,0.12);
+      --teal:#64FFDA;--teal-dim:rgba(100,255,218,0.08);
+      --surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.06);
+      --border:rgba(255,255,255,0.08);--border-gold:rgba(212,168,67,0.25);
+      --text:#CCD6F6;--text-sec:#8892B0;--text-bright:#E6F1FF;
+      --valid:#64FFDA;--invalid:#FF6B8A;--warn:#FFB347;
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;overflow-x:hidden}
+    /* BG */
+    .bg-scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+    .bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(100,255,218,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,0.03) 1px,transparent 1px);background-size:80px 80px}
+    .bg-orb-1{position:absolute;top:-15%;right:-5%;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(100,255,218,0.05) 0%,transparent 70%);animation:drift1 12s ease-in-out infinite alternate}
+    .bg-orb-2{position:absolute;bottom:-20%;left:-10%;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(212,168,67,0.04) 0%,transparent 70%);animation:drift2 15s ease-in-out infinite alternate}
+    @keyframes drift1{from{transform:translate(0,0) scale(1)}to{transform:translate(-30px,20px) scale(1.05)}}
+    @keyframes drift2{from{transform:translate(0,0) scale(1)}to{transform:translate(20px,-30px) scale(1.08)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+    /* NAV */
+    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:rgba(10,22,40,0.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+    .nav-brand{display:flex;align-items:center;gap:14px}
+    .nav-logo-box{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid rgba(100,255,218,0.2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+    .nav-logo-box::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(100,255,218,0.1))}
+    .nav-logo-box svg{z-index:1}
+    .brand-text .name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:800;color:var(--text-bright);letter-spacing:.02em;line-height:1}
+    .brand-text .sub{font-size:.58rem;letter-spacing:.22em;color:var(--teal);text-transform:uppercase;margin-top:2px}
+    .nav-secure-badge{display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.62rem;letter-spacing:.15em;color:var(--teal);text-transform:uppercase}
+    .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite}
+    .nav-tab{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s}
+    .nav-tab:hover{color:var(--text-bright);border-color:var(--border);background:var(--surface-hover)}
+    .nav-tab-active{color:var(--teal);border-color:rgba(100,255,218,0.2);background:var(--teal-dim)}
+    /* HERO */
+    .hero{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;padding:90px 30px 60px;text-align:center;max-width:860px;margin:0 auto}
+    .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:20px;background:var(--teal-dim);border:1px solid rgba(100,255,218,0.2);font-size:.62rem;letter-spacing:.2em;color:var(--teal);text-transform:uppercase;margin-bottom:28px;animation:fadeUp .8s ease-out both}
+    .hero-title{font-family:'Playfair Display',serif;font-size:clamp(2.6rem,6vw,4.8rem);font-weight:800;line-height:1.05;color:var(--text-bright);margin-bottom:18px;animation:fadeUp .8s ease-out .1s both}
+    .hero-title em{font-style:normal;color:var(--teal)}
+    .hero-sub{font-size:.95rem;font-weight:300;color:var(--text-sec);max-width:500px;line-height:1.8;margin-bottom:48px;animation:fadeUp .8s ease-out .2s both}
+    /* SEARCH */
+    .search-container{width:100%;max-width:660px;animation:fadeUp .8s ease-out .3s both}
+    .search-wrap{position:relative;background:rgba(255,255,255,0.04);border:1px solid rgba(100,255,218,0.2);border-radius:14px;padding:5px;display:flex;transition:all .3s}
+    .search-wrap:focus-within{border-color:var(--teal);box-shadow:0 0 0 4px rgba(100,255,218,0.08),0 20px 60px rgba(0,0,0,0.3);background:rgba(255,255,255,0.05)}
+    .search-icon-wrap{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--text-sec)}
+    input.search-input{flex:1;background:none;border:none;outline:none;padding:15px 18px 15px 52px;color:var(--text-bright);font-family:'JetBrains Mono',monospace;font-size:.88rem;letter-spacing:.06em}
+    input.search-input::placeholder{color:var(--text-sec)}
+    button.search-btn{background:linear-gradient(135deg,var(--teal),#2DB890);border:none;border-radius:10px;padding:13px 26px;cursor:pointer;color:var(--navy);font-family:'DM Sans',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:8px}
+    button.search-btn:hover{opacity:.9;transform:translateY(-1px)}
+    button.search-btn:disabled{opacity:.5;cursor:wait;transform:none}
+    .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
+    /* STATS */
+    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:24px 0;margin-bottom:60px}
+    .stat-item{text-align:center;padding:0 44px;border-right:1px solid var(--border)}
+    .stat-item:last-child{border-right:none}
+    .stat-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--teal);line-height:1}
+    .stat-label{font-size:.58rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+    /* RESULT */
+    #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
+    .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
+    .scan-ring{width:48px;height:48px;border:2px solid rgba(100,255,218,0.2);border-top-color:var(--teal);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 18px}
+    .not-found{text-align:center;padding:60px;background:rgba(255,107,138,0.04);border:1px solid rgba(255,107,138,0.2);border-radius:20px;animation:fadeUp .4s ease}
+    .not-found h3{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--invalid);margin:16px 0 10px}
+    .not-found p{font-size:.86rem;color:var(--text-sec);line-height:1.8}
+    /* TWO-COLUMN LAYOUT */
+    .cred-layout{display:grid;grid-template-columns:288px 1fr;gap:28px;align-items:start;animation:fadeUp .5s ease}
+    /* SIDEBAR */
+    .cred-sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:82px}
+    .sidebar-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:24px;backdrop-filter:blur(12px)}
+    .sdlabel{font-size:.56rem;letter-spacing:.22em;color:var(--teal);text-transform:uppercase;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .sdname{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--text-bright);line-height:1.25;margin-bottom:4px}
+    .sdsub{font-size:.72rem;color:var(--gold);margin-bottom:18px;letter-spacing:.02em;line-height:1.5}
+    .btn-dl{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 18px;background:linear-gradient(135deg,var(--teal),#2DB890);border:none;border-radius:11px;color:var(--navy);font-family:'DM Sans',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-bottom:12px}
+    .btn-dl:hover{opacity:.9;transform:translateY(-1px)}
+    .btn-dl:disabled{opacity:.5;cursor:wait;transform:none}
+    .sd-contact{font-size:.7rem;color:var(--text-sec);text-align:center;line-height:1.6}
+    .sd-contact a{color:var(--teal);text-decoration:none}
+    .sd-contact a:hover{text-decoration:underline}
+    /* VERIFY CARD */
+    .verify-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:22px;backdrop-filter:blur(12px)}
+    .vc-header{display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    .vc-title{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;font-weight:700}
+    .vrow{margin-bottom:11px}
+    .vrow-lbl{font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:3px}
+    .vrow-val{font-size:.84rem;font-weight:600;color:var(--text-bright)}
+    .status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:30px;font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+    .badge-valid{background:rgba(100,255,218,0.1);color:var(--teal);border:1px solid rgba(100,255,218,0.3)}
+    .badge-invalid{background:rgba(255,107,138,0.1);color:var(--invalid);border:1px solid rgba(255,107,138,0.3)}
+    .btn-copy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:11px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:14px;margin-bottom:10px}
+    .btn-copy-valid{background:rgba(100,255,218,0.08);border:1px solid rgba(100,255,218,0.3);color:var(--teal)}
+    .btn-copy-invalid{background:rgba(255,107,138,0.06);border:1px solid rgba(255,107,138,0.25);color:var(--invalid)}
+    .btn-copy:hover{opacity:.8}
+    .cert-id-mono{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--gold);word-break:break-all;line-height:1.6;margin-top:4px}
+    /* MAIN */
+    .cred-main{display:flex;flex-direction:column;gap:18px}
+    /* CERT IMAGE */
+    .cert-img-card{background:rgba(17,34,64,0.7);border:1px solid rgba(100,255,218,0.18);border-radius:18px;overflow:hidden;backdrop-filter:blur(12px)}
+    .cert-img-topbar{padding:9px 18px;background:rgba(100,255,218,0.04);border-bottom:1px solid rgba(100,255,218,0.1);font-size:.56rem;letter-spacing:.2em;color:var(--teal);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+    .cert-img-card img{width:100%;display:block;cursor:zoom-in;transition:transform .4s ease}
+    .cert-img-card img:hover{transform:scale(1.012)}
+    /* VALIDITY */
+    .val-banner{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:14px;backdrop-filter:blur(12px)}
+    .val-valid{background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2)}
+    .val-invalid{background:rgba(255,107,138,0.06);border:1px solid rgba(255,107,138,0.2)}
+    .val-text h4{font-size:.8rem;font-weight:600;letter-spacing:.05em}
+    .val-text p{font-size:.73rem;color:var(--text-sec);margin-top:4px;line-height:1.65}
+    /* NEAR EXPIRY */
+    .near-exp{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,179,71,.06);border:1px solid rgba(255,179,71,.25);border-radius:12px;font-size:.72rem;color:var(--warn)}
+    /* INFO CARDS */
+    .info-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:18px;padding:22px 26px;backdrop-filter:blur(12px)}
+    .sect-title{font-size:.55rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+    .sect-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    /* ISSUED BY */
+    .issued-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:18px;padding:20px 26px;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+    .ib-label{font-size:.54rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px}
+    .ib-name{font-size:1.05rem;font-weight:700;color:var(--text-bright)}
+    .ib-sub{font-size:.7rem;color:var(--gold);margin-top:3px;line-height:1.5}
+    /* META ROW */
+    .meta-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:10px}
+    .meta-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:12px;padding:14px 12px;backdrop-filter:blur(12px);text-align:center;transition:border-color .2s}
+    .meta-card:hover{border-color:rgba(100,255,218,0.15)}
+    .meta-icon{margin:0 auto 7px;display:flex;align-items:center;justify-content:center;color:var(--text-sec)}
+    .meta-lbl{font-size:.54rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px}
+    .meta-val{font-size:.8rem;font-weight:600;color:var(--text-bright)}
+    /* INFO GRID */
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .ii{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 15px;display:flex;flex-direction:column;gap:4px;transition:border-color .2s}
+    .ii:hover{border-color:rgba(100,255,218,0.12)}
+    .ii.fw{grid-column:1/-1}
+    .ilbl{font-size:.52rem;letter-spacing:.15em;color:var(--text-sec);text-transform:uppercase}
+    .ival{font-size:.82rem;font-weight:500;color:var(--text-bright);line-height:1.4}
+    .ival.gold{color:var(--gold)}
+    .ival.teal{color:var(--teal)}
+    .ival.red{color:var(--invalid)}
+    .ival.mono{font-family:'JetBrains Mono',monospace;color:var(--teal)}
+    /* SCOPE TAGS */
+    .scope-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .scope-tag{padding:4px 11px;border:1px solid var(--border);border-radius:999px;font-size:.65rem;color:var(--text-sec);background:var(--surface)}
+    /* SKILLS */
+    .skills-wrap{display:flex;flex-wrap:wrap;gap:8px}
+    .skill-tag{padding:5px 13px;border:1px solid var(--border);border-radius:999px;font-size:.67rem;color:var(--text);background:var(--surface);letter-spacing:.04em;transition:border-color .2s,color .2s}
+    .skill-tag:hover{border-color:rgba(100,255,218,0.2);color:var(--teal)}
+    /* DOCS */
+    .docs-list{display:flex;flex-direction:column;gap:8px}
+    .doc-item{display:flex;align-items:center;gap:10px;padding:10px 15px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--gold);font-size:.76rem;text-decoration:none;transition:border-color .2s,background .2s}
+    .doc-item:hover{border-color:var(--border-gold);background:var(--gold-dim)}
+    .doc-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .doc-badge{font-size:.54rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;flex-shrink:0;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+    /* NOTES */
+    .cert-notes{font-size:.7rem;color:var(--text-sec);text-align:center;padding:12px 0 0;margin-top:10px;border-top:1px solid var(--border);font-style:italic;line-height:1.6}
+    /* SEC FOOTER */
+    .sec-footer{display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;background:rgba(100,255,218,0.03);border:1px solid rgba(100,255,218,0.08);border-radius:14px;font-size:.6rem;letter-spacing:.13em;color:var(--text-sec)}
+    /* LIGHTBOX */
+    #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+    #lightbox img{max-width:100%;max-height:90vh;border-radius:12px;border:1px solid rgba(100,255,218,0.2)}
+    .lb-x{position:absolute;top:20px;right:26px;color:#fff;font-size:1.8rem;cursor:pointer;opacity:.6;transition:opacity .2s}
+    .lb-x:hover{opacity:1}
+    /* DESC */
+    .desc-block{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:40px 30px 0;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .desc-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 28px}
+    .desc-section.full-col{grid-column:1/-1}
+    .desc-section-title{font-size:.55rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .desc-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    .desc-text{font-size:.82rem;color:var(--text);line-height:1.85}
+    .comp-list{display:flex;flex-direction:column;gap:10px}
+    .comp-item{display:flex;gap:12px;align-items:flex-start}
+    .comp-lbl{font-size:.75rem;font-weight:600;color:var(--teal);min-width:165px;line-height:1.5;flex-shrink:0}
+    .comp-desc{font-size:.75rem;color:var(--text-sec);line-height:1.65}
+    /* FOOTER */
+    footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:26px 60px;text-align:center;font-size:.65rem;color:var(--text-sec);letter-spacing:.1em;margin-top:40px}
+    /* RESPONSIVE */
+    @media(max-width:860px){
+      .cred-layout{grid-template-columns:1fr}
+      .cred-sidebar{position:static}
+      nav{padding:14px 20px}
+      .hero{padding:70px 20px 48px}
+      .desc-block{padding:28px 18px 0;grid-template-columns:1fr}
+      .desc-section.full-col{grid-column:1}
+      #result{padding:0 16px 80px}
+    }
+    @media(max-width:540px){
+      .meta-row{grid-template-columns:repeat(3,1fr)}
+      .info-grid{grid-template-columns:1fr}
+      .ii.fw{grid-column:1}
+    }
+    /* PDF / DOC VIEWER MODAL */
+    #pdfViewerOverlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+    .pdf-modal{width:100%;max-width:960px;background:#0f1e35;border:1px solid rgba(212,168,67,.3);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)}
+    .pdf-modal-bar{display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(17,34,64,.98);border-bottom:1px solid rgba(255,255,255,.07)}
+    .pdf-modal-title{font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;color:#E6F1FF;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pdf-modal-open{font-size:.65rem;color:#64FFDA;text-decoration:none;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);border-radius:7px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.06em;white-space:nowrap;transition:background .15s}
+    .pdf-modal-open:hover{background:rgba(100,255,218,.15)}
+    .pdf-modal-close{background:none;border:none;color:#8892B0;font-size:1.3rem;cursor:pointer;padding:0 4px;line-height:1;margin-left:6px;font-family:'DM Sans',sans-serif;transition:color .15s}
+    .pdf-modal-close:hover{color:#E6F1FF}
+    .pdf-modal-frame{width:100%;height:78vh;border:none;display:block;background:#fff}
+    /* DOC-ITEM BUTTON VARIANT */
+    button.doc-item{background:var(--surface);border:1px solid var(--border);text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%}
+    /* IMAGE ATTACHMENT */
+    .att-img-thumb{width:100%;max-height:200px;object-fit:contain;background:rgba(0,0,0,.4);display:block;border-top:1px solid var(--border);cursor:zoom-in;transition:opacity .2s}
+    .att-img-thumb:hover{opacity:.85}
+  </style>
+</head>
+<body>
+
+<div class="bg-scene">
+  <div class="bg-grid"></div>
+  <div class="bg-orb-1"></div>
+  <div class="bg-orb-2"></div>
+</div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo-box">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    </div>
+    <div class="brand-text"><div class="name">Synergy Group</div><div class="sub">VAPT Assessment Registry</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="/CST" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> CST Training</a>
+    <a href="/VPT" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> VPT Assessment</a>
+    <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Registry</div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    VAPT Certificate Authority
+  </div>
+  <h1 class="hero-title">Verify <em>VAPT</em><br>Assessment Status</h1>
+  <p class="hero-sub">Enter a Vulnerability &amp; Penetration Testing (VAPT) certificate number to get real-time verification of vessel cybersecurity assessment status for maritime compliance and vetting inspectors.</p>
+  <div class="search-container">
+    <div class="search-wrap" id="searchWrap">
+      <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+      <input type="text" id="certInput" class="search-input" placeholder="e.g. VAP-9491666-1026" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
+      <button id="verifyBtn" class="search-btn" onclick="verify()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        Verify
+      </button>
+    </div>
+    <div class="search-hint">Format: VAP-&lt;IMO&gt;-&lt;MMYY&gt; &nbsp;·&nbsp; Example: VAP-9491666-1026</div>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat-item"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Assessments Issued</div></div>
+  <div class="stat-item"><div class="stat-num" id="statValid">—</div><div class="stat-label">Currently Valid</div></div>
+  <div class="stat-item"><div class="stat-num" style="color:var(--gold)">ISO</div><div class="stat-label">27001 Aligned</div></div>
+  <div class="stat-item"><div class="stat-num" style="color:var(--gold)">IMO</div><div class="stat-label">MSC-FAL.1/Circ.3</div></div>
+</div>
+
+<div id="result"></div>
+
+<!-- DESCRIPTION BLOCK -->
+<div class="desc-block" id="descBlock">
+  <div class="desc-section full-col">
+    <div class="desc-section-title">About VAPT Assessment Certificate</div>
+    <p class="desc-text">The <strong style="color:var(--text-bright)">Vulnerability Assessment &amp; Penetration Testing (VAPT)</strong> certificate is issued by the <strong style="color:var(--teal)">Synergy Cybersecurity Team</strong> following a comprehensive on-vessel cyber risk assessment. It confirms that the vessel has undergone a structured evaluation across IT/OT systems, access controls, software configuration, and cyber resilience practices.</p>
+    <p class="desc-text" style="margin-top:12px">Assessments are aligned with the IMO Maritime Cyber Risk Management guidelines (MSC-FAL.1/Circ.3), ISO 27001:2013, OWASP, and applicable flag state requirements. The certificate is valid for one year from the date of assessment, and is recognized by vetting inspectors, PSC officers, and charterers as evidence of active cyber risk management.</p>
+  </div>
+  <div class="desc-section">
+    <div class="desc-section-title">Assessment Scope</div>
+    <div class="comp-list">
+      <div class="comp-item"><div class="comp-lbl">Access Control</div><div class="comp-desc">USB / Data / Login / Domain / Email / Asset controls reviewed and hardened.</div></div>
+      <div class="comp-item"><div class="comp-lbl">IT/OT Risk Analysis</div><div class="comp-desc">Full cyber risk analysis of operational technology and shipboard IT systems.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Software Version Control</div><div class="comp-desc">Verification of patch status and version currency for IT and OT platforms.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Backups &amp; Recovery</div><div class="comp-desc">Disaster recovery planning, backup schedules, and restoration drills assessed.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Awareness &amp; Drills</div><div class="comp-desc">Crew cybersecurity awareness, IT drills, and internal audit compliance.</div></div>
+    </div>
+  </div>
+  <div class="desc-section">
+    <div class="desc-section-title">Skills &amp; Standards Verified</div>
+    <div class="skills-wrap">
+      <span class="skill-tag">IMO Cyber Risk Guidelines</span><span class="skill-tag">ISO 27001:2013</span><span class="skill-tag">OWASP Framework</span><span class="skill-tag">OT Security</span><span class="skill-tag">IT Security</span><span class="skill-tag">Access Control</span><span class="skill-tag">Incident Response</span><span class="skill-tag">Backup &amp; Recovery</span><span class="skill-tag">ISM / ISPS Compliance</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    Synergy Marine Group &middot; VAPT Certificate Registry &middot; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3b4d5a4b4f7b4842555e495c424853524b15585456">[email&#160;protected]</a>
+  </div>
+  <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
+</footer>
+
+<div id="lightbox" onclick="closeLB()">
+  <span class="lb-x" onclick="closeLB()">&#x2715;</span>
+  <img id="lbImg" src="" alt="VAPT Certificate" />
+</div>
+
+<!-- PDF / Document Viewer Modal -->
+<div id="pdfViewerOverlay" onclick="if(event.target===this)closePdfModal()">
+  <div class="pdf-modal">
+    <div class="pdf-modal-bar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span class="pdf-modal-title" id="pdfModalTitle"></span>
+      <a class="pdf-modal-open" id="pdfModalLink" href="#" target="_blank">↗ Open in New Tab</a>
+      <button class="pdf-modal-close" onclick="closePdfModal()">✕</button>
+    </div>
+    <iframe class="pdf-modal-frame" id="pdfModalFrame" src="" title="Document viewer"></iframe>
+  </div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  'use strict';
+  const API = '/api';
+
+  fetch(API + '/vapt/stats').then(r => r.json()).then(d => {
+    if (d && d.total !== undefined) {
+      document.getElementById('statTotal').textContent = d.total;
+      document.getElementById('statValid').textContent = d.valid;
+    }
+  }).catch(() => {});
+
+  function hideDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = 'none'; }
+  function showDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = ''; }
+
+  function fmt(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  function fmtLong(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  function scroll() { document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+  async function verify() {
+    const raw = document.getElementById('certInput').value.trim().toUpperCase();
+    if (!raw) return;
+    if (!/^[A-Za-z0-9\-_]{1,64}$/.test(raw)) {
+      document.getElementById('result').innerHTML = '<div class="not-found"><h3 style="color:var(--warn)">Invalid Format</h3><p>Certificate IDs may only contain letters, numbers, and hyphens.</p></div>';
+      hideDesc(); scroll(); return;
+    }
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Verifying&hellip;';
+    try {
+      const res = await fetch(API + '/vapt/verify-by-id/' + encodeURIComponent(raw));
+      if (res.status === 429) {
+        document.getElementById('result').innerHTML = '<div class="not-found" style="border-color:rgba(255,179,71,.3)"><h3 style="color:var(--warn)">Too Many Requests</h3><p>Please wait a moment before verifying again.</p></div>';
+        hideDesc(); scroll();
+      } else {
+        const data = await res.json();
+        hideDesc();
+        if (res.status === 404) renderNotFound();
+        else if (!res.ok) renderError();
+        else renderCert(data);
+      }
+    } catch { renderError(); }
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Verify';
+  }
+
+  function renderNotFound() {
+    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No VAPT certificate matches this number in the Synergy registry.<br>Please verify the number carefully or contact <strong style="color:var(--teal)">vapt@synergyship.com</strong></p></div>`;
+    scroll();
+  }
+
+  function renderError() {
+    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Server Unavailable</h3><p>Could not connect to the VAPT verification server.<br>Please try again or contact vapt@synergyship.com</p></div>`;
+    scroll();
+  }
+
+  function renderCert(c) {
+    const now  = new Date(); now.setHours(0,0,0,0);
+    const vu   = c.validUntil ? new Date(c.validUntil) : null;
+    if (vu) vu.setHours(0,0,0,0);
+    const isV  = c.status === 'VALID' && (!vu || vu >= now);
+    const accent = isV ? 'var(--teal)' : 'var(--invalid)';
+    const badgeCls = isV ? 'badge-valid' : 'badge-invalid';
+    const copyCls  = isV ? 'btn-copy-valid' : 'btn-copy-invalid';
+    const valCls   = isV ? 'val-valid' : 'val-invalid';
+    const daysLeft = vu ? Math.round((vu - now) / 86400000) : null;
+
+    const nearExpiry = (isV && daysLeft !== null && daysLeft >= 0 && daysLeft <= 30) ? `
+    <div class="near-exp">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <div><strong>Assessment expiring ${daysLeft===0?'today':`in ${daysLeft} day${daysLeft===1?'':'s'}`}</strong> — Re-assessment recommended promptly.</div>
+    </div>` : '';
+
+    const validMsg = isV
+      ? `Assessment is <strong style="color:var(--teal)">current and verified</strong> — valid until ${fmtLong(c.validUntil)}${daysLeft!==null&&daysLeft>0?` · <strong>${daysLeft} day${daysLeft===1?'':'s'}</strong> remaining`:''}`
+      : `This assessment is <strong style="color:var(--invalid)">${c.status?c.status.toLowerCase():'expired'}</strong> and not currently valid for compliance purposes.`;
+
+    const valIconPath = isV
+      ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+      : 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
+
+    const imgBlock = c.certificateImage ? `
+    <div class="cert-img-card">
+      <div class="cert-img-topbar">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Original VAPT Certificate &mdash; Click to enlarge
+      </div>
+      <img src="${c.certificateImage}" alt="VAPT Certificate" data-cert-img="true" onclick="openLB(this.src)" />
+    </div>` : '';
+
+    const scopeList = (c.scopeItems || '').split(',').map(s => s.trim()).filter(Boolean);
+
+    // Admin-attached docs only, no defaults
+    const atts = Array.isArray(c.attachments) ? c.attachments : [];
+    const docsBlock = buildDocsBlock(atts);
+
+    document.getElementById('result').innerHTML = `
+    <div class="cred-layout">
+
+      <!-- SIDEBAR -->
+      <div class="cred-sidebar">
+        <div class="sidebar-card">
+          <div class="sdlabel">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            Issued To
+          </div>
+          <div class="sdname">${c.recipientName || '—'}</div>
+          <div class="sdsub">${c.vesselName || ''}${c.vesselIMO ? ' · IMO ' + c.vesselIMO : ''}</div>
+          <button class="btn-dl" id="dlBtn" onclick="downloadCertificate('${c.id}', this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Certificate
+          </button>
+          <div class="sd-contact">Want to report an error? <a href="mailto:vapt@synergyship.com">Contact Issuer</a></div>
+        </div>
+
+        <div class="verify-card">
+          <div class="vc-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
+            <span class="vc-title" style="color:${accent}">Credential Verification</span>
+          </div>
+          <div class="vrow">
+            <div class="vrow-lbl">Assessment Date</div>
+            <div class="vrow-val">${fmtLong(c.assessmentDate || c.issuedAt)}</div>
+          </div>
+          <div class="vrow">
+            <div class="vrow-lbl">Expiration Date</div>
+            <div class="vrow-val" style="${!isV ? 'color:var(--invalid)' : ''}">${fmtLong(c.validUntil)}</div>
+          </div>
+          <div class="vrow">
+            <div class="vrow-lbl">Status</div>
+            <span class="status-badge ${badgeCls}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
+              ${isV ? 'VERIFIED' : c.status || 'EXPIRED'}
+            </span>
+          </div>
+          <button class="btn-copy ${copyCls}" onclick="copyVerifyLink(this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Copy Verification Link
+          </button>
+          <div class="vrow-lbl">Certificate ID</div>
+          <div class="cert-id-mono">${c.id}</div>
+        </div>
+      </div>
+
+      <!-- MAIN -->
+      <div class="cred-main">
+        ${imgBlock}
+
+        <!-- Validity -->
+        <div class="val-banner ${valCls}">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="1.8" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
+          <div class="val-text">
+            <h4 style="color:${accent}">${isV ? 'ASSESSMENT IS VALID &amp; VERIFIED' : 'ASSESSMENT IS NOT VALID'}</h4>
+            <p>${validMsg}</p>
+          </div>
+        </div>
+
+        ${nearExpiry}
+
+        <!-- Issued By -->
+        <div class="issued-card">
+          <div>
+            <div class="ib-label">Assessed By</div>
+            <div class="ib-name">${c.assessingOrg || 'Synergy Cybersecurity Team'}</div>
+            <div class="ib-sub">${c.verifiedBy || 'Gaurav Singh'}${c.verifierTitle ? ' · ' + c.verifierTitle : ' · CISO, Synergy Group'}</div>
+          </div>
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="rgba(100,255,218,0.15)" stroke-width="1.1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+
+        <!-- Meta -->
+        <div class="meta-row">
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div><div class="meta-lbl">Type</div><div class="meta-val">VAPT</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div><div class="meta-lbl">Level</div><div class="meta-val">Advanced</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1"/></svg></div><div class="meta-lbl">Location</div><div class="meta-val">On-Vessel</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg></div><div class="meta-lbl">Validity</div><div class="meta-val">1 Year</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div class="meta-lbl">IMO</div><div class="meta-val" style="color:var(--teal)">${c.vesselIMO || '—'}</div></div>
+        </div>
+
+        <!-- Certificate Details -->
+        <div class="info-card">
+          <div class="sect-title">Assessment Details</div>
+          <div class="info-grid">
+            <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${c.vesselName || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${c.vesselIMO || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Assessment Date</span><span class="ival">${fmtLong(c.assessmentDate)}</span></div>
+            <div class="ii"><span class="ilbl">Valid Until</span><span class="ival ${!isV ? 'red' : ''}">${fmtLong(c.validUntil)}</span></div>
+            <div class="ii fw"><span class="ilbl">Frameworks / Standards</span><span class="ival">${c.frameworks || 'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013'}</span></div>
+            ${scopeList.length ? `<div class="ii fw">
+              <span class="ilbl">Assessment Scope</span>
+              <div class="scope-tags">${scopeList.map(s => `<span class="scope-tag">${s}</span>`).join('')}</div>
+            </div>` : ''}
+          </div>
+          ${c.notes ? `<div class="cert-notes">* ${c.notes}</div>` : ''}
+        </div>
+
+        <!-- VAPT Scope & Skills -->
+        <div class="info-card">
+          <div class="sect-title">Validated Skills &amp; Standards</div>
+          <div class="skills-wrap">
+            <span class="skill-tag">IMO MSC-FAL.1/Circ.3</span><span class="skill-tag">ISO 27001:2013</span><span class="skill-tag">OWASP Framework</span><span class="skill-tag">OT Security</span><span class="skill-tag">Access Control Review</span><span class="skill-tag">Penetration Testing</span><span class="skill-tag">Cyber Risk Analysis</span><span class="skill-tag">Backup &amp; Recovery</span><span class="skill-tag">Crew Awareness</span>
+          </div>
+        </div>
+
+        ${docsBlock}
+
+        <div class="sec-footer">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Synergy VAPT Certificate Registry &nbsp;&middot;&nbsp; ISO Lead Auditor Supervision &nbsp;&middot;&nbsp; ${new Date().toUTCString()}
+        </div>
+      </div>
+    </div>`;
+    scroll();
+  }
+
+  async function downloadCertificate(certId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparing…'; }
+    try {
+      const imgEl = document.querySelector('#result img[data-cert-img="true"]');
+      if (imgEl && imgEl.src && !imgEl.src.includes('undefined') && !imgEl.src.includes('null')) {
+        const res  = await fetch(imgEl.src);
+        const blob = await res.blob();
+        const ext  = blob.type.includes('png') ? '.png' : blob.type.includes('webp') ? '.webp' : '.jpg';
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'VAPT-Certificate-' + certId + ext;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      } else {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(window.location.href);
+          if (btn) { btn.textContent = '✓ Link Copied!'; setTimeout(() => { if(btn){btn.disabled=false;btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Certificate';} }, 2000); return; }
+        }
+      }
+    } catch { alert('Download unavailable. Please contact vapt@synergyship.com'); }
+    if (btn) { setTimeout(() => { btn.disabled=false; btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Certificate'; }, 1800); }
+  }
+
+  function copyVerifyLink(btn) {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      if (btn) { const orig = btn.innerHTML; btn.textContent = '✓ Copied!'; setTimeout(() => btn.innerHTML = orig, 2000); }
+    });
+  }
+
+  /* ── DOCS BLOCK BUILDER ──────────────────────────────────────────── */
+  function buildDocsBlock(atts) {
+    if (!atts || !atts.length) return '';
+    var items = '';
+    for (var i = 0; i < atts.length; i++) {
+      var a = atts[i];
+      var url  = a.url  || '';
+      var name = a.name || ('Document ' + (i + 1));
+      var uL   = url.toLowerCase();
+      var nL   = name.toLowerCase();
+      var isPdf = uL.endsWith('.pdf') || nL.endsWith('.pdf');
+      var isImg = /\.(jpg|jpeg|png|webp|gif)$/.test(uL) || /\.(jpg|jpeg|png|webp|gif)$/.test(nL);
+      var ext  = name.split('.').pop().toUpperCase() || 'FILE';
+
+      /* SVG icon paths */
+      var iconPath = isPdf
+        ? 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+        : isImg
+          ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+          : 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+
+      var iconColor = isPdf ? '#D4A843' : isImg ? '#64FFDA' : '#8892B0';
+
+      /* Safe name for data attribute */
+      var safeUrl  = url.replace(/"/g, '&quot;');
+      var safeName = name.replace(/"/g, '&quot;');
+
+      if (isPdf) {
+        items +=
+          '<div style="border:1px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.03);display:flex;align-items:stretch">' +
+            '<button class="doc-item" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeUrl + '\',\'_blank\')" style="display:flex;align-items:center;gap:10px;padding:10px 15px;flex:1;text-align:left;background:rgba(255,255,255,.03);border:none;border-radius:11px 0 0 11px;color:#D4A843;font-size:.76rem;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'rgba(212,168,67,.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
+              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
+              '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + safeName + '">' + name + '</span>' +
+              '<span style="font-size:.54rem;letter-spacing:.1em;color:#D4A843;text-transform:uppercase;flex-shrink:0;background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.25);border-radius:4px;padding:2px 7px">' + ext + '</span>' +
+              '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">👁 View</span>' +
+            '</button>' +
+            '<a href="' + safeUrl + '" download="' + safeName + '" onclick="event.stopPropagation()" title="Download" style="display:flex;align-items:center;justify-content:center;padding:0 14px;background:rgba(100,255,218,.05);border-left:1px solid rgba(100,255,218,.12);border-radius:0 11px 11px 0;color:#64FFDA;text-decoration:none;transition:background .18s;flex-shrink:0" onmouseover="this.style.background=\'rgba(100,255,218,.13)\'" onmouseout="this.style.background=\'rgba(100,255,218,.05)\'">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>' +
+            '</a>' +
+          '</div>';
+      } else if (isImg) {
+        items +=
+          '<div style="border:1px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.03)">' +
+            '<button class="doc-item" onclick="openLB(\'' + safeUrl + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(255,255,255,.03);border:none;border-radius:11px;color:#64FFDA;font-size:.76rem;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'rgba(100,255,218,.04)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
+              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
+              '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + safeName + '">' + name + '</span>' +
+              '<span style="font-size:.54rem;letter-spacing:.1em;color:#8892B0;text-transform:uppercase;flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 7px">' + ext + '</span>' +
+              '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">🔍 Zoom</span>' +
+            '</button>' +
+            '<img src="' + safeUrl + '" class="att-img-thumb" onclick="openLB(\'' + safeUrl + '\')" />' +
+          '</div>';
+      } else {
+        items +=
+          '<a href="' + safeUrl + '" target="_blank" class="doc-item" download="' + safeName + '" style="display:flex;align-items:center;gap:10px;padding:10px 15px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.03);color:#8892B0;font-size:.76rem;text-decoration:none;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor=\'rgba(212,168,67,.3)\';this.style.background=\'rgba(212,168,67,.04)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\';this.style.background=\'rgba(255,255,255,.03)\'">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
+            '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + safeName + '">' + name + '</span>' +
+            '<span style="font-size:.54rem;letter-spacing:.1em;color:#8892B0;text-transform:uppercase;flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 7px">' + ext + '</span>' +
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>' +
+          '</a>';
+      }
+    }
+    return '<div class="info-card">' +
+      '<div class="sect-title">Reference Documents</div>' +
+      '<div class="docs-list">' + items + '</div>' +
+    '</div>';
+  }
+
+  /* ── LIGHTBOX ── */
+  function openLB(src) {
+    document.getElementById('lbImg').src = src;
+    document.getElementById('lightbox').style.display = 'flex';
+  }
+  function closeLB() {
+    document.getElementById('lightbox').style.display = 'none';
+  }
+
+  /* ── PDF VIEWER MODAL ── */
+  function openPdfModal(url, name) {
+    document.getElementById('pdfModalTitle').textContent = name || 'Document';
+    document.getElementById('pdfModalFrame').src = url;
+    document.getElementById('pdfModalLink').href = url;
+    var dlBtn = document.getElementById('pdfModalLink');
+    if (dlBtn) { dlBtn.href = url; }
+    document.getElementById('pdfViewerOverlay').style.display = 'flex';
+  }
+  function closePdfModal() {
+    document.getElementById('pdfViewerOverlay').style.display = 'none';
+    document.getElementById('pdfModalFrame').src = '';
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeLB(); closePdfModal(); }
+  });
+
+  // Auto-load from URL token
+  async function verifyByToken(token, sig) {
+    const result = document.getElementById('result');
+    result.innerHTML = '<div class="scanning"><div class="scan-ring"></div><p>Decrypting &amp; verifying VAPT certificate&hellip;</p></div>';
+    hideDesc();
+    const sigParam = sig ? `?s=${encodeURIComponent(sig)}` : '';
+    try {
+      const r = await fetch(`${API}/vapt/verify/${encodeURIComponent(token)}${sigParam}`);
+      if (!r.ok) { renderNotFound(); return; }
+      renderCert(await r.json());
+    } catch { renderError(); }
+  }
+
+  async function checkUrl() {
+    // /VPT/cert/<token>?s=<sig>
+    const pathMatch = window.location.pathname.match(/^\/VPT\/cert\/(.+)/);
+    if (pathMatch) {
+      const token = pathMatch[1];
+      const sig   = new URLSearchParams(window.location.search).get('s') || '';
+      document.getElementById('certInput').value = '';
+      await verifyByToken(token, sig);
+      return;
+    }
+    // Legacy ?id= plain ID
+    const certId = new URLSearchParams(window.location.search).get('id') || '';
+    if (certId) {
+      document.getElementById('certInput').value = certId;
+      await verify();
+    }
+  }
+
+  checkUrl();
+</script>
+</body>
+</html>

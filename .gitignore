@@ -1,0 +1,11 @@
+
+.env
+data/.keys.json
+data/certificates.json
+data/vapt_certificates.json
+data/email_log.jsonl
+data/vapt_email_log.jsonl
+uploads/
+node_modules/
+.DS_Store
+Thumbs.db
