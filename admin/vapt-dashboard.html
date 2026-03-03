@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synergy Admin — VAPT Certificate Control Panel</title>
+  <title id="pageTitle">Admin — VAPT Certificate Control Panel</title>
+  <!-- CENTRALIZED CONFIG -->
+  <script src="/config.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
@@ -276,7 +278,7 @@
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
     </div>
     <div class="login-title">Admin Access</div>
-    <div class="login-sub">VAPT Certificate Control Panel</div>
+    <div class="login-sub" id="loginSub">VAPT Certificate Control Panel</div>
     <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
     <div class="fgroup" style="margin-bottom:14px">
       <label class="flabel">Username</label>
@@ -299,17 +301,17 @@
     <div class="sb-brand">
       <div class="sb-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg></div>
       <div>
-        <div class="sb-name">Synergy VPT</div>
+        <div class="sb-name" id="sbName">Synergy VPT</div>
         <div class="sb-sub">VAPT Admin</div>
       </div>
     </div>
     <nav class="sb-nav">
       <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
-      <a href="/VPT" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkVPT" href="/VPT" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         VPT Public Portal
       </a>
-      <a href="/CST/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkCSTAdmin" href="/CST/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         Switch → CST Admin
       </a>
@@ -357,7 +359,7 @@
         <div class="admin-av">A</div>
         <div>
           <div class="admin-nm">Administrator</div>
-          <div class="admin-rl">Full Access · Synergy Group</div>
+          <div class="admin-rl" id="adminRole">Full Access · Synergy Group</div>
         </div>
       </div>
       <button class="logout-btn" onclick="doLogout()">⎋ &nbsp;Logout</button>
@@ -518,17 +520,17 @@
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Verified By</label>
-                <input type="text" id="fVerifiedBy" class="fcontrol" value="Gaurav Singh" oninput="updatePreview()" />
+                <input type="text" id="fVerifiedBy" class="fcontrol" id="fVerifiedBy" value="" oninput="updatePreview()" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Verifier Title</label>
-                <input type="text" id="fVerifierTitle" class="fcontrol" value="CISO — Synergy Group" oninput="updatePreview()" />
+                <input type="text" id="fVerifierTitle" class="fcontrol" id="fVerifierTitle" value="" oninput="updatePreview()" />
               </div>
             </div>
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Assessing Organisation</label>
-                <input type="text" id="fAssessingOrg" class="fcontrol" value="Synergy Cybersecurity team" />
+                <input type="text" id="fAssessingOrg" class="fcontrol" value="" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Status</label>
@@ -555,7 +557,7 @@
               </div>
               <div class="fgroup">
                 <label class="flabel">Issuer Email</label>
-                <input type="email" id="fIssuerEmail" class="fcontrol" value="vapt@synergyship.com" />
+                <input type="email" id="fIssuerEmail" class="fcontrol" value="" />
               </div>
             </div>
             <div class="fgroup">
@@ -619,7 +621,7 @@
                   <div class="cert-logo-area">
                     <div class="cert-logo-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg></div>
                     <div>
-                      <div class="cert-org-name">Synergy Marine Group</div>
+                      <div class="cert-org-name" id="pvOrgName">Synergy Marine Group</div>
                       <div class="cert-org-sub">Cyber Security Division</div>
                     </div>
                   </div>
@@ -660,7 +662,7 @@
                   </div>
                   <div class="cert-sig-area" style="text-align:right">
                     <div class="cert-sig-line" style="margin-left:auto"></div>
-                    <div class="cert-sig-name">Synergy Cybersecurity Team</div>
+                    <div class="cert-sig-name" id="pvTeamName">Synergy Cybersecurity Team</div>
                   </div>
                 </div>
               </div>
@@ -1140,7 +1142,7 @@
     const d=new Date(ad);
     const mm=String(d.getMonth()+1).padStart(2,'0');
     const yy=String(d.getFullYear()).slice(-2);
-    document.getElementById('fId').value=`VAP-${imo}-${mm}${yy}`;
+    document.getElementById('fId').value=`${(window.APP_CONFIG&&window.APP_CONFIG.certFormats)?window.APP_CONFIG.certFormats.vaptPrefix:'VAP'}-${imo}-${mm}${yy}`;
     updatePreview();
   }
 
@@ -1148,13 +1150,13 @@
     ['fId','fImo','fVesselName','fRecipientName','fRecipientEmail'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('fAssessmentDate').value='';
     document.getElementById('fValidUntil').value='';
-    document.getElementById('fVerifiedBy').value='Gaurav Singh';
-    document.getElementById('fVerifierTitle').value='CISO — Synergy Group';
-    document.getElementById('fAssessingOrg').value='Synergy Cybersecurity team';
+    document.getElementById('fVerifiedBy').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh');
+    document.getElementById('fVerifierTitle').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group');
+    document.getElementById('fAssessingOrg').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.assessingOrg:'Synergy Cybersecurity Team');
     document.getElementById('fStatus').value='VALID';
-    document.getElementById('fFrameworks').value='Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013';
-    document.getElementById('fScopeItems').value='Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits';
-    document.getElementById('fIssuerEmail').value='vapt@synergyship.com';
+    document.getElementById('fFrameworks').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.frameworks:'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013');
+    document.getElementById('fScopeItems').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.scopeItems:'Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits');
+    document.getElementById('fIssuerEmail').value=(window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com');
     document.getElementById('fNotes').value='Re-assessment recommended within 2 weeks from date of participation.';
     document.getElementById('uploadDefault').style.display='block';
     document.getElementById('uploadPrev').style.display='none';
@@ -1173,14 +1175,14 @@
     document.getElementById('fRecipientName').value=c.recipientName||'';
     document.getElementById('fAssessmentDate').value=c.assessmentDate||'';
     document.getElementById('fValidUntil').value=c.validUntil||'';
-    document.getElementById('fVerifiedBy').value=c.verifiedBy||'Gaurav Singh';
-    document.getElementById('fVerifierTitle').value=c.verifierTitle||'CISO — Synergy Group';
-    document.getElementById('fAssessingOrg').value=c.assessingOrg||'Synergy Cybersecurity team';
+    document.getElementById('fVerifiedBy').value=c.verifiedBy||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh');
+    document.getElementById('fVerifierTitle').value=c.verifierTitle||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group');
+    document.getElementById('fAssessingOrg').value=c.assessingOrg||(window.APP_CONFIG?window.APP_CONFIG.vapt.assessingOrg:'Synergy Cybersecurity Team');
     document.getElementById('fStatus').value=c.status||'VALID';
     document.getElementById('fFrameworks').value=c.frameworks||'';
     document.getElementById('fScopeItems').value=c.scopeItems||'';
     document.getElementById('fRecipientEmail').value=c.recipientEmail||'';
-    document.getElementById('fIssuerEmail').value=c.issuerEmail||'vapt@synergyship.com';
+    document.getElementById('fIssuerEmail').value=c.issuerEmail||(window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com');
     document.getElementById('fNotes').value=c.notes||'';
     if (c.certificateImage) {
       document.getElementById('uploadDefault').style.display='none';
@@ -1204,7 +1206,7 @@
     document.getElementById('pv-assessed').textContent=v('fAssessmentDate')?fmtTiny(v('fAssessmentDate')):'—';
     document.getElementById('pv-until').textContent=v('fValidUntil')?fmtTiny(v('fValidUntil')):'—';
     document.getElementById('pv-status').textContent=v('fStatus')||'VALID';
-    document.getElementById('pv-verifier').textContent=(v('fVerifiedBy')||'Gaurav Singh')+(v('fVerifierTitle')?', '+v('fVerifierTitle').split('—')[0].trim():'');
+    document.getElementById('pv-verifier').textContent=(v('fVerifiedBy')||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh'))+(v('fVerifierTitle')?', '+v('fVerifierTitle').split('—')[0].trim():'');
     document.getElementById('pv-watermark').textContent=v('fStatus')||'VALID';
     updateCompletion();
   }
@@ -1427,7 +1429,7 @@
       const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
       if (r.ok){
         const d=await r.json();
-        const url = d.url || `${window.location.origin}/VPT/${encodeURIComponent(id)}`;
+        const url = d.url || `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'}/${encodeURIComponent(id)}`;
         await navigator.clipboard.writeText(url);
         if(btn){const t=btn.textContent;btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent=t,2000);}
         toast('Verification URL copied!','ok');
@@ -1474,17 +1476,17 @@
   async function updateIssueEmailPreview() {
     const c=CERTS.find(x=>x.id===selectedIssueCertId); if(!c) return;
     // Fetch the real encrypted cert URL from the server
-    let certUrl = `${window.location.origin}/VPT/cert/${encodeURIComponent(c.id)}`;
+    let certUrl = `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'}/cert/${encodeURIComponent(c.id)}`;
     try {
       const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(c.id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
       if (r.ok) { const d=await r.json(); if(d.url) certUrl=d.url; }
     } catch { /* fallback to plain URL */ }
     const body=
-`Subject: Your VAPT Certificate — ${c.id} — Synergy Group
+`Subject: Your VAPT Certificate — ${c.id} — ${window.APP_CONFIG?window.APP_CONFIG.brand.name:"Synergy Group"}
 
 Dear ${c.recipientName||'Vessel Master / Company Representative'},
 
-Please find below your Vulnerability Assessment & Penetration Testing (VAPT) certificate details from Synergy Marine Group Cyber Security Division.
+Please find below your Vulnerability Assessment & Penetration Testing (VAPT) certificate details from ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:"Synergy Marine Group"} Cyber Security Division.
 
 🔐 Certificate ID:     ${c.id}
 🚢 Vessel:             ${c.recipientName||c.vesselName||'—'}
@@ -1497,12 +1499,12 @@ ${certUrl}
 
 Frameworks Assessed: ${c.frameworks||'OWASP / IMO Framework / ISO 27001:2013'}
 
-If you have any questions or require a re-assessment, please contact us at vapt@synergyship.com.
+If you have any questions or require a re-assessment, please contact us at ${window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com'}.
 
 Regards,
-${c.verifiedBy||'Gaurav Singh'}
-${c.verifierTitle||'CISO — Synergy Group'}
-Synergy Marine Group · Cyber Security Division`;
+${c.verifiedBy||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh')}
+${c.verifierTitle||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group')}
+${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} · ${window.APP_CONFIG?window.APP_CONFIG.brand.division:'Cyber Security Division'}`;
     document.getElementById('issueEmailPreview').textContent=body;
     _issueEmailCache[c.id]=body;
   }
@@ -1706,13 +1708,13 @@ Synergy Marine Group · Cyber Security Division`;
       const d=new Date(dateStr);
       const mm=String(d.getMonth()+1).padStart(2,'0');
       const yy=String(d.getFullYear()).slice(-2);
-      certId=`VAP-${imo}-${mm}${yy}`;
+      certId=`${(window.APP_CONFIG&&window.APP_CONFIG.certFormats)?window.APP_CONFIG.certFormats.vaptPrefix:'VAP'}-${imo}-${mm}${yy}`;
     }
     let vu='';
     if(dateStr){const d=new Date(dateStr);d.setFullYear(d.getFullYear()+1);vu=d.toISOString().slice(0,10);}
     const notes=row.notes||'Re-assessment recommended within 2 weeks from date of participation.';
     const email=row.recipient_email||'';
-    return {id:certId,vesselIMO:imo,vesselName:row.vessel_name||'',recipientName:row.vessel_name||'',assessmentDate:dateStr,validUntil:vu,verifiedBy:'Gaurav Singh',verifierTitle:'CISO — Synergy Group',assessingOrg:'Synergy Cybersecurity team',frameworks:'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013',scopeItems:'Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits',status:'PENDING',recipientEmail:email,issuerEmail:'vapt@synergyship.com',emailStatus:'NOT_SENT',emailSentAt:null,notes,certificateImage:null};
+    return {id:certId,vesselIMO:imo,vesselName:row.vessel_name||'',recipientName:row.vessel_name||'',assessmentDate:dateStr,validUntil:vu,verifiedBy:(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh'),verifierTitle:(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group'),assessingOrg:(window.APP_CONFIG?window.APP_CONFIG.vapt.assessingOrg:'Synergy Cybersecurity team'),frameworks:(window.APP_CONFIG?window.APP_CONFIG.vapt.frameworks:'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013'),scopeItems:(window.APP_CONFIG?window.APP_CONFIG.vapt.scopeItems:'Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits'),status:'PENDING',recipientEmail:email,issuerEmail:(window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com'),emailStatus:'NOT_SENT',emailSentAt:null,notes,certificateImage:null};
   }
   function renderCsvPreview(){
     const records=csvParsedRows.map(buildVaptCertFromRow);
@@ -1824,6 +1826,29 @@ Synergy Marine Group · Cyber Security Division`;
   }else{
     document.getElementById('appWrap').style.display='none';
   }
+</script>
+<script>
+(function applyConfig() {
+  var C = window.APP_CONFIG;
+  if (!C) return;
+  document.title = C.titles.vaptAdmin;
+  var el;
+  if ((el=document.getElementById('loginSub')))    el.textContent = C.nav.vaptLoginSub;
+  if ((el=document.getElementById('sbName')))      el.textContent = C.nav.vptSidebarName;
+  if ((el=document.getElementById('adminRole')))   el.textContent = C.brand.adminRole;
+  if ((el=document.getElementById('pvOrgName')))   el.textContent = C.vapt.previewOrgName;
+  if ((el=document.getElementById('pvTeamName')))  el.textContent = C.vapt.previewTeamName;
+  if ((el=document.getElementById('pv-verifier'))) el.textContent = C.vapt.previewSigName;
+  // Form field defaults from config
+  if ((el=document.getElementById('fVerifiedBy')))    el.value = C.vapt.verifiedBy;
+  if ((el=document.getElementById('fVerifierTitle'))) el.value = C.vapt.verifierTitle;
+  if ((el=document.getElementById('fAssessingOrg')))  el.value = C.vapt.assessingOrg;
+  if ((el=document.getElementById('fFrameworks')))    el.value = C.vapt.frameworks;
+  if ((el=document.getElementById('fIssuerEmail')))   el.value = C.vapt.issuerEmail;
+  // Sidebar nav links
+  var sbVPT = document.getElementById('sbLinkVPT');      if (sbVPT)     sbVPT.href     = C.routes.vpt;
+  var sbCST = document.getElementById('sbLinkCSTAdmin'); if (sbCST)     sbCST.href     = C.routes.cstAdmin;
+})();
 </script>
 </body>
 </html>

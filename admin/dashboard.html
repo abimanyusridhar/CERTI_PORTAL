@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synergy Admin — Certificate Control Panel</title>
+  <title id="pageTitle">Admin — Certificate Control Panel</title>
+  <!-- CENTRALIZED CONFIG -->
+  <script src="/config.js"></script>
   <link
     href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
@@ -1798,7 +1800,7 @@
         </svg>
       </div>
       <div class="login-title">Admin Access</div>
-      <div class="login-sub">Synergy Certificate Control Panel</div>
+      <div class="login-sub" id="loginSub">Synergy Certificate Control Panel</div>
       <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
       <div class="fgroup" style="margin-bottom:14px">
         <label class="flabel">Username</label>
@@ -1830,17 +1832,17 @@
               d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg></div>
         <div>
-          <div class="sb-name">Synergy CST</div>
+          <div class="sb-name" id="sbName">Synergy CST</div>
           <div class="sb-sub">Training Admin</div>
         </div>
       </div>
       <nav class="sb-nav">
         <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
-        <a href="/CST" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <a id="sbLinkCST" href="/CST" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           CST Public Portal
         </a>
-        <a href="/VPT/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <a id="sbLinkVPTAdmin" href="/VPT/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           Switch → VPT Admin
         </a>
@@ -1895,7 +1897,7 @@
           <div class="admin-av">A</div>
           <div>
             <div class="admin-nm">Administrator</div>
-            <div class="admin-rl">Full Access · Synergy Group</div>
+            <div class="admin-rl" id="adminRole">Full Access · Synergy Group</div>
           </div>
         </div>
         <button class="logout-btn" onclick="doLogout()">⎋ &nbsp;Logout</button>
@@ -2081,7 +2083,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <div class="upload-text" style="color:var(--teal)">Drop your CSV file here or click to browse</div>
-                <div class="upload-hint">Accepts .csv files matching the Synergy CSV format</div>
+                <div class="upload-hint" id="csvHint">Accepts .csv files matching the Synergy CSV format</div>
               </div>
               <div id="csvUploadLoaded" style="display:none;text-align:center;padding:8px 0">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="margin:0 auto">
@@ -2269,7 +2271,7 @@
               <div class="fgroup form-full"><label class="flabel">Notes <span
                     style="color:var(--text-sec);font-size:.6rem">(static)</span></label><input id="fNotes"
                   class="fcontrol"
-                  value="Training conducted under supervision of ISO Lead Auditor and Security trainers" readonly
+                  id="fNotesDefault" value="Training conducted under supervision of ISO Lead Auditor and Security trainers" readonly
                   style="opacity:.65;cursor:not-allowed" /></div>
 
               <div class="fgroup form-full">
@@ -2344,7 +2346,7 @@
                             d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg></div>
                       <div>
-                        <div class="cert-org-name">Synergy Marine Group</div>
+                        <div class="cert-org-name" id="pvOrgName">Synergy Marine Group</div>
                         <div class="cert-org-sub">Cyber Security Division</div>
                       </div>
                     </div>
@@ -3022,20 +3024,21 @@
 
     // Sync fallback: plain cert path (used only when no token available yet)
     function getCertHashUrl(certId) {
-      // Fallback plain URL — server will redirect/serve correctly
-      return '/CST/cert/' + encodeURIComponent(certId);
+      var base = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST');
+      return base + '/cert/' + encodeURIComponent(certId);
     }
     // Async: fetch encrypted+signed URL from server (server knows PUBLIC_ORIGIN)
     async function getCertEncryptedUrl(certId) {
+      var base = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST');
       try {
         const r = await fetch(API + '/cert-url/' + encodeURIComponent(certId), {
           headers: { Authorization: 'Bearer ' + TOKEN }
         });
-        if (!r.ok) return window.location.origin + '/CST/cert/' + encodeURIComponent(certId);
+        if (!r.ok) return window.location.origin + base + '/cert/' + encodeURIComponent(certId);
         const d = await r.json();
         // Server returns the full absolute URL with correct public origin
         return d.url;
-      } catch { return window.location.origin + '/CST/cert/' + encodeURIComponent(certId); }
+      } catch { return window.location.origin + base + '/cert/' + encodeURIComponent(certId); }
     }
     function copyUrl(url, btn) {
       navigator.clipboard.writeText(url).then(() => {
@@ -3340,11 +3343,11 @@ Valid For: ${c.validFor || '—'}
 You may verify this certificate online at:
 ${verifyUrl}
 
-This training was organized by the Synergy Cyber Security Team and conducted under supervision of ISO Lead Auditor and Security trainers.
+This training was organized by ${window.APP_CONFIG?window.APP_CONFIG.brand.cstTeam:"Synergy Cyber Security Team"} and conducted under supervision of ISO Lead Auditor and Security trainers.
 
 Regards,
-Synergy Cyber Security Team
-trainingawareness@synergyship.com`;
+${(window.APP_CONFIG?window.APP_CONFIG.brand.cstTeam:"Synergy Cyber Security Team")}
+${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@synergyship.com")}`;
 
       document.getElementById('issueEmailPreview').textContent = body;
     }
@@ -3676,10 +3679,10 @@ trainingawareness@synergyship.com`;
 
     function resetForm() {
       ['fId', 'fRecip', 'fVesselName', 'fIMO', 'fEng', 'fCompDate', 'fEmail'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      document.getElementById('fTitle').value = 'Cyber Security Threat Awareness Training';
-      document.getElementById('fOrg').value = 'Synergy Cyber Security Team';
-      document.getElementById('fVerifier').value = 'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group';
-      document.getElementById('fNotes').value = 'Training conducted under supervision of ISO Lead Auditor and Security trainers';
+      document.getElementById('fTitle').value = (window.APP_CONFIG?window.APP_CONFIG.cst.trainingTitle:'Cyber Security Threat Awareness Training');
+      document.getElementById('fOrg').value = (window.APP_CONFIG?window.APP_CONFIG.cst.organizer:'Synergy Cyber Security Team');
+      document.getElementById('fVerifier').value = (window.APP_CONFIG?window.APP_CONFIG.cst.verifiedBy:'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group');
+      document.getElementById('fNotes').value = (window.APP_CONFIG?window.APP_CONFIG.cst.notes:'Training conducted under supervision of ISO Lead Auditor and Security trainers');
       document.getElementById('fMode').value = 'ONLINE';
       document.getElementById('fStatus').value = 'VALID';
       onStatusChange();
@@ -3894,17 +3897,18 @@ trainingawareness@synergyship.com`;
       const complianceDate = parseCsvDate(rawDate);
 
       // Cert ID: CST-{IMO}-{MM}-{YY}  (2-digit year)
+      var _cstPfx = (window.APP_CONFIG&&window.APP_CONFIG.certFormats)?window.APP_CONFIG.certFormats.cstPrefix:'CST';
       let certId = '';
       if (imo && complianceDate) {
         const parts = complianceDate.split('-'); // ['2026','02','18']
         const yy = parts[0].slice(-2);           // '26'
         const mo = parts[1];                     // '02'
-        certId = `CST-${imo}-${mo}-${yy}`;
+        certId = `${_cstPfx}-${imo}-${mo}-${yy}`;
       } else if (imo) {
         const now = new Date();
         const yy = String(now.getFullYear()).slice(-2);
         const mo = String(now.getMonth() + 1).padStart(2, '0');
-        certId = `CST-${imo}-${mo}-${yy}`;
+        certId = `${_cstPfx}-${imo}-${mo}-${yy}`;
       }
       const qMap = { Q1:{label:'Q2 (APR-MAY-JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL-AUG-SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT-NOV-DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN-FEB-MAR)',end:'03-28',nextYear:true} };
       const qi = qMap[quarter] || qMap['Q1'];
@@ -3914,13 +3918,13 @@ trainingawareness@synergyship.com`;
       const validUntil = validYear + '-' + qi.end;
       return {
         id: certId.toUpperCase(), recipientName, vesselName, vesselIMO: imo, chiefEngineer: chiefName,
-        trainingTitle: 'Cyber Security Threat Awareness Training', organizer: 'Synergy Cyber Security Team',
+        trainingTitle: (window.APP_CONFIG?window.APP_CONFIG.cst.trainingTitle:'Cyber Security Threat Awareness Training'), organizer: (window.APP_CONFIG?window.APP_CONFIG.cst.organizer:'Synergy Cyber Security Team'),
         complianceDate, complianceQuarter: quarter, trainingMode: mode, validFor, validUntil,
         issuedAt: complianceDate,
-        verifiedBy: 'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group',
+        verifiedBy: (window.APP_CONFIG?window.APP_CONFIG.cst.verifiedBy:'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group'),
         status: 'PENDING', certificateImage: null,
-        notes: 'Training conducted under supervision of ISO Lead Auditor and Security trainers',
-        recipientEmail: '', issuerEmail: 'trainingawareness@synergyship.com', emailStatus: 'NOT_SENT', emailSentAt: null
+        notes: (window.APP_CONFIG?window.APP_CONFIG.cst.notes:'Training conducted under supervision of ISO Lead Auditor and Security trainers'),
+        recipientEmail: '', issuerEmail: (window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:'trainingawareness@synergyship.com'), emailStatus: 'NOT_SENT', emailSentAt: null
       };
     }
 
@@ -4073,6 +4077,30 @@ trainingawareness@synergyship.com`;
     livePreview();
     updateCompletionChecklistFull();
   </script>
+
+<script>
+(function applyConfig() {
+  var C = window.APP_CONFIG;
+  if (!C) return;
+  document.title = C.titles.cstAdmin;
+  var el;
+  if ((el=document.getElementById("loginSub")))    el.textContent = C.nav.cstLoginSub;
+  if ((el=document.getElementById("sbName")))      el.textContent = C.nav.cstSidebarName;
+  if ((el=document.getElementById("adminRole")))   el.textContent = C.brand.adminRole;
+  if ((el=document.getElementById("csvHint")))     el.textContent = C.cst.csvFormatHint;
+  if ((el=document.getElementById("pvOrgName")))   el.textContent = C.cst.previewOrgName;
+  if ((el=document.getElementById("fNotesDefault"))) el.value = C.cst.notes;
+  if ((el=document.getElementById("pv-verifier"))) el.textContent = C.cst.previewSigName;
+  // Form field defaults
+  if ((el=document.getElementById("fTitle")))    el.value = C.cst.trainingTitle;
+  if ((el=document.getElementById("fOrg")))      el.value = C.cst.organizer;
+  if ((el=document.getElementById("fVerifier"))) el.value = C.cst.verifiedBy;
+  if ((el=document.getElementById("fNotes")))    el.value = C.cst.notes;
+  // Sidebar nav links
+  var sbCST = document.getElementById("sbLinkCST");      if (sbCST)      sbCST.href      = C.routes.cst;
+  var sbVPT = document.getElementById("sbLinkVPTAdmin"); if (sbVPT)      sbVPT.href      = C.routes.vptAdmin;
+})();
+</script>
 </body>
 
 </html>

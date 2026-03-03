@@ -29,6 +29,11 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 
+// ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
+// Single source of truth for brand, contact, routes, cert defaults & templates.
+// Edit /config/app.config.js — changes propagate to all HTML pages via /config.js.
+const CFG = require('../config/app.config');
+
 // ─── ENV LOADER ──────────────────────────────────────────────────────────────
 // Loads KEY=VALUE from .env file (same dir or parent dir).
 // Strips surrounding quotes. Never overwrites existing env vars.
@@ -216,7 +221,7 @@ function verifyCertUrlSignature(encToken, sig) {
 function buildCertUrl(certId, baseUrl) {
   const token = encryptCertToken(certId);
   const sig   = signCertUrl(token);
-  return `${baseUrl}/CST/cert/${token}?s=${sig}`;
+  return `${baseUrl}${CFG.routes.cst}/cert/${token}?s=${sig}`;
 }
 
 // ─── RATE LIMITER ─────────────────────────────────────────────────────────────
@@ -272,20 +277,20 @@ const SEED = {
     vesselName: "NORD KUDU",
     vesselIMO: "9623740",
     chiefEngineer: "BARREGA WILLIE PANIAMOGAN",
-    trainingTitle: "Cyber Security Threat Awareness Training",
-    organizer: "Synergy Cyber Security Team",
+    trainingTitle: CFG.cst.trainingTitle,
+    organizer: CFG.cst.organizer,
     complianceDate: "2026-01-30",
     complianceQuarter: "Q1",
     trainingMode: "ONLINE",
     validFor: "Q2 (APR-MAY-JUN)-2026",
     validUntil: "2026-06-30",
-    verifiedBy: "Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group",
+    verifiedBy: CFG.cst.verifiedBy,
     status: "VALID",
     issuedAt: "2026-01-30",
     certificateImage: null,
-    notes: "Training conducted under supervision of ISO Lead Auditor and Security trainers",
+    notes: CFG.cst.notes,
     recipientEmail: "",
-    issuerEmail: "trainingawareness@synergyship.com",
+    issuerEmail: CFG.cst.issuerEmail,
     emailStatus: "NOT_SENT",
     emailSentAt: null,
     createdAt: new Date().toISOString(),
@@ -297,20 +302,20 @@ const SEED = {
     vesselName: "BW CHINOOK",
     vesselIMO: "9689536",
     chiefEngineer: "TARAK NATH",
-    trainingTitle: "Cyber Security Threat Awareness Training",
-    organizer: "Synergy Cyber Security Team",
+    trainingTitle: CFG.cst.trainingTitle,
+    organizer: CFG.cst.organizer,
     complianceDate: "2026-02-12",
     complianceQuarter: "Q1",
     trainingMode: "ONLINE",
     validFor: "Q2 (APR-MAY-JUN)-2026",
     validUntil: "2026-06-30",
-    verifiedBy: "Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group",
+    verifiedBy: CFG.cst.verifiedBy,
     status: "VALID",
     issuedAt: "2026-02-12",
     certificateImage: null,
-    notes: "Training conducted under supervision of ISO Lead Auditor and Security trainers",
+    notes: CFG.cst.notes,
     recipientEmail: "",
-    issuerEmail: "trainingawareness@synergyship.com",
+    issuerEmail: CFG.cst.issuerEmail,
     emailStatus: "NOT_SENT",
     emailSentAt: null,
     createdAt: new Date().toISOString(),
@@ -341,16 +346,16 @@ const VAPT_SEED = {
     certificateNumber: "VAP-9491666-1026",
     assessmentDate: "2026-02-10",
     validUntil: "2027-02-10",
-    verifiedBy: "Gaurav Singh",
-    verifierTitle: "CISO-Synergy Group",
-    assessingOrg: "Synergy Cybersecurity team",
-    frameworks: "Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013",
-    scopeItems: "Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits",
+    verifiedBy: CFG.vapt.verifiedBy,
+    verifierTitle: CFG.vapt.verifierTitle,
+    assessingOrg: CFG.vapt.assessingOrg,
+    frameworks: CFG.vapt.frameworks,
+    scopeItems: CFG.vapt.scopeItems,
     status: "VALID",
     issuedAt: "2026-02-10",
     certificateImage: null,
     recipientEmail: "",
-    issuerEmail: "vapt@synergyship.com",
+    issuerEmail: CFG.vapt.issuerEmail,
     emailStatus: "NOT_SENT",
     emailSentAt: null,
     notes: "Re-assessment recommended within 2 weeks from date of participation.",
@@ -375,7 +380,7 @@ function saveVaptData(data) {
 function buildVaptCertUrl(certId, baseUrl) {
   const token = encryptCertToken(certId);
   const sig   = signCertUrl(token);
-  return `${baseUrl}/VPT/cert/${token}?s=${sig}`;
+  return `${baseUrl}${CFG.routes.vpt}/cert/${token}?s=${sig}`;
 }
 
 function simulateSendVaptEmail({ to, from, certId, recipientName, assessmentDate, verifyUrl }) {
@@ -816,7 +821,7 @@ async function handleAPI(req, res, parsed) {
     const verifyUrl = buildCertUrl(cert.id, base);
     const ok = simulateSendEmail({
       to: cert.recipientEmail,
-      from: cert.issuerEmail || 'trainingawareness@synergyship.com',
+      from: cert.issuerEmail || CFG.cst.issuerEmail,
       certId: cert.id,
       recipientName: cert.recipientName,
       trainingTitle: cert.trainingTitle,
@@ -1060,7 +1065,7 @@ async function handleAPI(req, res, parsed) {
     const verifyUrl = buildVaptCertUrl(cert.id, base);
     const ok = simulateSendVaptEmail({
       to: cert.recipientEmail,
-      from: cert.issuerEmail || 'vapt@synergyship.com',
+      from: cert.issuerEmail || CFG.vapt.issuerEmail,
       certId: cert.id,
       recipientName: cert.recipientName,
       assessmentDate: cert.assessmentDate,
@@ -1190,6 +1195,11 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // ── Config (browser-side app.config.js) ──────────────────────────────────
+  if (p === '/config.js') {
+    return sendFile(res, path.join(__dirname, '..', 'config', 'app.config.js'));
+  }
+
   // ── API (shared) ──────────────────────────────────────────────────────────
   if (p.startsWith('/api')) {
     return handleAPI(req, res, parsed);
@@ -1197,7 +1207,7 @@ const server = http.createServer(async (req, res) => {
 
   // ── Root → redirect to /CST ───────────────────────────────────────────────
   if (p === '/') {
-    res.writeHead(302, { Location: '/CST' });
+    res.writeHead(302, { Location: CFG.routes.cst });
     return res.end();
   }
 
@@ -1209,12 +1219,12 @@ const server = http.createServer(async (req, res) => {
   // ══════════════════════════════════════════════════════════════════════════
 
   // /CST/admin  →  Training Admin Dashboard
-  if (p === '/CST/admin' || p === '/CST/admin/') {
-    if (p === '/CST/admin') { res.writeHead(301, { Location: '/CST/admin/' }); return res.end(); }
+  if (p === CFG.routes.cstAdmin || p === CFG.routes.cstAdmin + '/') {
+    if (p === CFG.routes.cstAdmin) { res.writeHead(301, { Location: CFG.routes.cstAdmin + '/' }); return res.end(); }
     return sendFile(res, path.join(adminDir, 'dashboard.html'));
   }
-  if (p.startsWith('/CST/admin/')) {
-    const relative = p.slice('/CST/admin/'.length);
+  if (p.startsWith(CFG.routes.cstAdmin + '/')) {
+    const relative = p.slice((CFG.routes.cstAdmin + '/').length);
     let filePath = path.join(adminDir, relative || 'dashboard.html');
     if (!path.extname(filePath)) filePath = path.join(adminDir, 'dashboard.html');
     if (!filePath.startsWith(adminDir)) { res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden'); }
@@ -1222,12 +1232,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   // /CST/cert/:token  →  Training cert viewer (SPA handles token)
-  if (p.startsWith('/CST/cert/')) {
+  if (p.startsWith(CFG.routes.cst + '/cert/')) {
     return sendFile(res, path.join(publicDir, 'index.html'));
   }
 
   // /CST  or  /CST/  →  Training cert public viewer
-  if (p === '/CST' || p === '/CST/') {
+  if (p === CFG.routes.cst || p === CFG.routes.cst + '/') {
     return sendFile(res, path.join(publicDir, 'index.html'));
   }
 
@@ -1236,12 +1246,12 @@ const server = http.createServer(async (req, res) => {
   // ══════════════════════════════════════════════════════════════════════════
 
   // /VPT/admin  →  VAPT Admin Dashboard
-  if (p === '/VPT/admin' || p === '/VPT/admin/') {
-    if (p === '/VPT/admin') { res.writeHead(301, { Location: '/VPT/admin/' }); return res.end(); }
+  if (p === CFG.routes.vptAdmin || p === CFG.routes.vptAdmin + '/') {
+    if (p === CFG.routes.vptAdmin) { res.writeHead(301, { Location: CFG.routes.vptAdmin + '/' }); return res.end(); }
     return sendFile(res, path.join(adminDir, 'vapt-dashboard.html'));
   }
-  if (p.startsWith('/VPT/admin/')) {
-    const relative = p.slice('/VPT/admin/'.length);
+  if (p.startsWith(CFG.routes.vptAdmin + '/')) {
+    const relative = p.slice((CFG.routes.vptAdmin + '/').length);
     let filePath = path.join(adminDir, relative || 'vapt-dashboard.html');
     if (!path.extname(filePath)) filePath = path.join(adminDir, 'vapt-dashboard.html');
     if (!filePath.startsWith(adminDir)) { res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden'); }
@@ -1249,34 +1259,34 @@ const server = http.createServer(async (req, res) => {
   }
 
   // /VPT/cert/:token  →  VAPT cert viewer (SPA handles token)
-  if (p.startsWith('/VPT/cert/')) {
+  if (p.startsWith(CFG.routes.vpt + '/cert/')) {
     return sendFile(res, path.join(publicDir, 'vapt-index.html'));
   }
 
   // /VPT  or  /VPT/  →  VAPT cert public viewer
-  if (p === '/VPT' || p === '/VPT/') {
+  if (p === CFG.routes.vpt || p === CFG.routes.vpt + '/') {
     return sendFile(res, path.join(publicDir, 'vapt-index.html'));
   }
 
   // ── Legacy redirect support ───────────────────────────────────────────────
   // Old /cert/* → /CST/cert/*
   if (p.startsWith('/cert/')) {
-    res.writeHead(301, { Location: p.replace('/cert/', '/CST/cert/') + (parsed.search || '') });
+    res.writeHead(301, { Location: p.replace('/cert/', CFG.routes.cst + '/cert/') + (parsed.search || '') });
     return res.end();
   }
   // Old /vapt-cert/* → /VPT/cert/*
   if (p.startsWith('/vapt-cert/')) {
-    res.writeHead(301, { Location: p.replace('/vapt-cert/', '/VPT/cert/') + (parsed.search || '') });
+    res.writeHead(301, { Location: p.replace('/vapt-cert/', CFG.routes.vpt + '/cert/') + (parsed.search || '') });
     return res.end();
   }
   // Old /admin → /CST/admin
   if (p === '/admin' || p.startsWith('/admin/')) {
-    res.writeHead(301, { Location: p.replace('/admin', '/CST/admin') });
+    res.writeHead(301, { Location: p.replace('/admin', CFG.routes.cstAdmin) });
     return res.end();
   }
   // Old /vapt-admin → /VPT/admin
   if (p === '/vapt-admin' || p.startsWith('/vapt-admin/')) {
-    res.writeHead(301, { Location: p.replace('/vapt-admin', '/VPT/admin') });
+    res.writeHead(301, { Location: p.replace('/vapt-admin', CFG.routes.vptAdmin) });
     return res.end();
   }
 
@@ -1290,18 +1300,18 @@ const server = http.createServer(async (req, res) => {
 
   // 404
   res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html' });
-  res.end(`<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:80px;background:#0A1628;color:#CCD6F6"><h2>404 — Page Not Found</h2><p><a href="/CST" style="color:#D4A843">→ CST Certificate Portal</a> &nbsp;|&nbsp; <a href="/VPT" style="color:#64FFDA">→ VPT Assessment Portal</a></p></body></html>`);
+  res.end(`<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:80px;background:#0A1628;color:#CCD6F6"><h2>404 — Page Not Found</h2><p><a href="${CFG.routes.cst}" style="color:#D4A843">→ ${CFG.brand.name} CST Portal</a> &nbsp;|&nbsp; <a href="${CFG.routes.vpt}" style="color:#64FFDA">→ ${CFG.brand.name} VPT Portal</a></p></body></html>`);
 });
 
 // ─── START ───────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
   console.log('\n╔══════════════════════════════════════════════════════╗');
-  console.log('║  SYNERGY CERTIFICATE PORTAL — SINGLE PORT MODE       ║');
+  console.log('║  ' + CFG.brand.companyFull.toUpperCase() + ' CERTIFICATE PORTAL — SINGLE PORT ║');
   console.log('╠══════════════════════════════════════════════════════╣');
-  console.log(`║  🛡️  CST Portal    → ${BASE_ORIGIN}/CST`.padEnd(55) + '║');
-  console.log(`║  🔐 CST Admin     → ${BASE_ORIGIN}/CST/admin/`.padEnd(55) + '║');
-  console.log(`║  🔍 VPT Portal    → ${BASE_ORIGIN}/VPT`.padEnd(55) + '║');
-  console.log(`║  🔐 VPT Admin     → ${BASE_ORIGIN}/VPT/admin/`.padEnd(55) + '║');
+  console.log(('║  🛡️  CST Portal    → ' + BASE_ORIGIN + CFG.routes.cst).padEnd(55) + '║');
+  console.log(('║  🔐 CST Admin     → ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/').padEnd(55) + '║');
+  console.log(('║  🔍 VPT Portal    → ' + BASE_ORIGIN + CFG.routes.vpt).padEnd(55) + '║');
+  console.log(('║  🔐 VPT Admin     → ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/').padEnd(55) + '║');
   console.log(`║  📡 API           → ${BASE_ORIGIN}/api`.padEnd(55) + '║');
   console.log('║                                                      ║');
   console.log('║  🔒 Security: AES-256-GCM URLs · HMAC-signed        ║');

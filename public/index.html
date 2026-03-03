@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Synergy Group — Certificate Verification</title>
+  <title id="pageTitle">Certificate Verification</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -218,6 +218,8 @@
       .ii.fw{grid-column:1}
     }
   </style>
+  <!-- CENTRALIZED CONFIG — single source of truth for all brand/contact/route values -->
+  <script src="/config.js"></script>
 </head>
 <body>
 
@@ -232,11 +234,11 @@
     <div class="nav-logo-box">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
     </div>
-    <div class="brand-text"><div class="name">Synergy Group</div><div class="sub">Certificate Registry</div></div>
+    <div class="brand-text"><div class="name" id="navBrandName">Synergy Group</div><div class="sub" id="navBrandSub">Certificate Registry</div></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
-    <a href="/CST" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> CST Training</a>
-    <a href="/VPT" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> VPT Assessment</a>
+    <a id="navTabCST" href="/CST" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
+    <a id="navTabVPT" href="/VPT" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VPT Assessment</span></a>
     <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Verification</div>
   </div>
 </nav>
@@ -247,17 +249,17 @@
     Trusted Certificate Authority
   </div>
   <h1 class="hero-title">Verify <em>Authenticity</em><br>Instantly &amp; Securely</h1>
-  <p class="hero-sub">Enter a Cyber Security Training (CST) certificate number from any Synergy training document. Real-time verification for maritime compliance officers, port authorities, and PSC inspectors.</p>
+  <p class="hero-sub" id="heroSub">Enter a Cyber Security Training (CST) certificate number from any Synergy training document. Real-time verification for maritime compliance officers, port authorities, and PSC inspectors.</p>
   <div class="search-container">
     <div class="search-wrap" id="searchWrap">
       <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="e.g. CST-9902873-02-26" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
+      <input type="text" id="certInput" class="search-input" id="certInput" placeholder="e.g. CST-9902873-02-26" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
       <button id="verifyBtn" class="search-btn" onclick="verify()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
     </div>
-    <div class="search-hint">Format: CST-&lt;IMO&gt;-&lt;MM&gt;-&lt;YY&gt; &nbsp;·&nbsp; Case insensitive &nbsp;·&nbsp; Example: CST-99028XX-0X-26</div>
+    <div class="search-hint" id="searchHint">Format: CST-&lt;IMO&gt;-&lt;MM&gt;-&lt;YY&gt; &nbsp;·&nbsp; Case insensitive &nbsp;·&nbsp; Example: CST-99028XX-0X-26</div>
   </div>
 </section>
 
@@ -274,8 +276,8 @@
 <div class="desc-block" id="descBlock">
   <div class="desc-section full-col">
     <div class="desc-section-title">About This Certificate</div>
-    <p class="desc-text">The <strong style="color:var(--text-bright)">Cyber Security Threat Awareness Training (CST)</strong> certificate is issued by the <strong style="color:var(--gold)">Synergy Cyber Security Team</strong> to vessels that have successfully completed the mandatory maritime cybersecurity training programme, organized under the supervision of ISO Lead Auditors and certified Security Trainers.</p>
-    <p class="desc-text" style="margin-top:12px">Compliance is aligned with international maritime regulations and is valid for one quarter following completion. Port State Control (PSC) officers, vetting inspectors, and compliance managers can independently verify the authenticity and current validity of any CST certificate issued by Synergy Marine Group.</p>
+    <p class="desc-text">The <strong style="color:var(--text-bright)">Cyber Security Threat Awareness Training (CST)</strong> certificate is issued by the <strong style="color:var(--gold)" id="descCstTeam">Synergy Cyber Security Team</strong> to vessels that have successfully completed the mandatory maritime cybersecurity training programme, organized under the supervision of ISO Lead Auditors and certified Security Trainers.</p>
+    <p class="desc-text" style="margin-top:12px">Compliance is aligned with international maritime regulations and is valid for one quarter following completion. Port State Control (PSC) officers, vetting inspectors, and compliance managers can independently verify the authenticity and current validity of any CST certificate issued by <span id="descCompanyName">Synergy Marine Group</span>.</p>
   </div>
   <div class="desc-section">
     <div class="desc-section-title">Validated Competencies</div>
@@ -297,7 +299,7 @@
 <footer>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    Synergy Marine Group &middot; Cyber Security Certificate Registry &middot; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="146066757d7a7d7a7375637566717a71676754676d7a7166736d677c7d643a777b79">[email&#160;protected]</a>
+    <span id="footerCredit">Synergy Marine Group &middot; Cyber Security Certificate Registry</span> &middot; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="146066757d7a7d7a7375637566717a71676754676d7a7166736d677c7d643a777b79">[email&#160;protected]</a>
   </div>
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
@@ -366,8 +368,8 @@
       } else {
         const data = await res.json();
         hideDesc();
-        if (res.status === 404) { renderNotFound(); history.pushState(null, '', '/CST'); }
-        else { renderCert(data); history.pushState({ certId: raw }, '', '/CST?ref=' + btoa(encodeURIComponent(raw))); }
+        if (res.status === 404) { renderNotFound(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.cst:'/CST')); }
+        else { renderCert(data); history.pushState({ certId: raw }, '', (window.APP_CONFIG?window.APP_CONFIG.routes.cst:'/CST') + '?ref=' + btoa(encodeURIComponent(raw))); }
       }
     } catch { renderError(); }
     btn.disabled = false;
@@ -375,7 +377,7 @@
   }
 
   function renderNotFound() {
-    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No certificate matches this number in the Synergy registry.<br>Please verify the number carefully or contact <strong style="color:var(--gold)">trainingawareness@synergyship.com</strong></p></div>`;
+    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No certificate matches this number in the Synergy registry.<br>Please verify the number carefully or contact <strong style="color:var(--gold)" id="notFoundEmail">trainingawareness@synergyship.com</strong></p></div>`;
     scroll();
   }
 
@@ -407,7 +409,7 @@
     const validMsg = valid
       ? `Certificate is <strong style="color:var(--teal)">active and accepted</strong> — valid until ${fmt(cert.validUntil)}${dLeft!==null && dLeft>0 ? ` · <strong>${dLeft} day${dLeft===1?'':'s'}</strong> remaining` : ''}`
       : pending
-      ? `This certificate is <strong style="color:#7EB8F7">registered but not yet activated</strong>. Contact the Synergy Cyber Security Team for status updates.`
+      ? `This certificate is <strong style="color:#7EB8F7">registered but not yet activated</strong>. ${(window.APP_CONFIG&&window.APP_CONFIG.cst)?window.APP_CONFIG.cst.pendingNote:'Contact the Synergy Cyber Security Team for status updates.'}`
       : `This certificate is <strong style="color:var(--invalid)">${cert.status.toLowerCase()}</strong> and not currently accepted for compliance.`;
 
     const valIconPath = valid
@@ -483,7 +485,7 @@
         </div>
         <div>
           <div class="recipient-banner-title">Certificate Recipient View</div>
-          <div class="recipient-banner-sub">This record is read-only · verified directly from the Synergy registry</div>
+          <div class="recipient-banner-sub">${(window.APP_CONFIG||{cst:{readOnlyNote:"This record is read-only · verified directly from the Synergy registry"}}).cst.readOnlyNote}</div>
         </div>
       </div>
       <div class="recipient-ts">Queried: ${new Date().toUTCString()}</div>
@@ -503,7 +505,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Download Certificate
           </button>
-          <div class="sd-contact">Want to report an error? <a href="mailto:trainingawareness@synergyship.com">Contact Issuer</a></div>
+          <div class="sd-contact">Want to report an error? <a href="mailto:${(window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.cstEmail:'trainingawareness@synergyship.com'}">Contact Issuer</a></div>
         </div>
 
         <div class="verify-card">
@@ -554,8 +556,8 @@
         <div class="issued-card">
           <div>
             <div class="ib-label">Issued By</div>
-            <div class="ib-name">${cert.organizer || 'Synergy Cyber Security Team'}</div>
-            <div class="ib-sub">${cert.verifiedBy || 'CISO, Synergy Marine Group'}</div>
+            <div class="ib-name">${cert.organizer || (window.APP_CONFIG?window.APP_CONFIG.brand.cstTeam:'Synergy Cyber Security Team')}</div>
+            <div class="ib-sub">${cert.verifiedBy || (window.APP_CONFIG?window.APP_CONFIG.cst.verifiedBy:'CISO, Synergy Marine Group')}</div>
           </div>
           <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--border-gold)" stroke-width="1.1"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
         </div>
@@ -606,7 +608,7 @@
 
         <div class="sec-footer">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          Synergy Cyber Security Registry &nbsp;&middot;&nbsp; ISO Lead Auditor Supervision &nbsp;&middot;&nbsp; ${new Date().toUTCString()}
+          ${(window.APP_CONFIG&&window.APP_CONFIG.cst)?window.APP_CONFIG.cst.registryBanner:"Synergy Cyber Security Registry"} &nbsp;&middot;&nbsp; ${new Date().toUTCString()}
         </div>
       </div>
     </div>`;
@@ -691,7 +693,8 @@
   }
 
   async function checkHash() {
-    const pathMatch = window.location.pathname.match(/^\/CST\/cert\/(.+)/);
+    const _cstBase = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST');
+    const pathMatch = window.location.pathname.match(new RegExp('^' + _cstBase.replace('/', '\\/') + '\\/cert\\/(.+)'));
     if (pathMatch) {
       const token = pathMatch[1];
       const sig   = new URLSearchParams(window.location.search).get('s') || '';
@@ -708,6 +711,29 @@
   }
 
   checkHash();
+
+  // Apply centralized config to static DOM elements
+  (function applyConfig() {
+    var C = window.APP_CONFIG;
+    if (!C) return;
+    document.title = C.titles.cstPortal;
+    var el;
+    if ((el=document.getElementById('navBrandName'))) el.textContent = C.brand.name;
+    if ((el=document.getElementById('navBrandSub')))  el.textContent = C.nav.cstBrandSub;
+    if ((el=document.getElementById('heroSub')))      el.innerHTML   = C.cst.heroSub;
+    if ((el=document.getElementById('searchHint')))   el.innerHTML   = C.cst.searchHint;
+    if ((el=document.getElementById('footerCredit'))) el.innerHTML   = C.cst.footerCredit;
+    if ((el=document.getElementById('notFoundEmail'))) el.textContent= C.contact.cstEmail;
+    // Description block brand names
+    if ((el=document.getElementById('descCstTeam')))    el.textContent = C.brand.cstTeam;
+    if ((el=document.getElementById('descCompanyName'))) el.textContent = C.brand.name;
+    var t=document.getElementById('navTabCST'); if(t) t.href=C.routes.cst;
+    var v=document.getElementById('navTabVPT'); if(v) v.href=C.routes.vpt;
+    var cl=document.getElementById('cstTabLabel'); if(cl) cl.textContent=C.nav.cstTabLabel;
+    var vl=document.getElementById('vptTabLabel'); if(vl) vl.textContent=C.nav.vptTabLabel;
+    var inp=document.getElementById('certInput');
+    if(inp) inp.placeholder = C.cst.searchPlaceholder;
+  })();
 </script>
 </body>
 </html>
