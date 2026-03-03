@@ -46,10 +46,13 @@
     cstEmail:  'trainingawareness@synergyship.com',
     vaptEmail: 'vapt@synergyship.com',
 
+    // Routes  (change once — all href / fetch paths update)
+    routeCST:  '/CST',
+    routeVPT:  '/VPT',
+
     // Certificate ID prefixes
     cstPrefix:  'CST',                          // → "CST-{IMO}-{MM}-{YY}"
     vaptPrefix: 'VAP',                          // → "VAP-{IMO}-{MMYY}"
-    routeVPT:  '/VPT',
 
     // Training programme label
     trainingTitle: 'Cyber Security Threat Intelligence Awareness Training',
