@@ -120,10 +120,30 @@ if (!ADMIN_USER || !ADMIN_PASS) {
   process.exit(1);
 }
 
+// ─── PASSWORD HASHING (async — never blocks the event loop) ──────────────────
+// pbkdf2Sync with 310,000 iterations freezes Node's single thread for ~2–3s
+// on every login attempt, causing Nginx 504 Gateway Timeout.
+// The async version offloads the work to libuv's thread pool instead.
 function hashPassword(password) {
-  return crypto.pbkdf2Sync(password, KEYS.pwdSalt, 310000, 32, 'sha256').toString('hex');
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, KEYS.pwdSalt, 310000, 32, 'sha256', (err, key) => {
+      if (err) reject(err);
+      else resolve(key.toString('hex'));
+    });
+  });
 }
-const ADMIN_PASS_HASH = hashPassword(ADMIN_PASS);
+
+// Pre-compute admin password hash at startup (async — won't block server boot)
+let ADMIN_PASS_HASH = '';
+let serverReady = false;
+hashPassword(ADMIN_PASS).then(hash => {
+  ADMIN_PASS_HASH = hash;
+  serverReady = true;
+  console.log('[SECURITY] Admin password hash ready.');
+}).catch(err => {
+  console.error('[FATAL] Failed to hash admin password:', err);
+  process.exit(1);
+});
 
 // ─── JWT-STYLE ADMIN TOKENS ──────────────────────────────────────────────────
 const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000;
@@ -581,6 +601,9 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/auth/login ──────────────────────────────────────────────────
   if (route === '/auth/login' && method === 'POST') {
+    // Guard: reject requests before startup hash is ready (usually <100ms)
+    if (!serverReady)
+      return sendJSON(res, 503, { error: 'Server initialising, please retry in a moment.' }, corsH);
     const rl = checkRateLimit(ip, 'login');
     if (!rl.ok)
       return sendJSON(res, 429, { error: 'Too many login attempts. Try again later.' },
@@ -591,7 +614,7 @@ async function handleAPI(req, res, parsed) {
     }
     const { username, password }  = body;
     const usernameMatch = typeof username === 'string' && username === ADMIN_USER;
-    const passwordHash  = hashPassword(password || '');
+    const passwordHash  = await hashPassword(password || '');
     const passwordMatch = crypto.timingSafeEqual(
       Buffer.from(passwordHash), Buffer.from(ADMIN_PASS_HASH)
     );
