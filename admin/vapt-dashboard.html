@@ -975,12 +975,12 @@
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Certificate ID / Number *</label>
-                <input type="text" id="fId" class="fcontrol" placeholder="VAP-9491666-0226" oninput="updatePreview()" />
+                <input type="text" id="fId" class="fcontrol" placeholder="VAP-XXXXXXX-MMYY" oninput="updatePreview()" />
                 <div class="field-hint" id="idHint"></div>
               </div>
               <div class="fgroup">
                 <label class="flabel">Vessel IMO *</label>
-                <input type="text" id="fImo" class="fcontrol" placeholder="9491666" oninput="autoGenId();updatePreview()" />
+                <input type="text" id="fImo" class="fcontrol" placeholder="IMO number" oninput="autoGenId();updatePreview()" />
               </div>
             </div>
             <div class="form-grid">
@@ -1406,7 +1406,23 @@
 
   // ── INIT ──
   let _autoRefreshInterval = null;
+
+  // Warn admin 30 min before token expiry; auto-logout when expired
+  function scheduleTokenExpiryWarning() {
+    try {
+      const parts = TOKEN.split('.');
+      if (parts.length !== 3) return;
+      const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+      const msLeft = payload.exp - Date.now();
+      if (msLeft <= 0) { doLogout(); return; }
+      setTimeout(doLogout, msLeft);
+      const warnAt = msLeft - 30 * 60 * 1000;
+      if (warnAt > 0) setTimeout(() => toast('⚠ Session expires in 30 minutes. Save your work.', 'warn'), warnAt);
+    } catch { }
+  }
+
   async function initApp() {
+    scheduleTokenExpiryWarning();
     await refreshStats();
     renderTbl('dashTbl', '');
     updateRealTimeBadge();
@@ -2477,7 +2493,7 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
     document.getElementById('csvImportBtn').disabled=true;
   }
   function downloadSampleCsv(){
-    const csv='imo_number,vessel_name,assessment_date,cert_number,recipient_email,notes\n9491666,MV Efficiency OL,10-02-2026,VAP-9491666-0226,master@efficiency.com,Sample VAPT cert\n9623740,MV Nord Kudu,15-03-2026,,master@nordkudu.com,\n9689536,MT BW Chinook,20-03-2026,VAP-9689536-0326,,';
+    const csv='imo_number,vessel_name,assessment_date,cert_number,recipient_email,notes\nXXXXXXX,MV Vessel Name,DD-MM-YYYY,VAP-XXXXXXX-MMYY,master@vessel.com,Sample VAPT cert\nXXXXXXX,MV Vessel Name 2,DD-MM-YYYY,,master@vessel2.com,';
     const blob=new Blob([csv],{type:'text/csv'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vapt_sample.csv';a.click();
   }
@@ -2504,7 +2520,7 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
       const parts=TOKEN.split('.');
       if(parts.length===3){
         const payload=JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-        if(Date.now()>payload.exp*1000){sessionStorage.removeItem('adminToken');TOKEN='';}
+        if(Date.now()>payload.exp){sessionStorage.removeItem('adminToken');TOKEN='';}
       }else{sessionStorage.removeItem('adminToken');TOKEN='';}
     }catch{sessionStorage.removeItem('adminToken');TOKEN='';}
   }

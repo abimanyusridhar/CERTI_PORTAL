@@ -3541,10 +3541,10 @@
     // MODULE: Quarter Logic — auto-derive validFor, validUntil, recipientName
     // ════════════════════════════════════════════════════
     const QUARTER_MAP = {
-      Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 5, endDay: 30 },
-      Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 8, endDay: 30 },
-      Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 11, endDay: 31 },
-      Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 2, endDay: 31, nextYear: true }
+      Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 6,  endDay: 30 },
+      Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 9,  endDay: 30 },
+      Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 12, endDay: 31 },
+      Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 3,  endDay: 31, nextYear: true }
     };
     function onQuarterChange() {
       const q = document.getElementById('fQuarter').value;
@@ -4490,7 +4490,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const mo = String(now.getMonth() + 1).padStart(2, '0');
         certId = `${_cstPfx}-${imo}-${mo}-${yy}`;
       }
-      const qMap = { Q1:{label:'Q2 (APR-MAY-JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL-AUG-SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT-NOV-DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN-FEB-MAR)',end:'03-28',nextYear:true} };
+      const qMap = { Q1:{label:'Q2 (APR-MAY-JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL-AUG-SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT-NOV-DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN-FEB-MAR)',end:'03-31',nextYear:true} };
       const qi = qMap[quarter] || qMap['Q1'];
       const baseYear = complianceDate ? parseInt(complianceDate.slice(0,4)) : new Date().getFullYear();
       const validYear = qi.nextYear ? baseYear + 1 : baseYear;

@@ -641,13 +641,13 @@
   <div class="search-container">
     <div class="search-wrap" id="searchWrap">
       <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="e.g. VAP-9491666-1026" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
+      <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
       <button id="verifyBtn" class="search-btn" onclick="verify()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
     </div>
-    <div class="search-hint" id="searchHint">Format: VAP-&lt;IMO&gt;-&lt;MMYY&gt; &nbsp;·&nbsp; Example: VAP-9491666-1026</div>
+    <div class="search-hint" id="searchHint">Enter your VAPT certificate number as provided in your assessment report</div>
   </div>
 </section>
 
@@ -756,7 +756,13 @@
         hideDesc();
         if (res.status === 404) { renderNotFound(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT')); }
         else if (!res.ok) { renderError(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT')); }
-        else { renderCert(data); history.pushState({ certId: raw }, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT') + '?ref=' + btoa(encodeURIComponent(raw))); }
+        else {
+          // Generate an opaque reference token — cert ID is never written to the URL
+          const refToken = Array.from(crypto.getRandomValues(new Uint8Array(9))).map(b => b.toString(36)).join('');
+          try { sessionStorage.setItem('vapt_ref_' + refToken, raw); } catch(e) {}
+          renderCert(data);
+          history.pushState({ certId: raw }, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT') + '?ref=' + refToken);
+        }
       }
     } catch { renderError(); }
     btn.disabled = false;
@@ -1100,7 +1106,9 @@
     const _vparams = new URLSearchParams(window.location.search);
     const _vref = _vparams.get('ref'); const _vid = _vparams.get('id');
     let certId = null;
-    if (_vref) { try { certId = decodeURIComponent(atob(_vref)); } catch { certId = null; } }
+    if (_vref) {
+      try { certId = sessionStorage.getItem('vapt_ref_' + _vref) || null; } catch { certId = null; }
+    }
     else if (_vid) { certId = _vid; }
     if (certId) {
       document.getElementById('certInput').value = certId;
@@ -1118,6 +1126,7 @@
     if ((el=document.getElementById("navBrandName"))) el.textContent = C.brand.name;
     if ((el=document.getElementById("navBrandSub")))  el.textContent = C.nav.vaptBrandSub;
     if ((el=document.getElementById("heroSub")))      el.innerHTML   = C.vapt.heroSub;
+    if ((el=document.getElementById("searchHint")))   el.innerHTML   = C.vapt.searchHint || 'Enter your VAPT certificate number as provided in your assessment report';
     if ((el=document.getElementById("footerCredit"))) el.innerHTML   = C.vapt.footerCredit;
     // Description block
     if ((el=document.getElementById("descVaptTeam"))) el.textContent = C.brand.vaptTeam;
@@ -1125,7 +1134,7 @@
     var v=document.getElementById("navTabVPT"); if(v) v.href=C.routes.vpt;
     var cl=document.getElementById("cstTabLabel"); if(cl) cl.textContent=C.nav.cstTabLabel;
     var vl=document.getElementById("vptTabLabel"); if(vl) vl.textContent=C.nav.vptTabLabel;
-    var inp=document.getElementById("certInput"); if(inp) inp.placeholder='e.g. VAP-9491666-1026';
+    var inp=document.getElementById("certInput"); if(inp) inp.placeholder=(C.vapt&&C.vapt.certPlaceholder)||'Enter VAPT certificate number';
   })();
 </script>
 </body>

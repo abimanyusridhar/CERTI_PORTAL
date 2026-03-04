@@ -161,10 +161,8 @@
       heroSub:           'Enter a Cyber Security Training (CST) certificate number from any '
                            + A.companyShort + ' training document. Real-time verification for '
                            + 'maritime compliance officers, port authorities, and PSC inspectors.',
-      searchPlaceholder: 'e.g. CST-9902873-02-26',
-      searchHint:        'Format: CST-&lt;IMO&gt;-&lt;MM&gt;-&lt;YY&gt;'
-                           + ' &nbsp;&middot;&nbsp; Case insensitive'
-                           + ' &nbsp;&middot;&nbsp; Example: CST-99028XX-0X-26',
+      searchPlaceholder: 'Enter CST certificate number',
+      searchHint:        'Enter your CST certificate number as provided in your training document',
       readOnlyNote:      'This record is read-only \u00b7 verified directly from the '
                            + A.companyShort + ' registry',
       pendingNote:       'Contact the ' + cstTeam + ' for status updates.',
@@ -176,7 +174,8 @@
     // ── VAPT CERTIFICATE DEFAULTS ────────────────────────────────────────
     vapt: {
       verifiedBy:      A.cisoName,
-      verifierTitle:   cisoDisplay,
+      certPlaceholder: 'Enter VAPT certificate number',
+      searchHint:      'Enter your VAPT certificate number as provided in your assessment report',
       assessingOrg:    vaptTeam,
       frameworks:      A.frameworks,
       scopeItems:      A.scopeItems,
