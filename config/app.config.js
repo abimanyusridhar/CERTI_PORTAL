@@ -254,11 +254,20 @@
 
   // ── UMD export ────────────────────────────────────────────────────────────
   // Node.js  →  module.exports  (server: require('./config/app.config'))
-  // Browser  →  window.APP_CONFIG  (HTML: <script src="/config.js"></script>)
+  // Browser  →  window.APP_CONFIG  (HTML: <script src="/config.js" defer></script>)
+  //             then access via: window.APP_CONFIG.brand.name
+  //             or listen for:   window.addEventListener('appconfigready', fn)
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = cfg;
   } else {
     root.APP_CONFIG = cfg;
+    // Dispatch a custom event so deferred consumers know config is ready
+    if (typeof document !== 'undefined') {
+      var evt = typeof CustomEvent === 'function'
+        ? new CustomEvent('appconfigready', { detail: cfg })
+        : (function(){ var e = document.createEvent('Event'); e.initEvent('appconfigready',true,true); e.detail=cfg; return e; })();
+      document.dispatchEvent(evt);
+    }
   }
 
 }(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this)));
