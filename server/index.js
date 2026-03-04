@@ -510,10 +510,10 @@ function getCorsHeaders(origin) {
 // ─── QUARTER HELPER ──────────────────────────────────────────────────────────
 function deriveQuarterFields(cert) {
   const qMap = {
-    Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 5,  endDay: 30 },
-    Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 8,  endDay: 30 },
-    Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 11, endDay: 31 },
-    Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 2,  endDay: 28, nextYear: true }
+    Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 6,  endDay: 30 },
+    Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 9,  endDay: 30 },
+    Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 12, endDay: 31 },
+    Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 3,  endDay: 31, nextYear: true }
   };
   const q    = (cert.complianceQuarter || '').toUpperCase();
   const info = qMap[q];
