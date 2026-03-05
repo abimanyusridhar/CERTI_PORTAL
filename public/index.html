@@ -682,7 +682,7 @@
 <footer>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span id="footerCredit">Synergy Marine Group &middot; Cyber Security Certificate Registry</span> &middot; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="146066757d7a7d7a7375637566717a71676754676d7a7166736d677c7d643a777b79">[email&#160;protected]</a>
+    <span id="footerCredit">Synergy Marine Group &middot; Cyber Security Certificate Registry</span> &middot; <span id="footerEmail" style="color:var(--text-sec)">trainingawareness@synergyship.com</span>
   </div>
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
@@ -704,7 +704,7 @@
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
   'use strict';
   const API = '/api';
 
@@ -774,7 +774,10 @@
   }
 
   function renderNotFound() {
-    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No certificate matches this number in the Synergy registry.<br>Please verify the number carefully or contact <strong style="color:var(--gold)" id="notFoundEmail">trainingawareness@synergyship.com</strong></p></div>`;
+    const _email = (window.APP_CONFIG && window.APP_CONFIG.contact)
+      ? window.APP_CONFIG.contact.cstEmail
+      : 'trainingawareness@synergyship.com';
+    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No certificate matches this number in the ${(window.APP_CONFIG&&window.APP_CONFIG.brand)?window.APP_CONFIG.brand.name:'Synergy'} registry.<br>Please verify the number carefully or contact <strong style="color:var(--gold)">${_email}</strong></p></div>`;
     scroll();
   }
 
@@ -1124,6 +1127,7 @@
     if ((el=document.getElementById('heroSub')))      el.innerHTML   = C.cst.heroSub;
     if ((el=document.getElementById('searchHint')))   el.innerHTML   = C.cst.searchHint;
     if ((el=document.getElementById('footerCredit'))) el.innerHTML   = C.cst.footerCredit;
+    if ((el=document.getElementById('footerEmail')))  el.textContent = C.contact.cstEmail;
     if ((el=document.getElementById('notFoundEmail'))) el.textContent= C.contact.cstEmail;
     // Description block brand names
     if ((el=document.getElementById('descCstTeam')))    el.textContent = C.brand.cstTeam;

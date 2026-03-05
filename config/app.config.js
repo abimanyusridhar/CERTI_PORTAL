@@ -174,6 +174,7 @@
     // ── VAPT CERTIFICATE DEFAULTS ────────────────────────────────────────
     vapt: {
       verifiedBy:      A.cisoName,
+      verifierTitle:   cisoDisplay,                      // "CISO — Synergy Group"
       certPlaceholder: 'Enter VAPT certificate number',
       searchHint:      'Enter your VAPT certificate number as provided in your assessment report',
       assessingOrg:    vaptTeam,

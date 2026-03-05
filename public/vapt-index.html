@@ -688,7 +688,7 @@
 <footer>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span id="footerCredit">Synergy Marine Group &middot; VAPT Certificate Registry</span> &middot; <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3b4d5a4b4f7b4842555e495c424853524b15585456">[email&#160;protected]</a>
+    <span id="footerCredit">Synergy Marine Group &middot; VAPT Certificate Registry</span> &middot; <span id="footerEmail" style="color:var(--text-sec)">vapt@synergyship.com</span>
   </div>
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
@@ -711,7 +711,7 @@
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
   'use strict';
   const API = '/api';
 
@@ -1125,7 +1125,7 @@
 
   checkUrl();
 
-  (function applyConfig() {
+  function applyConfig() {
     var C = window.APP_CONFIG;
     if (!C) return;
     document.title = C.titles.vaptPortal;
@@ -1135,6 +1135,7 @@
     if ((el=document.getElementById("heroSub")))      el.innerHTML   = C.vapt.heroSub;
     if ((el=document.getElementById("searchHint")))   el.innerHTML   = C.vapt.searchHint || 'Enter your VAPT certificate number as provided in your assessment report';
     if ((el=document.getElementById("footerCredit"))) el.innerHTML   = C.vapt.footerCredit;
+    if ((el=document.getElementById("footerEmail")))  el.textContent = C.contact.vaptEmail;
     // Description block
     if ((el=document.getElementById("descVaptTeam"))) el.textContent = C.brand.vaptTeam;
     var t=document.getElementById("navTabCST"); if(t) t.href=C.routes.cst;
@@ -1142,7 +1143,15 @@
     var cl=document.getElementById("cstTabLabel"); if(cl) cl.textContent=C.nav.cstTabLabel;
     var vl=document.getElementById("vptTabLabel"); if(vl) vl.textContent=C.nav.vptTabLabel;
     var inp=document.getElementById("certInput"); if(inp) inp.placeholder=(C.vapt&&C.vapt.certPlaceholder)||'Enter VAPT certificate number';
-  })();
+  }
+  // Call immediately (fast path if config.js already loaded synchronously)
+  applyConfig();
+  // Fallback: fire again once all deferred scripts finish loading
+  if (document.readyState !== 'complete') {
+    window.addEventListener('load', applyConfig);
+  }
+  // Primary: fire when config.js dispatches appconfigready after deferred load
+  document.addEventListener('appconfigready', applyConfig);
 </script>
 </body>
 </html>

@@ -724,11 +724,11 @@
         <div class="side-row"><span>Pending Send</span><span style="color:var(--invalid)" id="svEmailPending">—</span></div>
       </div>
       <div class="nav-sec" style="margin-top:10px">Navigation</div>
-      <div class="nav-item" onclick="window.open('/VPT','_blank')">
+      <div class="nav-item" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'),'_blank')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
         Public VPT Portal
       </div>
-      <div class="nav-item" onclick="window.open('/CST/admin/','_blank')">
+      <div class="nav-item" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.cstAdmin+'/':'/CST/admin/'),'_blank')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
         CST Training Admin
       </div>
@@ -2133,7 +2133,7 @@
       const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
       if (r.ok){
         const d=await r.json();
-        const url = d.url || `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'}/${encodeURIComponent(id)}`;
+        const url = d.url || `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'}/cert/${encodeURIComponent(id)}`;
         await navigator.clipboard.writeText(url);
         if(btn){const t=btn.textContent;btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent=t,2000);}
         toast('Verification URL copied!','ok');

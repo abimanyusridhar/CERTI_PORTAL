@@ -4001,7 +4001,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       let dlText = '';
       if (dl !== null) { if (dl > 0) dlText = `${dl} days remaining`; else if (dl === 0) dlText = 'Expires today'; else dlText = `Expired ${Math.abs(dl)} days ago`; }
       // URL will be loaded async after modal renders (avoids broken inline onerror HTML)
-      const publicUrl = '/CST/cert/' + encodeURIComponent(c.id); // placeholder, updated below
+      const publicUrl = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST') + '/cert/' + encodeURIComponent(c.id); // placeholder — replaced async below
 
       document.getElementById('viewBody').innerHTML = `
         <!-- Status Banner -->

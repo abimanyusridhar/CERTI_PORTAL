@@ -174,7 +174,10 @@ function verifyToken(token) {
   const [header, body, sig] = parts;
   const expected = crypto.createHmac('sha256', KEYS.jwtSecret)
     .update(header + '.' + body).digest('base64url');
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  const sigBuf      = Buffer.from(sig);
+  const expectedBuf = Buffer.from(expected);
+  if (sigBuf.length !== expectedBuf.length) return null;
+  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (Date.now() > payload.exp) return null;
@@ -202,7 +205,7 @@ function decryptCertToken(token) {
     const key     = Buffer.from(KEYS.urlEncKey, 'hex');
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
-    return decipher.update(enc) + decipher.final('utf8');
+    return decipher.update(enc).toString('utf8') + decipher.final('utf8');
   } catch { return null; }
 }
 
@@ -246,18 +249,21 @@ function checkRateLimit(ip, bucket) {
   return { ok: true, remaining: max - entry.count };
 }
 
-setInterval(() => {
+const _rlCleanup = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of rateLimits) if (now > v.resetAt) rateLimits.delete(k);
 }, 60_000);
 
 // ─── SECURITY HEADERS ────────────────────────────────────────────────────────
+// HSTS is only safe over HTTPS — conditionally include it when BASE_ORIGIN is HTTPS.
+const _isHttps = BASE_ORIGIN.startsWith('https://');
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options':        'DENY',
   'X-XSS-Protection':       '1; mode=block',
   'Referrer-Policy':        'strict-origin-when-cross-origin',
   'Permissions-Policy':     'camera=(), microphone=(), geolocation=()',
+  ...(_isHttps ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
   'Content-Security-Policy':
     "default-src 'self'; " +
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
@@ -527,7 +533,7 @@ function getClientIp(req) {
 function sendJSON(res, status, data, extraHeaders = {}) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
     ...SECURITY_HEADERS,
     ...extraHeaders,
@@ -537,10 +543,27 @@ function sendJSON(res, status, data, extraHeaders = {}) {
 
 function sendFile(res, filePath) {
   const ext  = path.extname(filePath).toLowerCase();
-  const mime = MIME[ext] || 'text/plain';
+  const base = MIME[ext] || 'text/plain';
+  // Append charset for text-based types so browsers parse correctly
+  const mime = (base.startsWith('text/') || base === 'application/javascript')
+    ? base + '; charset=utf-8'
+    : base;
+  // HTML pages must never be cached — stale HTML breaks config/session.
+  // JS/CSS/fonts can be cached aggressively (they are content-hashed or versioned).
+  // JSON API responses have their own Cache-Control set in sendJSON.
+  const cacheControl = (ext === '.html' || ext === '')
+    ? 'no-cache, no-store, must-revalidate'
+    : (ext === '.js' || ext === '.css' || ext === '.woff2' || ext === '.woff')
+      ? 'public, max-age=86400'   // 1 day — safe for config.js & static assets
+      : 'public, max-age=3600';   // 1 hour for images, icons, etc.
   try {
     const content = fs.readFileSync(filePath);
-    res.writeHead(200, { 'Content-Type': mime, ...SECURITY_HEADERS });
+    res.writeHead(200, {
+      'Content-Type':   mime,
+      'Content-Length': content.length,
+      'Cache-Control':  cacheControl,
+      ...SECURITY_HEADERS,
+    });
     res.end(content);
   } catch {
     res.writeHead(404, SECURITY_HEADERS);
@@ -609,10 +632,20 @@ function deriveQuarterFields(cert) {
 function parseMultipart(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    let totalSize = 0;
+    req.on('data', c => {
+      totalSize += c.length;
+      if (totalSize > 10 * 1024 * 1024) {
+        req.destroy();
+        return reject(new Error('Payload too large'));
+      }
+      chunks.push(c);
+    });
     req.on('end', () => {
       const body     = Buffer.concat(chunks);
-      const boundary = req.headers['content-type'].split('boundary=')[1];
+      // Trim boundary: strip any trailing "; param=value" and whitespace
+      const rawBoundary = (req.headers['content-type'] || '').split('boundary=')[1] || '';
+      const boundary = rawBoundary.split(';')[0].trim();
       if (!boundary) return resolve({ fields: {}, files: {} });
       const boundaryBuf = Buffer.from('--' + boundary);
       const parts = [];
@@ -1180,9 +1213,9 @@ const server = http.createServer(async (req, res) => {
   // ── Uploads (shared) ─────────────────────────────────────────────────────
   if (p.startsWith('/uploads/')) {
     const fname = path.basename(p);
-    const fpath = path.join(UPLOADS_DIR, fname);
+    const fpath = path.resolve(UPLOADS_DIR, fname);
 
-    // Path traversal protection — resolved path must be inside UPLOADS_DIR
+    // Path traversal protection — resolved absolute path must be inside UPLOADS_DIR
     if (!fpath.startsWith(UPLOADS_DIR + path.sep) && fpath !== UPLOADS_DIR) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');
@@ -1194,18 +1227,18 @@ const server = http.createServer(async (req, res) => {
 
     // PDFs and images are served INLINE (view-only — no forced download).
     // X-Frame-Options: SAMEORIGIN allows iframe embedding in admin dashboard.
-    const uploadHeaders = {
-      'Content-Type': mime,
-      'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'private, max-age=3600',
-      'X-Frame-Options': 'SAMEORIGIN',
-      'Content-Disposition': isPdf
-        ? `inline; filename="${fname}"`   // Forces browser PDF viewer, not download
-        : 'inline',
-    };
     try {
       const content = fs.readFileSync(fpath);
-      res.writeHead(200, uploadHeaders);
+      res.writeHead(200, {
+        'Content-Type':        mime,
+        'Content-Length':      content.length,
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control':       'private, max-age=3600',
+        'X-Frame-Options':     'SAMEORIGIN',
+        'Content-Disposition': isPdf
+          ? `inline; filename="${fname}"`   // Forces browser PDF viewer, not download
+          : 'inline',
+      });
       return res.end(content);
     } catch {
       res.writeHead(404, SECURITY_HEADERS);
@@ -1229,8 +1262,8 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  const publicDir = path.join(__dirname, '..', 'public');
-  const adminDir  = path.join(__dirname, '..', 'admin');
+  const publicDir = path.resolve(__dirname, '..', 'public');
+  const adminDir  = path.resolve(__dirname, '..', 'admin');
 
   // ══════════════════════════════════════════════════════════════════════════
   //  CST — Cyber Security Training routes
@@ -1243,9 +1276,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
     const relative = p.slice((CFG.routes.cstAdmin + '/').length);
-    let filePath = path.join(adminDir, relative || 'dashboard.html');
+    let filePath = path.resolve(adminDir, relative || 'dashboard.html');
     if (!path.extname(filePath)) filePath = path.join(adminDir, 'dashboard.html');
-    if (!filePath.startsWith(adminDir)) { res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden'); }
+    if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
+      res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
+    }
     return sendFile(res, filePath);
   }
 
@@ -1270,9 +1305,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (p.startsWith(CFG.routes.vptAdmin + '/')) {
     const relative = p.slice((CFG.routes.vptAdmin + '/').length);
-    let filePath = path.join(adminDir, relative || 'vapt-dashboard.html');
+    let filePath = path.resolve(adminDir, relative || 'vapt-dashboard.html');
     if (!path.extname(filePath)) filePath = path.join(adminDir, 'vapt-dashboard.html');
-    if (!filePath.startsWith(adminDir)) { res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden'); }
+    if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
+      res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
+    }
     return sendFile(res, filePath);
   }
 
@@ -1309,19 +1346,28 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── Static files & 404 ────────────────────────────────────────────────────
-  let filePath = path.join(publicDir, p);
+  let filePath = path.resolve(publicDir, p.slice(1));   // strip leading /
   if (!path.extname(filePath)) filePath += '.html';
-  if (!filePath.startsWith(publicDir)) {
+  if (!filePath.startsWith(publicDir + path.sep) && filePath !== publicDir) {
     res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
   }
   if (fs.existsSync(filePath)) return sendFile(res, filePath);
 
   // 404
-  res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html' });
+  res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:80px;background:#0A1628;color:#CCD6F6"><h2>404 — Page Not Found</h2><p><a href="${CFG.routes.cst}" style="color:#D4A843">→ ${CFG.brand.name} CST Portal</a> &nbsp;|&nbsp; <a href="${CFG.routes.vpt}" style="color:#64FFDA">→ ${CFG.brand.name} VPT Portal</a></p></body></html>`);
 });
 
 // ─── START ───────────────────────────────────────────────────────────────────
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[FATAL] Port ${PORT} is already in use. Stop the existing process or set a different PORT in .env.\n`);
+  } else {
+    console.error('[FATAL] Server error:', err);
+  }
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log('\n╔══════════════════════════════════════════════════════╗');
   console.log('║  ' + CFG.brand.companyFull.toUpperCase() + ' CERTIFICATE PORTAL — SINGLE PORT ║');
@@ -1338,4 +1384,30 @@ server.listen(PORT, () => {
   console.log('║                                                      ║');
   console.log('║  ⚠  Set ADMIN_USER / ADMIN_PASS / BASE_ORIGIN env  ║');
   console.log('╚══════════════════════════════════════════════════════╝\n');
+});
+
+// ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────
+// Docker / PM2 / systemd send SIGTERM on stop; Ctrl-C sends SIGINT.
+// server.close() waits for in-flight requests to finish before exiting.
+function gracefulShutdown(signal) {
+  console.log(`\n[SHUTDOWN] ${signal} received — draining connections…`);
+  clearInterval(_rlCleanup);
+  server.close(err => {
+    if (err) { console.error('[SHUTDOWN] Error:', err); process.exit(1); }
+    console.log('[SHUTDOWN] Clean exit.');
+    process.exit(0);
+  });
+  // Force kill after 10 s if keep-alive connections won't close
+  setTimeout(() => { console.error('[SHUTDOWN] Forced exit after 10 s timeout.'); process.exit(1); }, 10_000).unref();
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+// ─── SAFETY NETS ─────────────────────────────────────────────────────────────
+// Prevent a single unhandled rejection from crashing the entire server process.
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UNHANDLED REJECTION]', reason, 'at:', promise);
+});
+process.on('uncaughtException', err => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
 });
