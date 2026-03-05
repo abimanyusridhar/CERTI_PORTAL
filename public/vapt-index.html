@@ -736,6 +736,9 @@
 
   function scroll() { document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
+  // Cached shareable URL for the last-verified cert (populated after each verify)
+  let _lastShareUrl = null;
+
   async function verify() {
     const raw = document.getElementById('certInput').value.trim().toUpperCase();
     if (!raw) return;
@@ -746,6 +749,7 @@
     const btn = document.getElementById('verifyBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> Verifying&hellip;';
+    _lastShareUrl = null;
     try {
       const res = await fetch(API + '/vapt/verify-by-id/' + encodeURIComponent(raw));
       if (res.status === 429) {
@@ -757,11 +761,15 @@
         if (res.status === 404) { renderNotFound(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT')); }
         else if (!res.ok) { renderError(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT')); }
         else {
-          // Generate an opaque reference token — cert ID is never written to the URL
-          const refToken = Array.from(crypto.getRandomValues(new Uint8Array(9))).map(b => b.toString(36)).join('');
-          try { sessionStorage.setItem('vapt_ref_' + refToken, raw); } catch(e) {}
+          // Fetch the encrypted, shareable verification URL from the server
+          let shareUrl = window.location.href;
+          try {
+            const ur = await fetch(API + '/vapt/public-cert-url/' + encodeURIComponent(raw));
+            if (ur.ok) { const ud = await ur.json(); if (ud.url) shareUrl = ud.url; }
+          } catch { /* fallback to current URL */ }
+          _lastShareUrl = shareUrl;
           renderCert(data);
-          history.pushState({ certId: raw }, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT') + '?ref=' + refToken);
+          history.replaceState({ certId: raw }, '', shareUrl);
         }
       }
     } catch { renderError(); }
@@ -977,8 +985,9 @@
 
   function copyVerifyLink(btn) {
     if (!navigator.clipboard) return;
-    // Use current URL — includes ?id= param after manual search
-    const shareUrl = window.location.href;
+    // Use the server-generated encrypted URL if available (works for recipients too),
+    // falling back to the current URL when loaded directly via a cert token.
+    const shareUrl = _lastShareUrl || window.location.href;
     navigator.clipboard.writeText(shareUrl).then(() => {
       if (btn) { const orig = btn.innerHTML; btn.textContent = '✓ Copied!'; setTimeout(() => btn.innerHTML = orig, 2000); }
     });
@@ -986,8 +995,11 @@
 
   // Handle back/forward navigation
   window.addEventListener('popstate', function() {
-    const p = new URLSearchParams(window.location.search);
-    if (!p.get('ref') && !p.get('id')) { document.getElementById('result').innerHTML = ''; }
+    if (!window.location.pathname.includes('/cert/') && !new URLSearchParams(window.location.search).get('s')) {
+      document.getElementById('result').innerHTML = '';
+      _lastShareUrl = null;
+      showDesc();
+    }
   });
 
   /* ── DOCS BLOCK BUILDER ──────────────────────────────────────────── */
@@ -1093,7 +1105,7 @@
   }
 
   async function checkUrl() {
-    // /VPT/cert/<token>?s=<sig>
+    // Case 1: Encrypted cert token in path — e.g. /VPT/cert/<token>?s=<sig>
     const _vptBase = (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT');
     const pathMatch = window.location.pathname.match(new RegExp('^' + _vptBase.replace('/', '\\/') + '\\/cert\\/(.+)'));
     if (pathMatch) {
@@ -1103,15 +1115,10 @@
       await verifyByToken(token, sig);
       return;
     }
-    const _vparams = new URLSearchParams(window.location.search);
-    const _vref = _vparams.get('ref'); const _vid = _vparams.get('id');
-    let certId = null;
-    if (_vref) {
-      try { certId = sessionStorage.getItem('vapt_ref_' + _vref) || null; } catch { certId = null; }
-    }
-    else if (_vid) { certId = _vid; }
-    if (certId) {
-      document.getElementById('certInput').value = certId;
+    // Case 2: Legacy ?id= param (plain cert ID — still supported for back-compat)
+    const _vid = new URLSearchParams(window.location.search).get('id');
+    if (_vid) {
+      document.getElementById('certInput').value = _vid;
       await verify();
     }
   }

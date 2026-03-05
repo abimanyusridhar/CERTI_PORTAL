@@ -324,14 +324,23 @@ const SEED = {
 };
 
 // ─── DATA STORE ──────────────────────────────────────────────────────────────
+// In-memory cache — eliminates repeated synchronous disk reads on every request.
+// Cache is invalidated on every write so reads stay fresh without file I/O cost.
+let _certCache = null;
 function loadData() {
+  if (_certCache) return _certCache;
   try {
-    if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    if (fs.existsSync(DATA_FILE)) {
+      _certCache = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+      return _certCache;
+    }
   } catch { }
-  saveData(SEED);
-  return { ...SEED };
+  _certCache = { ...SEED };
+  saveData(_certCache);
+  return _certCache;
 }
 function saveData(data) {
+  _certCache = data;
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
@@ -365,14 +374,21 @@ const VAPT_SEED = {
 };
 
 // ─── VAPT DATA STORE ─────────────────────────────────────────────────────────
+let _vaptCache = null;
 function loadVaptData() {
+  if (_vaptCache) return _vaptCache;
   try {
-    if (fs.existsSync(VAPT_DATA_FILE)) return JSON.parse(fs.readFileSync(VAPT_DATA_FILE, 'utf8'));
+    if (fs.existsSync(VAPT_DATA_FILE)) {
+      _vaptCache = JSON.parse(fs.readFileSync(VAPT_DATA_FILE, 'utf8'));
+      return _vaptCache;
+    }
   } catch { }
-  saveVaptData(VAPT_SEED);
-  return { ...VAPT_SEED };
+  _vaptCache = { ...VAPT_SEED };
+  saveVaptData(_vaptCache);
+  return _vaptCache;
 }
 function saveVaptData(data) {
+  _vaptCache = data;
   fs.writeFileSync(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
@@ -383,15 +399,72 @@ function buildVaptCertUrl(certId, baseUrl) {
   return `${baseUrl}${CFG.routes.vpt}/cert/${token}?s=${sig}`;
 }
 
-function simulateSendVaptEmail({ to, from, certId, recipientName, assessmentDate, verifyUrl }) {
-  const logFile = path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl');
-  const entry   = {
-    timestamp: new Date().toISOString(),
-    to, from, certId, recipientName, assessmentDate,
-    verifyUrl, status: 'SIMULATED'
-  };
+// ─── EMAIL SIMULATION (unified) ──────────────────────────────────────────────
+// Writes a JSONL log entry. Both CST and VAPT calls go through this one helper.
+function logEmailSim(logFile, fields) {
+  const entry = { timestamp: new Date().toISOString(), ...fields, status: 'SIMULATED' };
   fs.appendFileSync(logFile, JSON.stringify(entry) + '\n', 'utf8');
   return true;
+}
+
+function simulateSendEmail({ to, from, certId, recipientName, trainingTitle, verifyUrl }) {
+  return logEmailSim(
+    path.join(path.dirname(DATA_FILE), 'email_log.jsonl'),
+    { to, from, certId, recipientName, trainingTitle, verifyUrl }
+  );
+}
+
+function simulateSendVaptEmail({ to, from, certId, recipientName, assessmentDate, verifyUrl }) {
+  return logEmailSim(
+    path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl'),
+    { to, from, certId, recipientName, assessmentDate, verifyUrl }
+  );
+}
+
+// ─── IMAGE SAVE HELPER ───────────────────────────────────────────────────────
+// Saves an uploaded cert image file and returns its public path, or null.
+// Pass existingPath to have the old file cleaned up on replacement.
+const ALLOWED_IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+function saveCertImageFile(files, prefix, existingPath) {
+  const f = files && files.certificateImage;
+  if (!f || !f.data || !f.data.length) return null;
+  if (existingPath) {
+    const old = path.join(UPLOADS_DIR, path.basename(existingPath));
+    if (fs.existsSync(old)) fs.unlinkSync(old);
+  }
+  const origExt = path.extname(f.filename || '').toLowerCase();
+  const ext     = ALLOWED_IMG_EXTS.includes(origExt) ? origExt : '.jpg';
+  const fname   = prefix + '_' + crypto.randomBytes(12).toString('hex') + ext;
+  fs.writeFileSync(path.join(UPLOADS_DIR, fname), f.data);
+  return '/uploads/' + fname;
+}
+
+// ─── PUBLIC FIELD PROJECTORS ─────────────────────────────────────────────────
+// Returns only the fields safe to expose on the public verification endpoints.
+function certPublicFields(cert) {
+  const { id, recipientName, vesselName, vesselIMO, chiefEngineer,
+    trainingTitle, organizer, complianceDate, complianceQuarter,
+    trainingMode, validFor, validUntil, verifiedBy, status,
+    issuedAt, certificateImage, notes, attachments } = cert;
+  return {
+    id, recipientName, vesselName, vesselIMO, chiefEngineer,
+    trainingTitle, organizer, complianceDate, complianceQuarter,
+    trainingMode, validFor, validUntil, verifiedBy, status,
+    issuedAt, certificateImage, notes,
+    attachments: Array.isArray(attachments) ? attachments : [],
+  };
+}
+
+function vaptPublicFields(cert) {
+  const { id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
+    validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
+    scopeItems, status, issuedAt, certificateImage, notes, attachments } = cert;
+  return {
+    id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
+    validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
+    scopeItems, status, issuedAt, certificateImage, notes,
+    attachments: Array.isArray(attachments) ? attachments : [],
+  };
 }
 
 // ─── ATTACHMENT HELPERS ──────────────────────────────────────────────────────
@@ -578,19 +651,6 @@ function parseMultipart(req) {
   });
 }
 
-// ─── EMAIL SIMULATION ────────────────────────────────────────────────────────
-function simulateSendEmail({ to, from, certId, recipientName, trainingTitle, verifyUrl }) {
-  const logFile = path.join(path.dirname(DATA_FILE), 'email_log.jsonl');
-  const entry   = {
-    timestamp: new Date().toISOString(),
-    to, from, certId, recipientName, trainingTitle,
-    verifyUrl,
-    status: 'SIMULATED'
-  };
-  fs.appendFileSync(logFile, JSON.stringify(entry) + '\n', 'utf8');
-  return true;
-}
-
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
 async function handleAPI(req, res, parsed) {
   const method = req.method.toUpperCase();
@@ -661,17 +721,7 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const cert = loadData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    const { id, recipientName, vesselName, vesselIMO, chiefEngineer,
-            trainingTitle, organizer, complianceDate, complianceQuarter,
-            trainingMode, validFor, validUntil, verifiedBy, status,
-            issuedAt, certificateImage, notes, attachments } = cert;
-    return sendJSON(res, 200, {
-      id, recipientName, vesselName, vesselIMO, chiefEngineer,
-      trainingTitle, organizer, complianceDate, complianceQuarter,
-      trainingMode, validFor, validUntil, verifiedBy, status,
-      issuedAt, certificateImage, notes,
-      attachments: Array.isArray(attachments) ? attachments : []
-    }, corsH);
+    return sendJSON(res, 200, certPublicFields(cert), corsH);
   }
 
   // ── GET /api/verify/:encToken ── (public — verify cert by encrypted token)
@@ -688,18 +738,21 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    // Return only public fields
-    const { id, recipientName, vesselName, vesselIMO, chiefEngineer,
-            trainingTitle, organizer, complianceDate, complianceQuarter,
-            trainingMode, validFor, validUntil, verifiedBy, status,
-            issuedAt, certificateImage, notes, attachments } = cert;
-    return sendJSON(res, 200, {
-      id, recipientName, vesselName, vesselIMO, chiefEngineer,
-      trainingTitle, organizer, complianceDate, complianceQuarter,
-      trainingMode, validFor, validUntil, verifiedBy, status,
-      issuedAt, certificateImage, notes,
-      attachments: Array.isArray(attachments) ? attachments : []
-    }, corsH);
+    return sendJSON(res, 200, certPublicFields(cert), corsH);
+  }
+
+  // ── GET /api/public-cert-url/:id ── (public — shareable encrypted cert URL, rate limited)
+  if (route.startsWith('/public-cert-url/') && method === 'GET') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok)
+      return sendJSON(res, 429, { error: 'Too many requests. Try again later.' },
+        { 'Retry-After': String(rl.retryAfter), ...corsH });
+    const certId = sanitiseCertId(route.replace('/public-cert-url/', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+    const data = loadData();
+    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
+    return sendJSON(res, 200, { url: buildCertUrl(certId, base) }, corsH);
   }
 
   // ── GET /api/cert-url/:id ── (admin — generate public cert URL)
@@ -722,14 +775,8 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         cert = { ...fields };
-        if (files.certificateImage && files.certificateImage.data.length > 0) {
-          const origExt     = path.extname(files.certificateImage.filename).toLowerCase();
-          const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-          const ext         = allowedExts.includes(origExt) ? origExt : '.jpg';
-          const fname       = 'cert_' + crypto.randomBytes(12).toString('hex') + ext;
-          fs.writeFileSync(path.join(UPLOADS_DIR, fname), files.certificateImage.data);
-          cert.certificateImage = '/uploads/' + fname;
-        }
+        const imgPath = saveCertImageFile(files, 'cert');
+        if (imgPath) cert.certificateImage = imgPath;
         cert.attachments = extractAttachments(fields, files, 'cst_attach');
       } else {
         cert = JSON.parse(await getBody(req));
@@ -764,18 +811,8 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         updates = { ...fields };
-        if (files.certificateImage && files.certificateImage.data.length > 0) {
-          if (data[certId].certificateImage) {
-            const old = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-            if (fs.existsSync(old)) fs.unlinkSync(old);
-          }
-          const origExt     = path.extname(files.certificateImage.filename).toLowerCase();
-          const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-          const ext         = allowedExts.includes(origExt) ? origExt : '.jpg';
-          const fname       = 'cert_' + crypto.randomBytes(12).toString('hex') + ext;
-          fs.writeFileSync(path.join(UPLOADS_DIR, fname), files.certificateImage.data);
-          updates.certificateImage = '/uploads/' + fname;
-        }
+        const imgPath = saveCertImageFile(files, 'cert', data[certId].certificateImage);
+        if (imgPath) updates.certificateImage = imgPath;
         updates.attachments = extractAttachments(fields, files, 'cst_attach',
           Array.isArray(data[certId].attachments) ? data[certId].attachments : []);
       } else {
@@ -887,15 +924,7 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const cert = loadVaptData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
-    const { id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
-            validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-            scopeItems, status, issuedAt, certificateImage, notes, attachments } = cert;
-    return sendJSON(res, 200, {
-      id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
-      validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-      scopeItems, status, issuedAt, certificateImage, notes,
-      attachments: Array.isArray(attachments) ? attachments : []
-    }, corsH);
+    return sendJSON(res, 200, vaptPublicFields(cert), corsH);
   }
 
   // ── GET /api/vapt/certs ── (admin — list all VAPT certs)
@@ -926,15 +955,21 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadVaptData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
-    const { id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
-            validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-            scopeItems, status, issuedAt, certificateImage, notes, attachments } = cert;
-    return sendJSON(res, 200, {
-      id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
-      validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-      scopeItems, status, issuedAt, certificateImage, notes,
-      attachments: Array.isArray(attachments) ? attachments : []
-    }, corsH);
+    return sendJSON(res, 200, vaptPublicFields(cert), corsH);
+  }
+
+  // ── GET /api/vapt/public-cert-url/:id ── (public — shareable encrypted VAPT URL, rate limited)
+  if (route.startsWith('/vapt/public-cert-url/') && method === 'GET') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok)
+      return sendJSON(res, 429, { error: 'Too many requests. Try again later.' },
+        { 'Retry-After': String(rl.retryAfter), ...corsH });
+    const certId = sanitiseCertId(route.replace('/vapt/public-cert-url/', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+    const data = loadVaptData();
+    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
+    return sendJSON(res, 200, { url: buildVaptCertUrl(certId, base) }, corsH);
   }
 
   // ── GET /api/vapt/cert-url/:id ── (admin — generate public VAPT cert URL)
@@ -957,14 +992,8 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         cert = { ...fields };
-        if (files.certificateImage && files.certificateImage.data.length > 0) {
-          const origExt = path.extname(files.certificateImage.filename).toLowerCase();
-          const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-          const ext = allowedExts.includes(origExt) ? origExt : '.jpg';
-          const fname = 'vapt_' + crypto.randomBytes(12).toString('hex') + ext;
-          fs.writeFileSync(path.join(UPLOADS_DIR, fname), files.certificateImage.data);
-          cert.certificateImage = '/uploads/' + fname;
-        }
+        const imgPath = saveCertImageFile(files, 'vapt');
+        if (imgPath) cert.certificateImage = imgPath;
         cert.attachments = extractAttachments(fields, files, 'vpt_attach');
       } else {
         cert = JSON.parse(await getBody(req));
@@ -1025,18 +1054,8 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         updates = { ...fields };
-        if (files.certificateImage && files.certificateImage.data.length > 0) {
-          if (data[certId].certificateImage) {
-            const old = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-            if (fs.existsSync(old)) fs.unlinkSync(old);
-          }
-          const origExt = path.extname(files.certificateImage.filename).toLowerCase();
-          const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-          const ext = allowedExts.includes(origExt) ? origExt : '.jpg';
-          const fname = 'vapt_' + crypto.randomBytes(12).toString('hex') + ext;
-          fs.writeFileSync(path.join(UPLOADS_DIR, fname), files.certificateImage.data);
-          updates.certificateImage = '/uploads/' + fname;
-        }
+        const imgPath = saveCertImageFile(files, 'vapt', data[certId].certificateImage);
+        if (imgPath) updates.certificateImage = imgPath;
         updates.attachments = extractAttachments(fields, files, 'vpt_attach',
           Array.isArray(data[certId].attachments) ? data[certId].attachments : []);
       } else {
@@ -1164,7 +1183,6 @@ const server = http.createServer(async (req, res) => {
     const fpath = path.join(UPLOADS_DIR, fname);
 
     // Path traversal protection — resolved path must be inside UPLOADS_DIR
-    const realUploads = fs.realpathSync ? UPLOADS_DIR : UPLOADS_DIR;
     if (!fpath.startsWith(UPLOADS_DIR + path.sep) && fpath !== UPLOADS_DIR) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');

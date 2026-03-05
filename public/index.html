@@ -733,6 +733,9 @@
 
   function scroll() { document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
+  // Cached shareable URL for the last-verified cert (populated after each verify)
+  let _lastShareUrl = null;
+
   async function verify() {
     const raw = document.getElementById('certInput').value.trim();
     if (!raw) return;
@@ -743,6 +746,7 @@
     const btn = document.getElementById('verifyBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> Verifying&hellip;';
+    _lastShareUrl = null;
     try {
       const res = await fetch(API + '/verify-by-id/' + encodeURIComponent(raw));
       if (res.status === 429) {
@@ -753,11 +757,15 @@
         hideDesc();
         if (res.status === 404) { renderNotFound(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.cst:'/CST')); }
         else {
-          // Generate an opaque reference token — cert ID is never written to the URL
-          const refToken = Array.from(crypto.getRandomValues(new Uint8Array(9))).map(b => b.toString(36)).join('');
-          try { sessionStorage.setItem('cst_ref_' + refToken, raw); } catch(e) {}
+          // Fetch the encrypted, shareable verification URL from the server
+          let shareUrl = window.location.href;
+          try {
+            const ur = await fetch(API + '/public-cert-url/' + encodeURIComponent(raw));
+            if (ur.ok) { const ud = await ur.json(); if (ud.url) shareUrl = ud.url; }
+          } catch { /* fallback to current URL */ }
+          _lastShareUrl = shareUrl;
           renderCert(data);
-          history.pushState({ certId: raw }, '', (window.APP_CONFIG?window.APP_CONFIG.routes.cst:'/CST') + '?ref=' + refToken);
+          history.replaceState({ certId: raw }, '', shareUrl);
         }
       }
     } catch { renderError(); }
@@ -1034,8 +1042,9 @@
 
   function copyVerifyLink(btn) {
     if (!navigator.clipboard) return;
-    // Use current URL — includes ?id= param after manual search
-    const shareUrl = window.location.href;
+    // Use the server-generated encrypted URL if available (works for recipients too),
+    // falling back to the current URL when loaded directly via a cert token.
+    const shareUrl = _lastShareUrl || window.location.href;
     navigator.clipboard.writeText(shareUrl).then(() => {
       if (btn) { const orig = btn.innerHTML; btn.textContent = '✓ Copied!'; setTimeout(() => btn.innerHTML = orig, 2000); }
     });
@@ -1043,7 +1052,11 @@
 
   window.addEventListener('popstate', function() {
     const p = new URLSearchParams(window.location.search);
-    if (!p.get('ref') && !p.get('id')) { document.getElementById('result').innerHTML = ''; }
+    if (!p.get('s') && !window.location.pathname.includes('/cert/')) {
+      document.getElementById('result').innerHTML = '';
+      _lastShareUrl = null;
+      showDesc();
+    }
   });
 
   function openLB(src) { document.getElementById('lbImg').src = src; document.getElementById('lightbox').style.display = 'flex'; }
@@ -1083,6 +1096,7 @@
 
   async function checkHash() {
     const _cstBase = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST');
+    // Case 1: Encrypted cert token in path — e.g. /CST/cert/<token>?s=<sig>
     const pathMatch = window.location.pathname.match(new RegExp('^' + _cstBase.replace('/', '\\/') + '\\/cert\\/(.+)'));
     if (pathMatch) {
       const token = pathMatch[1];
@@ -1091,14 +1105,9 @@
       await verifyByToken(token, sig);
       return;
     }
-    const _params = new URLSearchParams(window.location.search);
-    const _ref = _params.get('ref'); const _id = _params.get('id');
-    let certIdParam = null;
-    if (_ref) {
-      try { certIdParam = sessionStorage.getItem('cst_ref_' + _ref) || null; } catch { certIdParam = null; }
-    }
-    else if (_id) { certIdParam = _id; }
-    if (certIdParam) { document.getElementById('certInput').value = certIdParam; await verify(); }
+    // Case 2: Legacy ?id= param (plain cert ID in URL — still supported for back-compat)
+    const _id = new URLSearchParams(window.location.search).get('id');
+    if (_id) { document.getElementById('certInput').value = _id; await verify(); }
   }
 
   checkHash();
