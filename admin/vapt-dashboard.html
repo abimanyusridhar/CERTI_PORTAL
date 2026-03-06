@@ -657,7 +657,7 @@
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
     </div>
     <div class="login-title">Admin Access</div>
-    <div class="login-sub" id="loginSub">VAPT Certificate Control Panel</div>
+    <div class="login-sub" id="loginSub"></div>
     <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
     <div class="fgroup" style="margin-bottom:14px">
       <label class="flabel">Username</label>
@@ -680,17 +680,17 @@
     <div class="sb-brand">
       <div class="sb-icon" style="background:none;border:none;width:auto;height:auto"><img src="/images/SYN.png" class="nav-logo-circle syn-circle sb-circle" alt="Synergy" /></div>
       <div>
-        <div class="sb-name" id="sbName">Synergy VPT</div>
+        <div class="sb-name" id="sbName"></div>
         <div class="sb-sub">VAPT Admin</div>
       </div>
     </div>
     <nav class="sb-nav">
       <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
-      <a id="sbLinkVPT" href="/VPT" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkVPT" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         VPT Public Portal
       </a>
-      <a id="sbLinkCSTAdmin" href="/CST/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkCSTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         Switch → CST Admin
       </a>
@@ -738,7 +738,7 @@
         <div class="admin-av">A</div>
         <div>
           <div class="admin-nm">Administrator</div>
-          <div class="admin-rl" id="adminRole">Full Access · Synergy Group</div>
+          <div class="admin-rl" id="adminRole"></div>
         </div>
       </div>
       <button class="logout-btn" onclick="doLogout()">⎋ &nbsp;Logout</button>
@@ -757,7 +757,7 @@
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
           VAPT Certificates
         </span>
-        <button class="btn btn-ghost btn-sm" onclick="window.open('/vapt','_blank')">🌐 Public Portal</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'),'_blank')">🌐 Public Portal</button>
         <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue Credentials</button>
         <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add Certificate</button>
         <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.6rem;font-weight:600;letter-spacing:.1em;color:var(--teal)">
@@ -1107,7 +1107,7 @@
                   <div class="cert-logo-area">
                     <div class="cert-logo-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg></div>
                     <div>
-                      <div class="cert-org-name" id="pvOrgName">Synergy Marine Group</div>
+                      <div class="cert-org-name" id="pvOrgName"></div>
                       <div class="cert-org-sub">Cyber Security Division</div>
                     </div>
                   </div>
@@ -1141,14 +1141,14 @@
                 <div class="cert-footer-row">
                   <div class="cert-sig-area">
                     <div class="cert-sig-line"></div>
-                    <div class="cert-sig-name" id="pv-verifier">Gaurav Singh, CISO</div>
+                    <div class="cert-sig-name" id="pv-verifier"></div>
                   </div>
                   <div class="cert-stamp">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                   </div>
                   <div class="cert-sig-area" style="text-align:right">
                     <div class="cert-sig-line" style="margin-left:auto"></div>
-                    <div class="cert-sig-name" id="pvTeamName">Synergy Cybersecurity Team</div>
+                    <div class="cert-sig-name" id="pvTeamName"></div>
                   </div>
                 </div>
               </div>
@@ -1205,14 +1205,15 @@
             <div id="issueCertList" style="max-height:340px;overflow-y:auto"></div>
           </div>
 
-          <!-- Email compose panel -->
+          <!-- AWS SES Email panel -->
           <div class="table-card" style="padding:20px">
             <div class="issue-section-title" style="margin-bottom:12px">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-              Issue Credential — Compose Email
+              Issue VAPT Credential via AWS SES
+              <span id="sesBadgeVapt" style="margin-left:8px;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:rgba(255,107,138,.08);color:#ff6b8a;border:1px solid rgba(255,107,138,.2)">Checking…</span>
             </div>
             <div style="padding:30px;text-align:center;color:var(--text-sec);font-size:.82rem" id="issueSelectPrompt">
-              Select a VAPT certificate above to generate the credential email
+              Select a VAPT certificate above to send the credential email
             </div>
             <div id="issueComposeForm" style="display:none">
               <div style="background:var(--navy-mid);border:1px solid var(--border-gold);border-radius:10px;padding:12px 16px;margin-bottom:14px">
@@ -1220,24 +1221,33 @@
                 <div style="font-size:.82rem;color:var(--text-bright);margin-top:3px" id="issueSelectedName"></div>
               </div>
               <div class="fgroup" style="margin-bottom:14px">
-                <label class="flabel">Recipient Email <span style="color:var(--text-sec);font-size:.6rem">(for reference — send manually)</span></label>
+                <label class="flabel">Recipient Email <span style="color:var(--invalid);font-size:.6rem">Required to send</span></label>
                 <input id="issueRecipEmail" class="fcontrol" type="email" placeholder="master@vessel.com" oninput="updateIssueEmailPreview()" />
               </div>
-              <div style="margin-bottom:10px">
+              <div style="margin-bottom:14px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                  <div style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase">Email Body — Copy &amp; Send Manually</div>
+                  <div style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase">Email Preview</div>
                   <button onclick="copyMailBody()" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s">
                     <span id="copyBtnTxt">⎘ Copy</span>
                   </button>
                 </div>
                 <div id="issueEmailPreview" style="background:var(--navy);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.75rem;color:var(--text);line-height:1.9;white-space:pre-wrap;font-family:'DM Sans',sans-serif;min-height:160px;user-select:text"></div>
               </div>
-              <div style="display:flex;gap:10px;margin-top:14px">
-                <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="markSentBtn" onclick="markAsSent()">
+              <!-- SES send result banner -->
+              <div id="sesSendResult" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:9px;font-size:.76rem;line-height:1.6"></div>
+              <div style="display:flex;gap:10px;margin-top:4px">
+                <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="sendSesBtn" onclick="sendViaSES()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                  <span id="sendSesTxt">Send via AWS SES</span>
+                </button>
+                <button class="btn btn-ghost" style="padding:12px 14px" id="markSentBtn" onclick="markAsSent()" title="Mark as sent without dispatching">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  <span id="markSentTxt">Mark as Sent</span>
+                  <span id="markSentTxt">Mark Sent</span>
                 </button>
                 <button class="btn btn-ghost" onclick="clearIssueSelection()">Clear</button>
+              </div>
+              <div style="font-size:.62rem;color:var(--text-sec);margin-top:8px;line-height:1.7">
+                <strong style="color:var(--teal)">Send via AWS SES</strong> dispatches automatically. &nbsp;·&nbsp; <strong style="color:var(--gold)">Mark Sent</strong> records without dispatching.
               </div>
             </div>
           </div>
@@ -1426,6 +1436,7 @@
     await refreshStats();
     renderTbl('dashTbl', '');
     updateRealTimeBadge();
+    checkSesStatus();  // Check AWS SES config status
     if (_autoRefreshInterval) clearInterval(_autoRefreshInterval);
     _autoRefreshInterval = setInterval(async () => {
       await refreshStats();
@@ -2186,7 +2197,7 @@
       if (r.ok) { const d=await r.json(); if(d.url) certUrl=d.url; }
     } catch { /* fallback to plain URL */ }
     const body=
-`Subject: Your VAPT Certificate — ${c.id} — ${window.APP_CONFIG?window.APP_CONFIG.brand.name:"Synergy Group"}
+`Subject: Your VAPT Certificate — ${c.id} — ${window.APP_CONFIG?(window.APP_CONFIG.brand.companyShort||window.APP_CONFIG.brand.name):"Synergy"}
 
 Dear ${c.recipientName||'Vessel Master / Company Representative'},
 
@@ -2208,7 +2219,7 @@ If you have any questions or require a re-assessment, please contact us at ${win
 Regards,
 ${c.verifiedBy||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh')}
 ${c.verifierTitle||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group')}
-${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} · ${window.APP_CONFIG?window.APP_CONFIG.brand.division:'Cyber Security Division'}`;
+${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} · Cyber Security Division`;
     document.getElementById('issueEmailPreview').textContent=body;
     _issueEmailCache[c.id]=body;
   }
@@ -2219,38 +2230,132 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
     catch{toast('Copy failed','err');}
   }
 
+  async function checkSesStatus() {
+    try {
+      const r = await fetch(API + '/ses-status', { headers: { Authorization: 'Bearer ' + TOKEN } });
+      const d = r.ok ? await r.json() : {};
+      const badge = document.getElementById('sesBadgeVapt');
+      if (!badge) return;
+      if (d.enabled) {
+        badge.textContent = '✓ AWS SES Active · ' + (d.region || '');
+        badge.style.background = 'rgba(100,255,218,.1)';
+        badge.style.color      = 'var(--teal)';
+        badge.style.borderColor= 'rgba(100,255,218,.25)';
+      } else {
+        badge.textContent = (d.missing && d.missing.length
+          ? '✗ SES not configured — missing: ' + d.missing.join(', ')
+          : '✗ SES not configured — check .env');
+        badge.style.background = 'rgba(255,107,138,.08)';
+        badge.style.color      = '#ff6b8a';
+        badge.style.borderColor= 'rgba(255,107,138,.2)';
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function sendViaSES() {
+    if (!selectedIssueCertId) { toast('Select a certificate first.', 'warn'); return; }
+    const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
+    if (!recipEmail) { toast('Enter a recipient email address first.', 'warn'); return; }
+
+    // Persist recipient email on the cert
+    try {
+      const fdEmail = new FormData();
+      fdEmail.append('recipientEmail', recipEmail);
+      await fetch(`${API}/vapt/certs/${encodeURIComponent(selectedIssueCertId)}`, {
+        method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fdEmail
+      });
+    } catch { /* non-fatal */ }
+
+    const btn = document.getElementById('sendSesBtn');
+    btn.disabled = true;
+    document.getElementById('sendSesTxt').textContent = 'Sending…';
+    const resultEl = document.getElementById('sesSendResult');
+    resultEl.style.display = 'none';
+
+    try {
+      const r = await fetch(`${API}/vapt/certs/${encodeURIComponent(selectedIssueCertId)}/send-email`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl: window.location.origin })
+      });
+      const d = await r.json();
+
+      if (r.ok && d.success) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = 'rgba(100,255,218,.08)';
+        resultEl.style.border     = '1px solid rgba(100,255,218,.25)';
+        resultEl.style.color      = 'var(--teal)';
+        resultEl.innerHTML = `✓ VAPT credential dispatched via AWS SES<br>
+          <span style="font-size:.65rem;opacity:.8">To: ${recipEmail} · ${new Date().toLocaleTimeString()}${d.messageId ? ' · MsgID: ' + d.messageId : ''}</span>`;
+        document.getElementById('sendSesTxt').textContent = '✓ Sent!';
+        btn.style.background  = 'rgba(100,255,218,.12)';
+        btn.style.borderColor = 'rgba(100,255,218,.35)';
+        btn.style.color       = 'var(--teal)';
+        toast('✓ VAPT email sent via AWS SES!', 'ok');
+        const c = CERTS.find(x => x.id === selectedIssueCertId);
+        if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); c.recipientEmail = recipEmail; }
+        await refreshStats();
+        renderIssueList(document.getElementById('issueSearch')?.value || '');
+        renderSentLog();
+        return;
+      } else {
+        let errMsg;
+        if (r.status === 503 || d.sesEnabled === false) {
+          errMsg = 'AWS SES not configured on server. Check AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.';
+        } else {
+          errMsg = d.sesError || d.error || ('HTTP ' + r.status);
+        }
+        resultEl.style.display    = 'block';
+        resultEl.style.background = 'rgba(255,107,138,.08)';
+        resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
+        resultEl.style.color      = '#ff6b8a';
+        resultEl.innerHTML = '✗ Send failed — ' + errMsg;
+        toast('✗ ' + errMsg, 'err');
+      }
+    } catch (e) {
+      resultEl.style.display = 'block';
+      resultEl.style.background = 'rgba(255,107,138,.08)';
+      resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
+      resultEl.style.color      = '#ff6b8a';
+      resultEl.innerHTML = `✗ Network error: ${e.message}`;
+      toast('Network error. Please retry.', 'err');
+    }
+    btn.disabled = false;
+    btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
+    document.getElementById('sendSesTxt').textContent = 'Send via AWS SES';
+  }
+
   async function markAsSent() {
     if (!selectedIssueCertId) return;
-    const btn=document.getElementById('markSentBtn');
-    btn.disabled=true;
-    document.getElementById('markSentTxt').textContent='Marking…';
+    const btn = document.getElementById('markSentBtn');
+    btn.disabled = true;
+    document.getElementById('markSentTxt').textContent = 'Marking…';
     try {
       const fd = new FormData();
       fd.append('emailStatus', 'SENT');
       fd.append('emailSentAt', new Date().toISOString());
-      const r=await fetch(`${API}/vapt/certs/${encodeURIComponent(selectedIssueCertId)}`,{method:'PUT',headers:{Authorization:'Bearer '+TOKEN},body:fd});
-      if (r.ok){
-        // Update local state immediately
-        const c=CERTS.find(x=>x.id===selectedIssueCertId);
-        if(c){ c.emailStatus='SENT'; c.emailSentAt=new Date().toISOString(); }
-        // Show permanent success state — keep button disabled
-        document.getElementById('markSentTxt').textContent='✓ Marked as Sent';
-        btn.style.background='rgba(100,255,218,.12)';
-        btn.style.borderColor='rgba(100,255,218,.35)';
-        btn.style.color='var(--teal)';
-        toast('✓ Credential marked as sent!','ok');
+      const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
+      if (recipEmail) fd.append('recipientEmail', recipEmail);
+      const r = await fetch(`${API}/vapt/certs/${encodeURIComponent(selectedIssueCertId)}`, {
+        method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd
+      });
+      if (r.ok) {
+        const c = CERTS.find(x => x.id === selectedIssueCertId);
+        if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); }
+        document.getElementById('markSentTxt').textContent = '✓ Marked';
+        btn.style.background = 'rgba(212,168,67,.1)'; btn.style.borderColor = 'rgba(212,168,67,.3)'; btn.style.color = 'var(--gold)';
+        toast('✓ Credential marked as sent!', 'ok');
         await refreshStats();
-        renderIssueList(document.getElementById('issueSearch')?.value||'');
+        renderIssueList(document.getElementById('issueSearch')?.value || '');
         renderSentLog();
-        return; // ← exit early, do NOT re-enable button
+        return;
       } else {
-        toast('Failed to mark as sent','err');
+        toast('Failed to mark as sent', 'err');
       }
-    } catch { toast('Network error — please retry','err'); }
-    // Only reached on failure — re-enable
-    btn.disabled=false;
-    btn.style.background=''; btn.style.borderColor=''; btn.style.color='';
-    document.getElementById('markSentTxt').textContent='Mark as Sent';
+    } catch { toast('Network error — please retry', 'err'); }
+    btn.disabled = false;
+    btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
+    document.getElementById('markSentTxt').textContent = 'Mark Sent';
   }
 
   function clearIssueSelection(){

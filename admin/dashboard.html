@@ -2177,7 +2177,7 @@
         </svg>
       </div>
       <div class="login-title">Admin Access</div>
-      <div class="login-sub" id="loginSub">Synergy Certificate Control Panel</div>
+      <div class="login-sub" id="loginSub"></div>
       <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
       <div class="fgroup" style="margin-bottom:14px">
         <label class="flabel">Username</label>
@@ -2205,17 +2205,17 @@
       <div class="sb-brand">
         <div class="sb-icon" style="background:none;border:none;width:auto;height:auto"><img src="/images/SYN.png" class="nav-logo-circle syn-circle sb-circle" alt="Synergy" /></div>
         <div>
-          <div class="sb-name" id="sbName">Synergy CST</div>
+          <div class="sb-name" id="sbName"></div>
           <div class="sb-sub">Training Admin</div>
         </div>
       </div>
       <nav class="sb-nav">
         <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
-        <a id="sbLinkCST" href="/CST" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <a id="sbLinkCST" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           CST Public Portal
         </a>
-        <a id="sbLinkVPTAdmin" href="/VPT/admin/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <a id="sbLinkVPTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           Switch → VPT Admin
         </a>
@@ -2270,7 +2270,7 @@
           <div class="admin-av">A</div>
           <div>
             <div class="admin-nm">Administrator</div>
-            <div class="admin-rl" id="adminRole">Full Access · Synergy Group</div>
+            <div class="admin-rl" id="adminRole"></div>
           </div>
         </div>
         <button class="logout-btn" onclick="doLogout()">⎋ &nbsp;Logout</button>
@@ -2519,7 +2519,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <div class="upload-text" style="color:var(--teal)">Drop your CSV file here or click to browse</div>
-                <div class="upload-hint" id="csvHint">Accepts .csv files matching the Synergy CSV format</div>
+                <div class="upload-hint" id="csvHint"></div>
               </div>
               <div id="csvUploadLoaded" style="display:none;text-align:center;padding:8px 0">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="margin:0 auto">
@@ -2669,10 +2669,10 @@
               <div class="fgroup"><label class="flabel" style="display:flex;align-items:center;gap:6px">Recipient Email <span id="emailRequiredTag" style="font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:rgba(255,107,138,.06);color:var(--invalid);border:1px solid rgba(255,107,138,.15)">Required</span></label><input id="fEmail" type="email" class="fcontrol"
                   placeholder="recipient@company.com" oninput="updateCompletionChecklistFull()" /></div>
               <div class="fgroup form-full"><label class="flabel">Training Title *</label><input id="fTitle"
-                  class="fcontrol" value="Cyber Security Threat Awareness Training" oninput="livePreview()" /></div>
+                  class="fcontrol" value="" oninput="livePreview()" /></div>
               <div class="fgroup"><label class="flabel">Organizer <span
                     style="color:var(--text-sec);font-size:.6rem">(static)</span></label><input id="fOrg"
-                  class="fcontrol" value="Synergy Cyber Security Team" readonly
+                  class="fcontrol" id_value_set_by_config value="" readonly
                   style="opacity:.65;cursor:not-allowed" /></div>
               <div class="fgroup"><label class="flabel">Training Mode</label><select id="fMode" class="fcontrol"
                   onchange="livePreview()">
@@ -2702,12 +2702,12 @@
                   class="fcontrol" oninput="validateIssueDate(this)" /></div>
               <div class="fgroup form-full"><label class="flabel">Verified By <span
                     style="color:var(--text-sec);font-size:.6rem">(static)</span></label><input id="fVerifier"
-                  class="fcontrol" value="Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group"
+                  class="fcontrol" value=""
                   readonly style="opacity:.65;cursor:not-allowed" /></div>
               <div class="fgroup form-full"><label class="flabel">Notes <span
                     style="color:var(--text-sec);font-size:.6rem">(static)</span></label><input id="fNotes"
                   class="fcontrol"
-                  value="Training conducted under supervision of ISO Lead Auditor and Security trainers" readonly
+                  value="" readonly
                   style="opacity:.65;cursor:not-allowed" /></div>
 
               <div class="fgroup form-full">
@@ -2782,7 +2782,7 @@
                             d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg></div>
                       <div>
-                        <div class="cert-org-name" id="pvOrgName">Synergy Marine Group</div>
+                        <div class="cert-org-name" id="pvOrgName"></div>
                         <div class="cert-org-sub">Cyber Security Division</div>
                       </div>
                     </div>
@@ -2793,7 +2793,7 @@
                     <div class="cert-name-display" id="pv-name">Recipient Name</div>
                     <div class="cert-divider"></div>
                     <div class="cert-type">Certificate of Completion</div>
-                    <div class="cert-training-display" id="pv-title">Cyber Security Threat Awareness Training</div>
+                    <div class="cert-training-display" id="pv-title"></div>
                   </div>
                   <div class="cert-meta-row">
                     <div class="cert-meta-item">
@@ -2816,7 +2816,7 @@
                   <div class="cert-footer-row">
                     <div class="cert-sig-area">
                       <div class="cert-sig-line"></div>
-                      <div class="cert-sig-name" id="pv-verifier">Gaurav Singh, CISO</div>
+                      <div class="cert-sig-name" id="pv-verifier"></div>
                     </div>
                     <div class="cert-stamp">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)"
@@ -2894,18 +2894,20 @@
               <div id="issueCertList" style="max-height:320px;overflow-y:auto"></div>
             </div>
 
-            <!-- Manual email panel -->
+            <!-- AWS SES Email panel -->
             <div class="table-card" style="padding:20px" id="issueComposePanel">
               <div class="issue-section-title" style="margin-bottom:12px">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
-                Issue Credentials Manually
+                Issue Credentials via AWS SES
+                <!-- SES status badge -->
+                <span id="sesBadgeCst" style="margin-left:8px;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:rgba(255,107,138,.08);color:#ff6b8a;border:1px solid rgba(255,107,138,.2)">Checking…</span>
               </div>
 
               <!-- Prompt when nothing selected -->
               <div style="padding:30px;text-align:center;color:var(--text-sec);font-size:.82rem" id="issueSelectPrompt">
-                Select a certificate above to generate the credential email
+                Select a certificate above to send the credential email
               </div>
 
               <!-- Compose panel -->
@@ -2919,14 +2921,14 @@
 
                 <!-- Recipient email input -->
                 <div class="fgroup" style="margin-bottom:14px">
-                  <label class="flabel">Recipient Email <span style="color:var(--text-sec);font-size:.6rem">(for reference only — send manually)</span></label>
+                  <label class="flabel">Recipient Email <span style="color:var(--invalid);font-size:.6rem">Required to send</span></label>
                   <input id="issueRecipEmail" class="fcontrol" type="email" placeholder="recipient@vessel.com" oninput="updateIssueEmailPreview()" />
                 </div>
 
-                <!-- Generated mail body -->
-                <div style="margin-bottom:10px">
+                <!-- Generated mail body preview -->
+                <div style="margin-bottom:14px">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                    <div style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase">Email Body — Copy & Send Manually</div>
+                    <div style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase">Email Preview</div>
                     <button onclick="copyMailBody()" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s" onmouseover="this.style.background='rgba(212,168,67,.2)'" onmouseout="this.style.background='var(--gold-dim)'">
                       <span id="copyBtnTxt">⎘ Copy</span>
                     </button>
@@ -2934,13 +2936,25 @@
                   <div id="issueEmailPreview" style="background:var(--navy);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.75rem;color:var(--text);line-height:1.9;white-space:pre-wrap;font-family:'DM Sans',sans-serif;min-height:180px;user-select:text"></div>
                 </div>
 
-                <!-- Mark as Sent -->
-                <div style="display:flex;gap:10px;margin-top:14px">
-                  <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="markSentBtn" onclick="markAsSent()">
+                <!-- SES send result banner -->
+                <div id="sesSendResult" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:9px;font-size:.76rem;line-height:1.6"></div>
+
+                <!-- Action buttons -->
+                <div style="display:flex;gap:10px;margin-top:4px">
+                  <!-- Primary: Send via SES -->
+                  <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="sendSesBtn" onclick="sendViaSES()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    <span id="sendSesTxt">Send via AWS SES</span>
+                  </button>
+                  <!-- Secondary: manual fallback -->
+                  <button class="btn btn-ghost" style="padding:12px 14px" id="markSentBtn" onclick="markAsSent()" title="Mark as sent without dispatching email">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    <span id="markSentTxt">Mark as Sent</span>
+                    <span id="markSentTxt">Mark Sent</span>
                   </button>
                   <button class="btn btn-ghost" onclick="clearIssueSelection()">Clear</button>
+                </div>
+                <div style="font-size:.62rem;color:var(--text-sec);margin-top:8px;line-height:1.7">
+                  <strong style="color:var(--teal)">Send via AWS SES</strong> dispatches the email automatically and records it. &nbsp;·&nbsp; <strong style="color:var(--gold)">Mark Sent</strong> records it without dispatching (use after manual send).
                 </div>
               </div>
             </div>
@@ -2967,9 +2981,9 @@
                   </div>
                 </div>
                 <div style="font-size:.7rem;color:var(--text-sec);line-height:1.8;margin-top:4px">
-                  · Select a certificate → copy the email body<br>
-                  · Send it manually from your mail client<br>
-                  · Click <strong style="color:var(--teal)">Mark as Sent</strong> to record it here
+                  · Select a certificate and enter recipient email<br>
+                  · Click <strong style="color:var(--teal)">Send via AWS SES</strong> to dispatch automatically<br>
+                  · Or copy the preview and send manually, then <strong style="color:var(--gold)">Mark Sent</strong>
                 </div>
               </div>
             </div>
@@ -3114,6 +3128,7 @@
       await refreshStats();
       renderTbl('dashTbl', '');
       updateRealTimeBadge();
+      checkSesStatus();  // Check AWS SES config status
       // ── Real-time auto-refresh: poll every 30 seconds ──
       if (_autoRefreshInterval) clearInterval(_autoRefreshInterval);
       _autoRefreshInterval = setInterval(async () => {
@@ -3936,6 +3951,106 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       });
     }
 
+    // ── SES status check (runs once on load) ───────────────────────────
+    async function checkSesStatus() {
+      try {
+        const r = await fetch(API + '/ses-status', { headers: { Authorization: 'Bearer ' + TOKEN } });
+        const d = r.ok ? await r.json() : {};
+        const badge = document.getElementById('sesBadgeCst');
+        if (!badge) return;
+        if (d.enabled) {
+          badge.textContent = '✓ AWS SES Active · ' + (d.region || '');
+          badge.style.background = 'rgba(100,255,218,.1)';
+          badge.style.color      = 'var(--teal)';
+          badge.style.borderColor= 'rgba(100,255,218,.25)';
+        } else {
+          badge.textContent = (d.missing && d.missing.length
+            ? '✗ SES not configured — missing: ' + d.missing.join(', ')
+            : '✗ SES not configured — check .env');
+          badge.style.background = 'rgba(255,107,138,.08)';
+          badge.style.color      = '#ff6b8a';
+          badge.style.borderColor= 'rgba(255,107,138,.2)';
+        }
+      } catch { /* ignore */ }
+    }
+
+    // ── Send via AWS SES ────────────────────────────────────────────────
+    async function sendViaSES() {
+      if (!selectedIssueCertId) { toast('Select a certificate first.', 'warn'); return; }
+      const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
+      if (!recipEmail) { toast('Enter a recipient email address first.', 'warn'); return; }
+
+      // Persist the recipient email on the cert before sending
+      try {
+        const fdEmail = new FormData();
+        fdEmail.append('recipientEmail', recipEmail);
+        await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId), {
+          method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fdEmail
+        });
+      } catch { /* non-fatal — send will still work */ }
+
+      const btn = document.getElementById('sendSesBtn');
+      btn.disabled = true;
+      document.getElementById('sendSesTxt').textContent = 'Sending…';
+      const resultEl = document.getElementById('sesSendResult');
+      resultEl.style.display = 'none';
+
+      try {
+        const r = await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId) + '/send-email', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ baseUrl: window.location.origin })
+        });
+        const d = await r.json();
+
+        if (r.ok && d.success) {
+          // Success
+          resultEl.style.display = 'block';
+          resultEl.style.background = 'rgba(100,255,218,.08)';
+          resultEl.style.border     = '1px solid rgba(100,255,218,.25)';
+          resultEl.style.color      = 'var(--teal)';
+          resultEl.innerHTML = `✓ Email dispatched successfully via AWS SES<br>
+            <span style="font-size:.65rem;opacity:.8">To: ${recipEmail} · ${new Date().toLocaleTimeString()}${d.messageId ? ' · MsgID: ' + d.messageId : ''}</span>`;
+          document.getElementById('sendSesTxt').textContent = '✓ Sent!';
+          btn.style.background  = 'rgba(100,255,218,.12)';
+          btn.style.borderColor = 'rgba(100,255,218,.35)';
+          btn.style.color       = 'var(--teal)';
+          toast('✓ Email sent via AWS SES!', 'ok');
+          // Update local cert state
+          const c = CERTS.find(x => x.id === selectedIssueCertId);
+          if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); c.recipientEmail = recipEmail; }
+          await refreshStats();
+          renderIssueList(document.getElementById('issueSearch').value);
+          renderSentLog();
+          return; // keep button disabled (already sent)
+        } else {
+          let errMsg;
+          if (r.status === 503 || d.sesEnabled === false) {
+            errMsg = 'AWS SES not configured on server. Check AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.';
+          } else {
+            errMsg = d.sesError || d.error || ('HTTP ' + r.status);
+          }
+          resultEl.style.display    = 'block';
+          resultEl.style.background = 'rgba(255,107,138,.08)';
+          resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
+          resultEl.style.color      = '#ff6b8a';
+          resultEl.innerHTML = '✗ Send failed — ' + errMsg;
+          toast('✗ ' + errMsg, 'err');
+        }
+      } catch (e) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = 'rgba(255,107,138,.08)';
+        resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
+        resultEl.style.color      = '#ff6b8a';
+        resultEl.innerHTML = `✗ Network error: ${e.message}`;
+        toast('Network error. Please retry.', 'err');
+      }
+      // Re-enable only on failure
+      btn.disabled = false;
+      btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
+      document.getElementById('sendSesTxt').textContent = 'Send via AWS SES';
+    }
+
     async function markAsSent() {
       if (!selectedIssueCertId) { toast('Select a certificate first.', 'warn'); return; }
       const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
@@ -3950,13 +4065,16 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const r = await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId), {
           method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd
         });
-        if (!r.ok) { toast('Failed to mark as sent.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; return; }
+        if (!r.ok) { toast('Failed to mark as sent.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; return; }
+        document.getElementById('markSentTxt').textContent = '✓ Marked';
+        btn.style.background = 'rgba(212,168,67,.1)'; btn.style.borderColor = 'rgba(212,168,67,.3)'; btn.style.color = 'var(--gold)';
         toast('Marked as sent!', 'ok');
+        const c = CERTS.find(x => x.id === selectedIssueCertId);
+        if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); if (recipEmail) c.recipientEmail = recipEmail; }
         await refreshStats();
         renderIssueList(document.getElementById('issueSearch').value);
-        // Refresh the selected cert state
-        selectIssueCert(selectedIssueCertId);
-      } catch { toast('Server error.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; }
+        renderSentLog();
+      } catch { toast('Server error.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; }
     }
 
     async function quickSend(id) {

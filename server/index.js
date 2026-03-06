@@ -420,26 +420,228 @@ function buildVaptCertUrl(certId, baseUrl) {
   return `${baseUrl}${CFG.routes.vpt}/cert/${token}?s=${sig}`;
 }
 
-// ─── EMAIL SIMULATION (unified) ──────────────────────────────────────────────
-// Writes a JSONL log entry. Both CST and VAPT calls go through this one helper.
-function logEmailSim(logFile, fields) {
-  const entry = { timestamp: new Date().toISOString(), ...fields, status: 'SIMULATED' };
-  fs.appendFileSync(logFile, JSON.stringify(entry) + '\n', 'utf8');
-  return true;
+// ─── AWS SES EMAIL (pure Node.js — zero npm deps) ────────────────────────────
+//
+//  Uses the AWS Signature Version 4 + SES SendRawMessage API directly over HTTPS.
+//  No SDK required — only Node built-ins (https, crypto).
+//
+//  Required .env variables:
+//    AWS_SES_REGION      = us-east-1          (SES region where your domain is verified)
+//    AWS_SES_ACCESS_KEY  = AKIA…              (IAM user with ses:SendRawMessage permission)
+//    AWS_SES_SECRET_KEY  = xxxxxxxx           (IAM secret access key)
+//    AWS_SES_FROM_CST    = "Synergy CST" <trainingawareness@synergyship.com>
+//    AWS_SES_FROM_VAPT   = "Synergy VAPT" <vapt@synergyship.com>
+//
+//  SES must have the sender domain/address verified in the target region.
+//  In sandbox mode only verified recipient addresses can receive emails — request
+//  production access via the AWS console to send to any address.
+//
+// Accept both naming styles (standard AWS CLI names or legacy AWS_SES_* names)
+const SES_REGION     = process.env.AWS_REGION             || process.env.AWS_SES_REGION     || '';
+const SES_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID      || process.env.AWS_SES_ACCESS_KEY || '';
+const SES_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY  || process.env.AWS_SES_SECRET_KEY || '';
+const SES_FROM_CST   = process.env.AWS_SES_FROM_CST   || CFG.contact.cstEmail;
+const SES_FROM_VAPT  = process.env.AWS_SES_FROM_VAPT  || CFG.contact.vaptEmail;
+
+// True when all three required SES credentials are present in the environment.
+const SES_ENABLED = Boolean(SES_REGION && SES_ACCESS_KEY && SES_SECRET_KEY);
+
+if (SES_ENABLED) {
+  console.log(`[SES] ✓ AWS SES v2 ready — region: ${SES_REGION}`);
+  console.log(`[SES]   CST : ${SES_FROM_CST}`);
+  console.log(`[SES]   VAPT: ${SES_FROM_VAPT}`);
+} else {
+  console.error('[SES] ✗ NOT configured — /send-email will return 503.');
+  if (!SES_REGION)     console.error('[SES]   MISSING: AWS_REGION');
+  if (!SES_ACCESS_KEY) console.error('[SES]   MISSING: AWS_ACCESS_KEY_ID');
+  if (!SES_SECRET_KEY) console.error('[SES]   MISSING: AWS_SECRET_ACCESS_KEY');
 }
 
-function simulateSendEmail({ to, from, certId, recipientName, trainingTitle, verifyUrl }) {
-  return logEmailSim(
+/**
+ * AWS Signature V4 helper — signs an HTTPS POST to SES SendRawMessage.
+ * @param {string} rawMessage  - RFC 2822 email string (headers + body)
+ * @param {string} fromAddress - Verified SES sender address
+ * @param {string[]} toAddresses - Recipient address(es)
+ * @returns {Promise<{success:boolean, messageId?:string, error?:string}>}
+ */
+/**
+ * Send a raw RFC-2822 email via AWS SES v2 REST API (SendEmail with RawMessage).
+ * Uses SES v2 endpoint which works in all regions including ap-south-1.
+ * Path: POST /v2/email/outbound-emails
+ * Docs: https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_SendEmail.html
+ */
+function sesSendRaw(rawMessage, fromAddress, toAddresses) {
+  return new Promise((resolve) => {
+    if (!SES_ENABLED) {
+      resolve({ success: false, error: 'SES not configured' });
+      return;
+    }
+
+    const https   = require('https');
+    const region  = SES_REGION;
+    const host    = `email.${region}.amazonaws.com`;
+    const service = 'ses';
+    const method  = 'POST';
+    // SES v2 endpoint — works in all regions including ap-south-1
+    const uri     = '/v2/email/outbound-emails';
+
+    // SES v2 expects a JSON body with the raw MIME message base64-encoded
+    const rawB64    = Buffer.from(rawMessage).toString('base64');
+    // SES v2 FromEmailAddress must be a bare email — no display name.
+    // Strip 'Display Name <email@domain>' → 'email@domain' if present.
+    // The display name is already encoded in the raw MIME From: header.
+    const bareFrom  = (fromAddress.match(/<([^>]+)>/) || [])[1] || fromAddress;
+    const bodyObj   = {
+      Content: {
+        Raw: { Data: rawB64 }
+      },
+      Destination: {
+        ToAddresses: toAddresses
+      },
+      FromEmailAddress: bareFrom,
+    };
+    const bodyStr = JSON.stringify(bodyObj);
+
+    // AWS Signature Version 4
+    const now       = new Date();
+    const date      = now.toISOString().slice(0,10).replace(/-/g,'');
+    const time      = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
+    const credScope = `${date}/${region}/${service}/aws4_request`;
+
+    function hmac(key, data) {
+      return crypto.createHmac('sha256', key).update(data).digest();
+    }
+    function hmacHex(key, data) {
+      return crypto.createHmac('sha256', key).update(data).digest('hex');
+    }
+    function sha256hex(data) {
+      return crypto.createHash('sha256').update(data).digest('hex');
+    }
+
+    const payloadHash      = sha256hex(bodyStr);
+    const signedHeaders    = 'content-type;host;x-amz-date';
+    const canonicalHeaders = `content-type:application/json\nhost:${host}\nx-amz-date:${time}\n`;
+    const canonicalRequest = [method, uri, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
+    const strToSign        = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
+
+    const signingKey = hmac(
+      hmac(hmac(hmac('AWS4' + SES_SECRET_KEY, date), region), service), 'aws4_request'
+    );
+    const signature  = hmacHex(signingKey, strToSign);
+    const authHeader = `AWS4-HMAC-SHA256 Credential=${SES_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+    const options = {
+      hostname: host,
+      port:     443,
+      path:     uri,
+      method,
+      headers: {
+        'Content-Type':   'application/json',
+        'Host':            host,
+        'X-Amz-Date':      time,
+        'Content-Length':  Buffer.byteLength(bodyStr),
+        'Authorization':   authHeader,
+      },
+    };
+
+    const httpreq = https.request(options, (httpsRes) => {
+      let data = '';
+      httpsRes.on('data', c => { data += c; });
+      httpsRes.on('end', () => {
+        if (httpsRes.statusCode === 200) {
+          try {
+            const json = JSON.parse(data);
+            resolve({ success: true, messageId: json.MessageId || '' });
+          } catch {
+            resolve({ success: true, messageId: '' });
+          }
+        } else {
+          // SES v2 returns JSON errors
+          try {
+            const json = JSON.parse(data);
+            const msg  = json.message || json.Message || JSON.stringify(json);
+            resolve({ success: false, error: msg });
+          } catch {
+            resolve({ success: false, error: `HTTP ${httpsRes.statusCode}: ${data.slice(0,200)}` });
+          }
+        }
+      });
+    });
+    httpreq.on('error', (err) => resolve({ success: false, error: err.message }));
+    httpreq.write(bodyStr);
+    httpreq.end();
+  });
+}
+
+/**
+ * Build a minimal RFC 2822 email string accepted by SES SendRawMessage.
+ * Handles UTF-8 subject encoding and plain-text body.
+ */
+function buildRawEmail({ from, to, subject, body, replyTo }) {
+  const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
+  const lines = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${b64subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Transfer-Encoding: base64`,
+  ];
+  if (replyTo) lines.push(`Reply-To: ${replyTo}`);
+  lines.push('');  // blank line between headers and body
+  // RFC 2045 §6.8 — base64 content must not exceed 76 characters per line
+  lines.push(Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, ''));
+  return lines.join('\r\n');
+}
+
+// ─── EMAIL LOG HELPER (always runs regardless of SES status) ─────────────────
+function logEmail(logFile, fields, sesResult) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    ...fields,
+    status:    sesResult.success ? 'SENT' : (SES_ENABLED ? 'FAILED' : 'LOGGED_ONLY'),
+    messageId: sesResult.messageId || null,
+    sesError:  sesResult.error     || null,
+  };
+  try {
+    fs.appendFileSync(logFile, JSON.stringify(entry) + '\n', 'utf8');
+  } catch { /* non-fatal */ }
+}
+
+// ─── CST CREDENTIAL EMAIL ─────────────────────────────────────────────────────
+async function sendCstEmail({ to, from, cert, verifyUrl }) {
+  const body    = CFG.emailTemplates.cst(cert, verifyUrl);
+  const subject = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
+  const raw     = buildRawEmail({ from, to, subject, body, replyTo: from });
+  const result  = await sesSendRaw(raw, from, [to]);
+  logEmail(
     path.join(path.dirname(DATA_FILE), 'email_log.jsonl'),
-    { to, from, certId, recipientName, trainingTitle, verifyUrl }
+    { to, from, certId: cert.id, recipientName: cert.recipientName, subject, verifyUrl },
+    result
   );
+  return result;
 }
 
-function simulateSendVaptEmail({ to, from, certId, recipientName, assessmentDate, verifyUrl }) {
-  return logEmailSim(
+// ─── VAPT CREDENTIAL EMAIL ────────────────────────────────────────────────────
+async function sendVaptEmail({ to, from, cert, verifyUrl }) {
+  const body    = CFG.emailTemplates.vapt(cert, verifyUrl);
+  // The VAPT template already includes a Subject: line as its first line — strip it
+  // and use it as the actual email Subject header for cleanliness.
+  const lines   = body.split('\n');
+  let subject   = `Your VAPT Certificate — ${cert.id} — ${CFG.brand.companyShort || CFG.brand.name} Group`;
+  let cleanBody = body;
+  if (lines[0].startsWith('Subject:')) {
+    subject   = lines[0].replace(/^Subject:\s*/, '').trim();
+    cleanBody = lines.slice(2).join('\n'); // skip Subject + blank line
+  }
+  const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from });
+  const result = await sesSendRaw(raw, from, [to]);
+  logEmail(
     path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl'),
-    { to, from, certId, recipientName, assessmentDate, verifyUrl }
+    { to, from, certId: cert.id, recipientName: cert.recipientName, subject, verifyUrl },
+    result
   );
+  return result;
 }
 
 // ─── IMAGE SAVE HELPER ───────────────────────────────────────────────────────
@@ -886,7 +1088,7 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, updated, corsH);
   }
 
-  // ── POST /api/certs/:id/send-email ── (admin)
+  // ── POST /api/certs/:id/send-email ── (admin — send via AWS SES)
   if (route.match(/^\/certs\/[^/]+\/send-email$/) && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
     const certId = sanitiseCertId(
@@ -900,27 +1102,42 @@ async function handleAPI(req, res, parsed) {
       return sendJSON(res, 400, { error: 'No recipient email on this certificate' }, corsH);
     if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
       return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
+
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
     const base      = body.baseUrl || BASE_ORIGIN;
     const verifyUrl = buildCertUrl(cert.id, base);
-    const ok = simulateSendEmail({
-      to: cert.recipientEmail,
-      from: cert.issuerEmail || CFG.cst.issuerEmail,
-      certId: cert.id,
-      recipientName: cert.recipientName,
-      trainingTitle: cert.trainingTitle,
-      verifyUrl
+    const fromAddr  = SES_FROM_CST || cert.issuerEmail || CFG.contact.cstEmail;
+
+    // Return 503 immediately if SES not configured — never fake a success
+    if (!SES_ENABLED) {
+      return sendJSON(res, 503, {
+        error: 'AWS SES is not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.',
+        sesEnabled: false,
+      }, corsH);
+    }
+
+    const result = await sendCstEmail({
+      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl
     });
-    if (ok) {
+
+    if (result.success) {
       cert.emailStatus = 'SENT';
       cert.emailSentAt = new Date().toISOString();
-      data[certId]     = cert;
+      if (result.messageId) cert.sesMessageId = result.messageId;
+      data[certId] = cert;
       saveData(data);
-      return sendJSON(res, 200,
-        { success: true, emailStatus: 'SENT', emailSentAt: cert.emailSentAt, verifyUrl }, corsH);
+      return sendJSON(res, 200, {
+        success: true, emailStatus: 'SENT',
+        emailSentAt: cert.emailSentAt,
+        verifyUrl, messageId: result.messageId || null, sesEnabled: true,
+      }, corsH);
     }
-    return sendJSON(res, 500, { error: 'Email dispatch failed' }, corsH);
+
+    return sendJSON(res, 500, {
+      error: 'AWS SES rejected the request: ' + (result.error || 'unknown'),
+      sesError: result.error, sesEnabled: true,
+    }, corsH);
   }
 
   // ── DELETE /api/certs/:id ── (admin)
@@ -948,6 +1165,22 @@ async function handleAPI(req, res, parsed) {
     const total = certs.length;
     const valid = certs.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
     return sendJSON(res, 200, { total, valid }, corsH);
+  }
+
+  // ── GET /api/ses-status ── (admin — check if AWS SES is configured)
+  if (route === '/ses-status' && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    return sendJSON(res, 200, {
+      enabled:  SES_ENABLED,
+      region:   SES_REGION   || null,
+      fromCST:  SES_FROM_CST || null,
+      fromVAPT: SES_FROM_VAPT || null,
+      missing: [
+        !SES_REGION     && 'AWS_REGION',
+        !SES_ACCESS_KEY && 'AWS_ACCESS_KEY_ID',
+        !SES_SECRET_KEY && 'AWS_SECRET_ACCESS_KEY',
+      ].filter(Boolean),
+    }, corsH);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1117,7 +1350,7 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, updated, corsH);
   }
 
-  // ── POST /api/vapt/certs/:id/send-email ── (admin)
+  // ── POST /api/vapt/certs/:id/send-email ── (admin — send via AWS SES)
   if (route.match(/^\/vapt\/certs\/[^/]+\/send-email$/) && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
     const certId = sanitiseCertId(decodeURIComponent(route.replace('/vapt/certs/', '').replace('/send-email', '')));
@@ -1126,26 +1359,44 @@ async function handleAPI(req, res, parsed) {
     const cert = data[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
     if (!cert.recipientEmail) return sendJSON(res, 400, { error: 'No recipient email on this certificate' }, corsH);
+    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
+      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
+
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
-    const base = body.baseUrl || BASE_ORIGIN;
+    const base      = body.baseUrl || BASE_ORIGIN;
     const verifyUrl = buildVaptCertUrl(cert.id, base);
-    const ok = simulateSendVaptEmail({
-      to: cert.recipientEmail,
-      from: cert.issuerEmail || CFG.vapt.issuerEmail,
-      certId: cert.id,
-      recipientName: cert.recipientName,
-      assessmentDate: cert.assessmentDate,
-      verifyUrl
+    const fromAddr  = SES_FROM_VAPT || cert.issuerEmail || CFG.contact.vaptEmail;
+
+    // Return 503 immediately if SES not configured — never fake a success
+    if (!SES_ENABLED) {
+      return sendJSON(res, 503, {
+        error: 'AWS SES is not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.',
+        sesEnabled: false,
+      }, corsH);
+    }
+
+    const result = await sendVaptEmail({
+      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl
     });
-    if (ok) {
+
+    if (result.success) {
       cert.emailStatus = 'SENT';
       cert.emailSentAt = new Date().toISOString();
+      if (result.messageId) cert.sesMessageId = result.messageId;
       data[certId] = cert;
       saveVaptData(data);
-      return sendJSON(res, 200, { success: true, emailStatus: 'SENT', emailSentAt: cert.emailSentAt, verifyUrl }, corsH);
+      return sendJSON(res, 200, {
+        success: true, emailStatus: 'SENT',
+        emailSentAt: cert.emailSentAt,
+        verifyUrl, messageId: result.messageId || null, sesEnabled: true,
+      }, corsH);
     }
-    return sendJSON(res, 500, { error: 'Email dispatch failed' }, corsH);
+
+    return sendJSON(res, 500, {
+      error: 'AWS SES rejected the request: ' + (result.error || 'unknown'),
+      sesError: result.error, sesEnabled: true,
+    }, corsH);
   }
 
   // ── DELETE /api/vapt/certs/:id ── (admin)

@@ -619,11 +619,11 @@
 <nav>
   <div class="nav-brand">
     <div class="nav-logo-box"><img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Group" /></div>
-    <div class="brand-text"><div class="name" id="navBrandName">Synergy Group</div><div class="sub" id="navBrandSub">VAPT Assessment Registry</div></div>
+    <div class="brand-text"><div class="name" id="navBrandName"></div><div class="sub" id="navBrandSub"></div></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
-    <a id="navTabCST" href="/CST" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
-    <a id="navTabVPT" href="/VPT" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VPT Assessment</span></a>
+    <a id="navTabCST" href="#" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
+    <a id="navTabVPT" href="#" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VPT Assessment</span></a>
     <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Registry</div>
     <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
     <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
@@ -664,7 +664,7 @@
 <div class="desc-block" id="descBlock">
   <div class="desc-section full-col">
     <div class="desc-section-title">About VAPT Assessment Certificate</div>
-    <p class="desc-text">The <strong style="color:var(--text-bright)">Vulnerability Assessment &amp; Penetration Testing (VAPT)</strong> certificate is issued by the <strong style="color:var(--teal)" id="descVaptTeam">Synergy Cybersecurity Team</strong> following a comprehensive on-vessel cyber risk assessment. It confirms that the vessel has undergone a structured evaluation across IT/OT systems, access controls, software configuration, and cyber resilience practices.</p>
+    <p class="desc-text">The <strong style="color:var(--text-bright)">Vulnerability Assessment &amp; Penetration Testing (VAPT)</strong> certificate is issued by the <strong style="color:var(--teal)" id="descVaptTeam"></strong> following a comprehensive on-vessel cyber risk assessment. It confirms that the vessel has undergone a structured evaluation across IT/OT systems, access controls, software configuration, and cyber resilience practices.</p>
     <p class="desc-text" style="margin-top:12px">Assessments are aligned with the IMO Maritime Cyber Risk Management guidelines (MSC-FAL.1/Circ.3), ISO 27001:2013, OWASP, and applicable flag state requirements. The certificate is valid for one year from the date of assessment, and is recognized by vetting inspectors, PSC officers, and charterers as evidence of active cyber risk management.</p>
   </div>
   <div class="desc-section">
@@ -688,7 +688,7 @@
 <footer>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span id="footerCredit">Synergy Marine Group &middot; VAPT Certificate Registry</span> &middot; <span id="footerEmail" style="color:var(--text-sec)"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2e584f5e5a6e5d57404b5c49575d46475e004d4143">[email&#160;protected]</a></span>
+    <span id="footerCredit"></span> &middot; <span id="footerEmail" style="color:var(--text-sec)"></span>
   </div>
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
@@ -787,7 +787,7 @@
   }
 
   function renderNotFound() {
-    const _vaptEmail = (window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com';
+    const _vaptEmail = (window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.vaptEmail:'';
     const _brandName = (window.APP_CONFIG&&window.APP_CONFIG.brand)?window.APP_CONFIG.brand.name:'Synergy';
     document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No VAPT certificate matches this number in the ${_brandName} registry.<br>Please verify the number carefully or contact <strong style="color:var(--teal)">${_vaptEmail}</strong></p></div>`;
     scroll();
@@ -796,7 +796,7 @@
   function renderError() {
     const _vaptErrEmail = (window.APP_CONFIG && window.APP_CONFIG.contact)
       ? window.APP_CONFIG.contact.vaptEmail
-      : 'vapt@synergyship.com';
+      : '';
     document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Service Unavailable</h3><p>Could not reach the VAPT verification service. Please try again in a moment.<br>If the issue persists, contact <strong style="color:var(--teal)">${_vaptErrEmail}</strong></p></div>`;
     scroll();
   }
@@ -869,7 +869,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Download Certificate
           </button>
-          <div class="sd-contact">Want to report an error? <a href="mailto:${(window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com'}">Contact Issuer</a></div>
+          <div class="sd-contact">Want to report an error? <a href="mailto:${(window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.vaptEmail:''}">Contact Issuer</a></div>
         </div>
 
         <div class="verify-card">
@@ -990,7 +990,7 @@
           if (btn) { btn.textContent = '✓ Link Copied!'; setTimeout(() => { if(btn){btn.disabled=false;btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Certificate';} }, 2000); return; }
         }
       }
-    } catch { alert('Download unavailable. Please contact ' + (window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com')); }
+    } catch { alert('Download unavailable. Please contact ' + (window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'')); }
     if (btn) { setTimeout(() => { btn.disabled=false; btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Certificate'; }, 1800); }
   }
 
