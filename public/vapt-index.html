@@ -688,7 +688,7 @@
 <footer>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span id="footerCredit">Synergy Marine Group &middot; VAPT Certificate Registry</span> &middot; <span id="footerEmail" style="color:var(--text-sec)">vapt@synergyship.com</span>
+    <span id="footerCredit">Synergy Marine Group &middot; VAPT Certificate Registry</span> &middot; <span id="footerEmail" style="color:var(--text-sec)"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="2e584f5e5a6e5d57404b5c49575d46475e004d4143">[email&#160;protected]</a></span>
   </div>
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
@@ -711,7 +711,7 @@
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   'use strict';
   const API = '/api';
 
@@ -756,11 +756,20 @@
         document.getElementById('result').innerHTML = '<div class="not-found" style="border-color:rgba(255,179,71,.3)"><h3 style="color:var(--warn)">Too Many Requests</h3><p>Please wait a moment before verifying again.</p></div>';
         hideDesc(); scroll();
       } else {
-        const data = await res.json();
+        // Safe JSON parse — a reverse proxy (Nginx/Cloudflare) returning an HTML
+        // error page on 502/503/504 would cause res.json() to throw a SyntaxError,
+        // which the outer catch turns into "Server Unavailable" even when Node is
+        // healthy and the certificate number is valid. Parse separately first.
+        let data = {};
+        try { data = await res.json(); } catch { /* non-JSON proxy response */ }
         hideDesc();
-        if (res.status === 404) { renderNotFound(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT')); }
-        else if (!res.ok) { renderError(); history.pushState(null, '', (window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT')); }
-        else {
+        if (res.status === 404) {
+          renderNotFound();
+          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT'));
+        } else if (!res.ok) {
+          renderError();
+          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT'));
+        } else {
           // Fetch the encrypted, shareable verification URL from the server
           let shareUrl = window.location.href;
           try {
@@ -785,8 +794,10 @@
   }
 
   function renderError() {
-    const _vaptErrEmail = (window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com';
-    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Server Unavailable</h3><p>Could not connect to the VAPT verification server.<br>Please try again or contact ${_vaptErrEmail}</p></div>`;
+    const _vaptErrEmail = (window.APP_CONFIG && window.APP_CONFIG.contact)
+      ? window.APP_CONFIG.contact.vaptEmail
+      : 'vapt@synergyship.com';
+    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Service Unavailable</h3><p>Could not reach the VAPT verification service. Please try again in a moment.<br>If the issue persists, contact <strong style="color:var(--teal)">${_vaptErrEmail}</strong></p></div>`;
     scroll();
   }
 
@@ -1099,8 +1110,20 @@
     const sigParam = sig ? `?s=${encodeURIComponent(sig)}` : '';
     try {
       const r = await fetch(`${API}/vapt/verify/${encodeURIComponent(token)}${sigParam}`);
-      if (!r.ok) { renderNotFound(); return; }
-      renderCert(await r.json());
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        if (r.status === 403) {
+          result.innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Invalid Verification Link</h3><p>${err.error || 'This link is invalid or has been tampered with. Please use the original link from the VAPT certificate.'}</p></div>`;
+        } else if (r.status === 404) {
+          renderNotFound();
+        } else {
+          renderError();
+        }
+        return;
+      }
+      const data = await r.json().catch(() => null);
+      if (!data) { renderError(); return; }
+      renderCert(data);
     } catch { renderError(); }
   }
 
@@ -1150,7 +1173,7 @@
   if (document.readyState !== 'complete') {
     window.addEventListener('load', applyConfig);
   }
-  // Primary: fire when config.js dispatches appconfigready after deferred load
+  // Also call applyConfig when config.js (deferred) finishes loading
   document.addEventListener('appconfigready', applyConfig);
 </script>
 </body>

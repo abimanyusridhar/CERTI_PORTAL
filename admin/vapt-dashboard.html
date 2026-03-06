@@ -1006,11 +1006,11 @@
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Verified By</label>
-                <input type="text" id="fVerifiedBy" class="fcontrol" id="fVerifiedBy" value="" oninput="updatePreview()" />
+                <input type="text" id="fVerifiedBy" class="fcontrol" value="" oninput="updatePreview()" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Verifier Title</label>
-                <input type="text" id="fVerifierTitle" class="fcontrol" id="fVerifierTitle" value="" oninput="updatePreview()" />
+                <input type="text" id="fVerifierTitle" class="fcontrol" value="" oninput="updatePreview()" />
               </div>
             </div>
             <div class="form-grid">
@@ -2549,6 +2549,7 @@ function applyConfig() {
   if ((el=document.getElementById('fVerifierTitle'))) el.value = C.vapt.verifierTitle;
   if ((el=document.getElementById('fAssessingOrg')))  el.value = C.vapt.assessingOrg;
   if ((el=document.getElementById('fFrameworks')))    el.value = C.vapt.frameworks;
+  if ((el=document.getElementById('fScopeItems')))    el.value = C.vapt.scopeItems;
   if ((el=document.getElementById('fIssuerEmail')))   el.value = C.vapt.issuerEmail;
   // Sidebar nav links
   var sbVPT = document.getElementById('sbLinkVPT');      if (sbVPT)     sbVPT.href     = C.routes.vpt;

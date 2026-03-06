@@ -72,15 +72,30 @@ const UPLOADS_DIR    = path.join(__dirname, '..', 'uploads');
 const KEYS_FILE      = path.join(__dirname, '..', 'data', '.keys.json');
 
 // ─── DEPLOYMENT CONFIG ───────────────────────────────────────────────────────
-// Local dev:   http://localhost:3000
-// Production:  Set BASE_ORIGIN=https://yourdomain.com (or your EC2 IP)
-const BASE_ORIGIN = process.env.BASE_ORIGIN || `http://localhost:${PORT}`;
+// Local dev:   BASE_ORIGIN not set → defaults to http://localhost:PORT
+// Production:  Set BASE_ORIGIN=https://yourdomain.com in your .env file.
+//
+// SSL-terminated proxies (Nginx/Cloudflare) terminate TLS then forward plain
+// HTTP to Node. The browser sends an https:// Origin header but Node only
+// sees the upstream HTTP request. Including BOTH http:// and https:// variants
+// of BASE_ORIGIN in ALLOWED_ORIGINS means CORS works correctly in all setups.
+//
+// Trailing slash stripped to prevent double-slash in generated cert URLs.
+const BASE_ORIGIN = (process.env.BASE_ORIGIN || `http://localhost:${PORT}`).replace(/\/+$/, '');
+
+function _originVariants(origin) {
+  if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) return [origin];
+  const alt = origin.startsWith('https://')
+    ? origin.replace('https://', 'http://')
+    : origin.replace('http://', 'https://');
+  return [origin, alt];
+}
 
 const ALLOWED_ORIGINS = [
-  BASE_ORIGIN,
+  ..._originVariants(BASE_ORIGIN),
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-].filter((v, i, a) => v && a.indexOf(v) === i);
+].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
 
 [path.dirname(DATA_FILE), UPLOADS_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
@@ -1369,21 +1384,22 @@ server.on('error', err => {
 });
 
 server.listen(PORT, () => {
-  console.log('\n╔══════════════════════════════════════════════════════╗');
-  console.log('║  ' + CFG.brand.companyFull.toUpperCase() + ' CERTIFICATE PORTAL — SINGLE PORT ║');
-  console.log('╠══════════════════════════════════════════════════════╣');
-  console.log(('║  🛡️  CST Portal    → ' + BASE_ORIGIN + CFG.routes.cst).padEnd(55) + '║');
-  console.log(('║  🔐 CST Admin     → ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/').padEnd(55) + '║');
-  console.log(('║  🔍 VPT Portal    → ' + BASE_ORIGIN + CFG.routes.vpt).padEnd(55) + '║');
-  console.log(('║  🔐 VPT Admin     → ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/').padEnd(55) + '║');
-  console.log(`║  📡 API           → ${BASE_ORIGIN}/api`.padEnd(55) + '║');
-  console.log('║                                                      ║');
-  console.log('║  🔒 Security: AES-256-GCM URLs · HMAC-signed        ║');
-  console.log('║               PBKDF2 passwords · JWT tokens (8h)    ║');
-  console.log('║               Rate limiting · Strict CORS           ║');
-  console.log('║                                                      ║');
-  console.log('║  ⚠  Set ADMIN_USER / ADMIN_PASS / BASE_ORIGIN env  ║');
-  console.log('╚══════════════════════════════════════════════════════╝\n');
+  const _p = s => ('║  ' + s).padEnd(56) + '║';
+  console.log('\n╔' + '═'.repeat(56) + '╗');
+  console.log(_p(CFG.brand.companyFull.toUpperCase() + ' — CERTIFICATE PORTAL'));
+  console.log('╠' + '═'.repeat(56) + '╣');
+  console.log(_p('🛡️  CST Portal  → ' + BASE_ORIGIN + CFG.routes.cst));
+  console.log(_p('🔐 CST Admin   → ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/'));
+  console.log(_p('🔍 VPT Portal  → ' + BASE_ORIGIN + CFG.routes.vpt));
+  console.log(_p('🔐 VPT Admin   → ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/'));
+  console.log(_p('📡 API         → ' + BASE_ORIGIN + '/api'));
+  console.log('║' + ' '.repeat(56) + '║');
+  console.log(_p('🌐 CORS origins: ' + ALLOWED_ORIGINS.join(' · ')));
+  console.log('║' + ' '.repeat(56) + '║');
+  console.log(_p('🔒 AES-256-GCM · HMAC · PBKDF2 · JWT(8h) · Rate limit'));
+  console.log('║' + ' '.repeat(56) + '║');
+  console.log(_p('⚠  .env: ADMIN_USER / ADMIN_PASS / BASE_ORIGIN'));
+  console.log('╚' + '═'.repeat(56) + '╝\n');
 });
 
 // ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────

@@ -2707,7 +2707,7 @@
               <div class="fgroup form-full"><label class="flabel">Notes <span
                     style="color:var(--text-sec);font-size:.6rem">(static)</span></label><input id="fNotes"
                   class="fcontrol"
-                  id="fNotesDefault" value="Training conducted under supervision of ISO Lead Auditor and Security trainers" readonly
+                  value="Training conducted under supervision of ISO Lead Auditor and Security trainers" readonly
                   style="opacity:.65;cursor:not-allowed" /></div>
 
               <div class="fgroup form-full">
@@ -4670,7 +4670,7 @@ function applyConfig() {
   if ((el=document.getElementById("adminRole")))   el.textContent = C.brand.adminRole;
   if ((el=document.getElementById("csvHint")))     el.textContent = C.cst.csvFormatHint;
   if ((el=document.getElementById("pvOrgName")))   el.textContent = C.cst.previewOrgName;
-  if ((el=document.getElementById("fNotesDefault"))) el.value = C.cst.notes;
+  if ((el=document.getElementById("pv-title")))    el.textContent = C.cst.trainingTitle;
   if ((el=document.getElementById("pv-verifier"))) el.textContent = C.cst.previewSigName;
   // Form field defaults
   if ((el=document.getElementById("fTitle")))    el.value = C.cst.trainingTitle;

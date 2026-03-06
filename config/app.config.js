@@ -118,8 +118,8 @@
     routes: {
       cst:      A.routeCST,
       vpt:      A.routeVPT,
-      cstAdmin: A.routeCST + '/admin',
-      vptAdmin: A.routeVPT + '/admin',
+      cstAdmin: A.routeCST + '/misecure',
+      vptAdmin: A.routeVPT + '/misecure',
     },
 
     // ── CERTIFICATE ID FORMATS ───────────────────────────────────────────
