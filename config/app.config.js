@@ -207,7 +207,7 @@
         var d = c.complianceDate
           ? new Date(c.complianceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
           : '\u2014';
-        return 'Dear Sir / Madam,\n\n'
+        return 'Dear ' + (c.recipientName || c.vesselName || 'Sir / Madam') + ',\n\n'
           + 'Please find below the Cyber Security Threat Awareness Training certificate details for your records.\n\n'
           + 'Vessel            : ' + (c.recipientName     || '\u2014') + '\n'
           + 'Vessel IMO        : ' + (c.vesselIMO         || '\u2014') + '\n'

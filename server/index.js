@@ -579,15 +579,22 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
  */
 function buildRawEmail({ from, to, subject, body, replyTo }) {
   const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
+  // RFC 2822 requires Message-ID and Date on every message.
+  // Missing either header is a primary spam trigger in Gmail / Outlook.
+  const msgId = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${(from.match(/@([^>\s]+)/) || [])[1] || 'mail'}>`;  
+  const dateStr = new Date().toUTCString().replace(/GMT$/, '+0000');
   const lines = [
     `From: ${from}`,
     `To: ${to}`,
     `Subject: ${b64subject}`,
+    `Message-ID: ${msgId}`,
+    `Date: ${dateStr}`,
     `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset=UTF-8`,
     `Content-Transfer-Encoding: base64`,
   ];
-  if (replyTo) lines.push(`Reply-To: ${replyTo}`);
+  // Only add Reply-To if it differs from From — redundant Reply-To is a minor spam signal
+  if (replyTo && replyTo !== from) lines.push(`Reply-To: ${replyTo}`);
   lines.push('');  // blank line between headers and body
   // RFC 2045 §6.8 — base64 content must not exceed 76 characters per line
   lines.push(Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, ''));
