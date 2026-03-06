@@ -1,1676 +1,1172 @@
-/**
- * Synergy Certificate Verification Portal — Server (MERGED SINGLE PORT)
- * Pure Node.js · Zero npm dependencies
- *
- * ╔══════════════════════════════════════════════════════════════╗
- * ║  SECURITY HARDENING — v3.0 (Single-Port Edition)            ║
- * ║                                                              ║
- * ║  ✦ AES-256-GCM encrypted + HMAC-signed public cert URLs     ║
- * ║  ✦ Random 128-bit token prefix (opaque, non-enumerable)     ║
- * ║  ✦ Signed JWT-style admin tokens with expiry (8h)           ║
- * ║  ✦ Bcrypt-equivalent PBKDF2 password hashing                ║
- * ║  ✦ Rate limiting on all public endpoints (IP-based)         ║
- * ║  ✦ CORS restricted to allowed origins only                  ║
- * ║  ✦ Strict path traversal protection                         ║
- * ║  ✦ Security headers (CSP, HSTS, X-Frame-Options, etc.)      ║
- * ║  ✦ No credentials ever exposed in startup logs              ║
- * ║  ✦ Input sanitisation on all cert ID parameters             ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * Public Portal  → http://localhost:3000/
- * Admin Panel    → http://localhost:3000/admin
- * API            → http://localhost:3000/api
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle">Certificate Verification</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0A1628;--navy-mid:#112240;--navy-light:#1D3557;
+      --gold:#D4A843;--gold-light:#F0C96A;--gold-dim:rgba(212,168,67,0.12);
+      --teal:#64FFDA;--teal-dim:rgba(100,255,218,0.08);
+      --surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.06);
+      --border:rgba(255,255,255,0.08);--border-gold:rgba(212,168,67,0.25);
+      --text:#CCD6F6;--text-sec:#8892B0;--text-bright:#E6F1FF;
+      --valid:#64FFDA;--invalid:#FF6B8A;--warn:#FFB347;
+      --shadow:0 20px 80px rgba(0,0,0,0.5);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;overflow-x:hidden}
+    /* BACKGROUND */
+    .bg-scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+    .bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(100,255,218,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,0.03) 1px,transparent 1px);background-size:80px 80px}
+    .bg-orb-1{position:absolute;top:-15%;right:-5%;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(212,168,67,0.06) 0%,transparent 70%);animation:drift1 12s ease-in-out infinite alternate}
+    .bg-orb-2{position:absolute;bottom:-20%;left:-10%;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(100,255,218,0.04) 0%,transparent 70%);animation:drift2 15s ease-in-out infinite alternate}
+    @keyframes drift1{from{transform:translate(0,0) scale(1)}to{transform:translate(-30px,20px) scale(1.05)}}
+    @keyframes drift2{from{transform:translate(0,0) scale(1)}to{transform:translate(20px,-30px) scale(1.08)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+    /* NAV */
+    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:68px;background:rgba(10,22,40,0.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+    .nav-brand{display:flex;align-items:center;gap:14px}
+    .nav-logo-box{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+    .nav-logo-box::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(212,168,67,0.15))}
+    .nav-logo-box svg{z-index:1}
+    .brand-text .name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:800;color:var(--text-bright);letter-spacing:.02em;line-height:1}
+    .brand-text .sub{font-size:.58rem;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;margin-top:2px}
+    .nav-secure-badge{display:flex;align-items:center;gap:7px;padding:6px 14px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.62rem;letter-spacing:.15em;color:var(--teal);text-transform:uppercase}
+    .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite}
+    .nav-tab{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s}
+    .nav-tab:hover{color:var(--text-bright);border-color:var(--border);background:var(--surface-hover)}
+    .nav-tab-active{color:var(--gold);border-color:var(--border-gold);background:var(--gold-dim)}
+    /* HERO */
+    .hero{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;padding:90px 30px 60px;text-align:center;max-width:860px;margin:0 auto}
+    .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:20px;background:var(--gold-dim);border:1px solid var(--border-gold);font-size:.62rem;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:28px;animation:fadeUp .8s ease-out both}
+    .hero-title{font-family:'Playfair Display',serif;font-size:clamp(2.6rem,6vw,4.8rem);font-weight:800;line-height:1.05;color:var(--text-bright);margin-bottom:18px;animation:fadeUp .8s ease-out .1s both}
+    .hero-title em{font-style:normal;color:var(--gold)}
+    .hero-sub{font-size:.95rem;font-weight:300;color:var(--text-sec);max-width:500px;line-height:1.8;margin-bottom:48px;animation:fadeUp .8s ease-out .2s both}
+    /* SEARCH */
+    .search-container{width:100%;max-width:660px;animation:fadeUp .8s ease-out .3s both}
+    .search-wrap{position:relative;background:rgba(255,255,255,0.04);border:1px solid var(--border-gold);border-radius:14px;padding:5px;display:flex;transition:all .3s}
+    .search-wrap:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,168,67,0.1),0 20px 60px rgba(0,0,0,0.3);background:rgba(255,255,255,0.06)}
+    .search-icon-wrap{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--text-sec)}
+    input.search-input{flex:1;background:none;border:none;outline:none;padding:15px 18px 15px 52px;color:var(--text-bright);font-family:'JetBrains Mono',monospace;font-size:.88rem;letter-spacing:.06em}
+    input.search-input::placeholder{color:var(--text-sec)}
+    button.search-btn{background:linear-gradient(135deg,var(--gold),#B8860B);border:none;border-radius:10px;padding:13px 26px;cursor:pointer;color:var(--navy);font-family:'DM Sans',sans-serif;font-weight:600;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:8px}
+    button.search-btn:hover{opacity:.9;transform:translateY(-1px)}
+    button.search-btn:disabled{opacity:.5;cursor:wait;transform:none}
+    .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
+    /* STATS */
+    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:24px 0;margin-bottom:60px}
+    .stat-item{text-align:center;padding:0 44px;border-right:1px solid var(--border)}
+    .stat-item:last-child{border-right:none}
+    .stat-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1}
+    .stat-label{font-size:.58rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+    /* RESULT */
+    #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
+    .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
+    .scan-ring{width:48px;height:48px;border:2px solid var(--border-gold);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 18px}
+    .not-found{text-align:center;padding:60px;background:rgba(255,107,138,0.04);border:1px solid rgba(255,107,138,0.2);border-radius:20px;animation:fadeUp .4s ease}
+    .not-found h3{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--invalid);margin:16px 0 10px}
+    .not-found p{font-size:.86rem;color:var(--text-sec);line-height:1.8}
+    /* TWO-COLUMN CERTIFIER LAYOUT */
+    .cred-layout{display:grid;grid-template-columns:288px 1fr;gap:28px;align-items:start;animation:fadeUp .5s ease}
+    /* SIDEBAR */
+    .cred-sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:82px}
+    .sidebar-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:24px;backdrop-filter:blur(12px)}
+    .sdlabel{font-size:.56rem;letter-spacing:.22em;color:var(--teal);text-transform:uppercase;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .sdname{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--text-bright);line-height:1.25;margin-bottom:4px}
+    .sdsub{font-size:.72rem;color:var(--gold);margin-bottom:18px;letter-spacing:.02em;line-height:1.5}
+    .btn-dl{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 18px;background:linear-gradient(135deg,var(--gold),#9E7B0A);border:none;border-radius:11px;color:var(--navy);font-family:'DM Sans',sans-serif;font-weight:700;font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-bottom:12px}
+    .btn-dl:hover{opacity:.9;transform:translateY(-1px)}
+    .btn-dl:disabled{opacity:.5;cursor:wait;transform:none}
+    .sd-contact{font-size:.7rem;color:var(--text-sec);text-align:center;line-height:1.6}
+    .sd-contact a{color:var(--gold);text-decoration:none}
+    .sd-contact a:hover{text-decoration:underline}
+    /* VERIFY CARD */
+    .verify-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:22px;backdrop-filter:blur(12px)}
+    .vc-header{display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    .vc-title{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;font-weight:700}
+    .vrow{margin-bottom:11px}
+    .vrow-lbl{font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:3px}
+    .vrow-val{font-size:.84rem;font-weight:600;color:var(--text-bright)}
+    .status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:30px;font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+    .badge-valid{background:rgba(100,255,218,0.1);color:var(--teal);border:1px solid rgba(100,255,218,0.3)}
+    .badge-invalid{background:rgba(255,107,138,0.1);color:var(--invalid);border:1px solid rgba(255,107,138,0.3)}
+    .badge-pending{background:rgba(126,184,247,0.1);color:#7EB8F7;border:1px solid rgba(126,184,247,0.3)}
+    .btn-copy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:11px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:14px;margin-bottom:10px}
+    .btn-copy-valid{background:rgba(100,255,218,0.08);border:1px solid rgba(100,255,218,0.3);color:var(--teal)}
+    .btn-copy-invalid{background:rgba(255,107,138,0.06);border:1px solid rgba(255,107,138,0.25);color:var(--invalid)}
+    .btn-copy-pending{background:rgba(126,184,247,0.06);border:1px solid rgba(126,184,247,0.25);color:#7EB8F7}
+    .btn-copy:hover{opacity:.8}
+    .cert-id-mono{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--gold);word-break:break-all;line-height:1.6;margin-top:4px}
+    /* MAIN PANEL */
+    .cred-main{display:flex;flex-direction:column;gap:18px}
+    /* CERT IMAGE */
+    .cert-img-card{background:rgba(17,34,64,0.7);border:1px solid var(--border-gold);border-radius:18px;overflow:hidden;backdrop-filter:blur(12px)}
+    .cert-img-topbar{padding:9px 18px;background:rgba(212,168,67,0.06);border-bottom:1px solid rgba(212,168,67,0.12);font-size:.56rem;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+    .cert-img-card img{width:100%;display:block;cursor:zoom-in;transition:transform .4s ease}
+    .cert-img-card img:hover{transform:scale(1.012)}
+    /* VALIDITY BANNER */
+    .val-banner{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:14px;backdrop-filter:blur(12px)}
+    .val-valid{background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2)}
+    .val-invalid{background:rgba(255,107,138,0.06);border:1px solid rgba(255,107,138,0.2)}
+    .val-pending{background:rgba(126,184,247,0.06);border:1px solid rgba(126,184,247,0.2)}
+    .val-text h4{font-size:.8rem;font-weight:600;letter-spacing:.05em}
+    .val-text p{font-size:.73rem;color:var(--text-sec);margin-top:4px;line-height:1.65}
+    /* NEAR EXPIRY */
+    .near-exp{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,179,71,.06);border:1px solid rgba(255,179,71,.25);border-radius:12px;font-size:.72rem;color:var(--warn)}
+    /* INFO CARDS */
+    .info-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:18px;padding:22px 26px;backdrop-filter:blur(12px)}
+    .sect-title{font-size:.55rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+    .sect-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    /* ISSUED BY */
+    .issued-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:18px;padding:20px 26px;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+    .ib-label{font-size:.54rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px}
+    .ib-name{font-size:1.05rem;font-weight:700;color:var(--text-bright)}
+    .ib-sub{font-size:.7rem;color:var(--gold);margin-top:3px;line-height:1.5}
+    /* META ROW */
+    .meta-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:10px}
+    .meta-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:12px;padding:14px 12px;backdrop-filter:blur(12px);text-align:center;transition:border-color .2s}
+    .meta-card:hover{border-color:rgba(212,168,67,0.2)}
+    .meta-icon{margin:0 auto 7px;display:flex;align-items:center;justify-content:center;color:var(--text-sec)}
+    .meta-lbl{font-size:.54rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px}
+    .meta-val{font-size:.8rem;font-weight:600;color:var(--text-bright)}
+    /* INFO GRID */
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .ii{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 15px;display:flex;flex-direction:column;gap:4px;transition:border-color .2s}
+    .ii:hover{border-color:rgba(212,168,67,0.18)}
+    .ii.fw{grid-column:1/-1}
+    .ilbl{font-size:.52rem;letter-spacing:.15em;color:var(--text-sec);text-transform:uppercase}
+    .ival{font-size:.82rem;font-weight:500;color:var(--text-bright);line-height:1.4}
+    .ival.gold{color:var(--gold)}
+    .ival.red{color:var(--invalid)}
+    .ival.mono{font-family:'JetBrains Mono',monospace;color:var(--gold)}
+    /* COMPETENCIES */
+    .comp-list{display:flex;flex-direction:column;gap:10px}
+    .comp-item{display:flex;gap:12px;align-items:flex-start}
+    .comp-lbl{font-size:.75rem;font-weight:600;color:var(--gold);min-width:165px;line-height:1.5;flex-shrink:0}
+    .comp-desc{font-size:.75rem;color:var(--text-sec);line-height:1.65}
+    /* SKILLS */
+    .skills-wrap{display:flex;flex-wrap:wrap;gap:8px}
+    .skill-tag{padding:5px 13px;border:1px solid var(--border);border-radius:999px;font-size:.67rem;color:var(--text);background:var(--surface);letter-spacing:.04em;transition:border-color .2s,color .2s}
+    .skill-tag:hover{border-color:var(--border-gold);color:var(--gold)}
+    /* DOCS */
+    .docs-list{display:flex;flex-direction:column;gap:8px}
+    .doc-item{display:flex;align-items:center;gap:10px;padding:10px 15px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--gold);font-size:.76rem;text-decoration:none;transition:border-color .2s,background .2s}
+    .doc-item:hover{border-color:var(--border-gold);background:var(--gold-dim)}
+    .doc-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .doc-badge{font-size:.54rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;flex-shrink:0;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+    /* NOTES */
+    .cert-notes{font-size:.7rem;color:var(--text-sec);text-align:center;padding:12px 0 0;margin-top:10px;border-top:1px solid var(--border);font-style:italic;line-height:1.6}
+    /* RECIPIENT VIEW ENHANCEMENTS */
+    .recipient-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 20px;background:linear-gradient(90deg,rgba(212,168,67,0.06),rgba(100,255,218,0.04));border:1px solid rgba(212,168,67,0.18);border-radius:14px;margin-bottom:22px;flex-wrap:wrap}
+    .recipient-banner-left{display:flex;align-items:center;gap:10px}
+    .recipient-banner-icon{width:34px;height:34px;border-radius:9px;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .recipient-banner-title{font-size:.62rem;font-weight:700;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+    .recipient-banner-sub{font-size:.68rem;color:var(--text-sec);margin-top:2px}
+    .recipient-ts{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--text-sec);letter-spacing:.04em;opacity:.7}
+    .val-banner{position:relative;overflow:hidden}
+    .val-banner::before{content:'';position:absolute;inset:0;opacity:.03;background:repeating-linear-gradient(45deg,currentColor 0,currentColor 1px,transparent 1px,transparent 12px)}
+    .sidebar-card{transition:box-shadow .3s}
+    .sidebar-card:hover{box-shadow:0 8px 40px rgba(0,0,0,.35)}
+    @keyframes certSlideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .cred-layout{animation:certSlideIn .45s ease both}
+    .cred-main > *{animation:certSlideIn .4s ease both}
+    .cred-main > *:nth-child(1){animation-delay:.05s}
+    .cred-main > *:nth-child(2){animation-delay:.1s}
+    .cred-main > *:nth-child(3){animation-delay:.15s}
+    .cred-main > *:nth-child(4){animation-delay:.2s}
+    .cred-main > *:nth-child(5){animation-delay:.25s}
+    .cred-main > *:nth-child(6){animation-delay:.3s}
+    .cred-sidebar > *{animation:certSlideIn .4s ease both}
+    .cred-sidebar > *:nth-child(1){animation-delay:.06s}
+    .cred-sidebar > *:nth-child(2){animation-delay:.14s}
+    .val-valid-glow{box-shadow:0 0 0 1px rgba(100,255,218,0.15),0 6px 30px rgba(100,255,218,0.06)}
+    .val-invalid-glow{box-shadow:0 0 0 1px rgba(255,107,138,0.15),0 6px 30px rgba(255,107,138,0.06)}
+    .sec-footer{display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;background:rgba(100,255,218,0.03);border:1px solid rgba(100,255,218,0.08);border-radius:14px;font-size:.6rem;letter-spacing:.13em;color:var(--text-sec)}
+    /* LIGHTBOX */
+    #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+    #lightbox img{max-width:100%;max-height:90vh;border-radius:12px;border:1px solid var(--border-gold)}
+    .lb-x{position:absolute;top:20px;right:26px;color:#fff;font-size:1.8rem;cursor:pointer;opacity:.6;transition:opacity .2s}
+    .lb-x:hover{opacity:1}
+    /* DESC BLOCK */
+    .desc-block{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:40px 30px 0;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .desc-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 28px}
+    .desc-section.full-col{grid-column:1/-1}
+    .desc-section-title{font-size:.55rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .desc-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    .desc-text{font-size:.82rem;color:var(--text);line-height:1.85}
+    /* FOOTER */
+    footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:26px 60px;text-align:center;font-size:.65rem;color:var(--text-sec);letter-spacing:.1em;margin-top:40px}
+    /* RESPONSIVE */
+    @media(max-width:860px){
+      .cred-layout{grid-template-columns:1fr}
+      .cred-sidebar{position:static}
+      nav{padding:14px 20px}
+      .hero{padding:70px 20px 48px}
+      .desc-block{padding:28px 18px 0;grid-template-columns:1fr}
+      .desc-section.full-col{grid-column:1}
+      #result{padding:0 16px 80px}
+    }
+    @media(max-width:540px){
+      .meta-row{grid-template-columns:repeat(3,1fr)}
+      .info-grid{grid-template-columns:1fr}
+      .ii.fw{grid-column:1}
+    }
+  
+    /* ══════════════════════════════════════════════════════════════
+       REFINED NAV LOGO & ALIGNMENT SYSTEM
+       ══════════════════════════════════════════════════════════════ */
 
-'use strict';
+    /* Base circular logo */
+    .nav-logo-circle {
+      display: block;
+      border-radius: 50%;
+      object-fit: contain;
+      object-position: center;
+      padding: 4px;
+      background: rgba(255,255,255,0.07);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+      flex-shrink: 0;
+      transition: border-color .25s ease, box-shadow .25s ease, transform .2s ease;
+    }
+    .nav-logo-circle:hover { transform: scale(1.06); }
 
-const http   = require('http');
-const fs     = require('fs');
-const path   = require('path');
-const crypto = require('crypto');
+    /* SYN logo — primary brand, gold ring */
+    .syn-circle {
+      width: 46px; height: 46px;
+      border: 2px solid rgba(212,168,67,0.5);
+      box-shadow: 0 2px 14px rgba(0,0,0,0.45), 0 0 0 1px rgba(212,168,67,0.12), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .syn-circle:hover {
+      border-color: rgba(212,168,67,0.85);
+      box-shadow: 0 4px 20px rgba(212,168,67,0.22), 0 0 0 1px rgba(212,168,67,0.2);
+    }
 
-// ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
-// Single source of truth for brand, contact, routes, cert defaults & templates.
-// Edit /config/app.config.js — changes propagate to all HTML pages via /config.js.
-const CFG = require('../config/app.config');
+    /* AFT logo — secondary, teal ring */
+    .aft-circle {
+      width: 38px; height: 38px;
+      border: 2px solid rgba(100,255,218,0.4);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4), 0 0 0 1px rgba(100,255,218,0.1), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .aft-circle:hover {
+      border-color: rgba(100,255,218,0.75);
+      box-shadow: 0 4px 18px rgba(100,255,218,0.18), 0 0 0 1px rgba(100,255,218,0.18);
+    }
 
-// ─── ENV LOADER ──────────────────────────────────────────────────────────────
-// Loads KEY=VALUE from .env file (same dir or parent dir).
-// Strips surrounding quotes. Never overwrites existing env vars.
-(function loadDotEnv() {
-  const envPaths = [
-    path.join(__dirname, '.env'),
-    path.join(__dirname, '..', '.env'),
-  ];
-  for (const envFile of envPaths) {
-    if (!fs.existsSync(envFile)) continue;
-    const lines = fs.readFileSync(envFile, 'utf8').split(/\r?\n/);
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx < 1) continue;
-      const key = trimmed.slice(0, eqIdx).trim();
-      let val   = trimmed.slice(eqIdx + 1).trim();
-      if ((val.startsWith('"') && val.endsWith('"')) ||
-          (val.startsWith("'") && val.endsWith("'"))) {
-        val = val.slice(1, -1);
+    /* Sidebar / topbar circles (dashboard) */
+    .sb-circle { width: 42px; height: 42px; }
+    .tb-circle { width: 42px; height: 42px; }
+    .tb-circle.aft-circle { width: 34px; height: 34px; }
+  
+  /* ══════════════════════════════════════════════════════
+     LIGHT / WHITE PROFESSIONAL THEME
+     ══════════════════════════════════════════════════════ */
+  html.light {
+    --navy:        #F0F4FA;
+    --navy-mid:    #E2EAF4;
+    --navy-light:  #C8D8EE;
+    --gold:        #B5860A;
+    --gold-light:  #D4A020;
+    --gold-dim:    rgba(181,134,10,0.10);
+    --teal:        #0A7C6E;
+    --teal-dim:    rgba(10,124,110,0.08);
+    --surface:     rgba(255,255,255,0.85);
+    --surface-hover:rgba(240,244,250,0.95);
+    --border:      rgba(30,60,120,0.10);
+    --border-gold: rgba(181,134,10,0.28);
+    --text:        #1E3A5F;
+    --text-sec:    #4A6080;
+    --text-bright: #0A1628;
+    --valid:       #0A7C6E;
+    --invalid:     #C0283C;
+    --warn:        #C07010;
+    --shadow:      0 20px 80px rgba(30,60,120,0.12);
+  }
+
+  /* Body & background */
+  html.light body { background: #F0F4FA; }
+
+  /* Nav */
+  html.light nav {
+    background: rgba(255,255,255,0.97) !important;
+    border-bottom: 1px solid rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 20px rgba(30,60,120,0.07);
+  }
+  html.light .nav-logo-box { background: linear-gradient(135deg,#E2EAF4,#C8D8EE) !important; }
+  html.light .brand-text .name { color: #0A1628 !important; }
+  html.light .nav-secure-badge {
+    background: rgba(10,124,110,0.08) !important;
+    border-color: rgba(10,124,110,0.25) !important;
+    color: #0A7C6E !important;
+  }
+  html.light .pulse-dot { background: #0A7C6E !important; }
+  html.light .nav-tab { color: #4A6080 !important; }
+  html.light .nav-tab:hover { color: #0A1628 !important; background: rgba(30,60,120,0.06) !important; border-color: rgba(30,60,120,0.15) !important; }
+  html.light .nav-tab-active { color: var(--gold) !important; border-color: var(--border-gold) !important; background: var(--gold-dim) !important; }
+
+  /* Background scene */
+  html.light .bg-grid {
+    background-image: linear-gradient(rgba(30,60,120,0.04) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(30,60,120,0.04) 1px,transparent 1px) !important;
+  }
+  html.light .bg-orb-1 { background: radial-gradient(circle,rgba(181,134,10,0.07) 0%,transparent 70%) !important; }
+  html.light .bg-orb-2 { background: radial-gradient(circle,rgba(10,124,110,0.05) 0%,transparent 70%) !important; }
+
+  /* Hero */
+  html.light .hero-eyebrow { background: rgba(181,134,10,0.10) !important; border-color: rgba(181,134,10,0.3) !important; }
+  html.light .hero-title { color: #0A1628 !important; }
+  html.light .hero-sub { color: #4A6080 !important; }
+
+  /* Search */
+  html.light .search-wrap { background: #fff !important; border-color: rgba(181,134,10,0.35) !important; box-shadow: 0 4px 20px rgba(30,60,120,0.08); }
+  html.light .search-wrap:focus-within { box-shadow: 0 0 0 4px rgba(181,134,10,0.12), 0 8px 32px rgba(30,60,120,0.12) !important; }
+  html.light input.search-input { color: #0A1628 !important; }
+  html.light input.search-input::placeholder { color: #7A90AA !important; }
+  html.light .search-hint { color: #5A7090 !important; }
+
+  /* Stats bar */
+  html.light .stats-bar { background: rgba(255,255,255,0.9) !important; border-color: rgba(30,60,120,0.10) !important; }
+  html.light .stat-item { border-right-color: rgba(30,60,120,0.10) !important; }
+  html.light .stat-label { color: #5A7090 !important; }
+
+  /* Cards & panels */
+  html.light .sidebar-card,
+  html.light .verify-card,
+  html.light .info-card,
+  html.light .issued-card,
+  html.light .meta-card,
+  html.light .cert-img-card,
+  html.light .desc-section {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 16px rgba(30,60,120,0.07);
+  }
+  html.light .meta-card:hover { border-color: rgba(181,134,10,0.25) !important; }
+  html.light .meta-lbl { color: #5A7090 !important; }
+  html.light .meta-val { color: #0A1628 !important; }
+  html.light .sdlabel { color: #0A7C6E !important; }
+  html.light .sdname { color: #0A1628 !important; }
+  html.light .ib-label { color: #5A7090 !important; }
+  html.light .ib-name { color: #0A1628 !important; }
+  html.light .vrow-lbl { color: #5A7090 !important; }
+  html.light .vrow-val { color: #0A1628 !important; }
+  html.light .ilbl { color: #5A7090 !important; }
+  html.light .ival { color: #0A1628 !important; }
+  html.light .sect-title { color: #5A7090 !important; }
+  html.light .sect-title::after { background: rgba(30,60,120,0.10) !important; }
+  html.light .ii { background: #F7FAFF !important; border-color: rgba(30,60,120,0.10) !important; }
+  html.light .ii:hover { border-color: rgba(181,134,10,0.20) !important; }
+  html.light .skill-tag { background: #F0F4FA !important; border-color: rgba(30,60,120,0.15) !important; color: #2A4A70 !important; }
+  html.light .skill-tag:hover { border-color: rgba(181,134,10,0.3) !important; color: var(--gold) !important; }
+  html.light .comp-lbl { color: var(--gold) !important; }
+  html.light .comp-desc { color: #4A6080 !important; }
+  html.light .cert-notes { color: #5A7090 !important; border-top-color: rgba(30,60,120,0.10) !important; }
+  html.light .cert-img-topbar { background: rgba(181,134,10,0.06) !important; border-bottom-color: rgba(181,134,10,0.15) !important; }
+
+  /* Validity banners */
+  html.light .val-valid { background: rgba(10,124,110,0.06) !important; border-color: rgba(10,124,110,0.25) !important; }
+  html.light .val-invalid { background: rgba(192,40,60,0.06) !important; border-color: rgba(192,40,60,0.25) !important; }
+  html.light .val-pending { background: rgba(30,60,120,0.05) !important; border-color: rgba(30,60,120,0.20) !important; }
+  html.light .near-exp { background: rgba(192,112,16,0.06) !important; border-color: rgba(192,112,16,0.25) !important; }
+  html.light .val-text h4 { }
+  html.light .val-text p { color: #4A6080 !important; }
+
+  /* Recipient banner */
+  html.light .recipient-banner { background: linear-gradient(90deg,rgba(181,134,10,0.06),rgba(10,124,110,0.04)) !important; border-color: rgba(181,134,10,0.20) !important; }
+  html.light .recipient-banner-icon { background: rgba(181,134,10,0.10) !important; border-color: rgba(181,134,10,0.25) !important; }
+  html.light .recipient-banner-title { color: var(--gold) !important; }
+  html.light .recipient-banner-sub { color: #4A6080 !important; }
+  html.light .recipient-ts { color: #7A90AA !important; }
+
+  /* Sec footer */
+  html.light .sec-footer { background: rgba(10,124,110,0.04) !important; border-color: rgba(10,124,110,0.12) !important; color: #5A7090 !important; }
+
+  /* Not-found */
+  html.light .not-found { background: rgba(192,40,60,0.03) !important; border-color: rgba(192,40,60,0.18) !important; }
+  html.light .not-found p { color: #5A7090 !important; }
+
+  /* Footer */
+  html.light footer { border-top-color: rgba(30,60,120,0.10) !important; color: #5A7090 !important; }
+
+  /* Desc block */
+  html.light .desc-text { color: #1E3A5F !important; }
+  html.light .desc-section-title { color: #5A7090 !important; }
+  html.light .desc-section-title::after { background: rgba(30,60,120,0.10) !important; }
+
+  /* Docs */
+  html.light .doc-item { background: #F7FAFF !important; border-color: rgba(30,60,120,0.12) !important; color: var(--gold) !important; }
+  html.light .doc-badge { background: #EEF3FA !important; border-color: rgba(30,60,120,0.15) !important; color: #5A7090 !important; }
+
+  /* ── DASHBOARD SPECIFIC ── */
+  html.light .sidebar {
+    background: #fff !important;
+    border-right: 1px solid rgba(30,60,120,0.10) !important;
+  }
+  html.light .sb-brand { border-bottom-color: rgba(30,60,120,0.10) !important; }
+  html.light .sb-name { color: #0A1628 !important; }
+  html.light .nav-item { color: #4A6080 !important; }
+  html.light .nav-item:hover { background: rgba(30,60,120,0.05) !important; color: #0A1628 !important; }
+  html.light .nav-item.active { background: rgba(181,134,10,0.09) !important; color: var(--gold) !important; border-color: rgba(181,134,10,0.25) !important; }
+  html.light .nav-sec { color: #7A90AA !important; }
+  html.light .nav-badge { background: #E2EAF4 !important; color: #4A6080 !important; }
+  html.light .side-mini { background: #F7FAFF !important; border-color: rgba(30,60,120,0.08) !important; }
+  html.light .side-row { color: #4A6080 !important; border-bottom-color: rgba(30,60,120,0.06) !important; }
+  html.light .sb-foot { border-top-color: rgba(30,60,120,0.10) !important; background: #F7FAFF !important; }
+  html.light .admin-nm { color: #0A1628 !important; }
+  html.light .admin-rl { color: #5A7090 !important; }
+  html.light .admin-av { background: linear-gradient(135deg,var(--gold),var(--gold-light)) !important; }
+  html.light .logout-btn { background: rgba(192,40,60,0.05) !important; border-color: rgba(192,40,60,0.18) !important; color: #C0283C !important; }
+
+  html.light .main { background: #F4F7FC !important; }
+  html.light .topbar {
+    background: #fff !important;
+    border-bottom: 1px solid rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 12px rgba(30,60,120,0.06);
+  }
+  html.light .tb-title { color: #0A1628 !important; }
+  html.light .tb-bread { color: #5A7090 !important; }
+
+  html.light .page { }
+  html.light .stat-card { background: #fff !important; border-color: rgba(30,60,120,0.10) !important; box-shadow: 0 2px 12px rgba(30,60,120,0.06); }
+  html.light .slabel { color: #5A7090 !important; }
+
+  html.light .table-wrap { background: #fff !important; border-color: rgba(30,60,120,0.10) !important; }
+  html.light .tbl-head th { background: #F0F4FA !important; color: #5A7090 !important; border-bottom-color: rgba(30,60,120,0.10) !important; }
+  html.light .tbl-body tr:hover td { background: rgba(30,60,120,0.03) !important; }
+  html.light td { color: #2A4A70 !important; border-bottom-color: rgba(30,60,120,0.07) !important; }
+
+  html.light .btn-ghost { background: #F0F4FA !important; border-color: rgba(30,60,120,0.18) !important; color: #2A4A70 !important; }
+  html.light .btn-ghost:hover { background: #E2EAF4 !important; }
+
+  html.light .modal-wrap { background: rgba(240,244,250,0.98) !important; border-color: rgba(30,60,120,0.15) !important; }
+  html.light .modal-head { background: #F0F4FA !important; border-bottom-color: rgba(30,60,120,0.10) !important; }
+  html.light .field-group label { color: #4A6080 !important; }
+  html.light .field-group input,
+  html.light .field-group select,
+  html.light .field-group textarea {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.18) !important;
+    color: #0A1628 !important;
+  }
+  html.light .field-group input:focus,
+  html.light .field-group select:focus { border-color: var(--gold) !important; box-shadow: 0 0 0 3px rgba(181,134,10,0.10) !important; }
+  html.light .hint { color: #7A90AA !important; }
+
+  html.light .login-card {
+    background: rgba(255,255,255,0.98) !important;
+    border-color: rgba(181,134,10,0.25) !important;
+    box-shadow: 0 40px 100px rgba(30,60,120,0.15) !important;
+  }
+  html.light .login-title { color: #0A1628 !important; }
+  html.light #loginWrap {
+    background: radial-gradient(ellipse at 30% 40%,rgba(181,134,10,0.07) 0%,transparent 60%),
+                radial-gradient(ellipse at 70% 70%,rgba(10,124,110,0.05) 0%,transparent 60%),
+                #F0F4FA !important;
+  }
+  html.light .login-bg-grid {
+    background-image: linear-gradient(rgba(30,60,120,0.03) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(30,60,120,0.03) 1px,transparent 1px) !important;
+  }
+
+  /* Logo circle borders in light mode */
+  html.light .syn-circle {
+    border-color: rgba(181,134,10,0.55) !important;
+    background: rgba(255,255,255,0.97) !important;
+    box-shadow: 0 2px 14px rgba(30,60,120,0.10), 0 0 0 1px rgba(181,134,10,0.15) !important;
+  }
+  html.light .aft-circle {
+    border-color: rgba(10,124,110,0.5) !important;
+    background: rgba(255,255,255,0.97) !important;
+    box-shadow: 0 2px 10px rgba(30,60,120,0.08), 0 0 0 1px rgba(10,124,110,0.12) !important;
+  }
+
+  /* Chart area */
+  html.light .chart-card { background: #fff !important; border-color: rgba(30,60,120,0.10) !important; }
+  html.light .chart-title { color: #4A6080 !important; }
+
+  /* VAPT specific */
+  html.light .vapt-badge { background: rgba(10,124,110,0.08) !important; border-color: rgba(10,124,110,0.25) !important; color: #0A7C6E !important; }
+  html.light .scope-tag { background: #F0F4FA !important; border-color: rgba(30,60,120,0.14) !important; color: #2A4A70 !important; }
+  html.light .fw-tag { background: rgba(181,134,10,0.08) !important; border-color: rgba(181,134,10,0.20) !important; }
+  html.light .cert-preview { background: #fff !important; border-color: rgba(181,134,10,0.20) !important; box-shadow: 0 8px 40px rgba(30,60,120,0.10) !important; }
+  html.light .cert-header { background: linear-gradient(135deg,#1D3557,#2A4A70) !important; }
+
+  /* Scrollbars */
+  html.light ::-webkit-scrollbar-track { background: #F0F4FA !important; }
+  html.light ::-webkit-scrollbar-thumb { background: #C8D8EE !important; }
+  html.light ::-webkit-scrollbar-thumb:hover { background: #A0B8D8 !important; }
+
+  /* ── REFINED THEME TOGGLE ───────────────────────────────── */
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px 5px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-sec);
+    font-family: 'DM Sans', sans-serif;
+    font-size: .6rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .22s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover {
+    border-color: var(--border-gold);
+    color: var(--gold);
+    background: var(--gold-dim);
+  }
+  .theme-toggle .tt-icon {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    font-size: .78rem;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background .22s;
+  }
+  .theme-toggle:hover .tt-icon { background: rgba(212,168,67,0.12); }
+  html.light .theme-toggle {
+    border-color: rgba(30,60,120,0.15) !important;
+    color: #4A6080 !important;
+    background: rgba(255,255,255,0.85) !important;
+    box-shadow: 0 1px 4px rgba(30,60,120,0.07);
+  }
+  html.light .theme-toggle:hover {
+    border-color: rgba(181,134,10,0.4) !important;
+    color: #B5860A !important;
+    background: rgba(181,134,10,0.08) !important;
+  }
+  html.light .theme-toggle .tt-icon { background: rgba(30,60,120,0.06) !important; }
+  html.light .theme-toggle:hover .tt-icon { background: rgba(181,134,10,0.12) !important; }
+  </style>
+  <!-- CENTRALIZED CONFIG — single source of truth for all brand/contact/route values -->
+  <script src="/config.js" defer></script>
+  <script>
+    /* ── THEME TOGGLE — BULLETPROOFED ──────────────────────────────────
+       Runs synchronously in <head> — applies saved theme to <html>
+       BEFORE any CSS or body renders (zero flash / FOUC).
+       Fully independent of config.js and every other resource.
+    ─────────────────────────────────────────────────────────────────── */
+    (function () {
+      var LS_KEY = 'smg-theme';
+
+      // 1. Apply saved theme immediately (prevents FOUC)
+      var saved = 'dark';
+      try { saved = localStorage.getItem(LS_KEY) || 'dark'; } catch (e) {}
+      if (saved === 'light') {
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
       }
-      if (process.env[key] === undefined) process.env[key] = val;
+
+      // 2. Sync every .theme-toggle button icon + label
+      function syncButtons() {
+        var isLight = document.documentElement.classList.contains('light');
+        var buttons = document.querySelectorAll('.theme-toggle');
+        for (var i = 0; i < buttons.length; i++) {
+          var iconEl  = buttons[i].querySelector('.tt-icon');
+          var labelEl = buttons[i].querySelector('.tt-label');
+          if (iconEl)  iconEl.textContent  = isLight ? '🌙' : '☀️';
+          if (labelEl) labelEl.textContent = isLight ? 'Dark' : 'Light';
+        }
+      }
+
+      // 3. Global toggle — called by onclick="toggleTheme()"
+      window.toggleTheme = function () {
+        var isLight = document.documentElement.classList.toggle('light');
+        try { localStorage.setItem(LS_KEY, isLight ? 'light' : 'dark'); } catch (e) {}
+        syncButtons();
+      };
+
+      // 4. Sync buttons once DOM exists (buttons not yet in DOM at <head> parse time)
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', syncButtons);
+      } else {
+        syncButtons();
+      }
+    })();
+  </script>
+</head>
+<body>
+
+
+
+<div class="bg-scene">
+  <div class="bg-grid"></div>
+  <div class="bg-orb-1"></div>
+  <div class="bg-orb-2" style="background:radial-gradient(circle,rgba(100,255,218,0.04) 0%,transparent 70%)"></div>
+</div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo-box" style="background:none;border:none;padding:0;width:auto;height:auto;overflow:visible">
+      <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Group" />
+    </div>
+    <div class="brand-text"><div class="name" id="navBrandName"></div><div class="sub" id="navBrandSub"></div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <a id="navTabCST" href="#" class="nav-tab nav-tab-active"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
+    <a id="navTabVPT" href="#" class="nav-tab"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VPT Assessment</span></a>
+    <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Verification</div>
+    <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
+    <img src="/images/AFT.png" class="nav-logo-circle aft-circle" alt="AFT" />
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    Trusted Certificate Authority
+  </div>
+  <h1 class="hero-title">Verify <em>Authenticity</em><br>Instantly &amp; Securely</h1>
+  <p class="hero-sub" id="heroSub"></p>
+  <div class="search-container">
+    <div class="search-wrap" id="searchWrap">
+      <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
+      <button id="verifyBtn" class="search-btn" onclick="verify()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        Verify
+      </button>
+    </div>
+    <div class="search-hint" id="searchHint">Enter your CST certificate number as provided in your training document</div>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat-item"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Certificates Issued</div></div>
+  <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)">—</div><div class="stat-label">Currently Active</div></div>
+  <div class="stat-item"><div class="stat-num" style="color:var(--gold)">ISO</div><div class="stat-label">Lead Auditor Verified</div></div>
+  <div class="stat-item"><div class="stat-num" style="color:var(--gold)">24/7</div><div class="stat-label">Registry Available</div></div>
+</div>
+
+<div id="result"></div>
+
+<!-- DESCRIPTION BLOCK -->
+<div class="desc-block" id="descBlock">
+  <div class="desc-section full-col">
+    <div class="desc-section-title">About This Certificate</div>
+    <p class="desc-text">The <strong style="color:var(--text-bright)">Cyber Security Threat Awareness Training (CST)</strong> certificate is issued by the <strong style="color:var(--gold)" id="descCstTeam"></strong> to vessels that have successfully completed the mandatory maritime cybersecurity training programme, organized under the supervision of ISO Lead Auditors and certified Security Trainers.</p>
+    <p class="desc-text" style="margin-top:12px">Compliance is aligned with international maritime regulations and is valid for one quarter following completion. Port State Control (PSC) officers, vetting inspectors, and compliance managers can independently verify the authenticity and current validity of any CST certificate issued by <span id="descCompanyName"></span>.</p>
+  </div>
+  <div class="desc-section">
+    <div class="desc-section-title">Validated Competencies</div>
+    <div class="comp-list">
+      <div class="comp-item"><div class="comp-lbl">Regulatory Frameworks</div><div class="comp-desc">Proficiency in navigating ISM Code, ISPS, and NIS2 compliance requirements as they apply to maritime operations.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Threat Intelligence</div><div class="comp-desc">Ability to identify maritime-specific risks, including AIS/GPS manipulation, OT-targeted ransomware, and phishing vectors.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Operational Security</div><div class="comp-desc">Mastery of maritime cyber hygiene, including secure media handling, password management, and social engineering defense.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Emergency Preparedness</div><div class="comp-desc">Knowledge of incident response and recovery protocols to ensure vessel safety and operational continuity post-incident.</div></div>
+    </div>
+  </div>
+  <div class="desc-section">
+    <div class="desc-section-title">Skills Validated</div>
+    <div class="skills-wrap">
+      <span class="skill-tag">Cybersecurity Compliance</span><span class="skill-tag">Cyber Hygiene</span><span class="skill-tag">Cyber Incident Response</span><span class="skill-tag">Cyber Safety</span><span class="skill-tag">Cyber Security Assessment</span><span class="skill-tag">Cyber Security Management</span><span class="skill-tag">Threat Intelligence</span><span class="skill-tag">Social Engineering Defense</span><span class="skill-tag">ISM / ISPS Compliance</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span id="footerCredit"></span> &middot; <span id="footerEmail" style="color:var(--text-sec)"></span>
+  </div>
+  <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
+</footer>
+
+<div id="lightbox" onclick="closeLB()">
+  <span class="lb-x" onclick="closeLB()">&#x2715;</span>
+  <img id="lbImg" src="" alt="Certificate" />
+</div>
+
+<div id="pdfViewerOverlay" onclick="if(event.target===this)closePdfModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="width:100%;max-width:960px;background:#0f1e35;border:1px solid rgba(212,168,67,.3);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(17,34,64,.98);border-bottom:1px solid rgba(255,255,255,.07)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span id="pdfModalTitle" style="font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;color:#E6F1FF;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <a id="pdfModalLink" href="#" target="_blank" style="font-size:.65rem;color:#D4A843;text-decoration:none;background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.25);border-radius:7px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.06em;white-space:nowrap">↗ Open in New Tab</a>
+      <button onclick="closePdfModal()" style="background:none;border:none;color:#8892B0;font-size:1.3rem;cursor:pointer;padding:0 4px;line-height:1;margin-left:6px">✕</button>
+    </div>
+    <iframe id="pdfModalFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="Document viewer"></iframe>
+  </div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  'use strict';
+  const API = '/api';
+
+  // Stats
+  fetch(API + '/stats').then(r => r.json()).then(d => {
+    if (d.total !== undefined) {
+      document.getElementById('statTotal').textContent = d.total;
+      document.getElementById('statValid').textContent = d.valid;
     }
-    console.log(`[ENV] Loaded configuration from ${envFile}`);
-    break;
+  }).catch(() => {});
+
+  function hideDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = 'none'; }
+  function showDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = ''; }
+
+  function fmt(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
-})();
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
-const PORT        = parseInt(process.env.PORT || '3000', 10);
-const DATA_FILE      = path.join(__dirname, '..', 'data', 'certificates.json');
-const VAPT_DATA_FILE = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
+  function isCertValid(c) {
+    return c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= new Date());
+  }
+  function isCertPending(c) {
+    return (c.status || '').toUpperCase() === 'PENDING';
+  }
 
-const UPLOADS_DIR    = path.join(__dirname, '..', 'uploads');
-const KEYS_FILE      = path.join(__dirname, '..', 'data', '.keys.json');
+  function scroll() { document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-// ─── DEPLOYMENT CONFIG ───────────────────────────────────────────────────────
-// Local dev:   BASE_ORIGIN not set → defaults to http://localhost:PORT
-// Production:  Set BASE_ORIGIN=https://yourdomain.com in your .env file.
-//
-// SSL-terminated proxies (Nginx/Cloudflare) terminate TLS then forward plain
-// HTTP to Node. The browser sends an https:// Origin header but Node only
-// sees the upstream HTTP request. Including BOTH http:// and https:// variants
-// of BASE_ORIGIN in ALLOWED_ORIGINS means CORS works correctly in all setups.
-//
-// Trailing slash stripped to prevent double-slash in generated cert URLs.
-const BASE_ORIGIN = (process.env.BASE_ORIGIN || `http://localhost:${PORT}`).replace(/\/+$/, '');
+  // Cached shareable URL for the last-verified cert (populated after each verify)
+  let _lastShareUrl = null;
 
-function _originVariants(origin) {
-  if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) return [origin];
-  const alt = origin.startsWith('https://')
-    ? origin.replace('https://', 'http://')
-    : origin.replace('http://', 'https://');
-  return [origin, alt];
-}
-
-const ALLOWED_ORIGINS = [
-  ..._originVariants(BASE_ORIGIN),
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
-
-[path.dirname(DATA_FILE), UPLOADS_DIR].forEach(d => {
-  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-});
-
-// ─── PERSISTENT CRYPTO KEYS ──────────────────────────────────────────────────
-function loadOrCreateKeys() {
-  if (fs.existsSync(KEYS_FILE)) {
+  async function verify() {
+    const raw = document.getElementById('certInput').value.trim();
+    if (!raw) return;
+    if (!/^[A-Za-z0-9\-_]{1,64}$/.test(raw)) {
+      document.getElementById('result').innerHTML = '<div class="not-found"><h3 style="color:var(--warn)">Invalid Format</h3><p>Certificate IDs may only contain letters, numbers, and hyphens.</p></div>';
+      hideDesc(); scroll(); return;
+    }
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Verifying&hellip;';
+    _lastShareUrl = null;
     try {
-      const k = JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
-      if (k.urlEncKey && k.urlMacKey && k.jwtSecret && k.pwdSalt) return k;
-    } catch { /* fall through to create */ }
+      const res = await fetch(API + '/verify-by-id/' + encodeURIComponent(raw));
+      if (res.status === 429) {
+        document.getElementById('result').innerHTML = '<div class="not-found" style="border-color:rgba(255,179,71,.3)"><h3 style="color:var(--warn)">Too Many Requests</h3><p>Please wait a moment before verifying again.</p></div>';
+        hideDesc(); scroll();
+      } else {
+        // Safe JSON parse — a reverse proxy (Nginx/Cloudflare) returning an HTML
+        // error page on 502/503/504 would cause res.json() to throw a SyntaxError,
+        // which the outer catch turns into "Server Unavailable" even when Node is
+        // healthy and the certificate number is valid. Parse separately first.
+        let data = {};
+        try { data = await res.json(); } catch { /* non-JSON proxy response */ }
+        hideDesc();
+        if (res.status === 404) {
+          renderNotFound();
+          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST'));
+        } else if (!res.ok) {
+          renderError();
+        } else {
+          // Fetch the encrypted, shareable verification URL from the server
+          let shareUrl = window.location.href;
+          try {
+            const ur = await fetch(API + '/public-cert-url/' + encodeURIComponent(raw));
+            if (ur.ok) { const ud = await ur.json(); if (ud.url) shareUrl = ud.url; }
+          } catch { /* fallback to current URL */ }
+          _lastShareUrl = shareUrl;
+          renderCert(data);
+          history.replaceState({ certId: raw }, '', shareUrl);
+        }
+      }
+    } catch { renderError(); }
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Verify';
   }
-  const keys = {
-    urlEncKey: crypto.randomBytes(32).toString('hex'),
-    urlMacKey: crypto.randomBytes(32).toString('hex'),
-    jwtSecret: crypto.randomBytes(48).toString('hex'),
-    pwdSalt:   crypto.randomBytes(32).toString('hex'),
-  };
-  fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2), { encoding: 'utf8', mode: 0o600 });
-  console.log('[SECURITY] Generated new cryptographic keys → .keys.json');
-  return keys;
-}
-const KEYS = loadOrCreateKeys();
 
-// ─── ADMIN CREDENTIALS ───────────────────────────────────────────────────────
-// REQUIRED: Set ADMIN_USER and ADMIN_PASS in your .env file.
-// The server will refuse to start if either is missing — no hardcoded fallbacks.
-const ADMIN_USER = process.env.ADMIN_USER;
-const ADMIN_PASS = process.env.ADMIN_PASS;
+  function renderNotFound() {
+    const _email = (window.APP_CONFIG && window.APP_CONFIG.contact)
+      ? window.APP_CONFIG.contact.cstEmail
+      : '';
+    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No certificate matches this number in the ${(window.APP_CONFIG&&window.APP_CONFIG.brand)?window.APP_CONFIG.brand.name:'Synergy'} registry.<br>Please verify the number carefully or contact <strong style="color:var(--gold)">${_email}</strong></p></div>`;
+    scroll();
+  }
 
-if (!ADMIN_USER || !ADMIN_PASS) {
-  console.error('\n╔══════════════════════════════════════════════════════════════╗');
-  console.error('║  FATAL: Missing required environment variables!               ║');
-  console.error('║                                                                ║');
-  console.error('║  Create a .env file in the project root with:                 ║');
-  console.error('║    ADMIN_USER=your_admin_username                              ║');
-  console.error('║    ADMIN_PASS=your_strong_password                             ║');
-  console.error('║                                                                ║');
-  console.error('║  Never hardcode credentials in source code.                   ║');
-  console.error('╚══════════════════════════════════════════════════════════════╝\n');
-  process.exit(1);
-}
+  function renderError() {
+    const _errEmail = (window.APP_CONFIG && window.APP_CONFIG.contact)
+      ? window.APP_CONFIG.contact.cstEmail
+      : '';
+    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Service Unavailable</h3><p>Could not reach the verification service. Please try again in a moment.<br>If the issue persists, contact <strong style="color:var(--gold)">${_errEmail}</strong></p></div>`;
+    scroll();
+  }
 
-// ─── PASSWORD HASHING (async — never blocks the event loop) ──────────────────
-// pbkdf2Sync with 310,000 iterations freezes Node's single thread for ~2–3s
-// on every login attempt, causing Nginx 504 Gateway Timeout.
-// The async version offloads the work to libuv's thread pool instead.
-function hashPassword(password) {
-  return new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, KEYS.pwdSalt, 310000, 32, 'sha256', (err, key) => {
-      if (err) reject(err);
-      else resolve(key.toString('hex'));
+  function renderCert(cert) {
+    const valid   = isCertValid(cert);
+    const pending = isCertPending(cert);
+    const accent  = valid ? 'var(--teal)' : pending ? '#7EB8F7' : 'var(--invalid)';
+    const badgeCls = valid ? 'badge-valid' : pending ? 'badge-pending' : 'badge-invalid';
+    const copyCls  = valid ? 'btn-copy-valid' : pending ? 'btn-copy-pending' : 'btn-copy-invalid';
+    const valCls   = valid ? 'val-valid' : pending ? 'val-pending' : 'val-invalid';
+    const statusTxt = valid ? 'VERIFIED &amp; VALID' : pending ? 'PENDING ACTIVATION' : cert.status;
+
+    // Days left
+    const dLeft = cert.validUntil
+      ? Math.round((new Date(cert.validUntil).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000)
+      : null;
+
+    const nearExpiry = (valid && dLeft !== null && dLeft >= 0 && dLeft <= 30) ? `
+    <div class="near-exp">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <div><strong>Certificate expiring ${dLeft===0?'today':`in ${dLeft} day${dLeft===1?'':'s'}`}</strong> — Please ensure renewal is initiated promptly.</div>
+    </div>` : '';
+
+    const validMsg = valid
+      ? `Certificate is <strong style="color:var(--teal)">active and accepted</strong> — valid until ${fmt(cert.validUntil)}${dLeft!==null && dLeft>0 ? ` · <strong>${dLeft} day${dLeft===1?'':'s'}</strong> remaining` : ''}`
+      : pending
+      ? `This certificate is <strong style="color:#7EB8F7">registered but not yet activated</strong>. ${(window.APP_CONFIG&&window.APP_CONFIG.cst)?window.APP_CONFIG.cst.pendingNote:'Contact the Synergy Cyber Security Team for status updates.'}`
+      : `This certificate is <strong style="color:var(--invalid)">${cert.status.toLowerCase()}</strong> and not currently accepted for compliance.`;
+
+    const valIconPath = valid
+      ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+      : pending
+      ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+      : 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
+
+    const valTitle = valid ? 'CERTIFICATE IS VALID &amp; AUTHENTIC' : pending ? 'CERTIFICATE PENDING ACTIVATION' : 'CERTIFICATE IS NOT VALID';
+
+    // Cert image
+    const imgBlock = cert.certificateImage ? `
+    <div class="cert-img-card">
+      <div class="cert-img-topbar">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Original Certificate Document &mdash; Click to enlarge
+      </div>
+      <img src="${cert.certificateImage}" alt="Certificate Document" data-cert-img="true" onclick="openLB(this.src)" />
+    </div>` : '';
+
+    // Admin-uploaded attachments only (no defaults)
+    const atts = Array.isArray(cert.attachments) ? cert.attachments : [];
+    const docsBlock = atts.length > 0 ? ('<div class="info-card"><div class="sect-title">Related Documents</div><div class="docs-list">' +
+      atts.map((a, i) => {
+        const uL = (a.url || '').toLowerCase(), nL = (a.name || '').toLowerCase();
+        const isPdf = uL.endsWith('.pdf') || nL.endsWith('.pdf');
+        const isImg = /\.(jpg|jpeg|png|webp|gif)$/.test(uL) || /\.(jpg|jpeg|png|webp|gif)$/.test(nL);
+        const ext = (a.name || '').split('.').pop().toUpperCase() || 'FILE';
+        const dn = a.name || ('Document ' + (i + 1));
+        const jsUrl  = (a.url || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const jsName = dn.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const htmlUrl  = (a.url || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        const htmlName = dn.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        const ip = isPdf
+          ? 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+          : isImg
+            ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+            : 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+        const iconColor = isPdf ? '#D4A843' : isImg ? '#64FFDA' : '#8892B0';
+        if (isPdf) {
+          return '<div style="border:1px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.03)">'
+            + '<button onclick="openPdfModal(\'' + jsUrl + '\',\'' + jsName + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(255,255,255,.03);border:none;border-radius:11px;color:#D4A843;font-size:.76rem;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'rgba(212,168,67,.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">'
+            + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + ip + '"/></svg>'
+            + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + htmlName + '">' + dn + '</span>'
+            + '<span class="doc-badge">' + ext + '</span>'
+            + '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">&#128065; View PDF</span>'
+            + '</button></div>';
+        } else if (isImg) {
+          return '<div style="border:1px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.03)">'
+            + '<button onclick="openLB(\'' + jsUrl + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(255,255,255,.03);border:none;border-radius:11px;color:#64FFDA;font-size:.76rem;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'rgba(100,255,218,.04)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">'
+            + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + ip + '"/></svg>'
+            + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + htmlName + '">' + dn + '</span>'
+            + '<span class="doc-badge">' + ext + '</span>'
+            + '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">&#128269; Zoom</span>'
+            + '</button>'
+            + '<img src="' + htmlUrl + '" style="width:100%;max-height:160px;object-fit:cover;cursor:zoom-in;display:block" onclick="openLB(\'' + jsUrl + '\')" alt="' + htmlName + '" />'
+            + '</div>';
+        } else {
+          return '<a href="' + htmlUrl + '" target="_blank" download="' + htmlName + '" style="display:flex;align-items:center;gap:10px;padding:10px 15px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.03);color:#8892B0;font-size:.76rem;text-decoration:none;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor=\'rgba(212,168,67,.3)\';this.style.background=\'rgba(212,168,67,.04)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\';this.style.background=\'rgba(255,255,255,.03)\'">'
+            + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + ip + '"/></svg>'
+            + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + htmlName + '">' + dn + '</span>'
+            + '<span class="doc-badge">' + ext + '</span>'
+            + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.45"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>'
+            + '</a>';
+        }
+      }).join('') + '</div></div>') : '';
+
+    document.getElementById('result').innerHTML = `
+    <div class="recipient-banner">
+      <div class="recipient-banner-left">
+        <div class="recipient-banner-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        </div>
+        <div>
+          <div class="recipient-banner-title">Certificate Recipient View</div>
+          <div class="recipient-banner-sub">${(window.APP_CONFIG||{cst:{readOnlyNote:"This record is read-only · verified directly from the Synergy registry"}}).cst.readOnlyNote}</div>
+        </div>
+      </div>
+      <div class="recipient-ts">Queried: ${new Date().toUTCString()}</div>
+    </div>
+    <div class="cred-layout">
+
+      <!-- SIDEBAR -->
+      <div class="cred-sidebar">
+        <div class="sidebar-card">
+          <div class="sdlabel">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Issued To
+          </div>
+          <div class="sdname">${cert.recipientName || '—'}</div>
+          <div class="sdsub">${cert.vesselName || ''}${cert.vesselIMO ? ' · IMO ' + cert.vesselIMO : ''}${cert.chiefEngineer ? '<br>' + cert.chiefEngineer : ''}</div>
+          <button class="btn-dl" id="dlBtn" onclick="downloadCertificate('${cert.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Certificate
+          </button>
+          <div class="sd-contact">Want to report an error? <a href="mailto:${(window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.cstEmail:''}">Contact Issuer</a></div>
+        </div>
+
+        <div class="verify-card">
+          <div class="vc-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <span class="vc-title" style="color:${accent}">Credential Verification</span>
+          </div>
+          <div class="vrow">
+            <div class="vrow-lbl">Issue Date</div>
+            <div class="vrow-val">${fmt(cert.issuedAt || cert.complianceDate)}</div>
+          </div>
+          <div class="vrow">
+            <div class="vrow-lbl">Expiration Date</div>
+            <div class="vrow-val" style="${!valid && !pending ? 'color:var(--invalid)' : ''}">${fmt(cert.validUntil)}</div>
+          </div>
+          <div class="vrow">
+            <div class="vrow-lbl">Status</div>
+            <span class="status-badge ${badgeCls}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
+              ${statusTxt}
+            </span>
+          </div>
+          <button class="btn-copy ${copyCls}" onclick="copyVerifyLink(this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Copy Verification Link
+          </button>
+          <div class="vrow-lbl">Certificate ID</div>
+          <div class="cert-id-mono">${cert.id}</div>
+        </div>
+      </div>
+
+      <!-- MAIN -->
+      <div class="cred-main">
+        ${imgBlock}
+
+        <!-- Validity -->
+        <div class="val-banner ${valCls} ${valid ? 'val-valid-glow' : 'val-invalid-glow'}">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="1.8" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
+          <div class="val-text">
+            <h4 style="color:${accent}">${valTitle}</h4>
+            <p>${validMsg}</p>
+          </div>
+        </div>
+
+        ${nearExpiry}
+
+        <!-- Issued By -->
+        <div class="issued-card">
+          <div>
+            <div class="ib-label">Issued By</div>
+            <div class="ib-name">${cert.organizer || (window.APP_CONFIG?window.APP_CONFIG.brand.cstTeam:'Synergy Cyber Security Team')}</div>
+            <div class="ib-sub">${cert.verifiedBy || (window.APP_CONFIG?window.APP_CONFIG.cst.verifiedBy:'CISO, Synergy Marine Group')}</div>
+          </div>
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--border-gold)" stroke-width="1.1"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+
+        <!-- Meta Row -->
+        <div class="meta-row">
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div class="meta-lbl">Type</div><div class="meta-val">Training</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div><div class="meta-lbl">Level</div><div class="meta-val">Intermediate</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div><div class="meta-lbl">Format</div><div class="meta-val">${cert.trainingMode || 'Online'}</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg></div><div class="meta-lbl">Duration</div><div class="meta-val">50 Min</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div><div class="meta-lbl">Quarter</div><div class="meta-val" style="color:var(--gold)">${cert.complianceQuarter || '—'}</div></div>
+        </div>
+
+        <!-- Certificate Details -->
+        <div class="info-card">
+          <div class="sect-title">Certificate Details</div>
+          <div class="info-grid">
+            <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${cert.vesselName || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${cert.vesselIMO || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Chief Engineer</span><span class="ival">${cert.chiefEngineer || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Compliance Date</span><span class="ival">${fmt(cert.complianceDate)}</span></div>
+            <div class="ii"><span class="ilbl">Valid For Period</span><span class="ival">${cert.validFor || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Valid Until</span><span class="ival ${!valid && !pending ? 'red' : ''}">${fmt(cert.validUntil)}</span></div>
+          </div>
+          ${cert.notes ? `<div class="cert-notes">* ${cert.notes}</div>` : ''}
+        </div>
+
+        <!-- Competencies -->
+        <div class="info-card">
+          <div class="sect-title">Validated Competencies</div>
+          <div class="comp-list">
+            <div class="comp-item"><div class="comp-lbl">Regulatory Frameworks</div><div class="comp-desc">Proficiency in navigating ISM Code, ISPS, and NIS2 compliance requirements.</div></div>
+            <div class="comp-item"><div class="comp-lbl">Threat Intelligence</div><div class="comp-desc">Ability to identify maritime-specific risks, including AIS/GPS manipulation and OT-targeted ransomware.</div></div>
+            <div class="comp-item"><div class="comp-lbl">Operational Security</div><div class="comp-desc">Mastery of maritime cyber hygiene, including secure media handling and social engineering defense.</div></div>
+            <div class="comp-item"><div class="comp-lbl">Emergency Preparedness</div><div class="comp-desc">Knowledge of incident response and recovery protocols to ensure vessel safety and operational continuity.</div></div>
+          </div>
+        </div>
+
+        <!-- Skills -->
+        <div class="info-card">
+          <div class="sect-title">Skills</div>
+          <div class="skills-wrap">
+            <span class="skill-tag">Cybersecurity Compliance</span><span class="skill-tag">Cyber Hygiene</span><span class="skill-tag">Cyber Incident Response</span><span class="skill-tag">Cyber Safety</span><span class="skill-tag">Cyber Security Assessment</span><span class="skill-tag">Cyber Security Management</span><span class="skill-tag">Cyber Threat Intelligence</span><span class="skill-tag">Social Engineering Defense</span><span class="skill-tag">ISM / ISPS Compliance</span>
+          </div>
+        </div>
+
+        ${docsBlock}
+
+        <div class="sec-footer">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          ${(window.APP_CONFIG&&window.APP_CONFIG.cst)?window.APP_CONFIG.cst.registryBanner:"Synergy Cyber Security Registry"} &nbsp;&middot;&nbsp; ${new Date().toUTCString()}
+        </div>
+      </div>
+    </div>`;
+    scroll();
+  }
+
+  async function downloadCertificate(certId) {
+    const btn = document.getElementById('dlBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparing…'; }
+    try {
+      const imgEl = document.querySelector('#result img[data-cert-img="true"]');
+      if (imgEl && imgEl.src && !imgEl.src.includes('undefined') && !imgEl.src.includes('null')) {
+        const res  = await fetch(imgEl.src);
+        const blob = await res.blob();
+        const ext  = blob.type.includes('png') ? '.png' : blob.type.includes('webp') ? '.webp' : '.jpg';
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'Certificate-' + certId + ext;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+      } else {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(window.location.href);
+          if (btn) {
+            btn.textContent = '✓ Link Copied!';
+            setTimeout(() => { if (btn) { btn.disabled=false; btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Certificate'; } }, 2000);
+            return;
+          }
+        }
+      }
+    } catch { alert('Download failed. Please try again or contact the issuing authority.'); }
+    if (btn) { setTimeout(() => { btn.disabled=false; btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Certificate'; }, 1800); }
+  }
+
+  function copyVerifyLink(btn) {
+    if (!navigator.clipboard) return;
+    // Use the server-generated encrypted URL if available (works for recipients too),
+    // falling back to the current URL when loaded directly via a cert token.
+    const shareUrl = _lastShareUrl || window.location.href;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      if (btn) { const orig = btn.innerHTML; btn.textContent = '✓ Copied!'; setTimeout(() => btn.innerHTML = orig, 2000); }
     });
+  }
+
+  window.addEventListener('popstate', function() {
+    const p = new URLSearchParams(window.location.search);
+    if (!p.get('s') && !window.location.pathname.includes('/cert/')) {
+      document.getElementById('result').innerHTML = '';
+      _lastShareUrl = null;
+      showDesc();
+    }
   });
-}
 
-// Pre-compute admin password hash at startup (async — won't block server boot)
-let ADMIN_PASS_HASH = '';
-let serverReady = false;
-hashPassword(ADMIN_PASS).then(hash => {
-  ADMIN_PASS_HASH = hash;
-  serverReady = true;
-  console.log('[SECURITY] Admin password hash ready.');
-}).catch(err => {
-  console.error('[FATAL] Failed to hash admin password:', err);
-  process.exit(1);
-});
+  function openLB(src) { document.getElementById('lbImg').src = src; document.getElementById('lightbox').style.display = 'flex'; }
+  function closeLB()  { document.getElementById('lightbox').style.display = 'none'; }
 
-// ─── JWT-STYLE ADMIN TOKENS ──────────────────────────────────────────────────
-const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000;
-
-function issueToken(username) {
-  const payload = {
-    sub: username,
-    iat: Date.now(),
-    exp: Date.now() + TOKEN_EXPIRY_MS,
-    jti: crypto.randomBytes(16).toString('hex'),
-  };
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const body   = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig    = crypto.createHmac('sha256', KEYS.jwtSecret)
-    .update(header + '.' + body).digest('base64url');
-  return `${header}.${body}.${sig}`;
-}
-
-function verifyToken(token) {
-  if (!token || typeof token !== 'string') return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [header, body, sig] = parts;
-  const expected = crypto.createHmac('sha256', KEYS.jwtSecret)
-    .update(header + '.' + body).digest('base64url');
-  const sigBuf      = Buffer.from(sig);
-  const expectedBuf = Buffer.from(expected);
-  if (sigBuf.length !== expectedBuf.length) return null;
-  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (Date.now() > payload.exp) return null;
-    return payload;
-  } catch { return null; }
-}
-
-// ─── ENCRYPTED + SIGNED PUBLIC CERT URLs ─────────────────────────────────────
-function encryptCertToken(certId) {
-  const key    = Buffer.from(KEYS.urlEncKey, 'hex');
-  const iv     = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const enc    = Buffer.concat([cipher.update(certId, 'utf8'), cipher.final()]);
-  const tag    = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, enc]).toString('base64url');
-}
-
-function decryptCertToken(token) {
-  try {
-    const raw = Buffer.from(token, 'base64url');
-    if (raw.length < 29) return null;
-    const iv      = raw.subarray(0, 12);
-    const tag     = raw.subarray(12, 28);
-    const enc     = raw.subarray(28);
-    const key     = Buffer.from(KEYS.urlEncKey, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(tag);
-    return decipher.update(enc).toString('utf8') + decipher.final('utf8');
-  } catch { return null; }
-}
-
-function signCertUrl(encToken) {
-  return crypto.createHmac('sha256', KEYS.urlMacKey)
-    .update('cert:' + encToken).digest('base64url').slice(0, 22);
-}
-
-function verifyCertUrlSignature(encToken, sig) {
-  if (!sig) return false;
-  const expected = signCertUrl(encToken);
-  if (sig.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
-}
-
-function buildCertUrl(certId, baseUrl) {
-  const token = encryptCertToken(certId);
-  const sig   = signCertUrl(token);
-  return `${baseUrl}${CFG.routes.cst}/cert/${token}?s=${sig}`;
-}
-
-// ─── RATE LIMITER ─────────────────────────────────────────────────────────────
-const rateLimits = new Map();
-const RATE_LIMITS = {
-  verify:  { max: 30,  window: 60_000  },
-  login:   { max: 5,   window: 300_000 },
-  default: { max: 120, window: 60_000  },
-};
-
-function checkRateLimit(ip, bucket) {
-  const { max, window } = RATE_LIMITS[bucket] || RATE_LIMITS.default;
-  const key   = `${bucket}:${ip}`;
-  const now   = Date.now();
-  const entry = rateLimits.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimits.set(key, { count: 1, resetAt: now + window });
-    return { ok: true, remaining: max - 1 };
+  function openPdfModal(url, name) {
+    document.getElementById('pdfModalTitle').textContent = name || 'Document';
+    document.getElementById('pdfModalFrame').src = url;
+    document.getElementById('pdfModalLink').href = url;
+    document.getElementById('pdfViewerOverlay').style.display = 'flex';
   }
-  if (entry.count >= max) return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
-  entry.count++;
-  return { ok: true, remaining: max - entry.count };
-}
-
-const _rlCleanup = setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of rateLimits) if (now > v.resetAt) rateLimits.delete(k);
-}, 60_000);
-
-// ─── SECURITY HEADERS ────────────────────────────────────────────────────────
-// HSTS is only safe over HTTPS — conditionally include it when BASE_ORIGIN is HTTPS.
-const _isHttps = BASE_ORIGIN.startsWith('https://');
-const SECURITY_HEADERS = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options':        'DENY',
-  'X-XSS-Protection':       '1; mode=block',
-  'Referrer-Policy':        'strict-origin-when-cross-origin',
-  'Permissions-Policy':     'camera=(), microphone=(), geolocation=()',
-  ...(_isHttps ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
-  'Content-Security-Policy':
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
-    "img-src 'self' data: blob:; " +
-    "connect-src 'self'; " +
-    "frame-src 'self' blob:; " +
-    "frame-ancestors 'none';",
-};
-
-// ─── SEED DATA ───────────────────────────────────────────────────────────────
-const SEED = {
-  "CST-9623740-01-26": {
-    id: "CST-9623740-01-26",
-    recipientName: "MV - NORD KUDU",
-    vesselName: "NORD KUDU",
-    vesselIMO: "9623740",
-    chiefEngineer: "BARREGA WILLIE PANIAMOGAN",
-    trainingTitle: CFG.cst.trainingTitle,
-    organizer: CFG.cst.organizer,
-    complianceDate: "2026-01-30",
-    complianceQuarter: "Q1",
-    trainingMode: "ONLINE",
-    validFor: "Q2 (APR-MAY-JUN)-2026",
-    validUntil: "2026-06-30",
-    verifiedBy: CFG.cst.verifiedBy,
-    status: "VALID",
-    issuedAt: "2026-01-30",
-    certificateImage: null,
-    notes: CFG.cst.notes,
-    recipientEmail: "",
-    issuerEmail: CFG.cst.issuerEmail,
-    emailStatus: "NOT_SENT",
-    emailSentAt: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  "CST-9689536-02-26": {
-    id: "CST-9689536-02-26",
-    recipientName: "MT - BW CHINOOK",
-    vesselName: "BW CHINOOK",
-    vesselIMO: "9689536",
-    chiefEngineer: "TARAK NATH",
-    trainingTitle: CFG.cst.trainingTitle,
-    organizer: CFG.cst.organizer,
-    complianceDate: "2026-02-12",
-    complianceQuarter: "Q1",
-    trainingMode: "ONLINE",
-    validFor: "Q2 (APR-MAY-JUN)-2026",
-    validUntil: "2026-06-30",
-    verifiedBy: CFG.cst.verifiedBy,
-    status: "VALID",
-    issuedAt: "2026-02-12",
-    certificateImage: null,
-    notes: CFG.cst.notes,
-    recipientEmail: "",
-    issuerEmail: CFG.cst.issuerEmail,
-    emailStatus: "NOT_SENT",
-    emailSentAt: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+  function closePdfModal() {
+    document.getElementById('pdfViewerOverlay').style.display = 'none';
+    document.getElementById('pdfModalFrame').src = '';
   }
-};
 
-// ─── DATA STORE ──────────────────────────────────────────────────────────────
-// In-memory cache — eliminates repeated synchronous disk reads on every request.
-// Cache is invalidated on every write so reads stay fresh without file I/O cost.
-let _certCache = null;
-function loadData() {
-  if (_certCache) return _certCache;
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      _certCache = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-      return _certCache;
-    }
-  } catch { }
-  _certCache = { ...SEED };
-  saveData(_certCache);
-  return _certCache;
-}
-function saveData(data) {
-  _certCache = data;
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeLB(); closePdfModal(); }
+  });
 
-
-// ─── VAPT SEED DATA ──────────────────────────────────────────────────────────
-const VAPT_SEED = {
-  "VAP-9491666-1026": {
-    id: "VAP-9491666-1026",
-    recipientName: "MV Efficiency OL",
-    vesselName: "Efficiency OL",
-    vesselIMO: "9491666",
-    certificateNumber: "VAP-9491666-1026",
-    assessmentDate: "2026-02-10",
-    validUntil: "2027-02-10",
-    verifiedBy: CFG.vapt.verifiedBy,
-    verifierTitle: CFG.vapt.verifierTitle,
-    assessingOrg: CFG.vapt.assessingOrg,
-    frameworks: CFG.vapt.frameworks,
-    scopeItems: CFG.vapt.scopeItems,
-    status: "VALID",
-    issuedAt: "2026-02-10",
-    certificateImage: null,
-    recipientEmail: "",
-    issuerEmail: CFG.vapt.issuerEmail,
-    emailStatus: "NOT_SENT",
-    emailSentAt: null,
-    notes: "Re-assessment recommended within 2 weeks from date of participation.",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+  // Auto-load from URL token
+  async function verifyByToken(token, sig) {
+    const result = document.getElementById('result');
+    result.innerHTML = '<div class="scanning"><div class="scan-ring"></div><p>Decrypting &amp; verifying certificate&hellip;</p></div>';
+    hideDesc();
+    const sigParam = sig ? `?s=${encodeURIComponent(sig)}` : '';
+    try {
+      const r = await fetch(`/api/verify/${encodeURIComponent(token)}${sigParam}`);
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        if (r.status === 403) {
+          result.innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Invalid Verification Link</h3><p>${err.error || 'This link is invalid or has been tampered with. Please use the original link from the certificate.'}</p></div>`;
+        } else if (r.status === 404) {
+          renderNotFound();
+        } else {
+          renderError();
+        }
+        return;
+      }
+      const data = await r.json().catch(() => null);
+      if (!data) { renderError(); return; }
+      renderCert(data);
+    } catch { renderError(); }
   }
-};
 
-// ─── VAPT DATA STORE ─────────────────────────────────────────────────────────
-let _vaptCache = null;
-function loadVaptData() {
-  if (_vaptCache) return _vaptCache;
-  try {
-    if (fs.existsSync(VAPT_DATA_FILE)) {
-      _vaptCache = JSON.parse(fs.readFileSync(VAPT_DATA_FILE, 'utf8'));
-      return _vaptCache;
-    }
-  } catch { }
-  _vaptCache = { ...VAPT_SEED };
-  saveVaptData(_vaptCache);
-  return _vaptCache;
-}
-function saveVaptData(data) {
-  _vaptCache = data;
-  fs.writeFileSync(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
-
-// ─── VAPT CERT URL BUILDER ───────────────────────────────────────────────────
-function buildVaptCertUrl(certId, baseUrl) {
-  const token = encryptCertToken(certId);
-  const sig   = signCertUrl(token);
-  return `${baseUrl}${CFG.routes.vpt}/cert/${token}?s=${sig}`;
-}
-
-// ─── AWS SES EMAIL (pure Node.js — zero npm deps) ────────────────────────────
-//
-//  Uses the AWS Signature Version 4 + SES SendRawMessage API directly over HTTPS.
-//  No SDK required — only Node built-ins (https, crypto).
-//
-//  Required .env variables:
-//    AWS_SES_REGION      = us-east-1          (SES region where your domain is verified)
-//    AWS_SES_ACCESS_KEY  = AKIA…              (IAM user with ses:SendRawMessage permission)
-//    AWS_SES_SECRET_KEY  = xxxxxxxx           (IAM secret access key)
-//    AWS_SES_FROM_CST    = "Synergy CST" <trainingawareness@synergyship.com>
-//    AWS_SES_FROM_VAPT   = "Synergy VAPT" <vapt@synergyship.com>
-//
-//  SES must have the sender domain/address verified in the target region.
-//  In sandbox mode only verified recipient addresses can receive emails — request
-//  production access via the AWS console to send to any address.
-//
-// Accept both naming styles (standard AWS CLI names or legacy AWS_SES_* names)
-const SES_REGION     = process.env.AWS_REGION             || process.env.AWS_SES_REGION     || '';
-const SES_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID      || process.env.AWS_SES_ACCESS_KEY || '';
-const SES_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY  || process.env.AWS_SES_SECRET_KEY || '';
-const SES_FROM_CST   = process.env.AWS_SES_FROM_CST   || CFG.contact.cstEmail;
-const SES_FROM_VAPT  = process.env.AWS_SES_FROM_VAPT  || CFG.contact.vaptEmail;
-
-// True when all three required SES credentials are present in the environment.
-const SES_ENABLED = Boolean(SES_REGION && SES_ACCESS_KEY && SES_SECRET_KEY);
-
-if (SES_ENABLED) {
-  console.log(`[SES] ✓ AWS SES v2 ready — region: ${SES_REGION}`);
-  console.log(`[SES]   CST : ${SES_FROM_CST}`);
-  console.log(`[SES]   VAPT: ${SES_FROM_VAPT}`);
-} else {
-  console.error('[SES] ✗ NOT configured — /send-email will return 503.');
-  if (!SES_REGION)     console.error('[SES]   MISSING: AWS_REGION');
-  if (!SES_ACCESS_KEY) console.error('[SES]   MISSING: AWS_ACCESS_KEY_ID');
-  if (!SES_SECRET_KEY) console.error('[SES]   MISSING: AWS_SECRET_ACCESS_KEY');
-}
-
-/**
- * AWS Signature V4 helper — signs an HTTPS POST to SES SendRawMessage.
- * @param {string} rawMessage  - RFC 2822 email string (headers + body)
- * @param {string} fromAddress - Verified SES sender address
- * @param {string[]} toAddresses - Recipient address(es)
- * @returns {Promise<{success:boolean, messageId?:string, error?:string}>}
- */
-/**
- * Send a raw RFC-2822 email via AWS SES v2 REST API (SendEmail with RawMessage).
- * Uses SES v2 endpoint which works in all regions including ap-south-1.
- * Path: POST /v2/email/outbound-emails
- * Docs: https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_SendEmail.html
- */
-function sesSendRaw(rawMessage, fromAddress, toAddresses) {
-  return new Promise((resolve) => {
-    if (!SES_ENABLED) {
-      resolve({ success: false, error: 'SES not configured' });
+  async function checkHash() {
+    const _cstBase = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST');
+    // Case 1: Encrypted cert token in path — e.g. /CST/cert/<token>?s=<sig>
+    const pathMatch = window.location.pathname.match(new RegExp('^' + _cstBase.replace('/', '\\/') + '\\/cert\\/(.+)'));
+    if (pathMatch) {
+      const token = pathMatch[1];
+      const sig   = new URLSearchParams(window.location.search).get('s') || '';
+      document.getElementById('certInput').value = '';
+      await verifyByToken(token, sig);
       return;
     }
+    // Case 2: Legacy ?id= param (plain cert ID in URL — still supported for back-compat)
+    const _id = new URLSearchParams(window.location.search).get('id');
+    if (_id) { document.getElementById('certInput').value = _id; await verify(); }
+  }
 
-    const https   = require('https');
-    const region  = SES_REGION;
-    const host    = `email.${region}.amazonaws.com`;
-    const service = 'ses';
-    const method  = 'POST';
-    // SES v2 endpoint — works in all regions including ap-south-1
-    const uri     = '/v2/email/outbound-emails';
+  checkHash();
 
-    // SES v2 expects a JSON body with the raw MIME message base64-encoded
-    const rawB64    = Buffer.from(rawMessage).toString('base64');
-    const bodyObj   = {
-      Content: {
-        Raw: { Data: rawB64 }
-      },
-      Destination: {
-        ToAddresses: toAddresses
-      },
-      FromEmailAddress: fromAddress,
-    };
-    const bodyStr = JSON.stringify(bodyObj);
+  // Apply centralized config to static DOM elements
+  function applyConfig() {
 
-    // AWS Signature Version 4
-    const now       = new Date();
-    const date      = now.toISOString().slice(0,10).replace(/-/g,'');
-    const time      = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
-    const credScope = `${date}/${region}/${service}/aws4_request`;
-
-    function hmac(key, data) {
-      return crypto.createHmac('sha256', key).update(data).digest();
-    }
-    function hmacHex(key, data) {
-      return crypto.createHmac('sha256', key).update(data).digest('hex');
-    }
-    function sha256hex(data) {
-      return crypto.createHash('sha256').update(data).digest('hex');
-    }
-
-    const payloadHash      = sha256hex(bodyStr);
-    const signedHeaders    = 'content-type;host;x-amz-date';
-    const canonicalHeaders = `content-type:application/json\nhost:${host}\nx-amz-date:${time}\n`;
-    const canonicalRequest = [method, uri, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
-    const strToSign        = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
-
-    const signingKey = hmac(
-      hmac(hmac(hmac('AWS4' + SES_SECRET_KEY, date), region), service), 'aws4_request'
-    );
-    const signature  = hmacHex(signingKey, strToSign);
-    const authHeader = `AWS4-HMAC-SHA256 Credential=${SES_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-    const options = {
-      hostname: host,
-      port:     443,
-      path:     uri,
-      method,
-      headers: {
-        'Content-Type':   'application/json',
-        'Host':            host,
-        'X-Amz-Date':      time,
-        'Content-Length':  Buffer.byteLength(bodyStr),
-        'Authorization':   authHeader,
-      },
-    };
-
-    const httpreq = https.request(options, (httpsRes) => {
-      let data = '';
-      httpsRes.on('data', c => { data += c; });
-      httpsRes.on('end', () => {
-        if (httpsRes.statusCode === 200) {
-          try {
-            const json = JSON.parse(data);
-            resolve({ success: true, messageId: json.MessageId || '' });
-          } catch {
-            resolve({ success: true, messageId: '' });
-          }
-        } else {
-          // SES v2 returns JSON errors
-          try {
-            const json = JSON.parse(data);
-            const msg  = json.message || json.Message || JSON.stringify(json);
-            resolve({ success: false, error: msg });
-          } catch {
-            resolve({ success: false, error: `HTTP ${httpsRes.statusCode}: ${data.slice(0,200)}` });
-          }
-        }
-      });
-    });
-    httpreq.on('error', (err) => resolve({ success: false, error: err.message }));
-    httpreq.write(bodyStr);
-    httpreq.end();
-  });
+    var C = window.APP_CONFIG;
+    if (!C) return;
+    document.title = C.titles.cstPortal;
+    var el;
+    if ((el=document.getElementById('navBrandName'))) el.textContent = C.brand.name;
+    if ((el=document.getElementById('navBrandSub')))  el.textContent = C.nav.cstBrandSub;
+    if ((el=document.getElementById('heroSub')))      el.innerHTML   = C.cst.heroSub;
+    if ((el=document.getElementById('searchHint')))   el.innerHTML   = C.cst.searchHint;
+    if ((el=document.getElementById('footerCredit'))) el.innerHTML   = C.cst.footerCredit;
+    if ((el=document.getElementById('footerEmail')))  el.textContent = C.contact.cstEmail;
+    if ((el=document.getElementById('notFoundEmail'))) el.textContent= C.contact.cstEmail;
+    // Description block brand names
+    if ((el=document.getElementById('descCstTeam')))    el.textContent = C.brand.cstTeam;
+    if ((el=document.getElementById('descCompanyName'))) el.textContent = C.brand.name;
+    var t=document.getElementById('navTabCST'); if(t) t.href=C.routes.cst;
+    var v=document.getElementById('navTabVPT'); if(v) v.href=C.routes.vpt;
+    var cl=document.getElementById('cstTabLabel'); if(cl) cl.textContent=C.nav.cstTabLabel;
+    var vl=document.getElementById('vptTabLabel'); if(vl) vl.textContent=C.nav.vptTabLabel;
+    var inp=document.getElementById('certInput');
+    if(inp) inp.placeholder = C.cst.searchPlaceholder;
 }
-
-/**
- * Build a minimal RFC 2822 email string accepted by SES SendRawMessage.
- * Handles UTF-8 subject encoding and plain-text body.
- */
-function buildRawEmail({ from, to, subject, body, replyTo }) {
-  const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
-  const lines = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${b64subject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: text/plain; charset=UTF-8`,
-    `Content-Transfer-Encoding: base64`,
-  ];
-  if (replyTo) lines.push(`Reply-To: ${replyTo}`);
-  lines.push('');  // blank line between headers and body
-  // RFC 2045 §6.8 — base64 content must not exceed 76 characters per line
-  lines.push(Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, ''));
-  return lines.join('\r\n');
-}
-
-// ─── EMAIL LOG HELPER (always runs regardless of SES status) ─────────────────
-function logEmail(logFile, fields, sesResult) {
-  const entry = {
-    timestamp: new Date().toISOString(),
-    ...fields,
-    status:    sesResult.success ? 'SENT' : (SES_ENABLED ? 'FAILED' : 'LOGGED_ONLY'),
-    messageId: sesResult.messageId || null,
-    sesError:  sesResult.error     || null,
-  };
-  try {
-    fs.appendFileSync(logFile, JSON.stringify(entry) + '\n', 'utf8');
-  } catch { /* non-fatal */ }
-}
-
-// ─── CST CREDENTIAL EMAIL ─────────────────────────────────────────────────────
-async function sendCstEmail({ to, from, cert, verifyUrl }) {
-  const body    = CFG.emailTemplates.cst(cert, verifyUrl);
-  const subject = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
-  const raw     = buildRawEmail({ from, to, subject, body, replyTo: from });
-  const result  = await sesSendRaw(raw, from, [to]);
-  logEmail(
-    path.join(path.dirname(DATA_FILE), 'email_log.jsonl'),
-    { to, from, certId: cert.id, recipientName: cert.recipientName, subject, verifyUrl },
-    result
-  );
-  return result;
-}
-
-// ─── VAPT CREDENTIAL EMAIL ────────────────────────────────────────────────────
-async function sendVaptEmail({ to, from, cert, verifyUrl }) {
-  const body    = CFG.emailTemplates.vapt(cert, verifyUrl);
-  // The VAPT template already includes a Subject: line as its first line — strip it
-  // and use it as the actual email Subject header for cleanliness.
-  const lines   = body.split('\n');
-  let subject   = `Your VAPT Certificate — ${cert.id} — ${CFG.brand.companyShort || CFG.brand.name} Group`;
-  let cleanBody = body;
-  if (lines[0].startsWith('Subject:')) {
-    subject   = lines[0].replace(/^Subject:\s*/, '').trim();
-    cleanBody = lines.slice(2).join('\n'); // skip Subject + blank line
+  // Call immediately (fast path if config.js already loaded)
+  applyConfig();
+  // Fallback: also call after DOM + scripts are fully ready
+  if (document.readyState !== 'complete') {
+    window.addEventListener('load', applyConfig);
   }
-  const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from });
-  const result = await sesSendRaw(raw, from, [to]);
-  logEmail(
-    path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl'),
-    { to, from, certId: cert.id, recipientName: cert.recipientName, subject, verifyUrl },
-    result
-  );
-  return result;
-}
-
-// ─── IMAGE SAVE HELPER ───────────────────────────────────────────────────────
-// Saves an uploaded cert image file and returns its public path, or null.
-// Pass existingPath to have the old file cleaned up on replacement.
-const ALLOWED_IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-function saveCertImageFile(files, prefix, existingPath) {
-  const f = files && files.certificateImage;
-  if (!f || !f.data || !f.data.length) return null;
-  if (existingPath) {
-    const old = path.join(UPLOADS_DIR, path.basename(existingPath));
-    if (fs.existsSync(old)) fs.unlinkSync(old);
-  }
-  const origExt = path.extname(f.filename || '').toLowerCase();
-  const ext     = ALLOWED_IMG_EXTS.includes(origExt) ? origExt : '.jpg';
-  const fname   = prefix + '_' + crypto.randomBytes(12).toString('hex') + ext;
-  fs.writeFileSync(path.join(UPLOADS_DIR, fname), f.data);
-  return '/uploads/' + fname;
-}
-
-// ─── PUBLIC FIELD PROJECTORS ─────────────────────────────────────────────────
-// Returns only the fields safe to expose on the public verification endpoints.
-function certPublicFields(cert) {
-  const { id, recipientName, vesselName, vesselIMO, chiefEngineer,
-    trainingTitle, organizer, complianceDate, complianceQuarter,
-    trainingMode, validFor, validUntil, verifiedBy, status,
-    issuedAt, certificateImage, notes, attachments } = cert;
-  return {
-    id, recipientName, vesselName, vesselIMO, chiefEngineer,
-    trainingTitle, organizer, complianceDate, complianceQuarter,
-    trainingMode, validFor, validUntil, verifiedBy, status,
-    issuedAt, certificateImage, notes,
-    attachments: Array.isArray(attachments) ? attachments : [],
-  };
-}
-
-function vaptPublicFields(cert) {
-  const { id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
-    validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-    scopeItems, status, issuedAt, certificateImage, notes, attachments } = cert;
-  return {
-    id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
-    validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-    scopeItems, status, issuedAt, certificateImage, notes,
-    attachments: Array.isArray(attachments) ? attachments : [],
-  };
-}
-
-// ─── ATTACHMENT HELPERS ──────────────────────────────────────────────────────
-const ALLOWED_ATTACHMENT_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-
-function saveAttachmentFile(fileObj, prefix) {
-  const origExt = path.extname(fileObj.filename).toLowerCase();
-  const ext     = ALLOWED_ATTACHMENT_EXTS.includes(origExt) ? origExt : '.pdf';
-  const fname   = prefix + '_' + crypto.randomBytes(12).toString('hex') + ext;
-  fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
-  return { name: fileObj.filename || fname, url: '/uploads/' + fname };
-}
-
-/**
- * Parse attachment metadata from multipart fields.
- * Admin can pass existing attachments as JSON string: attachments='[{name,url},…]'
- * New file uploads arrive as attachment_0, attachment_1, … or attachment_files_0, …
- */
-function extractAttachments(fields, files, prefix, existingAttachments = []) {
-  // Start with existing (already stored) attachments if passed
-  let result = existingAttachments.slice();
-
-  // Parse any JSON array sent as field
-  if (fields.attachments) {
-    try { result = JSON.parse(fields.attachments); } catch { /* ignore */ }
-  }
-
-  // Process newly uploaded files (attachment_0, attachment_1, …)
-  const fileKeys = Object.keys(files).filter(k => k.startsWith('attachment'));
-  for (const key of fileKeys) {
-    const f = files[key];
-    if (f && f.data && f.data.length > 0) {
-      result.push(saveAttachmentFile(f, prefix));
-    }
-  }
-  return result;
-}
-
-
-const MIME = {
-  '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
-  '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
-  '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.pdf': 'application/pdf'
-};
-
-// ─── INPUT SANITISATION ───────────────────────────────────────────────────────
-function sanitiseCertId(raw) {
-  if (!raw || typeof raw !== 'string') return null;
-  const decoded = decodeURIComponent(raw).trim();
-  if (!/^[A-Za-z0-9\-_]{1,64}$/.test(decoded)) return null;
-  return decoded.toUpperCase();
-}
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-function getClientIp(req) {
-  return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
-}
-
-function sendJSON(res, status, data, extraHeaders = {}) {
-  const body = JSON.stringify(data);
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(body),
-    ...SECURITY_HEADERS,
-    ...extraHeaders,
-  });
-  res.end(body);
-}
-
-function sendFile(res, filePath) {
-  const ext  = path.extname(filePath).toLowerCase();
-  const base = MIME[ext] || 'text/plain';
-  // Append charset for text-based types so browsers parse correctly
-  const mime = (base.startsWith('text/') || base === 'application/javascript')
-    ? base + '; charset=utf-8'
-    : base;
-  // HTML pages must never be cached — stale HTML breaks config/session.
-  // JS/CSS/fonts can be cached aggressively (they are content-hashed or versioned).
-  // JSON API responses have their own Cache-Control set in sendJSON.
-  const cacheControl = (ext === '.html' || ext === '')
-    ? 'no-cache, no-store, must-revalidate'
-    : (ext === '.js' || ext === '.css' || ext === '.woff2' || ext === '.woff')
-      ? 'public, max-age=86400'   // 1 day — safe for config.js & static assets
-      : 'public, max-age=3600';   // 1 hour for images, icons, etc.
-  try {
-    const content = fs.readFileSync(filePath);
-    res.writeHead(200, {
-      'Content-Type':   mime,
-      'Content-Length': content.length,
-      'Cache-Control':  cacheControl,
-      ...SECURITY_HEADERS,
-    });
-    res.end(content);
-  } catch {
-    res.writeHead(404, SECURITY_HEADERS);
-    res.end('Not found');
-  }
-}
-
-function getBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on('data', c => {
-      size += c.length;
-      if (size > 10 * 1024 * 1024) { req.destroy(); reject(new Error('Payload too large')); return; }
-      chunks.push(c);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
-    req.on('error', reject);
-  });
-}
-
-function authCheck(req) {
-  const auth = req.headers['authorization'] || '';
-  if (!auth.startsWith('Bearer ')) return false;
-  return verifyToken(auth.slice(7)) !== null;
-}
-
-// ─── CORS HELPER ─────────────────────────────────────────────────────────────
-function getCorsHeaders(origin) {
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin':  allowed,
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Max-Age':       '86400',
-    'Vary':                         'Origin',
-  };
-}
-
-// ─── QUARTER HELPER ──────────────────────────────────────────────────────────
-function deriveQuarterFields(cert) {
-  const qMap = {
-    Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 6,  endDay: 30 },
-    Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 9,  endDay: 30 },
-    Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 12, endDay: 31 },
-    Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 3,  endDay: 31, nextYear: true }
-  };
-  const q    = (cert.complianceQuarter || '').toUpperCase();
-  const info = qMap[q];
-  if (!info) return;
-  const baseYear = cert.complianceDate ? new Date(cert.complianceDate).getFullYear() : new Date().getFullYear();
-  const year     = info.nextYear ? baseYear + 1 : baseYear;
-  if (!cert.validFor)   cert.validFor   = info.label + '-' + year;
-  if (!cert.validUntil) {
-    const d = new Date(year, info.endMonth - 1, info.endDay);
-    cert.validUntil = d.toISOString().slice(0, 10);
-  }
-  if (cert.vesselName && (!cert.recipientName || cert.recipientName === cert.vesselName)) {
-    const existingPrefix = (cert.recipientName || '').match(/^(MV|MT)\s*-\s*/i);
-    const prefix = existingPrefix ? existingPrefix[1].toUpperCase() : 'MV';
-    cert.recipientName = prefix + ' - ' + cert.vesselName;
-  }
-}
-
-// ─── MULTIPART PARSER ────────────────────────────────────────────────────────
-function parseMultipart(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let totalSize = 0;
-    req.on('data', c => {
-      totalSize += c.length;
-      if (totalSize > 10 * 1024 * 1024) {
-        req.destroy();
-        return reject(new Error('Payload too large'));
-      }
-      chunks.push(c);
-    });
-    req.on('end', () => {
-      const body     = Buffer.concat(chunks);
-      // Trim boundary: strip any trailing "; param=value" and whitespace
-      const rawBoundary = (req.headers['content-type'] || '').split('boundary=')[1] || '';
-      const boundary = rawBoundary.split(';')[0].trim();
-      if (!boundary) return resolve({ fields: {}, files: {} });
-      const boundaryBuf = Buffer.from('--' + boundary);
-      const parts = [];
-      let start = body.indexOf(boundaryBuf);
-      while (start !== -1) {
-        start += boundaryBuf.length + 2;
-        const end = body.indexOf(boundaryBuf, start) - 2;
-        if (end < start) break;
-        parts.push(body.slice(start, end));
-        start = body.indexOf(boundaryBuf, start);
-      }
-      const fields = {}, files = {};
-      for (const part of parts) {
-        const headerEnd = part.indexOf('\r\n\r\n');
-        if (headerEnd === -1) continue;
-        const headerStr     = part.slice(0, headerEnd).toString();
-        const content       = part.slice(headerEnd + 4);
-        const nameMatch     = headerStr.match(/name="([^"]+)"/);
-        const filenameMatch = headerStr.match(/filename="([^"]+)"/);
-        const ctMatch       = headerStr.match(/Content-Type: (.+)/i);
-        if (!nameMatch) continue;
-        const fieldName = nameMatch[1];
-        if (filenameMatch) {
-          files[fieldName] = {
-            filename:    path.basename(filenameMatch[1]),
-            contentType: ctMatch ? ctMatch[1].trim() : 'application/octet-stream',
-            data:        content
-          };
-        } else {
-          fields[fieldName] = content.toString().trim();
-        }
-      }
-      resolve({ fields, files });
-    });
-    req.on('error', reject);
-  });
-}
-
-// ─── API ROUTER ──────────────────────────────────────────────────────────────
-async function handleAPI(req, res, parsed) {
-  const method = req.method.toUpperCase();
-  const route  = parsed.pathname.replace(/^\/api/, '');
-  const ip     = getClientIp(req);
-  const origin = req.headers.origin || '';
-  const corsH  = getCorsHeaders(origin);
-
-  if (method === 'OPTIONS') {
-    res.writeHead(204, { ...corsH, ...SECURITY_HEADERS });
-    return res.end();
-  }
-
-  // ── POST /api/auth/login ──────────────────────────────────────────────────
-  if (route === '/auth/login' && method === 'POST') {
-    // Guard: reject requests before startup hash is ready (usually <100ms)
-    if (!serverReady)
-      return sendJSON(res, 503, { error: 'Server initialising, please retry in a moment.' }, corsH);
-    const rl = checkRateLimit(ip, 'login');
-    if (!rl.ok)
-      return sendJSON(res, 429, { error: 'Too many login attempts. Try again later.' },
-        { 'Retry-After': String(rl.retryAfter), ...corsH });
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch {
-      return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH);
-    }
-    const { username, password }  = body;
-    const usernameMatch = typeof username === 'string' && username === ADMIN_USER;
-    const passwordHash  = await hashPassword(password || '');
-    const passwordMatch = crypto.timingSafeEqual(
-      Buffer.from(passwordHash), Buffer.from(ADMIN_PASS_HASH)
-    );
-    if (!usernameMatch || !passwordMatch) {
-      await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
-      return sendJSON(res, 401, { error: 'Invalid credentials' }, corsH);
-    }
-    return sendJSON(res, 200, { token: issueToken(username) }, corsH);
-  }
-
-  // ── GET /api/auth/verify ──────────────────────────────────────────────────
-  if (route === '/auth/verify' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    return sendJSON(res, 200, { ok: true }, corsH);
-  }
-
-  // ── GET /api/certs ── (admin — list all)
-  if (route === '/certs' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    return sendJSON(res, 200, Object.values(loadData()), corsH);
-  }
-
-  // ── GET /api/certs/:id ── (admin — single cert)
-  if (route.startsWith('/certs/') && !route.includes('/verify') &&
-      !route.includes('/send-email') && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const cert = loadData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    return sendJSON(res, 200, cert, corsH);
-  }
-
-  // ── GET /api/verify-by-id/:certId ── (public — verify training cert by plain ID)
-  if (route.startsWith('/verify-by-id/') && method === 'GET') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const certId = sanitiseCertId(route.replace('/verify-by-id/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const cert = loadData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    return sendJSON(res, 200, certPublicFields(cert), corsH);
-  }
-
-  // ── GET /api/verify/:encToken ── (public — verify cert by encrypted token)
-  if (route.startsWith('/verify/') && method === 'GET') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok)
-      return sendJSON(res, 429, { error: 'Too many requests. Try again later.' },
-        { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const encToken = route.replace('/verify/', '');
-    const sig      = parsed.searchParams.get('s');
-    if (!verifyCertUrlSignature(encToken, sig))
-      return sendJSON(res, 403, { error: 'Invalid or tampered verification link' }, corsH);
-    const certId = decryptCertToken(encToken);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
-    const cert = loadData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    return sendJSON(res, 200, certPublicFields(cert), corsH);
-  }
-
-  // ── GET /api/public-cert-url/:id ── (public — shareable encrypted cert URL, rate limited)
-  if (route.startsWith('/public-cert-url/') && method === 'GET') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok)
-      return sendJSON(res, 429, { error: 'Too many requests. Try again later.' },
-        { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const certId = sanitiseCertId(route.replace('/public-cert-url/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
-    return sendJSON(res, 200, { url: buildCertUrl(certId, base) }, corsH);
-  }
-
-  // ── GET /api/cert-url/:id ── (admin — generate public cert URL)
-  if (route.startsWith('/cert-url/') && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/cert-url/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
-    return sendJSON(res, 200, { url: buildCertUrl(certId, base) }, corsH);
-  }
-
-  // ── POST /api/certs ── (admin — create)
-  if (route === '/certs' && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const ct = req.headers['content-type'] || '';
-    let cert;
-    try {
-      if (ct.includes('multipart/form-data')) {
-        const { fields, files } = await parseMultipart(req);
-        cert = { ...fields };
-        const imgPath = saveCertImageFile(files, 'cert');
-        if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = extractAttachments(fields, files, 'cst_attach');
-      } else {
-        cert = JSON.parse(await getBody(req));
-        if (!Array.isArray(cert.attachments)) cert.attachments = [];
-      }
-    } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
-    const certId = sanitiseCertId(cert.id);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
-    cert.id = certId;
-    deriveQuarterFields(cert);
-    const data = loadData();
-    if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
-    cert.emailStatus = cert.emailStatus || 'NOT_SENT';
-    cert.emailSentAt = cert.emailSentAt || null;
-    cert.createdAt   = new Date().toISOString();
-    cert.updatedAt   = new Date().toISOString();
-    data[cert.id]    = cert;
-    saveData(data);
-    return sendJSON(res, 201, cert, corsH);
-  }
-
-  // ── PUT /api/certs/:id ── (admin — update)
-  if (route.startsWith('/certs/') && !route.includes('/send-email') && method === 'PUT') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const ct = req.headers['content-type'] || '';
-    let updates;
-    try {
-      if (ct.includes('multipart/form-data')) {
-        const { fields, files } = await parseMultipart(req);
-        updates = { ...fields };
-        const imgPath = saveCertImageFile(files, 'cert', data[certId].certificateImage);
-        if (imgPath) updates.certificateImage = imgPath;
-        updates.attachments = extractAttachments(fields, files, 'cst_attach',
-          Array.isArray(data[certId].attachments) ? data[certId].attachments : []);
-      } else {
-        updates = JSON.parse(await getBody(req));
-        if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
-      }
-    } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
-    const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
-    if (updates.id) {
-      const newId = sanitiseCertId(updates.id);
-      if (!newId) return sendJSON(res, 400, { error: 'Invalid new certificate ID' }, corsH);
-      updated.id = newId;
-      if (newId !== certId) {
-        data[newId] = updated;
-        delete data[certId];
-      } else {
-        data[certId] = updated;
-      }
-    } else {
-      data[certId] = updated;
-    }
-    saveData(data);
-    return sendJSON(res, 200, updated, corsH);
-  }
-
-  // ── POST /api/certs/:id/send-email ── (admin — send via AWS SES)
-  if (route.match(/^\/certs\/[^/]+\/send-email$/) && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(
-      decodeURIComponent(route.replace('/certs/', '').replace('/send-email', ''))
-    );
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    const cert = data[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    if (!cert.recipientEmail)
-      return sendJSON(res, 400, { error: 'No recipient email on this certificate' }, corsH);
-    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
-      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
-
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
-    const base      = body.baseUrl || BASE_ORIGIN;
-    const verifyUrl = buildCertUrl(cert.id, base);
-    const fromAddr  = SES_FROM_CST || cert.issuerEmail || CFG.contact.cstEmail;
-
-    // Return 503 immediately if SES not configured — never fake a success
-    if (!SES_ENABLED) {
-      return sendJSON(res, 503, {
-        error: 'AWS SES is not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.',
-        sesEnabled: false,
-      }, corsH);
-    }
-
-    const result = await sendCstEmail({
-      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl
-    });
-
-    if (result.success) {
-      cert.emailStatus = 'SENT';
-      cert.emailSentAt = new Date().toISOString();
-      if (result.messageId) cert.sesMessageId = result.messageId;
-      data[certId] = cert;
-      saveData(data);
-      return sendJSON(res, 200, {
-        success: true, emailStatus: 'SENT',
-        emailSentAt: cert.emailSentAt,
-        verifyUrl, messageId: result.messageId || null, sesEnabled: true,
-      }, corsH);
-    }
-
-    return sendJSON(res, 500, {
-      error: 'AWS SES rejected the request: ' + (result.error || 'unknown'),
-      sesError: result.error, sesEnabled: true,
-    }, corsH);
-  }
-
-  // ── DELETE /api/certs/:id ── (admin)
-  if (route.startsWith('/certs/') && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    if (data[certId].certificateImage) {
-      const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-    }
-    delete data[certId];
-    saveData(data);
-    return sendJSON(res, 200, { success: true }, corsH);
-  }
-
-
-  // ── GET /api/stats ── (public — aggregate cert stats for index page)
-  if (route === '/stats' && method === 'GET') {
-    const data = loadData();
-    const certs = Object.values(data);
-    const now = new Date();
-    const total = certs.length;
-    const valid = certs.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
-    return sendJSON(res, 200, { total, valid }, corsH);
-  }
-
-  // ── GET /api/ses-status ── (admin — check if AWS SES is configured)
-  if (route === '/ses-status' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    return sendJSON(res, 200, {
-      enabled:  SES_ENABLED,
-      region:   SES_REGION   || null,
-      fromCST:  SES_FROM_CST || null,
-      fromVAPT: SES_FROM_VAPT || null,
-      missing: [
-        !SES_REGION     && 'AWS_REGION',
-        !SES_ACCESS_KEY && 'AWS_ACCESS_KEY_ID',
-        !SES_SECRET_KEY && 'AWS_SECRET_ACCESS_KEY',
-      ].filter(Boolean),
-    }, corsH);
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // VAPT CERTIFICATE API ROUTES  (/api/vapt/*)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // ── GET /api/vapt/stats ── (public — aggregate VAPT cert stats)
-  if (route === '/vapt/stats' && method === 'GET') {
-    const data = loadVaptData();
-    const certs = Object.values(data);
-    const now = new Date();
-    const total = certs.length;
-    const valid = certs.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
-    return sendJSON(res, 200, { total, valid }, corsH);
-  }
-
-  // ── GET /api/vapt/verify-by-id/:certId ── (public — verify VAPT cert by plain ID)
-  if (route.startsWith('/vapt/verify-by-id/') && method === 'GET') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const certId = sanitiseCertId(route.replace('/vapt/verify-by-id/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const cert = loadVaptData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
-    return sendJSON(res, 200, vaptPublicFields(cert), corsH);
-  }
-
-  // ── GET /api/vapt/certs ── (admin — list all VAPT certs)
-  if (route === '/vapt/certs' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    return sendJSON(res, 200, Object.values(loadVaptData()), corsH);
-  }
-
-  // ── GET /api/vapt/certs/:id ── (admin — single VAPT cert)
-  if (route.startsWith('/vapt/certs/') && !route.includes('/verify') && !route.includes('/send-email') && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const cert = loadVaptData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    return sendJSON(res, 200, cert, corsH);
-  }
-
-  // ── GET /api/vapt/verify/:encToken ── (public — verify VAPT cert)
-  if (route.startsWith('/vapt/verify/') && method === 'GET') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const encToken = route.replace('/vapt/verify/', '');
-    const sig = parsed.searchParams.get('s');
-    if (!verifyCertUrlSignature(encToken, sig))
-      return sendJSON(res, 403, { error: 'Invalid or tampered verification link' }, corsH);
-    const certId = decryptCertToken(encToken);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
-    const cert = loadVaptData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
-    return sendJSON(res, 200, vaptPublicFields(cert), corsH);
-  }
-
-  // ── GET /api/vapt/public-cert-url/:id ── (public — shareable encrypted VAPT URL, rate limited)
-  if (route.startsWith('/vapt/public-cert-url/') && method === 'GET') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok)
-      return sendJSON(res, 429, { error: 'Too many requests. Try again later.' },
-        { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const certId = sanitiseCertId(route.replace('/vapt/public-cert-url/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
-    return sendJSON(res, 200, { url: buildVaptCertUrl(certId, base) }, corsH);
-  }
-
-  // ── GET /api/vapt/cert-url/:id ── (admin — generate public VAPT cert URL)
-  if (route.startsWith('/vapt/cert-url/') && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/vapt/cert-url/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
-    return sendJSON(res, 200, { url: buildVaptCertUrl(certId, base) }, corsH);
-  }
-
-  // ── POST /api/vapt/certs ── (admin — create VAPT cert)
-  if (route === '/vapt/certs' && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const ct = req.headers['content-type'] || '';
-    let cert;
-    try {
-      if (ct.includes('multipart/form-data')) {
-        const { fields, files } = await parseMultipart(req);
-        cert = { ...fields };
-        const imgPath = saveCertImageFile(files, 'vapt');
-        if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = extractAttachments(fields, files, 'vpt_attach');
-      } else {
-        cert = JSON.parse(await getBody(req));
-        if (!Array.isArray(cert.attachments)) cert.attachments = [];
-      }
-    } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
-    const certId = sanitiseCertId(cert.id);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
-    cert.id = certId;
-    const data = loadVaptData();
-    if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
-    cert.emailStatus = cert.emailStatus || 'NOT_SENT';
-    cert.emailSentAt = cert.emailSentAt || null;
-    cert.createdAt   = new Date().toISOString();
-    cert.updatedAt   = new Date().toISOString();
-    data[cert.id] = cert;
-    saveVaptData(data);
-    return sendJSON(res, 201, cert, corsH);
-  }
-
-  // ── POST /api/vapt/import-csv ── (admin — bulk import VAPT certs)
-  if (route === '/vapt/import-csv' && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const records = Array.isArray(body) ? body : [];
-    const data = loadVaptData();
-    let added = 0, skipped = 0, failed = 0;
-    const results = [];
-    for (const cert of records) {
-      const certId = sanitiseCertId(cert.id);
-      if (!certId) { results.push({ id: cert.id, status: 'failed', reason: 'Invalid ID' }); failed++; continue; }
-      if (data[certId]) { results.push({ id: certId, status: 'skipped', reason: 'Already exists' }); skipped++; continue; }
-      cert.id = certId;
-      cert.emailStatus = 'NOT_SENT';
-      cert.emailSentAt = null;
-      cert.attachments = [];
-      cert.createdAt = new Date().toISOString();
-      cert.updatedAt = new Date().toISOString();
-      data[certId] = cert;
-      results.push({ id: certId, status: 'created' });
-      added++;
-    }
-    saveVaptData(data);
-    return sendJSON(res, 200, { added, skipped, failed, results }, corsH);
-  }
-
-  // ── PUT /api/vapt/certs/:id ── (admin — update VAPT cert)
-  if (route.startsWith('/vapt/certs/') && !route.includes('/send-email') && method === 'PUT') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const ct = req.headers['content-type'] || '';
-    let updates;
-    try {
-      if (ct.includes('multipart/form-data')) {
-        const { fields, files } = await parseMultipart(req);
-        updates = { ...fields };
-        const imgPath = saveCertImageFile(files, 'vapt', data[certId].certificateImage);
-        if (imgPath) updates.certificateImage = imgPath;
-        updates.attachments = extractAttachments(fields, files, 'vpt_attach',
-          Array.isArray(data[certId].attachments) ? data[certId].attachments : []);
-      } else {
-        updates = JSON.parse(await getBody(req));
-        if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
-      }
-    } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
-    const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
-    data[certId] = updated;
-    saveVaptData(data);
-    return sendJSON(res, 200, updated, corsH);
-  }
-
-  // ── POST /api/vapt/certs/:id/send-email ── (admin — send via AWS SES)
-  if (route.match(/^\/vapt\/certs\/[^/]+\/send-email$/) && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(decodeURIComponent(route.replace('/vapt/certs/', '').replace('/send-email', '')));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    const cert = data[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    if (!cert.recipientEmail) return sendJSON(res, 400, { error: 'No recipient email on this certificate' }, corsH);
-    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
-      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
-
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
-    const base      = body.baseUrl || BASE_ORIGIN;
-    const verifyUrl = buildVaptCertUrl(cert.id, base);
-    const fromAddr  = SES_FROM_VAPT || cert.issuerEmail || CFG.contact.vaptEmail;
-
-    // Return 503 immediately if SES not configured — never fake a success
-    if (!SES_ENABLED) {
-      return sendJSON(res, 503, {
-        error: 'AWS SES is not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.',
-        sesEnabled: false,
-      }, corsH);
-    }
-
-    const result = await sendVaptEmail({
-      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl
-    });
-
-    if (result.success) {
-      cert.emailStatus = 'SENT';
-      cert.emailSentAt = new Date().toISOString();
-      if (result.messageId) cert.sesMessageId = result.messageId;
-      data[certId] = cert;
-      saveVaptData(data);
-      return sendJSON(res, 200, {
-        success: true, emailStatus: 'SENT',
-        emailSentAt: cert.emailSentAt,
-        verifyUrl, messageId: result.messageId || null, sesEnabled: true,
-      }, corsH);
-    }
-
-    return sendJSON(res, 500, {
-      error: 'AWS SES rejected the request: ' + (result.error || 'unknown'),
-      sesError: result.error, sesEnabled: true,
-    }, corsH);
-  }
-
-  // ── DELETE /api/vapt/certs/:id ── (admin)
-  if (route.startsWith('/vapt/certs/') && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    if (data[certId].certificateImage) {
-      const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-    }
-    delete data[certId];
-    saveVaptData(data);
-    return sendJSON(res, 200, { success: true }, corsH);
-  }
-
-  // ── DELETE /api/certs/:id/attachments/:idx ── (admin — remove one attachment)
-  if (route.match(/^\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const parts  = route.split('/');
-    const certId = sanitiseCertId(parts[2]);
-    const idx    = parseInt(parts[4], 10);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const atts = Array.isArray(data[certId].attachments) ? data[certId].attachments : [];
-    if (isNaN(idx) || idx < 0 || idx >= atts.length) return sendJSON(res, 400, { error: 'Invalid attachment index' }, corsH);
-    const removed = atts.splice(idx, 1)[0];
-    if (removed && removed.url) {
-      const fp = path.join(UPLOADS_DIR, path.basename(removed.url));
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
-    }
-    data[certId].attachments = atts;
-    data[certId].updatedAt = new Date().toISOString();
-    saveData(data);
-    return sendJSON(res, 200, { success: true, attachments: atts }, corsH);
-  }
-
-  // ── DELETE /api/vapt/certs/:id/attachments/:idx ── (admin — remove one VAPT attachment)
-  if (route.match(/^\/vapt\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    const parts  = route.split('/');
-    const certId = sanitiseCertId(parts[3]);
-    const idx    = parseInt(parts[5], 10);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const atts = Array.isArray(data[certId].attachments) ? data[certId].attachments : [];
-    if (isNaN(idx) || idx < 0 || idx >= atts.length) return sendJSON(res, 400, { error: 'Invalid attachment index' }, corsH);
-    const removed = atts.splice(idx, 1)[0];
-    if (removed && removed.url) {
-      const fp = path.join(UPLOADS_DIR, path.basename(removed.url));
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
-    }
-    data[certId].attachments = atts;
-    data[certId].updatedAt = new Date().toISOString();
-    saveVaptData(data);
-    return sendJSON(res, 200, { success: true, attachments: atts }, corsH);
-  }
-
-  sendJSON(res, 404, { error: 'Route not found' }, corsH);
-}
-
-// ─── SINGLE UNIFIED SERVER ────────────────────────────────────────────────────
-//
-//  GET /              → public/index.html      (recipient portal)
-//  GET /cert/:token   → public/index.html      (cert verification page)
-//  GET /uploads/*     → uploads directory
-//  GET /api/*         → API (public + admin endpoints)
-//  GET /admin         → redirect to /admin/
-//  GET /admin/        → admin/dashboard.html
-//  GET /admin/*       → admin/* static files
-//
-const server = http.createServer(async (req, res) => {
-  const parsed = new URL(req.url, 'http://localhost');
-  const p      = parsed.pathname;
-
-  // ── Uploads (shared) ─────────────────────────────────────────────────────
-  if (p.startsWith('/uploads/')) {
-    const fname = path.basename(p);
-    const fpath = path.resolve(UPLOADS_DIR, fname);
-
-    // Path traversal protection — resolved absolute path must be inside UPLOADS_DIR
-    if (!fpath.startsWith(UPLOADS_DIR + path.sep) && fpath !== UPLOADS_DIR) {
-      res.writeHead(403, SECURITY_HEADERS);
-      return res.end('Forbidden');
-    }
-
-    const ext    = path.extname(fpath).toLowerCase();
-    const mime   = MIME[ext] || 'application/octet-stream';
-    const isPdf  = ext === '.pdf';
-
-    // PDFs and images are served INLINE (view-only — no forced download).
-    // X-Frame-Options: SAMEORIGIN allows iframe embedding in admin dashboard.
-    try {
-      const content = fs.readFileSync(fpath);
-      res.writeHead(200, {
-        'Content-Type':        mime,
-        'Content-Length':      content.length,
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control':       'private, max-age=3600',
-        'X-Frame-Options':     'SAMEORIGIN',
-        'Content-Disposition': isPdf
-          ? `inline; filename="${fname}"`   // Forces browser PDF viewer, not download
-          : 'inline',
-      });
-      return res.end(content);
-    } catch {
-      res.writeHead(404, SECURITY_HEADERS);
-      return res.end('Not found');
-    }
-  }
-
-  // ── Config (browser-side app.config.js) ──────────────────────────────────
-  if (p === '/config.js') {
-    return sendFile(res, path.join(__dirname, '..', 'config', 'app.config.js'));
-  }
-
-  // ── API (shared) ──────────────────────────────────────────────────────────
-  if (p.startsWith('/api')) {
-    return handleAPI(req, res, parsed);
-  }
-
-  // ── Root → redirect to /CST ───────────────────────────────────────────────
-  if (p === '/') {
-    res.writeHead(302, { Location: CFG.routes.cst });
-    return res.end();
-  }
-
-  const publicDir = path.resolve(__dirname, '..', 'public');
-  const adminDir  = path.resolve(__dirname, '..', 'admin');
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  CST — Cyber Security Training routes
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // /CST/admin  →  Training Admin Dashboard
-  if (p === CFG.routes.cstAdmin || p === CFG.routes.cstAdmin + '/') {
-    if (p === CFG.routes.cstAdmin) { res.writeHead(301, { Location: CFG.routes.cstAdmin + '/' }); return res.end(); }
-    return sendFile(res, path.join(adminDir, 'dashboard.html'));
-  }
-  if (p.startsWith(CFG.routes.cstAdmin + '/')) {
-    const relative = p.slice((CFG.routes.cstAdmin + '/').length);
-    let filePath = path.resolve(adminDir, relative || 'dashboard.html');
-    if (!path.extname(filePath)) filePath = path.join(adminDir, 'dashboard.html');
-    if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
-      res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
-    }
-    return sendFile(res, filePath);
-  }
-
-  // /CST/cert/:token  →  Training cert viewer (SPA handles token)
-  if (p.startsWith(CFG.routes.cst + '/cert/')) {
-    return sendFile(res, path.join(publicDir, 'index.html'));
-  }
-
-  // /CST  or  /CST/  →  Training cert public viewer
-  if (p === CFG.routes.cst || p === CFG.routes.cst + '/') {
-    return sendFile(res, path.join(publicDir, 'index.html'));
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  VPT — VAPT Assessment routes
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // /VPT/admin  →  VAPT Admin Dashboard
-  if (p === CFG.routes.vptAdmin || p === CFG.routes.vptAdmin + '/') {
-    if (p === CFG.routes.vptAdmin) { res.writeHead(301, { Location: CFG.routes.vptAdmin + '/' }); return res.end(); }
-    return sendFile(res, path.join(adminDir, 'vapt-dashboard.html'));
-  }
-  if (p.startsWith(CFG.routes.vptAdmin + '/')) {
-    const relative = p.slice((CFG.routes.vptAdmin + '/').length);
-    let filePath = path.resolve(adminDir, relative || 'vapt-dashboard.html');
-    if (!path.extname(filePath)) filePath = path.join(adminDir, 'vapt-dashboard.html');
-    if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
-      res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
-    }
-    return sendFile(res, filePath);
-  }
-
-  // /VPT/cert/:token  →  VAPT cert viewer (SPA handles token)
-  if (p.startsWith(CFG.routes.vpt + '/cert/')) {
-    return sendFile(res, path.join(publicDir, 'vapt-index.html'));
-  }
-
-  // /VPT  or  /VPT/  →  VAPT cert public viewer
-  if (p === CFG.routes.vpt || p === CFG.routes.vpt + '/') {
-    return sendFile(res, path.join(publicDir, 'vapt-index.html'));
-  }
-
-  // ── Legacy redirect support ───────────────────────────────────────────────
-  // Old /cert/* → /CST/cert/*
-  if (p.startsWith('/cert/')) {
-    res.writeHead(301, { Location: p.replace('/cert/', CFG.routes.cst + '/cert/') + (parsed.search || '') });
-    return res.end();
-  }
-  // Old /vapt-cert/* → /VPT/cert/*
-  if (p.startsWith('/vapt-cert/')) {
-    res.writeHead(301, { Location: p.replace('/vapt-cert/', CFG.routes.vpt + '/cert/') + (parsed.search || '') });
-    return res.end();
-  }
-  // Old /admin → /CST/admin
-  if (p === '/admin' || p.startsWith('/admin/')) {
-    res.writeHead(301, { Location: p.replace('/admin', CFG.routes.cstAdmin) });
-    return res.end();
-  }
-  // Old /vapt-admin → /VPT/admin
-  if (p === '/vapt-admin' || p.startsWith('/vapt-admin/')) {
-    res.writeHead(301, { Location: p.replace('/vapt-admin', CFG.routes.vptAdmin) });
-    return res.end();
-  }
-
-  // ── Static files & 404 ────────────────────────────────────────────────────
-  let filePath = path.resolve(publicDir, p.slice(1));   // strip leading /
-  if (!path.extname(filePath)) filePath += '.html';
-  if (!filePath.startsWith(publicDir + path.sep) && filePath !== publicDir) {
-    res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
-  }
-  if (fs.existsSync(filePath)) return sendFile(res, filePath);
-
-  // 404
-  res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:80px;background:#0A1628;color:#CCD6F6"><h2>404 — Page Not Found</h2><p><a href="${CFG.routes.cst}" style="color:#D4A843">→ ${CFG.brand.name} CST Portal</a> &nbsp;|&nbsp; <a href="${CFG.routes.vpt}" style="color:#64FFDA">→ ${CFG.brand.name} VPT Portal</a></p></body></html>`);
-});
-
-// ─── START ───────────────────────────────────────────────────────────────────
-server.on('error', err => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`\n[FATAL] Port ${PORT} is already in use. Stop the existing process or set a different PORT in .env.\n`);
-  } else {
-    console.error('[FATAL] Server error:', err);
-  }
-  process.exit(1);
-});
-
-server.listen(PORT, () => {
-  const _p = s => ('║  ' + s).padEnd(56) + '║';
-  console.log('\n╔' + '═'.repeat(56) + '╗');
-  console.log(_p(CFG.brand.companyFull.toUpperCase() + ' — CERTIFICATE PORTAL'));
-  console.log('╠' + '═'.repeat(56) + '╣');
-  console.log(_p('🛡️  CST Portal  → ' + BASE_ORIGIN + CFG.routes.cst));
-  console.log(_p('🔐 CST Admin   → ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/'));
-  console.log(_p('🔍 VPT Portal  → ' + BASE_ORIGIN + CFG.routes.vpt));
-  console.log(_p('🔐 VPT Admin   → ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/'));
-  console.log(_p('📡 API         → ' + BASE_ORIGIN + '/api'));
-  console.log('║' + ' '.repeat(56) + '║');
-  console.log(_p('🌐 CORS origins: ' + ALLOWED_ORIGINS.join(' · ')));
-  console.log('║' + ' '.repeat(56) + '║');
-  console.log(_p('🔒 AES-256-GCM · HMAC · PBKDF2 · JWT(8h) · Rate limit'));
-  console.log('║' + ' '.repeat(56) + '║');
-  console.log(_p('⚠  .env: ADMIN_USER / ADMIN_PASS / BASE_ORIGIN'));
-  console.log('╚' + '═'.repeat(56) + '╝\n');
-});
-
-// ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────
-// Docker / PM2 / systemd send SIGTERM on stop; Ctrl-C sends SIGINT.
-// server.close() waits for in-flight requests to finish before exiting.
-function gracefulShutdown(signal) {
-  console.log(`\n[SHUTDOWN] ${signal} received — draining connections…`);
-  clearInterval(_rlCleanup);
-  server.close(err => {
-    if (err) { console.error('[SHUTDOWN] Error:', err); process.exit(1); }
-    console.log('[SHUTDOWN] Clean exit.');
-    process.exit(0);
-  });
-  // Force kill after 10 s if keep-alive connections won't close
-  setTimeout(() => { console.error('[SHUTDOWN] Forced exit after 10 s timeout.'); process.exit(1); }, 10_000).unref();
-}
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
-
-// ─── SAFETY NETS ─────────────────────────────────────────────────────────────
-// Prevent a single unhandled rejection from crashing the entire server process.
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[UNHANDLED REJECTION]', reason, 'at:', promise);
-});
-process.on('uncaughtException', err => {
-  console.error('[UNCAUGHT EXCEPTION]', err);
-});
+  // Also call applyConfig when config.js (deferred) finishes loading
+  document.addEventListener('appconfigready', applyConfig);
+</script>
+</body>
+</html>
