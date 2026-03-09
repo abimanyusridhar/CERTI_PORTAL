@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title id="pageTitle">VAPT Assessment Verification</title>
+  <title>VAPT Assessment Verification</title>
   <!-- CENTRALIZED CONFIG -->
   <script src="/config.js" defer></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
     :root{
       --navy:#0A1628;--navy-mid:#112240;--navy-light:#1D3557;
       --gold:#D4A843;--gold-light:#F0C96A;--gold-dim:rgba(212,168,67,0.12);
@@ -236,7 +237,6 @@
     .att-img-thumb{width:100%;max-height:200px;object-fit:contain;background:rgba(0,0,0,.4);display:block;border-top:1px solid var(--border);cursor:zoom-in;transition:opacity .2s}
     .att-img-thumb:hover{opacity:.85}
   
-    /* ── CIRCULAR NAV LOGOS ─────────────────────────────────────── */
     /* ── CIRCULAR NAV LOGOS — REFINED ──────────────────────── */
     .nav-logo-circle {
       display: block;
@@ -316,7 +316,7 @@
   html.light .pulse-dot { background: #0A7C6E !important; }
   html.light .nav-tab { color: #4A6080 !important; }
   html.light .nav-tab:hover { color: #0A1628 !important; background: rgba(30,60,120,0.06) !important; border-color: rgba(30,60,120,0.15) !important; }
-  html.light .nav-tab-active { color: var(--gold) !important; border-color: var(--border-gold) !important; background: var(--gold-dim) !important; }
+  html.light .nav-tab-active { color: var(--teal) !important; border-color: rgba(10,124,110,0.35) !important; background: rgba(10,124,110,0.08) !important; }
 
   /* Background scene */
   html.light .bg-grid {
@@ -510,7 +510,6 @@
   html.light ::-webkit-scrollbar-thumb { background: #C8D8EE !important; }
   html.light ::-webkit-scrollbar-thumb:hover { background: #A0B8D8 !important; }
 
-  /* ── THEME TOGGLE BUTTON ────────────────────────────────── */
   /* ── REFINED THEME TOGGLE ──────────────────────────────── */
   .theme-toggle {
     display: flex;
@@ -616,7 +615,7 @@
   <div class="bg-orb-2"></div>
 </div>
 
-<nav>
+<nav role="navigation" aria-label="Main navigation">
   <div class="nav-brand">
     <div class="nav-logo-box"><img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Group" /></div>
     <div class="brand-text"><div class="name" id="navBrandName"></div><div class="sub" id="navBrandSub"></div></div>
@@ -642,7 +641,7 @@
     <div class="search-wrap" id="searchWrap">
       <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
       <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
-      <button id="verifyBtn" class="search-btn" onclick="verify()">
+      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify VAPT certificate">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
@@ -658,7 +657,7 @@
   <div class="stat-item"><div class="stat-num" style="color:var(--gold)">IMO</div><div class="stat-label">MSC-FAL.1/Circ.3</div></div>
 </div>
 
-<div id="result"></div>
+<div id="result" aria-live="polite" aria-atomic="true"></div>
 
 <!-- DESCRIPTION BLOCK -->
 <div class="desc-block" id="descBlock">
