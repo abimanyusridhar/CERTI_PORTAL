@@ -354,7 +354,9 @@ function loadData() {
 }
 function saveData(data) {
   _certCache = data;
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+  // Write asynchronously — never block the event loop on disk I/O
+  fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
+    .catch(err => console.error('[DATA] Failed to save certificates.json:', err));
 }
 
 
@@ -402,7 +404,8 @@ function loadVaptData() {
 }
 function saveVaptData(data) {
   _vaptCache = data;
-  fs.writeFileSync(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+  fs.promises.writeFile(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
+    .catch(err => console.error('[DATA] Failed to save vapt_certificates.json:', err));
 }
 
 // ─── VAPT CERT URL BUILDER ───────────────────────────────────────────────────
@@ -1627,7 +1630,38 @@ const server = http.createServer(async (req, res) => {
 
   // 404
   res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`<!DOCTYPE html><html><head><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:80px;background:#0A1628;color:#CCD6F6"><h2>404 — Page Not Found</h2><p><a href="${CFG.routes.cst}" style="color:#D4A843">→ ${CFG.brand.name} CST Portal</a> &nbsp;|&nbsp; <a href="${CFG.routes.vpt}" style="color:#64FFDA">→ ${CFG.brand.name} VPT Portal</a></p></body></html>`);
+  res.end(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>404 — Page Not Found · ${CFG.brand.name}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#0A1628;color:#CCD6F6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px}
+    .card{max-width:500px;width:100%;text-align:center}
+    .code{font-size:6rem;font-weight:800;line-height:1;background:linear-gradient(135deg,#D4A843,#64FFDA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+    h1{font-size:1.5rem;color:#E6F1FF;margin-bottom:10px}
+    p{font-size:.9rem;color:#8892B0;line-height:1.7;margin-bottom:28px}
+    .links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+    a{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:10px;font-size:.8rem;font-weight:600;letter-spacing:.06em;text-decoration:none;transition:opacity .2s}
+    .btn-gold{background:linear-gradient(135deg,#D4A843,#9E7B0A);color:#0A1628}
+    .btn-teal{background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.3);color:#64FFDA}
+    a:hover{opacity:.85;transform:translateY(-1px)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="code">404</div>
+    <h1>Page Not Found</h1>
+    <p>The page you're looking for doesn't exist.<br>Use the links below to return to a valid portal.</p>
+    <div class="links">
+      <a href="${CFG.routes.cst}" class="btn-gold">🛡 CST Portal</a>
+      <a href="${CFG.routes.vpt}" class="btn-teal">🔍 VAPT Portal</a>
+    </div>
+  </div>
+</body>
+</html>`);
 });
 
 // ─── START ───────────────────────────────────────────────────────────────────

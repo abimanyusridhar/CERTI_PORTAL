@@ -98,6 +98,12 @@
    * ═══════════════════════════════════════════════════════════════════════ */
   var cfg = {
 
+    // ── STORAGE KEYS ─────────────────────────────────────────────────────
+    // Centralised so all 4 pages share the same key — never diverge silently.
+    storageKeys: {
+      theme: 'smg-theme',
+    },
+
     // ── BRAND & COMPANY ──────────────────────────────────────────────────
     brand: {
       name:        A.company,

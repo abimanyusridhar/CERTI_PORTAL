@@ -4,6 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Certificate Verification</title>
+  <!-- Open Graph / social preview -->
+  <meta name="description" content="Verify the authenticity of Synergy Marine Group Cyber Security Training certificates in real-time." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Synergy Marine Group — Certificate Verification" />
+  <meta property="og:description" content="Real-time CST certificate verification for maritime compliance officers, port authorities, and PSC inspectors." />
+  <meta property="og:image" content="/images/SYN.png" />
+  <!-- CSP meta fallback (mirrors server header — protects if CDN strips headers) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'none';" />
+  <!-- Preconnect for Google Fonts (eliminates render-blocking DNS + TLS round-trips) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -30,7 +41,8 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
     /* NAV */
-    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:68px;background:rgba(10,22,40,0.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:68px;background:rgba(10,22,40,0.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+    @media(max-width:640px){nav{padding:0 16px;height:60px}.nav-secure-badge{display:none}}
     .nav-brand{display:flex;align-items:center;gap:14px}
     .nav-logo-box{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
     .nav-logo-box::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(212,168,67,0.15))}
@@ -61,11 +73,16 @@
     .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
     /* STATS */
-    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:24px 0;margin-bottom:60px}
-    .stat-item{text-align:center;padding:0 44px;border-right:1px solid var(--border)}
+    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:20px 0;margin-bottom:60px}
+    .stat-item{text-align:center;padding:0 36px;border-right:1px solid var(--border)}
     .stat-item:last-child{border-right:none}
-    .stat-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1}
-    .stat-label{font-size:.58rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1}
+    .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+    @media(max-width:600px){
+      .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
+      .stat-item:nth-child(even){border-right:none}
+      .stat-item:nth-child(odd){border-right:1px solid var(--border)}
+    }
     /* RESULT */
     #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
     .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
@@ -75,6 +92,7 @@
     .not-found p{font-size:.86rem;color:var(--text-sec);line-height:1.8}
     /* TWO-COLUMN CERTIFIER LAYOUT */
     .cred-layout{display:grid;grid-template-columns:288px 1fr;gap:28px;align-items:start;animation:fadeUp .5s ease}
+    @media(max-width:820px){.cred-layout{grid-template-columns:1fr}.cred-sidebar{position:static}}
     /* SIDEBAR */
     .cred-sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:82px}
     .sidebar-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:24px;backdrop-filter:blur(12px)}
@@ -563,10 +581,13 @@
     (function () {
       var LS_KEY = 'smg-theme';
 
-      // 1. Apply saved theme immediately (prevents FOUC)
-      var saved = 'dark';
-      try { saved = localStorage.getItem(LS_KEY) || 'dark'; } catch (e) {}
-      if (saved === 'light') {
+      // 1. Resolve theme: localStorage → OS preference → default dark
+      var saved = null;
+      try { saved = localStorage.getItem(LS_KEY); } catch (e) {}
+      var prefersDark = true;
+      try { prefersDark = !window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+      var isDark = saved !== null ? (saved !== 'light') : prefersDark;
+      if (!isDark) {
         document.documentElement.classList.add('light');
       } else {
         document.documentElement.classList.remove('light');
@@ -648,10 +669,10 @@
 </section>
 
 <div class="stats-bar">
-  <div class="stat-item"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Certificates Issued</div></div>
-  <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)">—</div><div class="stat-label">Currently Active</div></div>
-  <div class="stat-item"><div class="stat-num" style="color:var(--gold)">ISO</div><div class="stat-label">Lead Auditor Verified</div></div>
-  <div class="stat-item"><div class="stat-num" style="color:var(--gold)">24/7</div><div class="stat-label">Registry Available</div></div>
+  <div class="stat-item"><div class="stat-num" id="statTotal" aria-label="Certificates issued: loading">—</div><div class="stat-label">Certificates Issued</div></div>
+  <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)" aria-label="Currently active certificates: loading">—</div><div class="stat-label">Currently Active</div></div>
+  <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="ISO Lead Auditor Verified">ISO</div><div class="stat-label">Lead Auditor Verified</div></div>
+  <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="Registry available 24 hours a day, 7 days a week">24/7</div><div class="stat-label">Registry Available</div></div>
 </div>
 
 <div id="result" aria-live="polite" aria-atomic="true"></div>
@@ -688,12 +709,12 @@
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
 
-<div id="lightbox" onclick="closeLB()">
-  <span class="lb-x" onclick="closeLB()">&#x2715;</span>
+<div id="lightbox" onclick="closeLB()" role="dialog" aria-modal="true" aria-label="Certificate image viewer">
+  <span class="lb-x" onclick="closeLB()" aria-label="Close viewer">&#x2715;</span>
   <img id="lbImg" src="" alt="Certificate" />
 </div>
 
-<div id="pdfViewerOverlay" onclick="if(event.target===this)closePdfModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+<div id="pdfViewerOverlay" onclick="if(event.target===this)closePdfModal()" role="dialog" aria-modal="true" aria-labelledby="pdfModalTitle" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
   <div style="width:100%;max-width:960px;background:#0f1e35;border:1px solid rgba(212,168,67,.3);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)">
     <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(17,34,64,.98);border-bottom:1px solid rgba(255,255,255,.07)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -701,7 +722,7 @@
       <a id="pdfModalLink" href="#" target="_blank" style="font-size:.65rem;color:#D4A843;text-decoration:none;background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.25);border-radius:7px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.06em;white-space:nowrap">↗ Open in New Tab</a>
       <button onclick="closePdfModal()" style="background:none;border:none;color:#8892B0;font-size:1.3rem;cursor:pointer;padding:0 4px;line-height:1;margin-left:6px">✕</button>
     </div>
-    <iframe id="pdfModalFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="Document viewer"></iframe>
+    <iframe id="pdfModalFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="Document viewer" sandbox="allow-scripts allow-same-origin allow-forms" aria-label="Document viewer"></iframe>
   </div>
 </div>
 
@@ -712,8 +733,12 @@
   // Stats
   fetch(API + '/stats').then(r => r.json()).then(d => {
     if (d.total !== undefined) {
-      document.getElementById('statTotal').textContent = d.total;
-      document.getElementById('statValid').textContent = d.valid;
+      const tot = document.getElementById('statTotal');
+      const val = document.getElementById('statValid');
+      tot.textContent = d.total;
+      tot.setAttribute('aria-label', 'Certificates issued: ' + d.total);
+      val.textContent = d.valid;
+      val.setAttribute('aria-label', 'Currently active certificates: ' + d.valid);
     }
   }).catch(() => {});
 
@@ -737,7 +762,29 @@
   // Cached shareable URL for the last-verified cert (populated after each verify)
   let _lastShareUrl = null;
 
+  // In-flight guard: prevents concurrent verify() calls
+  let _verifying = false;
+  let _rlCountdown = null;
+
+  function startRateLimitCountdown(seconds) {
+    clearInterval(_rlCountdown);
+    const btn = document.getElementById('verifyBtn');
+    let remaining = seconds;
+    function update() {
+      if (btn) { btn.disabled = true; btn.textContent = `Wait ${remaining}s`; }
+    }
+    update();
+    _rlCountdown = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(_rlCountdown);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Verify'; }
+      } else { update(); }
+    }, 1000);
+  }
+
   async function verify() {
+    if (_verifying) return;
     const raw = document.getElementById('certInput').value.trim();
     if (!raw) return;
     if (!/^[A-Za-z0-9\-_]{1,64}$/.test(raw)) {
@@ -747,12 +794,17 @@
     const btn = document.getElementById('verifyBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> Verifying&hellip;';
+    _verifying = true;
     _lastShareUrl = null;
     try {
       const res = await fetch(API + '/verify-by-id/' + encodeURIComponent(raw));
       if (res.status === 429) {
-        document.getElementById('result').innerHTML = '<div class="not-found" style="border-color:rgba(255,179,71,.3)"><h3 style="color:var(--warn)">Too Many Requests</h3><p>Please wait a moment before verifying again.</p></div>';
+        const retryAfter = parseInt(res.headers.get('Retry-After') || '30', 10);
+        document.getElementById('result').innerHTML = `<div class="not-found" style="border-color:rgba(255,179,71,.3)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Too Many Requests</h3><p>You have exceeded the verification rate limit.<br>Please wait <strong style="color:var(--warn)">${retryAfter} seconds</strong> before trying again.</p></div>`;
         hideDesc(); scroll();
+        startRateLimitCountdown(retryAfter);
+        _verifying = false;
+        return;
       } else {
         // Safe JSON parse — a reverse proxy (Nginx/Cloudflare) returning an HTML
         // error page on 502/503/504 would cause res.json() to throw a SyntaxError,
@@ -779,6 +831,7 @@
         }
       }
     } catch { renderError(); }
+    _verifying = false;
     btn.disabled = false;
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Verify';
   }
@@ -945,8 +998,8 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             Copy Verification Link
           </button>
-          <div class="vrow-lbl">Certificate ID</div>
-          <div class="cert-id-mono">${cert.id}</div>
+          <div class="vrow-lbl">Certificate ID <span style="font-size:.5rem;letter-spacing:.1em;color:var(--teal);margin-left:6px;cursor:pointer;opacity:.7" onclick="copyCertId('${cert.id}',this)" title="Click to copy">⧉ COPY</span></div>
+          <div class="cert-id-mono" onclick="copyCertId('${cert.id}',this)" title="Click to copy certificate ID" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')copyCertId('${cert.id}',this)">${cert.id}</div>
         </div>
       </div>
 
@@ -1066,6 +1119,16 @@
     });
   }
 
+  function copyCertId(id, el) {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(id).then(() => {
+      const orig = el.textContent;
+      el.textContent = '✓ Copied!';
+      el.style.color = 'var(--teal)';
+      setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1800);
+    });
+  }
+
   window.addEventListener('popstate', function() {
     const p = new URLSearchParams(window.location.search);
     if (!p.get('s') && !window.location.pathname.includes('/cert/')) {
@@ -1075,14 +1138,30 @@
     }
   });
 
-  function openLB(src) { document.getElementById('lbImg').src = src; document.getElementById('lightbox').style.display = 'flex'; }
-  function closeLB()  { document.getElementById('lightbox').style.display = 'none'; }
+  function openLB(src) {
+    const lb = document.getElementById('lightbox');
+    lb.querySelector('img').src = src;
+    lb.style.display = 'flex';
+    // Focus trap
+    const closer = lb.querySelector('.lb-x');
+    if (closer) setTimeout(() => closer.focus(), 50);
+  }
+  function closeLB()  {
+    document.getElementById('lightbox').style.display = 'none';
+    // Return focus to the element that triggered the lightbox
+    const triggerEl = document.querySelector('#result img[data-cert-img="true"]');
+    if (triggerEl) triggerEl.focus();
+  }
 
   function openPdfModal(url, name) {
+    const overlay = document.getElementById('pdfViewerOverlay');
     document.getElementById('pdfModalTitle').textContent = name || 'Document';
     document.getElementById('pdfModalFrame').src = url;
     document.getElementById('pdfModalLink').href = url;
-    document.getElementById('pdfViewerOverlay').style.display = 'flex';
+    overlay.style.display = 'flex';
+    // Focus trap: move focus to close button
+    const closeBtn = overlay.querySelector('button[onclick*="closePdfModal"]');
+    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
   }
   function closePdfModal() {
     document.getElementById('pdfViewerOverlay').style.display = 'none';
@@ -1137,10 +1216,12 @@
   checkHash();
 
   // Apply centralized config to static DOM elements
+  let _configApplied = false;
   function applyConfig() {
-
+    if (_configApplied) return;
     var C = window.APP_CONFIG;
     if (!C) return;
+    _configApplied = true;
     document.title = C.titles.cstPortal;
     var el;
     if ((el=document.getElementById('navBrandName'))) el.textContent = C.brand.name;

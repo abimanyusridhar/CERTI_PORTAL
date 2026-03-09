@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — VAPT Certificate Control Panel</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'none';" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <!-- CENTRALIZED CONFIG -->
   <script src="/config.js" defer></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -60,6 +64,22 @@
     /* ── MAIN ── */
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
     .topbar{padding:0 28px;height:64px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:14px;flex-shrink:0}
+    .hamburger-btn{display:none;background:none;border:1px solid var(--border);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;color:var(--text-sec);flex-shrink:0;transition:border-color .2s,color .2s}
+    .hamburger-btn:hover{border-color:rgba(10,124,110,.4);color:var(--teal)}
+    .sidebar-overlay{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.55);display:none}
+    .sidebar-overlay.open{display:block}
+    @media(max-width:900px){
+      .hamburger-btn{display:flex}
+      .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 24px rgba(0,0,0,.35)}
+      .sidebar.open{transform:translateX(0)}
+      #appWrap{overflow-x:hidden}
+      .main{min-width:0}
+      .stats-row{grid-template-columns:1fr 1fr!important}
+    }
+    @media(max-width:540px){
+      .stats-row{grid-template-columns:1fr!important}
+      .topbar{padding:0 14px}
+    }
     .tb-title{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--text-bright)}
     .tb-bread{font-size:.62rem;letter-spacing:.12em;color:var(--text-sec);margin-top:2px}
     .tb-actions{display:flex;gap:8px;align-items:center}
@@ -123,12 +143,19 @@
     .ne-days-badge.ok{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.2)}
 
     /* ── TABLE ── */
-    .table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-    .tbl-hdr{padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-    .tbl-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold)}
-    .mini-search{display:flex;align-items:center;gap:7px;background:var(--navy-mid);border:1px solid var(--border);border-radius:8px;padding:7px 12px}
-    .mini-search input{background:none;border:none;outline:none;color:var(--text-bright);font-size:.8rem;width:200px}
-    table{width:100%;border-collapse:collapse}
+    .table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow-x:auto}
+    .tbl-hdr{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-wrap:wrap;row-gap:8px}
+    .tbl-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1}
+    .tbl-title{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);white-space:nowrap}
+    .mini-search{display:flex;align-items:center;gap:7px;background:var(--navy-mid);border:1px solid var(--border);border-radius:8px;padding:7px 12px;transition:border-color .2s;flex:1;min-width:180px;max-width:280px}
+    .mini-search:focus-within{border-color:rgba(100,255,218,.3)}
+    .mini-search input{background:none;border:none;outline:none;color:var(--text-bright);font-size:.8rem;width:100%}
+    .filter-select{background:var(--navy-mid);border:1px solid var(--border);border-radius:8px;padding:7px 26px 7px 10px;color:var(--text);font-size:.75rem;outline:none;cursor:pointer;transition:border-color .2s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238892B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+    .filter-select:focus{border-color:rgba(100,255,218,.3)}
+    .filter-select option{background:var(--navy-mid);color:var(--text)}
+    .filter-count-badge{display:inline-flex;align-items:center;padding:3px 9px;background:var(--navy-mid);border:1px solid var(--border);border-radius:8px;font-size:.65rem;color:var(--text-sec);white-space:nowrap;letter-spacing:.06em}
+    .filter-count-badge strong{color:var(--gold);margin-right:2px}
+    table{width:100%;border-collapse:collapse;min-width:800px}
     th{padding:9px 14px;text-align:left;font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;background:var(--navy-mid);border-bottom:1px solid var(--border);white-space:nowrap}
     td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text);vertical-align:middle}
     tr:last-child td{border-bottom:none}
@@ -610,16 +637,33 @@
     (function () {
       var LS_KEY = 'smg-theme';
 
-      // 1. Apply saved theme immediately (prevents FOUC)
-      var saved = 'dark';
-      try { saved = localStorage.getItem(LS_KEY) || 'dark'; } catch (e) {}
-      if (saved === 'light') {
+      // 1. Determine theme: saved preference → OS preference → default dark
+      var saved;
+      try { saved = localStorage.getItem(LS_KEY); } catch (e) {}
+      var prefersDark = true;
+      try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+      var theme = saved ? saved : (prefersDark ? 'dark' : 'light');
+
+      if (theme === 'light') {
         document.documentElement.classList.add('light');
       } else {
         document.documentElement.classList.remove('light');
       }
 
-      // 2. Sync every .theme-toggle button icon + label
+      // 2. Listen for OS theme changes (only when user hasn't set a preference)
+      try {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          var hasSaved = false;
+          try { hasSaved = Boolean(localStorage.getItem(LS_KEY)); } catch (_) {}
+          if (!hasSaved) {
+            if (e.matches) { document.documentElement.classList.remove('light'); }
+            else           { document.documentElement.classList.add('light'); }
+            syncButtons();
+          }
+        });
+      } catch (e) {}
+
+      // 3. Sync every .theme-toggle button icon + label
       function syncButtons() {
         var isLight = document.documentElement.classList.contains('light');
         var buttons = document.querySelectorAll('.theme-toggle');
@@ -631,14 +675,14 @@
         }
       }
 
-      // 3. Global toggle — called by onclick="toggleTheme()"
+      // 4. Global toggle — called by onclick="toggleTheme()"
       window.toggleTheme = function () {
         var isLight = document.documentElement.classList.toggle('light');
         try { localStorage.setItem(LS_KEY, isLight ? 'light' : 'dark'); } catch (e) {}
         syncButtons();
       };
 
-      // 4. Sync buttons once DOM exists (buttons not yet in DOM at <head> parse time)
+      // 5. Sync buttons once DOM exists (buttons not yet in DOM at <head> parse time)
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', syncButtons);
       } else {
@@ -676,7 +720,8 @@
 
 <!-- ══ APP ══ -->
 <div id="appWrap" style="display:flex">
-  <aside class="sidebar" role="complementary" aria-label="Navigation sidebar">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navigation sidebar">
     <div class="sb-brand">
       <div class="sb-icon" style="background:none;border:none;width:auto;height:auto"><img src="/images/SYN.png" class="nav-logo-circle syn-circle sb-circle" alt="Synergy" /></div>
       <div>
@@ -747,6 +792,9 @@
 
   <main class="main">
     <div class="topbar" style="gap:16px">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar" aria-expanded="false" id="hamburgerBtn">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
       <img src="/images/SYN.png" class="nav-logo-circle syn-circle tb-circle" alt="Synergy" />
       <div style="flex:1">
         <div class="tb-title" id="pageTitle">VAPT Dashboard</div>
@@ -772,6 +820,8 @@
 
     <!-- ══ DASHBOARD PAGE ══ -->
     <div class="page" id="page-dashboard">
+      <!-- NEAR-EXPIRY PROACTIVE BANNER -->
+      <div id="nearExpiryBanner" role="alert" style="display:none;align-items:center;gap:12px;padding:12px 18px;background:rgba(255,179,71,.06);border:1px solid rgba(255,179,71,.28);border-radius:12px;font-size:.75rem;color:var(--warn);margin-bottom:16px;line-height:1.6"></div>
       <!-- ROW 1: Key KPIs -->
       <div class="stats-row" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
         <div class="stat-card gold" style="cursor:pointer" onclick="showPage('certs',document.getElementById('nav-certs'))">
@@ -949,17 +999,30 @@
       <div class="table-card">
         <div class="tbl-hdr">
           <div class="tbl-title">All VAPT Certificates</div>
-          <div class="mini-search">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Search vessel, IMO, cert number…" oninput="renderTbl('allTbl',this.value)" />
+          <div class="tbl-filters">
+            <div class="mini-search">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+              <input id="allQ" type="text" placeholder="Search vessel, IMO, cert no, recipient…"
+                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value)" />
+            </div>
+            <select id="allStatusSel" class="filter-select"
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allEmailSel').value)">
+              <option value="">All Status</option>
+              <option value="VALID">✅ Valid</option>
+              <option value="PENDING">⏳ Pending</option>
+              <option value="EXPIRED">⏰ Expired</option>
+              <option value="REVOKED">🚫 Revoked</option>
+            </select>
+            <select id="allEmailSel" class="filter-select"
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,this.value)">
+              <option value="">All Email</option>
+              <option value="SENT">✉ Sent</option>
+              <option value="NOT_SENT">✉ Not Sent</option>
+            </select>
+            <span class="filter-count-badge" id="allCertCount"><strong>0</strong> records</span>
           </div>
-          <select class="fcontrol" style="width:130px;padding:7px 12px;font-size:.72rem" onchange="filterStatus=this.value;renderTbl('allTbl','')">
-            <option value="">All Status</option>
-            <option value="VALID">Valid</option>
-            <option value="EXPIRED">Expired</option>
-            <option value="REVOKED">Revoked</option>
-            <option value="PENDING">Pending</option>
-          </select>
+          <button class="btn btn-ghost btn-sm" id="allClearFilters" onclick="clearAllFilters()" style="display:none;white-space:nowrap">✕ Clear</button>
+          <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add New</button>
         </div>
         <div id="allTbl"></div>
       </div>
@@ -1458,6 +1521,7 @@
       const r = await fetch(API + '/vapt/certs', { headers:{ Authorization:'Bearer '+TOKEN } });
       if (r.status === 401) { toast('Session expired.','err'); doLogout(); return; }
       CERTS = await r.json();
+      checkNearExpiryBanner(CERTS); // Proactive near-expiry banner
       const now = new Date();
       let valid=0,expired=0,pending=0,revoked=0,emailSent=0,emailPending=0,nearExpiry=[];
       CERTS.forEach(c => {
@@ -1754,40 +1818,57 @@
   }
 
   // ── TABLE ──
-  function renderTbl(id, q) {
+  function clearAllFilters() {
+    ['allQ','allStatusSel','allEmailSel'].forEach(id => {
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    renderTbl('allTbl','','','');
+    const cb=document.getElementById('allClearFilters'); if(cb) cb.style.display='none';
+  }
+  function renderTbl(id, q, statusFilter, emailFilter) {
     const el = document.getElementById(id);
     let list = CERTS;
-    if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').toLowerCase().includes(ql)); }
-    if (filterStatus) list=list.filter(c=>c.status===filterStatus);
-    if (!list.length) { el.innerHTML='<div class="empty-state"><h3>No VAPT certificates found</h3><p>Add one to get started.</p></div>'; return; }
+    if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').includes(ql)||(c.vesselName||'').toLowerCase().includes(ql)); }
+    if (statusFilter) list=list.filter(c=>c.status===statusFilter);
+    else if (filterStatus) list=list.filter(c=>c.status===filterStatus);
+    if (emailFilter==='SENT') list=list.filter(c=>c.emailStatus==='SENT');
+    else if (emailFilter==='NOT_SENT') list=list.filter(c=>c.emailStatus!=='SENT');
+    // Update count badge
+    const countEl=document.getElementById('allCertCount');
+    if(countEl) countEl.innerHTML=`<strong>${list.length}</strong> records`;
+    const cb=document.getElementById('allClearFilters');
+    if(cb) cb.style.display=(q||statusFilter||emailFilter)?'':'none';
+    if (!list.length) { el.innerHTML='<div class="empty-state"><h3>No VAPT certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:4px">Try adjusting your search or clearing filters.</p></div>'; return; }
+    const isDash=id==='dashTbl';
     el.innerHTML = `<table><thead><tr>
-      <th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Image</th><th>Actions</th>
-    </tr></thead><tbody>` + list.slice(0,60).map(c => {
+      <th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th style="white-space:nowrap">Valid Until</th><th>Email</th><th>Image</th><th>Actions</th>
+    </tr></thead><tbody>` + (isDash?list.slice(0,10):list).map(c => {
       const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
       const isV=c.status==='VALID'&&(!vu||vu>=now);
-      const pillCls=c.status==='PENDING'?'pending':(isV?'valid':'expired');
+      const pillCls=c.status==='PENDING'?'pending':(c.status==='REVOKED'?'revoked':isV?'valid':'expired');
       const dl=daysUntil(c.validUntil);
       let vlStr=fmt(c.validUntil);
-      if (dl!==null){if(dl>0)vlStr+=` · in ${dl}d`;else if(dl===0)vlStr+=' · today';else vlStr+=` · ${Math.abs(dl)}d ago`;}
+      let vlColor='var(--text-sec)';
+      if(dl!==null){if(dl<0){vlStr+=` · ${Math.abs(dl)}d ago`;vlColor='var(--invalid)';}else if(dl===0){vlStr+=' · today';vlColor='var(--warn)';}else if(dl<=30){vlStr+=` · ${dl}d`;vlColor='var(--warn)';}else{vlStr+=` · ${dl}d`;vlColor=isV?'var(--teal)':'var(--text-sec)';}}
       const imgEl = c.certificateImage
         ? `<img class="thumb" src="${c.certificateImage}" loading="lazy" onclick="openLB(this.src)" onerror="this.style.display='none';this.nextSibling.style.display='inline-flex'" /><div class="no-img" style="display:none">—</div>`
         : '<div class="no-img">—</div>';
       const emailCls=c.emailStatus==='SENT'?'sent':'not-sent';
-      const canSend=c.recipientEmail&&c.emailStatus!=='SENT';
+      const canSend=c.recipientEmail&&c.emailStatus!=='SENT'&&c.status==='VALID';
       return `<tr>
-        <td><span class="cid">${c.id}</span></td>
-        <td style="color:var(--text-bright);font-weight:500">${c.recipientName||'—'}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-sec)">${c.vesselIMO||'—'}</td>
-        <td style="font-size:.78rem">${fmt(c.assessmentDate)}</td>
-        <td><span class="pill ${pillCls}" style="vertical-align:middle">${isV ? '✓ ' : c.status === 'PENDING' ? '⏳ ' : ''}<span style="vertical-align:middle">${c.status}</span></span></td>
-        <td style="color:${isV?'var(--teal)':'var(--invalid)'};font-size:.78rem">${vlStr}</td>
-        <td><span class="pill ${emailCls}" title="${c.recipientEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'— Pending'}</span></td>
+        <td><span class="cid" title="${c.id}">${c.id}</span></td>
+        <td style="max-width:160px"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||c.vesselName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>`:''}</td>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO||'—'}</span></td>
+        <td style="font-size:.76rem;color:var(--text-sec)">${fmt(c.assessmentDate)}</td>
+        <td><span class="pill ${pillCls}">${isV?'✓ ':c.status==='PENDING'?'⏳ ':''}<span style="vertical-align:middle">${c.status}</span></span></td>
+        <td style="color:${vlColor};font-size:.76rem;white-space:nowrap">${vlStr}</td>
+        <td><span class="pill ${emailCls}" title="${c.recipientEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'—'}</span></td>
         <td>${imgEl}</td>
         <td><div class="act-grp">
           <button class="btn btn-ghost btn-sm" onclick="viewCert('${c.id}')">View</button>
           <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.55rem">🔒 URL</button>
-          ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${c.id}')">Send</button>`:''}
+          <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
+          ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${c.id}')">✉</button>`:''}
           <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Del</button>
         </div></td>
       </tr>`;
@@ -1811,7 +1892,7 @@
     const [t,b]=titles[name]||['',''];
     document.getElementById('pageTitle').textContent=t;
     document.getElementById('pageBread').textContent=b;
-    if (name==='certs') renderTbl('allTbl','');
+    if (name==='certs') renderTbl('allTbl','','','');
     if (name==='issue') { renderIssueList(''); refreshStats(); renderSentLog(); }
   }
 
@@ -2616,7 +2697,55 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
     document.getElementById('pdfViewerFrame').src = '';
   }
   function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;setTimeout(()=>t.className='',3500);}
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeLB();closeView();closeDel();closePdfViewer();}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeLB();closeView();closeDel();closePdfViewer();closeSidebar();}});
+
+  // ── NEAR-EXPIRY BANNER ────────────────────────────────────────────────
+  function checkNearExpiryBanner(certs) {
+    const now = new Date();
+    const near = (certs || []).filter(c => {
+      if (!c.validUntil || (c.status||'').toUpperCase() !== 'VALID') return false;
+      const d = Math.round((new Date(c.validUntil).setHours(0,0,0,0) - now.setHours(0,0,0,0)) / 86400000);
+      return d >= 0 && d <= 30;
+    });
+    const banner = document.getElementById('nearExpiryBanner');
+    if (!banner) return;
+    if (!near.length) { banner.style.display = 'none'; return; }
+    banner.style.display = 'flex';
+    banner.innerHTML = `
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <div><strong>${near.length} VAPT certificate${near.length===1?'':'s'} expiring within 30 days</strong> —
+      ${near.slice(0,3).map(c=>{const d=Math.round((new Date(c.validUntil).setHours(0,0,0,0)-new Date().setHours(0,0,0,0))/86400000);return `<span style="font-family:'JetBrains Mono',monospace;font-size:.75em">${c.id}</span> (${d}d)`;}).join(', ')}${near.length>3?' …':''}</div>
+      <button onclick="this.parentElement.style.display='none'" style="margin-left:auto;background:none;border:none;color:currentColor;cursor:pointer;opacity:.6;font-size:1rem;padding:0 4px;line-height:1" aria-label="Dismiss">✕</button>
+    `;
+  }
+
+  // ── MOBILE SIDEBAR TOGGLE ────────────────────────────────────────────
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const ov = document.getElementById('sidebarOverlay');
+    const btn = document.getElementById('hamburgerBtn');
+    const isOpen = sb && sb.classList.contains('open');
+    if (isOpen) { closeSidebar(); } else {
+      if (sb) sb.classList.add('open');
+      if (ov) ov.classList.add('open');
+      if (btn) btn.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  function closeSidebar() {
+    const sb = document.getElementById('sidebar');
+    const ov = document.getElementById('sidebarOverlay');
+    const btn = document.getElementById('hamburgerBtn');
+    if (sb) sb.classList.remove('open');
+    if (ov) ov.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.nav-item') && window.innerWidth <= 900) { closeSidebar(); }
+  });
+
+
 
   // ── BOOT ──
   if(TOKEN){
@@ -2637,10 +2766,12 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
   }
 </script>
 <script>
+let _lastAppliedConfig = null;
 function applyConfig() {
 
   var C = window.APP_CONFIG;
-  if (!C) return;
+  if (!C || C === _lastAppliedConfig) return;
+  _lastAppliedConfig = C;
   document.title = C.titles.vaptAdmin;
   var el;
   if ((el=document.getElementById('loginSub')))    el.textContent = C.nav.vaptLoginSub;

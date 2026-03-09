@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VAPT Assessment Verification</title>
+  <meta name="description" content="Verify the authenticity of Synergy Marine Group VAPT Assessment certificates instantly. Real-time registry for maritime compliance officers and PSC inspectors." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="Synergy Marine Group — VAPT Assessment Verification" />
+  <meta property="og:description" content="Real-time verification of Synergy Marine Group Vulnerability Assessment and Penetration Testing (VAPT) certificates." />
+  <meta property="og:image"       content="/images/SYN.png" />
+  <meta name="theme-color"        content="#0A1628" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'none';" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <!-- CENTRALIZED CONFIG -->
   <script src="/config.js" defer></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -32,7 +42,8 @@
     @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 
     /* NAV */
-    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:68px;background:rgba(10,22,40,0.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+    nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:68px;background:rgba(10,22,40,0.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+    @media(max-width:640px){nav{padding:0 16px;height:60px}.nav-secure-badge{display:none}}
     .nav-brand{display:flex;align-items:center;gap:14px}
     .nav-logo-box{width:auto;height:auto;background:none;border:none;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
     .nav-logo-box::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(100,255,218,0.1));pointer-events:none}
@@ -63,11 +74,15 @@
     .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
     /* STATS */
-    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:24px 0;margin-bottom:60px}
-    .stat-item{text-align:center;padding:0 44px;border-right:1px solid var(--border)}
+    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:20px 0;margin-bottom:60px}
+    .stat-item{text-align:center;padding:0 36px;border-right:1px solid var(--border)}
     .stat-item:last-child{border-right:none}
-    .stat-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--teal);line-height:1}
-    .stat-label{font-size:.58rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--teal);line-height:1}
+    .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
+    @media(max-width:600px){
+      .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
+      .stat-item:nth-child(odd){border-right:1px solid var(--border)}
+    }
     /* RESULT */
     #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
     .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
@@ -77,6 +92,7 @@
     .not-found p{font-size:.86rem;color:var(--text-sec);line-height:1.8}
     /* TWO-COLUMN LAYOUT */
     .cred-layout{display:grid;grid-template-columns:288px 1fr;gap:28px;align-items:start;animation:fadeUp .5s ease}
+    @media(max-width:820px){.cred-layout{grid-template-columns:1fr}.cred-sidebar{position:static}}
     /* SIDEBAR */
     .cred-sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:82px}
     .sidebar-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:24px;backdrop-filter:blur(12px)}
@@ -568,16 +584,33 @@
     (function () {
       var LS_KEY = 'smg-theme';
 
-      // 1. Apply saved theme immediately (prevents FOUC)
-      var saved = 'dark';
-      try { saved = localStorage.getItem(LS_KEY) || 'dark'; } catch (e) {}
-      if (saved === 'light') {
+      // 1. Determine theme: saved preference → OS preference → default dark
+      var saved;
+      try { saved = localStorage.getItem(LS_KEY); } catch (e) {}
+      var prefersDark = true;
+      try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+      var theme = saved ? saved : (prefersDark ? 'dark' : 'light');
+
+      if (theme === 'light') {
         document.documentElement.classList.add('light');
       } else {
         document.documentElement.classList.remove('light');
       }
 
-      // 2. Sync every .theme-toggle button's icon + label
+      // 2. Listen for OS theme changes (if no saved preference)
+      try {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          var hasSaved = false;
+          try { hasSaved = Boolean(localStorage.getItem(LS_KEY)); } catch (_) {}
+          if (!hasSaved) {
+            if (e.matches) { document.documentElement.classList.remove('light'); }
+            else           { document.documentElement.classList.add('light'); }
+            syncButtons();
+          }
+        });
+      } catch (e) {}
+
+      // 3. Sync every .theme-toggle button's icon + label
       function syncButtons() {
         var isLight = document.documentElement.classList.contains('light');
         var buttons = document.querySelectorAll('.theme-toggle');
@@ -589,14 +622,14 @@
         }
       }
 
-      // 3. Global toggle function — called by onclick="toggleTheme()"
+      // 4. Global toggle function — called by onclick="toggleTheme()"
       window.toggleTheme = function () {
         var isLight = document.documentElement.classList.toggle('light');
         try { localStorage.setItem(LS_KEY, isLight ? 'light' : 'dark'); } catch (e) {}
         syncButtons();
       };
 
-      // 4. Sync buttons once DOM is ready (buttons may not exist yet at parse time)
+      // 5. Sync buttons once DOM is ready (buttons may not exist yet at parse time)
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', syncButtons);
       } else {
@@ -692,21 +725,23 @@
   <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
 </footer>
 
-<div id="lightbox" onclick="closeLB()">
-  <span class="lb-x" onclick="closeLB()">&#x2715;</span>
-  <img id="lbImg" src="" alt="VAPT Certificate" />
+<div id="copyToast" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(17,34,64,.97);border:1px solid rgba(10,124,110,.3);color:var(--teal);font-size:.72rem;font-weight:600;letter-spacing:.1em;padding:10px 22px;border-radius:30px;z-index:9998;opacity:0;transition:opacity .25s;pointer-events:none;text-transform:uppercase" role="status" aria-live="polite"></div>
+
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Certificate image viewer" aria-hidden="true" onclick="if(event.target===this||event.target.classList.contains('lb-x'))closeLB()">
+  <span class="lb-x" role="button" aria-label="Close image viewer" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')closeLB()">&#x2715;</span>
+  <img id="lbImg" src="" alt="VAPT Certificate" loading="lazy" decoding="async" />
 </div>
 
 <!-- PDF / Document Viewer Modal -->
-<div id="pdfViewerOverlay" onclick="if(event.target===this)closePdfModal()">
+<div id="pdfViewerOverlay" role="dialog" aria-modal="true" aria-label="Document viewer" aria-hidden="true" onclick="if(event.target===this)closePdfModal()">
   <div class="pdf-modal">
     <div class="pdf-modal-bar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span class="pdf-modal-title" id="pdfModalTitle"></span>
-      <a class="pdf-modal-open" id="pdfModalLink" href="#" target="_blank">↗ Open in New Tab</a>
-      <button class="pdf-modal-close" onclick="closePdfModal()">✕</button>
+      <a class="pdf-modal-open" id="pdfModalLink" href="#" target="_blank" rel="noopener noreferrer">↗ Open in New Tab</a>
+      <button class="pdf-modal-close" onclick="closePdfModal()" aria-label="Close document viewer">✕</button>
     </div>
-    <iframe class="pdf-modal-frame" id="pdfModalFrame" src="" title="Document viewer"></iframe>
+    <iframe class="pdf-modal-frame" id="pdfModalFrame" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" title="Document viewer" loading="lazy"></iframe>
   </div>
 </div>
 
@@ -716,8 +751,10 @@
 
   fetch(API + '/vapt/stats').then(r => r.json()).then(d => {
     if (d && d.total !== undefined) {
-      document.getElementById('statTotal').textContent = d.total;
-      document.getElementById('statValid').textContent = d.valid;
+      const tEl = document.getElementById('statTotal');
+      const vEl = document.getElementById('statValid');
+      if (tEl) { tEl.textContent = d.total; tEl.setAttribute('aria-label', 'Certificates issued: ' + d.total); }
+      if (vEl) { vEl.textContent = d.valid;  vEl.setAttribute('aria-label', 'Currently active: '  + d.valid); }
     }
   }).catch(() => {});
 
@@ -737,22 +774,28 @@
 
   // Cached shareable URL for the last-verified cert (populated after each verify)
   let _lastShareUrl = null;
+  let _verifying = false; // debounce guard
 
   async function verify() {
+    if (_verifying) return;
     const raw = document.getElementById('certInput').value.trim().toUpperCase();
     if (!raw) return;
     if (!/^[A-Za-z0-9\-_]{1,64}$/.test(raw)) {
-      document.getElementById('result').innerHTML = '<div class="not-found"><h3 style="color:var(--warn)">Invalid Format</h3><p>Certificate IDs may only contain letters, numbers, and hyphens.</p></div>';
+      document.getElementById('result').innerHTML = '<div class="not-found"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto 10px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Invalid Format</h3><p>Certificate IDs may only contain letters, numbers, and hyphens (e.g. <code style="font-family:\'JetBrains Mono\',monospace;color:var(--teal)">VAP-9491666-1026</code>).</p></div>';
       hideDesc(); scroll(); return;
     }
     const btn = document.getElementById('verifyBtn');
+    const input = document.getElementById('certInput');
+    _verifying = true;
     btn.disabled = true;
+    input.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> Verifying&hellip;';
     _lastShareUrl = null;
     try {
       const res = await fetch(API + '/vapt/verify-by-id/' + encodeURIComponent(raw));
       if (res.status === 429) {
-        document.getElementById('result').innerHTML = '<div class="not-found" style="border-color:rgba(255,179,71,.3)"><h3 style="color:var(--warn)">Too Many Requests</h3><p>Please wait a moment before verifying again.</p></div>';
+        const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10);
+        renderRateLimit(retryAfter);
         hideDesc(); scroll();
       } else {
         // Safe JSON parse — a reverse proxy (Nginx/Cloudflare) returning an HTML
@@ -766,7 +809,7 @@
           renderNotFound();
           history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT'));
         } else if (!res.ok) {
-          renderError();
+          renderError(data.error);
           history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT'));
         } else {
           // Fetch the encrypted, shareable verification URL from the server
@@ -781,22 +824,69 @@
         }
       }
     } catch { renderError(); }
+    _verifying = false;
     btn.disabled = false;
+    input.disabled = false;
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Verify';
+  }
+
+  // Rate limit countdown
+  let _rlTimer = null;
+  function renderRateLimit(seconds) {
+    if (_rlTimer) clearInterval(_rlTimer);
+    let remaining = seconds || 60;
+    const _email = (window.APP_CONFIG && window.APP_CONFIG.contact) ? window.APP_CONFIG.contact.vaptEmail : '';
+    function update() {
+      document.getElementById('result').innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;padding:20px 24px;background:rgba(255,179,71,0.05);border:1px solid rgba(255,179,71,0.28);border-radius:14px;animation:fadeUp .4s ease" role="alert">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:700;color:var(--warn);line-height:1;min-width:36px;text-align:center" aria-live="polite" aria-atomic="true">${remaining}</div>
+        <div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--warn);margin-bottom:3px">Too Many Requests</div>
+          <div style="font-size:.74rem;color:var(--text-sec);line-height:1.6">Verification limit reached. You can retry in <strong>${remaining} second${remaining===1?'':'s'}</strong>.${_email ? ` For urgent queries contact <strong style="color:var(--teal)">${_email}</strong>` : ''}</div>
+        </div>
+      </div>`;
+    }
+    update();
+    scroll();
+    _rlTimer = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) { clearInterval(_rlTimer); update(); } else { update(); }
+    }, 1000);
   }
 
   function renderNotFound() {
     const _vaptEmail = (window.APP_CONFIG&&window.APP_CONFIG.contact)?window.APP_CONFIG.contact.vaptEmail:'';
     const _brandName = (window.APP_CONFIG&&window.APP_CONFIG.brand)?window.APP_CONFIG.brand.name:'Synergy';
-    document.getElementById('result').innerHTML = `<div class="not-found"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>Certificate Not Found</h3><p>No VAPT certificate matches this number in the ${_brandName} registry.<br>Please verify the number carefully or contact <strong style="color:var(--teal)">${_vaptEmail}</strong></p></div>`;
+    document.getElementById('result').innerHTML = `
+    <div class="not-found" role="alert">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" style="margin:0 auto" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <h3>Certificate Not Found</h3>
+      <p>No VAPT certificate matching this ID exists in the <strong>${_brandName}</strong> registry.<br>
+      Check the number carefully — IDs are case-insensitive.<br>
+      For assistance contact <strong style="color:var(--teal)">${_vaptEmail || 'the VAPT team'}</strong></p>
+      <div style="margin-top:16px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:.72rem;color:var(--text-sec);line-height:1.7">
+        <strong style="color:var(--text)">Expected format:</strong>
+        <code style="font-family:'JetBrains Mono',monospace;color:var(--teal);margin-left:6px">VAP-{IMO}-{MMYY}</code>
+        &nbsp;·&nbsp;
+        <code style="font-family:'JetBrains Mono',monospace;color:var(--teal)">VAP-9491666-1026</code>
+      </div>
+    </div>`;
     scroll();
   }
 
-  function renderError() {
+  function renderError(serverMsg) {
     const _vaptErrEmail = (window.APP_CONFIG && window.APP_CONFIG.contact)
       ? window.APP_CONFIG.contact.vaptEmail
       : '';
-    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Service Unavailable</h3><p>Could not reach the VAPT verification service. Please try again in a moment.<br>If the issue persists, contact <strong style="color:var(--teal)">${_vaptErrEmail}</strong></p></div>`;
+    const detail = serverMsg ? `<br><code style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--warn);opacity:.75">${serverMsg}</code>` : '';
+    document.getElementById('result').innerHTML = `
+    <div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)" role="alert">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <h3 style="color:var(--warn)">Service Unavailable</h3>
+      <p>Could not reach the VAPT verification service. Please try again in a moment.${detail}<br>
+      If the issue persists, contact <strong style="color:var(--teal)">${_vaptErrEmail || 'the VAPT team'}</strong></p>
+      <button onclick="verify()" style="margin-top:14px;padding:9px 22px;background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.3);border-radius:20px;color:var(--warn);font-size:.72rem;font-weight:600;letter-spacing:.08em;cursor:pointer;text-transform:uppercase">↺ Retry</button>
+    </div>`;
     scroll();
   }
 
@@ -1077,29 +1167,81 @@
   }
 
   /* ── LIGHTBOX ── */
-  function openLB(src) {
-    document.getElementById('lbImg').src = src;
-    document.getElementById('lightbox').style.display = 'flex';
-  }
-  function closeLB() {
-    document.getElementById('lightbox').style.display = 'none';
+  // ── TOAST HELPER ─────────────────────────────────────────────────────
+  let _toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('copyToast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
   }
 
-  /* ── PDF VIEWER MODAL ── */
+  // ── CERT ID COPY ──────────────────────────────────────────────────────
+  function copyId(el) {
+    const text = el.dataset.certid || el.textContent.trim();
+    navigator.clipboard.writeText(text).then(() => showToast('✓ Certificate ID copied')).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); showToast('✓ Certificate ID copied'); } catch (_) {}
+      document.body.removeChild(ta);
+    });
+  }
+
+  // ── LIGHTBOX — with focus trap + ARIA ─────────────────────────────────
+  let _lbPreviousFocus = null;
+  function openLB(src) {
+    _lbPreviousFocus = document.activeElement;
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lbImg').src = src;
+    lb.setAttribute('aria-hidden', 'false');
+    lb.style.display = 'flex';
+    const xBtn = lb.querySelector('.lb-x');
+    if (xBtn) xBtn.focus();
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLB() {
+    const lb = document.getElementById('lightbox');
+    lb.setAttribute('aria-hidden', 'true');
+    lb.style.display = 'none';
+    document.getElementById('lbImg').src = '';
+    document.body.style.overflow = '';
+    if (_lbPreviousFocus) { try { _lbPreviousFocus.focus(); } catch(_) {} }
+  }
+
+  /* ── PDF VIEWER MODAL — with focus trap + ARIA ── */
+  let _pdfPreviousFocus = null;
   function openPdfModal(url, name) {
+    _pdfPreviousFocus = document.activeElement;
     document.getElementById('pdfModalTitle').textContent = name || 'Document';
     document.getElementById('pdfModalFrame').src = url;
     document.getElementById('pdfModalLink').href = url;
-    document.getElementById('pdfViewerOverlay').style.display = 'flex';
+    const ov = document.getElementById('pdfViewerOverlay');
+    ov.setAttribute('aria-hidden', 'false');
+    ov.style.display = 'flex';
+    const closeBtn = ov.querySelector('button[aria-label="Close document viewer"]');
+    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+    document.body.style.overflow = 'hidden';
   }
   function closePdfModal() {
-    document.getElementById('pdfViewerOverlay').style.display = 'none';
+    const ov = document.getElementById('pdfViewerOverlay');
+    ov.setAttribute('aria-hidden', 'true');
+    ov.style.display = 'none';
     document.getElementById('pdfModalFrame').src = '';
+    document.body.style.overflow = '';
+    if (_pdfPreviousFocus) { try { _pdfPreviousFocus.focus(); } catch(_) {} }
   }
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeLB(); closePdfModal(); }
+    if (e.key === 'Tab') {
+      const lb = document.getElementById('lightbox');
+      if (lb && lb.getAttribute('aria-hidden') === 'false') { e.preventDefault(); lb.querySelector('.lb-x').focus(); }
+    }
   });
+
 
   // Auto-load from URL token
   async function verifyByToken(token, sig) {
@@ -1147,9 +1289,11 @@
 
   checkUrl();
 
+  let _lastAppliedConfig = null;
   function applyConfig() {
     var C = window.APP_CONFIG;
-    if (!C) return;
+    if (!C || C === _lastAppliedConfig) return;
+    _lastAppliedConfig = C;
     document.title = C.titles.vaptPortal;
     var el;
     if ((el=document.getElementById("navBrandName"))) el.textContent = C.brand.name;
