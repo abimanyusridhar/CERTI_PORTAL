@@ -303,11 +303,7 @@ const SEED = {
     complianceDate: "2026-01-30",
     complianceQuarter: "Q1",
     trainingMode: "ONLINE",
-    validFor: "Q2 (APR-MAY-JUN)-2026",
-    validUntil: "2026-06-30",
-    verifiedBy: CFG.cst.verifiedBy,
-    status: "VALID",
-    issuedAt: "2026-01-30",
+    validFor: "Q2 (APR–JUN)-2026",
     certificateImage: null,
     notes: CFG.cst.notes,
     recipientEmail: "",
@@ -328,11 +324,7 @@ const SEED = {
     complianceDate: "2026-02-12",
     complianceQuarter: "Q1",
     trainingMode: "ONLINE",
-    validFor: "Q2 (APR-MAY-JUN)-2026",
-    validUntil: "2026-06-30",
-    verifiedBy: CFG.cst.verifiedBy,
-    status: "VALID",
-    issuedAt: "2026-02-12",
+    validFor: "Q2 (APR–JUN)-2026",
     certificateImage: null,
     notes: CFG.cst.notes,
     recipientEmail: "",
@@ -828,13 +820,20 @@ function getCorsHeaders(origin) {
 }
 
 // ─── QUARTER HELPER ──────────────────────────────────────────────────────────
+// Quarter the training was DONE in → valid until END of the NEXT quarter
+// Q1 (Jan–Mar) done → expires end of Q2 (Jun 30)
+// Q2 (Apr–Jun) done → expires end of Q3 (Sep 30)
+// Q3 (Jul–Sep) done → expires end of Q4 (Dec 31)
+// Q4 (Oct–Dec) done → expires end of Q1 next year (Mar 31)
+const QUARTER_MAP = {
+  Q1: { label: 'Q2 (APR–JUN)',  endMonth: 6,  endDay: 30 },
+  Q2: { label: 'Q3 (JUL–SEP)',  endMonth: 9,  endDay: 30 },
+  Q3: { label: 'Q4 (OCT–DEC)',  endMonth: 12, endDay: 31 },
+  Q4: { label: 'Q1 (JAN–MAR)',  endMonth: 3,  endDay: 31, nextYear: true }
+};
+
 function deriveQuarterFields(cert) {
-  const qMap = {
-    Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 6,  endDay: 30 },
-    Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 9,  endDay: 30 },
-    Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 12, endDay: 31 },
-    Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 3,  endDay: 31, nextYear: true }
-  };
+  const qMap = QUARTER_MAP;
   const q    = (cert.complianceQuarter || '').toUpperCase();
   const info = qMap[q];
   if (!info) return;

@@ -2485,14 +2485,22 @@
                 <path stroke-linecap="round" d="M21 21l-4.35-4.35" />
               </svg>
               <input id="allQ" type="text" placeholder="Search by ID, vessel, IMO…"
-                oninput="renderTbl('allTbl',this.value)" />
+                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatus').value,document.getElementById('allQtr').value)" />
             </div>
-            <select class="fcontrol" style="width:130px;padding:7px 12px;font-size:.75rem"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value)">
+            <select id="allStatus" class="fcontrol" style="width:130px;padding:7px 12px;font-size:.75rem"
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allQtr').value)">
               <option value="">All Status</option>
               <option value="VALID">Valid</option>
               <option value="REVOKED">Revoked</option>
               <option value="EXPIRED">Expired</option>
+            </select>
+            <select id="allQtr" class="fcontrol" style="width:110px;padding:7px 12px;font-size:.75rem"
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatus').value,this.value)">
+              <option value="">All Quarters</option>
+              <option value="Q1">🔵 Q1</option>
+              <option value="Q2">🟢 Q2</option>
+              <option value="Q3">🟠 Q3</option>
+              <option value="Q4">🔴 Q4</option>
             </select>
             <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add New</button>
           </div>
@@ -3455,14 +3463,15 @@
     // ════════════════════════════════════════════════════
     // MODULE: Table rendering
     // ════════════════════════════════════════════════════
-    function renderTbl(id, q, statusFilter) {
+    function renderTbl(id, q, statusFilter, quarterFilter) {
       const el = document.getElementById(id);
       let list = CERTS;
       if (q) { const ql = q.toLowerCase(); list = list.filter(c => c.id.toLowerCase().includes(ql) || (c.recipientName || '').toLowerCase().includes(ql) || (c.vesselIMO || '').toLowerCase().includes(ql)); }
       if (statusFilter) list = list.filter(c => c.status === statusFilter);
+      if (quarterFilter) list = list.filter(c => (c.complianceQuarter || '').toUpperCase() === quarterFilter);
       if (!list.length) { el.innerHTML = `<div class="empty-state"><h3>No certificates found</h3></div>`; return; }
       el.innerHTML = `<table><thead><tr>
-    <th>ID</th><th>Recipient / Vessel</th><th>IMO</th><th>Status</th><th>Validity</th><th>Email</th><th>Image</th><th>Actions</th>
+    <th>ID</th><th>Recipient / Vessel</th><th>IMO</th><th>Quarter</th><th>Status</th><th>Validity</th><th>Email</th><th>Image</th><th>Actions</th>
   </tr></thead><tbody>`+ list.slice(0, 50).map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isV = c.status === 'VALID' && (!vu || vu >= now);
@@ -3479,10 +3488,18 @@
         const emailCls = c.emailStatus === 'SENT' ? 'sent' : 'not-sent';
         const emailLabel = c.emailStatus === 'SENT' ? '✓ Sent' : '— Pending';
         const canSend = c.recipientEmail && c.emailStatus !== 'SENT';
+        // Quarter badge color coding
+        const qVal = (c.complianceQuarter || '').toUpperCase();
+        const qColors = { Q1: '#4A9EFF', Q2: '#64FFDA', Q3: '#FFB347', Q4: '#FF6B8A' };
+        const qBg    = { Q1: 'rgba(74,158,255,0.12)', Q2: 'rgba(100,255,218,0.10)', Q3: 'rgba(255,179,71,0.12)', Q4: 'rgba(255,107,138,0.12)' };
+        const qBadge = qVal
+          ? `<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.6rem;font-weight:700;letter-spacing:.1em;background:${qBg[qVal]||'rgba(255,255,255,.06)'};border:1px solid ${qColors[qVal]||'var(--border)'};color:${qColors[qVal]||'var(--text-sec)'};">${qVal}</span>`
+          : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
         return `<tr>
       <td><span class="cid">${c.id}</span></td>
       <td style="color:var(--text-bright);font-weight:500">${c.recipientName || '—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-sec)">${c.vesselIMO || '—'}</td>
+      <td>${qBadge}</td>
       <td><span class="pill ${pillCls}">${isV ? '✓ ' : c.status === 'PENDING' ? '⏳ ' : ''}<span style="vertical-align:middle">${c.status}</span></span></td>
       <td style="color:${isV ? 'var(--teal)' : 'var(--invalid)'};font-size:.78rem">${vl}</td>
       <td><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
@@ -3555,11 +3572,16 @@
     // ════════════════════════════════════════════════════
     // MODULE: Quarter Logic — auto-derive validFor, validUntil, recipientName
     // ════════════════════════════════════════════════════
+    // Quarter the training was DONE in → valid until END of the NEXT quarter
+    // Q1 (Jan-Mar) done → expires end of Q2 (Jun 30)
+    // Q2 (Apr-Jun) done → expires end of Q3 (Sep 30)
+    // Q3 (Jul-Sep) done → expires end of Q4 (Dec 31)
+    // Q4 (Oct-Dec) done → expires end of Q1 next year (Mar 31)
     const QUARTER_MAP = {
-      Q1: { label: 'Q2 (APR-MAY-JUN)', endMonth: 6,  endDay: 30 },
-      Q2: { label: 'Q3 (JUL-AUG-SEP)', endMonth: 9,  endDay: 30 },
-      Q3: { label: 'Q4 (OCT-NOV-DEC)', endMonth: 12, endDay: 31 },
-      Q4: { label: 'Q1 (JAN-FEB-MAR)', endMonth: 3,  endDay: 31, nextYear: true }
+      Q1: { label: 'Q2 (APR–JUN)',  endMonth: 6,  endDay: 30 },
+      Q2: { label: 'Q3 (JUL–SEP)',  endMonth: 9,  endDay: 30 },
+      Q3: { label: 'Q4 (OCT–DEC)',  endMonth: 12, endDay: 31 },
+      Q4: { label: 'Q1 (JAN–MAR)',  endMonth: 3,  endDay: 31, nextYear: true }
     };
     function onQuarterChange() {
       const q = document.getElementById('fQuarter').value;
@@ -4608,7 +4630,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const mo = String(now.getMonth() + 1).padStart(2, '0');
         certId = `${_cstPfx}-${imo}-${mo}-${yy}`;
       }
-      const qMap = { Q1:{label:'Q2 (APR-MAY-JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL-AUG-SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT-NOV-DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN-FEB-MAR)',end:'03-31',nextYear:true} };
+      const qMap = { Q1:{label:'Q2 (APR–JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL–SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT–DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN–MAR)',end:'03-31',nextYear:true} };
       const qi = qMap[quarter] || qMap['Q1'];
       const baseYear = complianceDate ? parseInt(complianceDate.slice(0,4)) : new Date().getFullYear();
       const validYear = qi.nextYear ? baseYear + 1 : baseYear;
