@@ -921,7 +921,7 @@
             + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + ip + '"/></svg>'
             + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + htmlName + '">' + dn + '</span>'
             + '<span class="doc-badge">' + ext + '</span>'
-            + '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">&#128065; View PDF</span>'
+            + '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">&#8599; Open PDF</span>'
             + '</button></div>';
         } else if (isImg) {
           return '<div style="border:1px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.03)">'
@@ -1154,14 +1154,8 @@
   }
 
   function openPdfModal(url, name) {
-    const overlay = document.getElementById('pdfViewerOverlay');
-    document.getElementById('pdfModalTitle').textContent = name || 'Document';
-    document.getElementById('pdfModalFrame').src = url;
-    document.getElementById('pdfModalLink').href = url;
-    overlay.style.display = 'flex';
-    // Focus trap: move focus to close button
-    const closeBtn = overlay.querySelector('button[onclick*="closePdfModal"]');
-    if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
+    // Open directly in a new tab — avoids Chrome blocking iframes with frame-ancestors 'none'
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
   function closePdfModal() {
     document.getElementById('pdfViewerOverlay').style.display = 'none';

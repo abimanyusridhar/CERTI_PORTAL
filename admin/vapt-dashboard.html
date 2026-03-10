@@ -1865,7 +1865,7 @@
         <td><span class="pill ${emailCls}" title="${c.recipientEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'—'}</span></td>
         <td>${imgEl}</td>
         <td><div class="act-grp">
-          <button class="btn btn-ghost btn-sm" onclick="viewCert('${c.id}')">View</button>
+          <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
           <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
           ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${c.id}')">✉</button>`:''}
@@ -2143,6 +2143,25 @@
     '</div>';
   }
 
+  // Open VAPT certificate directly in a new tab (avoids CSP frame-ancestors block)
+  async function viewCertNewTab(id, btn) {
+    const orig = btn ? btn.textContent : '';
+    if (btn) { btn.textContent = '…'; btn.disabled = true; }
+    const tab = window.open('', '_blank');
+    if (!tab) { if (btn) { btn.textContent = orig; btn.disabled = false; } return; }
+    tab.document.write('<html><head><title>Loading…</title></head><body style="margin:0;background:#0A1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#CCD6F6"><div style="text-align:center"><div style="font-size:1.1rem;margin-bottom:8px">🔒 Generating secure link…</div><div style="font-size:.8rem;opacity:.5">Please wait</div></div></body></html>');
+    try {
+      const r = await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`, { headers: { Authorization: 'Bearer ' + TOKEN } });
+      const base = window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT';
+      const url = r.ok ? (await r.json()).url : `${window.location.origin}${base}/cert/${encodeURIComponent(id)}`;
+      tab.location.href = url;
+    } catch(e) {
+      const base = window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT';
+      tab.location.href = `${window.location.origin}${base}/cert/${encodeURIComponent(id)}`;
+    }
+    if (btn) { btn.textContent = orig; btn.disabled = false; }
+  }
+
   function viewCert(id) {
     const c=CERTS.find(x=>x.id===id); if (!c) return;
     const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
@@ -2183,6 +2202,7 @@
       ${(c.status||'').toUpperCase()==='PENDING' ? `<button class="btn" style="background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:var(--teal);display:inline-flex;align-items:center;gap:7px" onclick="closeView();activateCert('${c.id}')"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> Activate</button>` : ''}
       <button class="btn btn-teal btn-sm" onclick="closeView();editCert('${c.id}')">Edit</button>
       <button class="btn btn-ghost btn-sm" onclick="copyEncUrl('${c.id}',this)">🔒 Copy URL</button>
+      <button class="btn" onclick="viewCertNewTab('${c.id}',this)" style="background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);color:var(--gold);display:inline-flex;align-items:center;gap:6px"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/></svg> New Tab</button>
       ${c.recipientEmail&&c.emailStatus!=='SENT'?`<button class="btn btn-issue btn-sm" onclick="closeView();goIssue('${c.id}')">Send Credential</button>`:''}
     `;
     document.getElementById('viewOverlay').style.display='flex';

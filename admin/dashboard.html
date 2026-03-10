@@ -3209,7 +3209,7 @@
           style="margin-left:auto;background:none;border:none;color:var(--text-sec);cursor:pointer;font-size:1.3rem;opacity:.6">✕</button>
       </div>
       <div class="modal-body" id="viewBody"></div>
-      <div class="modal-foot"><button class="btn btn-ghost" onclick="closeView()">Close</button></div>
+      <div class="modal-foot"><button class="btn btn-ghost" onclick="closeView()">Close</button><button class="btn" id="viewOpenTabBtn" onclick="openViewInTab()" style="background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);color:var(--gold);display:inline-flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg> Open in New Tab</button></div>
     </div>
   </div>
 
@@ -3716,7 +3716,7 @@
       <td><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
       ${!isDash ? `<td>${imgEl}</td>` : ''}
       <td><div class="act-grp">
-        <button class="btn btn-ghost btn-sm" onclick="viewCert('${c.id}')">View</button>
+        <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
         <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
         <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
         ${canSend ? `<button class="btn btn-issue btn-sm" onclick="quickSend('${c.id}')">✉</button>` : ''}
@@ -4339,6 +4339,24 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     // ════════════════════════════════════════════════════
     // MODULE: View / Edit / Delete
     // ════════════════════════════════════════════════════
+    // Open certificate directly in a new tab (avoids CSP frame-ancestors block)
+    async function viewCertNewTab(id, btn) {
+      const orig = btn ? btn.textContent : '';
+      if (btn) { btn.textContent = '…'; btn.disabled = true; }
+      // Open blank tab synchronously so popup-blocker won't block it
+      const tab = window.open('', '_blank');
+      if (!tab) { if (btn) { btn.textContent = orig; btn.disabled = false; } return; }
+      tab.document.write('<html><head><title>Loading…</title></head><body style="margin:0;background:#0A1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#CCD6F6"><div style="text-align:center"><div style="font-size:1.1rem;margin-bottom:8px">🔒 Generating secure link…</div><div style="font-size:.8rem;opacity:.5">Please wait</div></div></body></html>');
+      try {
+        const url = await getCertEncryptedUrl(id);
+        tab.location.href = url;
+      } catch(e) {
+        const base = (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST');
+        tab.location.href = window.location.origin + base + '/cert/' + encodeURIComponent(id);
+      }
+      if (btn) { btn.textContent = orig; btn.disabled = false; }
+    }
+
     function viewCert(id) {
       const c = CERTS.find(x => x.id === id); if (!c) return;
       const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
@@ -4534,6 +4552,11 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       setTimeout(() => { btn.textContent = orig; }, 2000);
     }
 
+    function openViewInTab() {
+      const urlEl = document.getElementById('viewPublicUrl');
+      const url = (urlEl && urlEl.textContent && urlEl.textContent !== 'Generating secure link…') ? urlEl.textContent : null;
+      if (url) { window.open(url, '_blank'); }
+    }
     function closeView() { document.getElementById('viewMod').style.display = 'none'; }
 
     function editCert(id) {
