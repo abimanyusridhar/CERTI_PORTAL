@@ -68,6 +68,9 @@
     .hamburger-btn:hover{border-color:rgba(10,124,110,.4);color:var(--teal)}
     .sidebar-overlay{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.55);display:none}
     .sidebar-overlay.open{display:block}
+    @media(max-width:1100px){
+      .stats-row{grid-template-columns:repeat(3,1fr)!important}
+    }
     @media(max-width:900px){
       .hamburger-btn{display:flex}
       .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 24px rgba(0,0,0,.35)}
@@ -779,6 +782,17 @@
       </div>
     </nav>
     <div class="sb-foot">
+      <!-- Server health + SES status indicators -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 4px 10px;margin-bottom:4px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--text-sec)">
+          <span id="healthDot" style="width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .4s"></span>
+          <span id="healthLabel">Server</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--text-sec)">
+          <span id="sesSbDot" style="width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .4s"></span>
+          <span id="sesSbLabel">SES</span>
+        </div>
+      </div>
       <div class="admin-tag">
         <div class="admin-av">A</div>
         <div>
@@ -1500,6 +1514,7 @@
     renderTbl('dashTbl', '');
     updateRealTimeBadge();
     checkSesStatus();  // Check AWS SES config status
+    checkHealth();     // Check server health endpoint
     if (_autoRefreshInterval) clearInterval(_autoRefreshInterval);
     _autoRefreshInterval = setInterval(async () => {
       await refreshStats();
@@ -2336,21 +2351,55 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
       const r = await fetch(API + '/ses-status', { headers: { Authorization: 'Bearer ' + TOKEN } });
       const d = r.ok ? await r.json() : {};
       const badge = document.getElementById('sesBadgeVapt');
-      if (!badge) return;
+      const dot   = document.getElementById('sesSbDot');
+      const lbl   = document.getElementById('sesSbLabel');
       if (d.enabled) {
-        badge.textContent = '✓ AWS SES Active · ' + (d.region || '');
-        badge.style.background = 'rgba(100,255,218,.1)';
-        badge.style.color      = 'var(--teal)';
-        badge.style.borderColor= 'rgba(100,255,218,.25)';
+        if (badge) {
+          badge.textContent = '✓ AWS SES Active · ' + (d.region || '');
+          badge.style.background  = 'rgba(100,255,218,.1)';
+          badge.style.color       = 'var(--teal)';
+          badge.style.borderColor = 'rgba(100,255,218,.25)';
+        }
+        if (dot)  dot.style.background = 'var(--teal)';
+        if (lbl)  lbl.textContent      = 'SES Active';
       } else {
-        badge.textContent = (d.missing && d.missing.length
-          ? '✗ SES not configured — missing: ' + d.missing.join(', ')
-          : '✗ SES not configured — check .env');
-        badge.style.background = 'rgba(255,107,138,.08)';
-        badge.style.color      = '#ff6b8a';
-        badge.style.borderColor= 'rgba(255,107,138,.2)';
+        if (badge) {
+          badge.textContent = (d.missing && d.missing.length
+            ? '✗ SES not configured — missing: ' + d.missing.join(', ')
+            : '✗ SES not configured — check .env');
+          badge.style.background  = 'rgba(255,107,138,.08)';
+          badge.style.color       = '#ff6b8a';
+          badge.style.borderColor = 'rgba(255,107,138,.2)';
+        }
+        if (dot)  dot.style.background = 'var(--warn)';
+        if (lbl)  lbl.textContent      = 'SES Off';
       }
-    } catch { /* ignore */ }
+    } catch {
+      const dot = document.getElementById('sesSbDot');
+      const lbl = document.getElementById('sesSbLabel');
+      if (dot) dot.style.background = 'var(--invalid)';
+      if (lbl) lbl.textContent      = 'SES Err';
+    }
+  }
+
+  async function checkHealth() {
+    const dot = document.getElementById('healthDot');
+    const lbl = document.getElementById('healthLabel');
+    try {
+      const r = await fetch(API + '/health');
+      const d = r.ok ? await r.json() : {};
+      if (r.ok && d.ok) {
+        if (dot) dot.style.background = 'var(--teal)';
+        const up = d.uptime != null ? Math.floor(d.uptime / 3600) + 'h' : '';
+        if (lbl) lbl.textContent = up ? 'Up · ' + up : 'Online';
+      } else {
+        if (dot) dot.style.background = 'var(--warn)';
+        if (lbl) lbl.textContent = 'Degraded';
+      }
+    } catch {
+      if (dot) dot.style.background = 'var(--invalid)';
+      if (lbl) lbl.textContent = 'Offline';
+    }
   }
 
   async function sendViaSES() {

@@ -69,6 +69,7 @@
     input.search-input::placeholder{color:var(--text-sec)}
     button.search-btn{background:linear-gradient(135deg,var(--gold),#B8860B);border:none;border-radius:10px;padding:13px 26px;cursor:pointer;color:var(--navy);font-family:'DM Sans',sans-serif;font-weight:600;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:8px}
     button.search-btn:hover{opacity:.9;transform:translateY(-1px)}
+    button.search-btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
     button.search-btn:disabled{opacity:.5;cursor:wait;transform:none}
     .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
@@ -76,7 +77,7 @@
     .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:20px 0;margin-bottom:60px}
     .stat-item{text-align:center;padding:0 36px;border-right:1px solid var(--border)}
     .stat-item:last-child{border-right:none}
-    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1}
+    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1;transition:color .3s}
     .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
     @media(max-width:600px){
       .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
@@ -86,7 +87,7 @@
     /* RESULT */
     #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
     .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
-    .scan-ring{width:48px;height:48px;border:2px solid var(--border-gold);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 18px}
+    .scan-ring{width:52px;height:52px;border:2px solid var(--border-gold);border-top-color:var(--gold);border-right-color:rgba(212,168,67,0.5);border-radius:50%;animation:spin 0.8s cubic-bezier(.6,.1,.4,.9) infinite;margin:0 auto 18px}
     .not-found{text-align:center;padding:60px;background:rgba(255,107,138,0.04);border:1px solid rgba(255,107,138,0.2);border-radius:20px;animation:fadeUp .4s ease}
     .not-found h3{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--invalid);margin:16px 0 10px}
     .not-found p{font-size:.86rem;color:var(--text-sec);line-height:1.8}
@@ -94,7 +95,7 @@
     .cred-layout{display:grid;grid-template-columns:288px 1fr;gap:28px;align-items:start;animation:fadeUp .5s ease}
     @media(max-width:820px){.cred-layout{grid-template-columns:1fr}.cred-sidebar{position:static}}
     /* SIDEBAR */
-    .cred-sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:82px}
+    .cred-sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:86px}
     .sidebar-card{background:rgba(17,34,64,0.88);border:1px solid var(--border);border-radius:18px;padding:24px;backdrop-filter:blur(12px)}
     .sdlabel{font-size:.56rem;letter-spacing:.22em;color:var(--teal);text-transform:uppercase;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
     .sdname{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--text-bright);line-height:1.25;margin-bottom:4px}
@@ -658,7 +659,7 @@
   <div class="search-container">
     <div class="search-wrap" id="searchWrap">
       <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" />
+      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="Certificate number input" />
       <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify certificate">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
@@ -671,7 +672,7 @@
 <div class="stats-bar">
   <div class="stat-item"><div class="stat-num" id="statTotal" aria-label="Certificates issued: loading">—</div><div class="stat-label">Certificates Issued</div></div>
   <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)" aria-label="Currently active certificates: loading">—</div><div class="stat-label">Currently Active</div></div>
-  <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="ISO Lead Auditor Verified">ISO</div><div class="stat-label">Lead Auditor Verified</div></div>
+  <div class="stat-item"><div class="stat-num" id="statLastIssued" style="color:var(--gold);font-size:1.1rem;letter-spacing:.04em" aria-label="Most recently issued certificate date: loading">—</div><div class="stat-label">Last Issued</div></div>
   <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="Registry available 24 hours a day, 7 days a week">24/7</div><div class="stat-label">Registry Available</div></div>
 </div>
 
@@ -735,10 +736,18 @@
     if (d.total !== undefined) {
       const tot = document.getElementById('statTotal');
       const val = document.getElementById('statValid');
+      const lst = document.getElementById('statLastIssued');
       tot.textContent = d.total;
       tot.setAttribute('aria-label', 'Certificates issued: ' + d.total);
       val.textContent = d.valid;
       val.setAttribute('aria-label', 'Currently active certificates: ' + d.valid);
+      if (lst && d.lastIssued) {
+        const dt = new Date(d.lastIssued);
+        lst.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+        lst.setAttribute('aria-label', 'Most recently issued certificate date: ' + lst.textContent);
+      } else if (lst) {
+        lst.textContent = '—';
+      }
     }
   }).catch(() => {});
 
@@ -1217,6 +1226,9 @@
     if (!C) return;
     _configApplied = true;
     document.title = C.titles.cstPortal;
+    // Update meta description dynamically so social crawlers get the right text
+    var metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.content = 'Verify ' + C.brand.name + ' Cyber Security Training certificates in real-time.';
     var el;
     if ((el=document.getElementById('navBrandName'))) el.textContent = C.brand.name;
     if ((el=document.getElementById('navBrandSub')))  el.textContent = C.nav.cstBrandSub;
@@ -1234,15 +1246,13 @@
     var vl=document.getElementById('vptTabLabel'); if(vl) vl.textContent=C.nav.vptTabLabel;
     var inp=document.getElementById('certInput');
     if(inp) inp.placeholder = C.cst.searchPlaceholder;
-}
-  // Call immediately (fast path if config.js already loaded)
-  applyConfig();
-  // Fallback: also call after DOM + scripts are fully ready
-  if (document.readyState !== 'complete') {
-    window.addEventListener('load', applyConfig);
   }
-  // Also call applyConfig when config.js (deferred) finishes loading
+  // Call immediately (fast path if config.js already loaded synchronously)
+  applyConfig();
+  // config.js is deferred — also wire up the custom event it dispatches
   document.addEventListener('appconfigready', applyConfig);
+  // Belt-and-suspenders: run once more after full page load
+  window.addEventListener('load', applyConfig);
 </script>
 </body>
 </html>

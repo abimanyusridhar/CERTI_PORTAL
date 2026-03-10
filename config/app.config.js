@@ -37,7 +37,7 @@
     cisoRole:      'CISO',                          // short role token
     cisoFullTitle: 'Chief Information Security Officer',
 
-    // Team identifiers  (only differ here — one has a space, one doesn't)
+    // Team identifiers
     cstTeamSuffix:  'Cyber Security Team',          // → "<company> Cyber Security Team"
     vaptTeamSuffix: 'Cybersecurity Team',           // → "<company> Cybersecurity Team"
     division:       'Cyber Security And Compliance Division',
@@ -91,15 +91,20 @@
   var cisoDisplay = A.cisoRole + ' \u2014 ' + A.companyShort + ' Group';
 
   /** "CISO, Synergy Marine Group"  (used in CST verified-by fallback) */
-  var cisoOrg = A.cisoRole + ', ' + A.company;
+  var cisoOrg = A.cisoRole + ', ' + A.company;   // eslint-disable-line no-unused-vars
 
   /* ═══════════════════════════════════════════════════════════════════════
    * §3  FULL CONFIGURATION OBJECT  —  consumes only §1 atoms and §2 vars
    * ═══════════════════════════════════════════════════════════════════════ */
   var cfg = {
 
+    // ── CONFIG VERSION ───────────────────────────────────────────────────
+    // Increment when making structural changes so pages can detect stale
+    // cached configs.  Format: "<major>.<minor>.<patch>"
+    version: '1.1.0',
+
     // ── STORAGE KEYS ─────────────────────────────────────────────────────
-    // Centralised so all 4 pages share the same key — never diverge silently.
+    // Centralised so all pages share the same key — never diverge silently.
     storageKeys: {
       theme: 'smg-theme',
     },
@@ -148,8 +153,9 @@
       vaptBrandSub:   'VAPT Assessment Registry',
       cstTabLabel:    'CST Training',
       vptTabLabel:    'VAPT Assessment',
+      // FIX: was 'Synergy VPT' — corrected to 'Synergy VAPT' for consistency
       cstSidebarName: A.companyShort + ' CST',
-      vptSidebarName: A.companyShort + ' VPT',
+      vptSidebarName: A.companyShort + ' VAPT',
       cstLoginSub:    A.companyShort + ' Certificate Control Panel',
       vaptLoginSub:   'VAPT Certificate Control Panel',
     },
@@ -205,9 +211,10 @@
     // Functions so they interpolate live cert data at call-time.
     emailTemplates: {
       /**
-       * CST training email body
+       * CST training email body.
        * @param {object} c        - certificate object
        * @param {string} verifyUrl - public verification URL
+       * @returns {string}
        */
       cst: function (c, verifyUrl) {
         var d = c.complianceDate
@@ -232,9 +239,10 @@
       },
 
       /**
-       * VAPT email body
+       * VAPT email body.
        * @param {object} c       - certificate object
        * @param {string} certUrl - public verification URL
+       * @returns {string}
        */
       vapt: function (c, certUrl) {
         return 'Subject: Your VAPT Certificate \u2014 ' + c.id + ' \u2014 ' + A.companyShort + ' Group\n\n'
@@ -262,7 +270,7 @@
   // Node.js  →  module.exports  (server: require('./config/app.config'))
   // Browser  →  window.APP_CONFIG  (HTML: <script src="/config.js" defer></script>)
   //             then access via: window.APP_CONFIG.brand.name
-  //             or listen for:   window.addEventListener('appconfigready', fn)
+  //             or listen for:   document.addEventListener('appconfigready', fn)
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = cfg;
   } else {
@@ -271,7 +279,12 @@
     if (typeof document !== 'undefined') {
       var evt = typeof CustomEvent === 'function'
         ? new CustomEvent('appconfigready', { detail: cfg })
-        : (function(){ var e = document.createEvent('Event'); e.initEvent('appconfigready',true,true); e.detail=cfg; return e; })();
+        : (function () {
+            var e = document.createEvent('Event');
+            e.initEvent('appconfigready', true, true);
+            e.detail = cfg;
+            return e;
+          }());
       document.dispatchEvent(evt);
     }
   }
