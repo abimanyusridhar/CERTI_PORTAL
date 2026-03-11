@@ -111,12 +111,13 @@
 
     // ── BRAND & COMPANY ──────────────────────────────────────────────────
     brand: {
-      name:        A.company,
-      companyFull: A.company,
-      cstTeam:     cstTeam,
-      vaptTeam:    vaptTeam,
-      division:    A.company + ' ' + A.division,
-      adminRole:   'Full Access \u00b7 ' + A.company,
+      name:         A.company,
+      companyFull:  A.company,
+      companyShort: A.companyShort,   // FIX: exposed so CFG.brand.companyShort / APP_CONFIG.brand.companyShort resolve correctly
+      cstTeam:      cstTeam,
+      vaptTeam:     vaptTeam,
+      division:     A.company + ' ' + A.division,
+      adminRole:    'Full Access \u00b7 ' + A.company,
     },
 
     // ── CONTACT EMAILS ───────────────────────────────────────────────────

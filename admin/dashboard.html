@@ -1063,6 +1063,14 @@
       border: 1px solid rgba(255, 107, 138, .2);
     }
 
+    /* Inline status selector */
+    .inline-status-sel{border-radius:10px;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.1em;border:1px solid;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;transition:all .15s;text-transform:uppercase}
+    .inline-status-sel.status-valid{background:rgba(100,255,218,.1);color:var(--teal);border-color:rgba(100,255,218,.3)}
+    .inline-status-sel.status-expired{background:rgba(255,107,138,.1);color:var(--invalid);border-color:rgba(255,107,138,.3)}
+    .inline-status-sel.status-pending{background:rgba(126,184,247,.1);color:#7EB8F7;border-color:rgba(126,184,247,.3)}
+    .inline-status-sel.status-revoked{background:rgba(255,179,71,.1);color:var(--warn);border-color:rgba(255,179,71,.3)}
+    .inline-status-sel option{background:var(--navy-mid);color:var(--text);font-size:.75rem}
+
     .act-grp {
       display: flex;
       gap: 5px;
@@ -1791,8 +1799,9 @@
       max-width: 420px;
     }
 
-    @keyframes pop {
-      from {
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+    @keyframes pop {      from {
         opacity: 0;
         transform: scale(.94) translateY(-14px)
       }
@@ -2375,7 +2384,7 @@
         </a>
         <a id="sbLinkVPTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-          Switch → VPT Admin
+          Switch to VAPT
         </a>
         <div class="nav-sec">Management</div>
         <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)">
@@ -2413,6 +2422,12 @@
           </svg>
           Issue Credentials
         </div>
+        <div class="nav-item" id="nav-validity" onclick="showPage('validity',this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          Internal Validity <span class="nav-badge" id="nbValidityAlert" style="background:rgba(255,179,71,.15);color:var(--warn);border:1px solid rgba(255,179,71,.3)">0</span>
+        </div>
         <div class="nav-sec" style="margin-top:18px">Quick Stats</div>
         <div class="side-mini">
           <div class="side-row"><span>Valid</span><span style="color:var(--teal)" id="svValid">—</span></div>
@@ -2424,7 +2439,7 @@
         </div>
       </nav>
       <div class="sb-foot">
-        <!-- Server health + SES status indicators -->
+        <!-- Server & email service status indicators -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 4px 10px;margin-bottom:4px;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--text-sec)">
             <span id="healthDot" style="width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .4s"></span>
@@ -2432,7 +2447,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--text-sec)">
             <span id="sesSbDot" style="width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .4s"></span>
-            <span id="sesSbLabel">SES</span>
+            <span id="sesSbLabel">Mail</span>
           </div>
         </div>
         <div class="admin-tag">
@@ -2559,7 +2574,7 @@
           <div class="analytics-card">
             <div class="analytics-head">
               <div><div class="analytics-title">Email Dispatch</div><div class="analytics-sub">Credential delivery status</div></div>
-              <span class="analytics-pill">Dispatch</span>
+              <span class="analytics-pill" style="animation:pulse 3s ease-in-out infinite">● Live</span>
             </div>
             <div class="analytics-chart-wrap"><canvas id="emailChart"></canvas></div>
           </div>
@@ -2577,10 +2592,10 @@
         <!-- ── EXPIRY BAR CHART ── -->
         <div class="analytics-card" style="margin-bottom:14px">
           <div class="analytics-head">
-            <div><div class="analytics-title">Expiry Radar</div><div class="analytics-sub">Validity window distribution across the entire registry</div></div>
-            <span class="analytics-pill">Validity</span>
+            <div><div class="analytics-title">Expiry Radar</div><div class="analytics-sub" id="expiryRadarSub">Validity window distribution — all certificates</div></div>
+            <span class="analytics-pill" style="animation:pulse 3s ease-in-out infinite">● Live</span>
           </div>
-          <div style="padding:4px 20px 20px;height:180px"><canvas id="expiryChart"></canvas></div>
+          <div style="padding:4px 20px 20px;height:220px"><canvas id="expiryChart"></canvas></div>
         </div>
 
         <!-- ── ALERT PANELS 2×2 GRID ── -->
@@ -2711,6 +2726,10 @@
             <div style="margin-bottom:20px">
               <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold)">Import Certificates from CSV</div>
               <div style="font-size:.67rem;color:var(--text-sec);margin-top:4px">Upload your CSV file to create multiple certificate records at once. After import, edit each record to attach the certificate PNG image.</div>
+              <div style="margin-top:10px;padding:9px 12px;background:rgba(100,255,218,0.04);border:1px solid rgba(100,255,218,0.15);border-radius:8px;font-size:.67rem;color:var(--text-sec)">
+                📋 <strong>CST CSV Format:</strong> Required: <code>imo_number</code>, <code>vessel_name</code>, <code>chief_engineer</code>, <code>compliance_date</code> — Optional: <code>cert_number</code>, <code>recipient_email</code>, <code>notes</code>
+                &nbsp;·&nbsp; <button class="btn btn-ghost btn-sm" onclick="downloadSampleCsv()">Download Sample CSV</button>
+              </div>
             </div>
 
             <!-- DROP ZONE -->
@@ -3096,15 +3115,15 @@
               <div id="issueCertList" style="max-height:320px;overflow-y:auto"></div>
             </div>
 
-            <!-- AWS SES Email panel -->
+            <!-- Credential Email Panel -->
             <div class="table-card" style="padding:20px" id="issueComposePanel">
               <div class="issue-section-title" style="margin-bottom:12px">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
-                Issue Credentials via AWS SES
-                <!-- SES status badge -->
-                <span id="sesBadgeCst" style="margin-left:8px;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:rgba(255,107,138,.08);color:#ff6b8a;border:1px solid rgba(255,107,138,.2)">Checking…</span>
+                Issue Credentials
+                <!-- Email service status badge -->
+                <span id="sesBadgeCst" style="margin-left:8px;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:rgba(139,148,170,.08);color:var(--text-sec);border:1px solid rgba(139,148,170,.2)">Checking…</span>
               </div>
 
               <!-- Prompt when nothing selected -->
@@ -3138,15 +3157,15 @@
                   <div id="issueEmailPreview" style="background:var(--navy);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.75rem;color:var(--text);line-height:1.9;white-space:pre-wrap;font-family:'DM Sans',sans-serif;min-height:180px;user-select:text"></div>
                 </div>
 
-                <!-- SES send result banner -->
+                <!-- Send result banner -->
                 <div id="sesSendResult" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:9px;font-size:.76rem;line-height:1.6"></div>
 
                 <!-- Action buttons -->
                 <div style="display:flex;gap:10px;margin-top:4px">
-                  <!-- Primary: Send via SES -->
+                  <!-- Primary send action -->
                   <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="sendSesBtn" onclick="sendViaSES()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                    <span id="sendSesTxt">Send via AWS SES</span>
+                    <span id="sendSesTxt">Send Credential Email</span>
                   </button>
                   <!-- Secondary: manual fallback -->
                   <button class="btn btn-ghost" style="padding:12px 14px" id="markSentBtn" onclick="markAsSent()" title="Mark as sent without dispatching email">
@@ -3156,7 +3175,7 @@
                   <button class="btn btn-ghost" onclick="clearIssueSelection()">Clear</button>
                 </div>
                 <div style="font-size:.62rem;color:var(--text-sec);margin-top:8px;line-height:1.7">
-                  <strong style="color:var(--teal)">Send via AWS SES</strong> dispatches the email automatically and records it. &nbsp;·&nbsp; <strong style="color:var(--gold)">Mark Sent</strong> records it without dispatching (use after manual send).
+                  <strong style="color:var(--teal)">Send Email</strong> dispatches the credential automatically and records delivery. &nbsp;·&nbsp; <strong style="color:var(--gold)">Mark Sent</strong> records it without dispatching (use after a manual send).
                 </div>
               </div>
             </div>
@@ -3184,7 +3203,7 @@
                 </div>
                 <div style="font-size:.7rem;color:var(--text-sec);line-height:1.8;margin-top:4px">
                   · Select a certificate and enter recipient email<br>
-                  · Click <strong style="color:var(--teal)">Send via AWS SES</strong> to dispatch automatically<br>
+                  · Click <strong style="color:var(--teal)">Send Email</strong> to dispatch automatically<br>
                   · Or copy the preview and send manually, then <strong style="color:var(--gold)">Mark Sent</strong>
                 </div>
               </div>
@@ -3203,6 +3222,40 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+
+      <!-- ══ INTERNAL VALIDITY PAGE ══ -->
+      <div class="page" id="page-validity" style="display:none">
+        <!-- Info Banner -->
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:rgba(255,179,71,.05);border:1px solid rgba(255,179,71,.22);border-radius:12px;font-size:.76rem;color:var(--warn);margin-bottom:18px;line-height:1.65">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span><strong>Internal Validity Window (90 Days):</strong> This view tracks an internal 3-month review deadline calculated from each certificate's Issue Date. The 90-day window is for internal reference only and does not affect the certificate's official validity period.</span>
+        </div>
+        <!-- KPI Cards -->
+        <div id="ivKpiRow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"></div>
+        <!-- Filter + Export -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div class="mini-search" style="flex:1;min-width:200px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="ivSearchQ" placeholder="Search vessel, recipient, cert ID…" oninput="renderValidityPage(this.value)" />
+          </div>
+          <select id="ivFilterSel" onchange="renderValidityPage(document.getElementById('ivSearchQ').value)" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-size:.72rem;cursor:pointer">
+            <option value="">All Windows</option>
+            <option value="valid">Within Window</option>
+            <option value="expiring">Expiring ≤ 30d</option>
+            <option value="expired">Passed Window</option>
+            <option value="nodate">No Issue Date</option>
+          </select>
+          <button onclick="exportValidityCSV()" class="btn btn-ghost btn-sm" style="white-space:nowrap">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export CSV
+          </button>
+        </div>
+        <!-- Table -->
+        <div class="table-card">
+          <div id="ivTableWrap"></div>
         </div>
       </div>
 
@@ -3243,8 +3296,7 @@
         <p style="font-size:.75rem;color:var(--text-sec);margin-top:10px;font-family:'JetBrains Mono',monospace;background:var(--navy-mid);padding:10px;border-radius:8px"
           id="delId"></p>
       </div>
-      <div class="modal-foot"><button class="btn btn-ghost" onclick="closeDel()">Cancel</button><button
-          class="btn btn-danger" onclick="doDelete()">Delete Permanently</button></div>
+      <div class="modal-foot"><button class="btn btn-ghost" onclick="closeDel()">Cancel</button><button class="btn btn-danger" onclick="doDelete()">Delete Certificate</button></div>
     </div>
   </div>
 
@@ -3330,7 +3382,7 @@
       await refreshStats();
       renderTbl('dashTbl', '');
       updateRealTimeBadge();
-      checkSesStatus();  // Check AWS SES config status
+      checkSesStatus();  // Check email service status
       checkHealth();     // Check server health endpoint
       // ── Real-time auto-refresh: poll every 30 seconds ──
       if (_autoRefreshInterval) clearInterval(_autoRefreshInterval);
@@ -3354,7 +3406,10 @@
     }
     async function refreshStats() {
       try {
-        const r = await fetch(API + '/certs', { headers: { Authorization: 'Bearer ' + TOKEN } });
+        const ctrl = new AbortController();
+        const _t = setTimeout(() => ctrl.abort(), 15_000);
+        const r = await fetch(API + '/certs', { headers: { Authorization: 'Bearer ' + TOKEN }, signal: ctrl.signal });
+        clearTimeout(_t);
         if (r.status === 401) { toast('Session expired. Please log in again.', 'err'); doLogout(); return; }
         CERTS = await r.json();
         checkNearExpiryBanner(CERTS); // Proactive near-expiry banner on dashboard
@@ -3386,7 +3441,16 @@
         updateInsights(a);
         renderAlertPanels(a);
         renderSentLog();
-        updateRealTimeBadge();
+        // Update Internal Validity alert badge
+        const ivBadge = document.getElementById('nbValidityAlert');
+        if (ivBadge && typeof computeIVStats === 'function') {
+          const ivS = computeIVStats(CERTS);
+          const alertCount = ivS.expiring + ivS.expired;
+          ivBadge.textContent = alertCount;
+          ivBadge.style.background = alertCount > 0 ? 'rgba(255,107,138,.18)' : 'rgba(255,179,71,.12)';
+          ivBadge.style.color = alertCount > 0 ? 'var(--invalid)' : 'var(--warn)';
+          ivBadge.style.borderColor = alertCount > 0 ? 'rgba(255,107,138,.3)' : 'rgba(255,179,71,.25)';
+        }
       } catch { }
     }
 
@@ -3427,9 +3491,19 @@
         else emailPending++;
       });
       nearExpiry.sort((a, b) => a.daysLeft - b.daysLeft);
+      // Non-overlapping buckets for expiry radar
+      let exp7=0, exp8to30=0, exp31to90=0, healthyBucket=0;
+      certs.forEach(c => {
+        const dl2 = daysUntil(c.validUntil);
+        if (dl2 === null || dl2 < 0) return;
+        if (dl2 <= 7) exp7++;
+        else if (dl2 <= 30) exp8to30++;
+        else if (dl2 <= 90) exp31to90++;
+        else healthyBucket++;
+      });
       return {
         total: certs.length, valid, revoked, expired, pending, emailSent, emailPending,
-        buckets: { expSoon30, expSoon90, expiredPast, noExpiry }, earliestIssued,
+        buckets: { expiredPast, expSoon30, expSoon90, noExpiry, exp7, exp8to30, exp31to90, healthy: healthyBucket }, earliestIssued,
         nearExpiry,
         mostCommonQuarter: Object.entries(qC).sort((a, b) => b[1] - a[1])[0],
         topMode: Object.entries(mC).sort((a, b) => b[1] - a[1])[0]
@@ -3437,15 +3511,12 @@
     }
 
     // ════════════════════════════════════════════════════
-    // MODULE: Charts
+    // MODULE: Charts  —  update-in-place (no flicker)
     // ════════════════════════════════════════════════════
-    function updateCharts(a) {
-      if (!window.Chart) return;
-      const legendOpts = { display: true, position: 'right', labels: { color: '#8892B0', boxWidth: 10, font: { size: 10 }, padding: 10 } };
-      // ── Status Distribution Doughnut ──
-      const statusCtx = document.getElementById('statusChart').getContext('2d');
-      if (STATUS_CHART) STATUS_CHART.destroy();
-      STATUS_CHART = new Chart(statusCtx, {
+    const _CHART_LEGEND = { display: true, position: 'right', labels: { color: '#8892B0', boxWidth: 10, font: { size: 10 }, padding: 10 } };
+
+    function _buildStatusChart(a) {
+      return new Chart(document.getElementById('statusChart').getContext('2d'), {
         type: 'doughnut',
         data: {
           labels: ['Valid', 'Expired', 'Revoked', 'Pending'],
@@ -3454,12 +3525,12 @@
             borderColor: ['#64FFDA', '#FFB347', '#FF6B8A', '#7EB8F7'], borderWidth: 1.5, hoverOffset: 6 }]
         },
         options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
-          plugins: { legend: legendOpts, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${a.total > 0 ? Math.round(ctx.raw / a.total * 100) : 0}%)` } } } }
+          plugins: { legend: _CHART_LEGEND, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${a.total > 0 ? Math.round(ctx.raw / a.total * 100) : 0}%)` } } } }
       });
-      // ── Email Dispatch Doughnut ──
-      const emailCtx = document.getElementById('emailChart').getContext('2d');
-      if (EMAIL_CHART) EMAIL_CHART.destroy();
-      EMAIL_CHART = new Chart(emailCtx, {
+    }
+
+    function _buildEmailChart(a) {
+      return new Chart(document.getElementById('emailChart').getContext('2d'), {
         type: 'doughnut',
         data: {
           labels: ['Sent ✓', 'Not Sent', 'Pending Certs'],
@@ -3468,36 +3539,59 @@
             borderColor: ['#64FFDA', '#FF6B8A', '#7EB8F7'], borderWidth: 1.5, hoverOffset: 6 }]
         },
         options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
-          plugins: { legend: legendOpts, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } } } }
+          plugins: { legend: _CHART_LEGEND, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } } } }
       });
-      // ── Expiry Radar Bar ──
-      const expiryCtx = document.getElementById('expiryChart').getContext('2d');
-      if (EXPIRY_CHART) EXPIRY_CHART.destroy();
-      EXPIRY_CHART = new Chart(expiryCtx, {
+    }
+
+    function _buildExpiryChart(a) {
+      const bk = a.buckets || {};
+      return new Chart(document.getElementById('expiryChart').getContext('2d'), {
         type: 'bar',
         data: {
-          labels: ['Already Expired', 'Expiring ≤7d', 'Expiring 8–30d', 'Expiring 31–90d', 'Healthy (>90d)', 'No Expiry Set'],
+          labels: ['Expired', '≤7d', '8–30d', '31–90d', '>90d', 'No Expiry'],
           datasets: [{
             label: 'Certificates',
-            data: [a.buckets.expiredPast,
-              (a.nearExpiry||[]).filter(x=>x.daysLeft<=7).length,
-              (a.nearExpiry||[]).filter(x=>x.daysLeft>7&&x.daysLeft<=30).length,
-              a.buckets.expSoon90 - a.buckets.expSoon30,
-              Math.max(0, a.total - a.buckets.expiredPast - a.buckets.expSoon90 - a.buckets.noExpiry - (a.pending||0)),
-              a.buckets.noExpiry],
-            backgroundColor: ['rgba(255,107,138,.6)', 'rgba(255,107,138,.4)', 'rgba(212,168,67,.5)', 'rgba(255,179,71,.4)', 'rgba(100,255,218,.45)', 'rgba(136,146,176,.35)'],
+            data: [bk.expiredPast || 0, bk.exp7 || 0, bk.exp8to30 || 0, bk.exp31to90 || 0, bk.healthy || 0, bk.noExpiry || 0],
+            backgroundColor: ['rgba(255,107,138,.65)', 'rgba(255,107,138,.45)', 'rgba(212,168,67,.55)', 'rgba(255,179,71,.45)', 'rgba(100,255,218,.48)', 'rgba(136,146,176,.38)'],
             borderColor: ['#FF6B8A', '#FF6B8A', '#D4A843', '#FFB347', '#64FFDA', '#8892B0'],
-            borderWidth: 1.5, borderRadius: 4
+            borderWidth: 1.5, borderRadius: 5
           }]
         },
         options: { responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} cert${ctx.raw !== 1 ? 's' : ''}` } } },
           scales: {
-            x: { ticks: { color: '#8892B0', font: { size: 10 } }, grid: { display: false } },
-            y: { ticks: { color: '#8892B0', precision: 0, stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(136,146,176,.12)' }, beginAtZero: true }
+            x: { ticks: { color: '#8892B0', font: { size: 11 }, maxRotation: 0 }, grid: { display: false } },
+            y: { ticks: { color: '#8892B0', font: { size: 10 }, callback: v => Number.isInteger(v) ? v : '' }, grid: { color: 'rgba(136,146,176,.12)' }, beginAtZero: true }
           }
         }
       });
+    }
+
+    function updateCharts(a) {
+      if (!window.Chart) return;
+      // ── Status Doughnut: update data in-place, rebuild only on first load ──
+      if (STATUS_CHART) {
+        STATUS_CHART.data.datasets[0].data = [a.valid, a.expired, a.revoked, a.pending || 0];
+        STATUS_CHART.options.plugins.tooltip.callbacks.label = ctx => ` ${ctx.label}: ${ctx.raw} (${a.total > 0 ? Math.round(ctx.raw / a.total * 100) : 0}%)`;
+        STATUS_CHART.update('none');
+      } else {
+        STATUS_CHART = _buildStatusChart(a);
+      }
+      // ── Email Doughnut ──
+      if (EMAIL_CHART) {
+        EMAIL_CHART.data.datasets[0].data = [a.emailSent, a.emailPending, a.pending || 0];
+        EMAIL_CHART.update('none');
+      } else {
+        EMAIL_CHART = _buildEmailChart(a);
+      }
+      // ── Expiry Radar Bar ──
+      if (EXPIRY_CHART) {
+        const bk = a.buckets || {};
+        EXPIRY_CHART.data.datasets[0].data = [bk.expiredPast || 0, bk.exp7 || 0, bk.exp8to30 || 0, bk.exp31to90 || 0, bk.healthy || 0, bk.noExpiry || 0];
+        EXPIRY_CHART.update('none');
+      } else {
+        EXPIRY_CHART = _buildExpiryChart(a);
+      }
     }
 
     function updateInsights(a) {
@@ -3507,6 +3601,14 @@
       const t = a.total || 1;
       const vp = Math.round(a.valid / t * 100);
       const ep = Math.round(a.emailSent / t * 100);
+      // Update expiry radar subtitle
+      const erSub = document.getElementById('expiryRadarSub');
+      if (erSub) {
+        const urgentCount = (a.buckets.exp7 || 0) + (a.buckets.expiredPast || 0);
+        erSub.textContent = urgentCount > 0
+          ? `⚠ ${urgentCount} cert${urgentCount !== 1 ? 's' : ''} need attention · ${a.total} total`
+          : `All ${a.total} certificates tracked · ${a.buckets.healthy || 0} healthy`;
+      }
       // Status chips — colour-coded by severity
       chips.innerHTML = [
         `<span class="analytics-chip" style="background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.2)"><strong>${vp}%</strong> valid</span>`,
@@ -3640,6 +3742,43 @@
       }
     }
 
+    // ── QUICK STATUS CHANGE (inline table dropdown) ──
+    async function quickStatusChange(id, newStatus, selEl) {
+      const c = CERTS.find(x => x.id === id); if (!c) return;
+      const oldStatus = c.status;
+      if (oldStatus === newStatus) return;
+      // Optimistic UI
+      c.status = newStatus;
+      if (selEl) { selEl.className = 'inline-status-sel status-' + newStatus.toLowerCase(); }
+      try {
+        const fd = new FormData();
+        fd.append('status', newStatus);
+        // If activating from PENDING and no validUntil set, auto-set 1 year from today
+        if (newStatus === 'VALID' && !c.validUntil) {
+          const d = new Date(); d.setFullYear(d.getFullYear() + 1);
+          fd.append('validUntil', d.toISOString().slice(0, 10));
+          c.validUntil = d.toISOString().slice(0, 10);
+        }
+        const r = await fetch(API + '/certs/' + encodeURIComponent(id), {
+          method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd
+        });
+        if (r.ok) {
+          toast('Status updated successfully.', 'ok');
+          await refreshStats();
+          renderTbl('dashTbl', '');
+          renderTbl('allTbl', document.getElementById('allQ')?.value || '', document.getElementById('allStatus')?.value || '', document.getElementById('allQtr')?.value || '', document.getElementById('allMode')?.value || '', document.getElementById('allEmail')?.value || '');
+        } else {
+          c.status = oldStatus;
+          if (selEl) { selEl.value = oldStatus; selEl.className = 'inline-status-sel status-' + oldStatus.toLowerCase(); }
+          toast('Could not update status. Please try again.', 'err');
+        }
+      } catch {
+        c.status = oldStatus;
+        if (selEl) { selEl.value = oldStatus; selEl.className = 'inline-status-sel status-' + oldStatus.toLowerCase(); }
+        toast('Connection error. Please check your network.', 'err');
+      }
+    }
+
     async function activateCert(id) {
       const c = CERTS.find(x => x.id === id);
       if (!c) return;
@@ -3649,11 +3788,11 @@
         fd.append('status', 'VALID');
         const r = await fetch(API + '/certs/' + encodeURIComponent(id), { method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
         if (r.ok) {
-          toast(`Certificate ${id} activated!`, 'ok');
+          toast('Certificate activated successfully.', 'ok');
           await refreshStats();
           renderTbl('dashTbl', '');
-        } else { toast('Activation failed.', 'err'); }
-      } catch { toast('Server error.', 'err'); }
+        } else { toast('Could not activate certificate. Please try again.', 'err'); }
+      } catch { toast('Something went wrong. Please try again.', 'err'); }
     }
 
     // ════════════════════════════════════════════════════
@@ -3725,7 +3864,12 @@
       <td style="font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.chiefEngineer || '—'}</td>
       <td>${qBadge}</td>
       <td>${modeBadge}</td>
-      <td><span class="pill ${pillCls}">${isV ? '✓ ' : c.status === 'PENDING' ? '⏳ ' : ''}<span style="vertical-align:middle">${c.status}</span></span></td>
+      <td><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${c.id}" onchange="quickStatusChange('${c.id}',this.value,this)" title="Change status">
+        <option value="VALID" ${c.status==='VALID'?'selected':''}>✓ VALID</option>
+        <option value="PENDING" ${c.status==='PENDING'?'selected':''}>⏳ PENDING</option>
+        <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
+        <option value="REVOKED" ${c.status==='REVOKED'?'selected':''}>🚫 REVOKED</option>
+      </select></td>
       <td style="color:${vlColor};font-size:.76rem;white-space:nowrap">${vl}</td>
       <td><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
       ${!isDash ? `<td>${imgEl}</td>` : ''}
@@ -3734,7 +3878,7 @@
         <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
         <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
         ${canSend ? `<button class="btn btn-issue btn-sm" onclick="quickSend('${c.id}')">✉</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Del</button>
+        <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Delete</button>
       </div></td>
     </tr>`;
       }).join('') + '</tbody></table>';
@@ -3751,17 +3895,18 @@
     // MODULE: Pages
     // ════════════════════════════════════════════════════
     function showPage(name, el) {
-      ['dashboard', 'certs', 'add', 'issue', 'csv'].forEach(p => {
+      ['dashboard', 'certs', 'add', 'issue', 'csv', 'validity'].forEach(p => {
         document.getElementById('page-' + p).style.display = p === name ? '' : 'none';
       });
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       if (el) el.classList.add('active');
-      const titles = { dashboard: ['Dashboard', 'Admin › Overview'], certs: ['All Certificates', 'Admin › Certificates'], add: [editingId ? 'Edit Certificate' : 'Add Certificate', 'Admin › ' + (editingId ? 'Edit' : 'Add')], issue: ['Issue Credentials', 'Admin › Issue'], csv: ['Import CSV', 'Admin › CSV Import'] };
+      const titles = { dashboard: ['Dashboard', 'Admin › Overview'], certs: ['All Certificates', 'Admin › Certificates'], add: [editingId ? 'Edit Certificate' : 'Add Certificate', 'Admin › ' + (editingId ? 'Edit' : 'Add')], issue: ['Issue Credentials', 'Admin › Issue'], csv: ['Import CSV', 'Admin › CSV Import'], validity: ['Internal Validity', 'Admin › Internal Validity'] };
       const [t, b] = titles[name] || ['', ''];
       document.getElementById('pageTitle').textContent = t;
       document.getElementById('pageBread').textContent = b;
       if (name === 'certs') renderTbl('allTbl', '');
       if (name === 'issue') { renderIssueList(''); refreshStats(); }
+      if (name === 'validity') renderValidityPage();
     }
     function startAdd() {
       issuanceMode = false; editingId = null; resetForm();
@@ -4134,7 +4279,7 @@
         document.getElementById('markSentTxt').textContent = '✓ Already Marked Sent';
       } else {
         btn.disabled = false;
-        document.getElementById('markSentTxt').textContent = 'Mark as Sent';
+        document.getElementById('markSentTxt').textContent = 'Mark Sent';
       }
       updateIssueEmailPreview();
     }
@@ -4197,7 +4342,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       });
     }
 
-    // ── SES status check (runs once on load) ───────────────────────────
+    // ── Email service status check (runs once on load) ──────────────────
     async function checkSesStatus() {
       try {
         const r = await fetch(API + '/ses-status', { headers: { Authorization: 'Bearer ' + TOKEN } });
@@ -4207,30 +4352,30 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const lbl   = document.getElementById('sesSbLabel');
         if (d.enabled) {
           if (badge) {
-            badge.textContent = '✓ AWS SES Active · ' + (d.region || '');
+            badge.textContent = '✓ Email Dispatch Active';
             badge.style.background  = 'rgba(100,255,218,.1)';
             badge.style.color       = 'var(--teal)';
             badge.style.borderColor = 'rgba(100,255,218,.25)';
           }
           if (dot)  dot.style.background = 'var(--teal)';
-          if (lbl)  lbl.textContent      = 'SES Active';
+          if (lbl)  lbl.textContent      = 'Mail On';
         } else {
           if (badge) {
             badge.textContent = (d.missing && d.missing.length
-              ? '✗ SES not configured — missing: ' + d.missing.join(', ')
-              : '✗ SES not configured — check .env');
+              ? '✗ Email dispatch unavailable'
+              : '✗ Email dispatch unavailable');
             badge.style.background  = 'rgba(255,107,138,.08)';
             badge.style.color       = '#ff6b8a';
             badge.style.borderColor = 'rgba(255,107,138,.2)';
           }
           if (dot)  dot.style.background = 'var(--warn)';
-          if (lbl)  lbl.textContent      = 'SES Off';
+          if (lbl)  lbl.textContent      = 'Mail Off';
         }
       } catch {
         const dot = document.getElementById('sesSbDot');
         const lbl = document.getElementById('sesSbLabel');
         if (dot) dot.style.background = 'var(--invalid)';
-        if (lbl) lbl.textContent      = 'SES Err';
+        if (lbl) lbl.textContent      = 'Mail Err';
       }
     }
 
@@ -4255,7 +4400,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       }
     }
 
-    // ── Send via AWS SES ────────────────────────────────────────────────
+    // ── Send credential email ───────────────────────────────────────────
     async function sendViaSES() {
       if (!selectedIssueCertId) { toast('Select a certificate first.', 'warn'); return; }
       const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
@@ -4290,13 +4435,13 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
           resultEl.style.background = 'rgba(100,255,218,.08)';
           resultEl.style.border     = '1px solid rgba(100,255,218,.25)';
           resultEl.style.color      = 'var(--teal)';
-          resultEl.innerHTML = `✓ Email dispatched successfully via AWS SES<br>
+          resultEl.innerHTML = `✓ Credential email dispatched successfully<br>
             <span style="font-size:.65rem;opacity:.8">To: ${recipEmail} · ${new Date().toLocaleTimeString()}${d.messageId ? ' · MsgID: ' + d.messageId : ''}</span>`;
           document.getElementById('sendSesTxt').textContent = '✓ Sent!';
           btn.style.background  = 'rgba(100,255,218,.12)';
           btn.style.borderColor = 'rgba(100,255,218,.35)';
           btn.style.color       = 'var(--teal)';
-          toast('✓ Email sent via AWS SES!', 'ok');
+          toast('✓ Credential email sent successfully.', 'ok');
           // Update local cert state
           const c = CERTS.find(x => x.id === selectedIssueCertId);
           if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); c.recipientEmail = recipEmail; }
@@ -4307,7 +4452,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         } else {
           let errMsg;
           if (r.status === 503 || d.sesEnabled === false) {
-            errMsg = 'AWS SES not configured on server. Check AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.';
+            errMsg = 'Email dispatch is not configured on this server. Please contact the system administrator.';
           } else {
             errMsg = d.sesError || d.error || ('HTTP ' + r.status);
           }
@@ -4315,7 +4460,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
           resultEl.style.background = 'rgba(255,107,138,.08)';
           resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
           resultEl.style.color      = '#ff6b8a';
-          resultEl.innerHTML = '✗ Send failed — ' + errMsg;
+          resultEl.innerHTML = '✗ ' + errMsg;
           toast('✗ ' + errMsg, 'err');
         }
       } catch (e) {
@@ -4323,13 +4468,13 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         resultEl.style.background = 'rgba(255,107,138,.08)';
         resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
         resultEl.style.color      = '#ff6b8a';
-        resultEl.innerHTML = `✗ Network error: ${e.message}`;
-        toast('Network error. Please retry.', 'err');
+        resultEl.innerHTML = '✗ Could not reach the server. Please check your connection.';
+        toast('Connection error. Please try again.', 'err');
       }
       // Re-enable only on failure
       btn.disabled = false;
       btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
-      document.getElementById('sendSesTxt').textContent = 'Send via AWS SES';
+      document.getElementById('sendSesTxt').textContent = 'Send Credential Email';
     }
 
     async function markAsSent() {
@@ -4346,7 +4491,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const r = await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId), {
           method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd
         });
-        if (!r.ok) { toast('Failed to mark as sent.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; return; }
+        if (!r.ok) { toast('Could not record dispatch status. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; return; }
         document.getElementById('markSentTxt').textContent = '✓ Marked';
         btn.style.background = 'rgba(212,168,67,.1)'; btn.style.borderColor = 'rgba(212,168,67,.3)'; btn.style.color = 'var(--gold)';
         toast('Marked as sent!', 'ok');
@@ -4355,7 +4500,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         await refreshStats();
         renderIssueList(document.getElementById('issueSearch').value);
         renderSentLog();
-      } catch { toast('Server error.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; }
+      } catch { toast('Something went wrong. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; }
     }
 
     async function quickSend(id) {
@@ -4667,7 +4812,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const url = editingId ? API + '/certs/' + encodeURIComponent(editingId) : API + '/certs';
         const mth = editingId ? 'PUT' : 'POST';
         const r = await fetch(url, { method: mth, headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
-        if (!r.ok) { const e = await r.json(); toast(e.error || 'Save failed.', 'err'); return; }
+        if (!r.ok) { const e = await r.json(); toast(e.error || 'Could not save certificate. Please try again.', 'err'); return; }
         const saved = await r.json();
         savedAttachments = Array.isArray(saved.attachments) ? saved.attachments : [];
         pendingPdfs = [];
@@ -4676,7 +4821,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         editingId = null; imgFile = null; resetForm();
         await refreshStats();
         showPage('certs', document.getElementById('nav-certs'));
-      } catch { toast('Server error.', 'err'); }
+      } catch { toast('Something went wrong. Please try again.', 'err'); }
     }
 
     function resetForm() {
@@ -4707,10 +4852,10 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     async function doDelete() {
       try {
         const r = await fetch(API + '/certs/' + encodeURIComponent(deleteId), { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
-        if (!r.ok) { toast('Delete failed.', 'err'); return; }
+        if (!r.ok) { toast('Could not delete certificate. Please try again.', 'err'); return; }
         closeDel(); await refreshStats(); renderTbl('dashTbl', ''); renderTbl('allTbl', '');
-        toast('Certificate deleted.', 'err');
-      } catch { toast('Server error.', 'err'); }
+        toast('Certificate removed successfully.', 'ok');
+      } catch { toast('Something went wrong. Please try again.', 'err'); }
     }
 
     // ════════════════════════════════════════════════════
@@ -4718,7 +4863,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     // ════════════════════════════════════════════════════
     function onFileSelect(input) {
       const file = input.files[0]; if (!file) return;
-      if (file.size > 5 * 1024 * 1024) { toast('File too large. Max 5MB.', 'err'); return; }
+      if (file.size > 5 * 1024 * 1024) { toast('File exceeds the 5 MB limit. Please choose a smaller file.', 'err'); return; }
       imgFile = file;
       const r = new FileReader();
       r.onload = e => {
@@ -4805,9 +4950,9 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       if (!editingId) return;
       try {
         const r = await fetch(`${API}/certs/${editingId}/attachments/${idx}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
-        if (r.ok) { const d = await r.json(); savedAttachments = d.attachments || []; renderAttachList(); toast('Removed', 'ok'); }
-        else toast('Remove failed', 'err');
-      } catch { toast('Network error', 'err'); }
+        if (r.ok) { const d = await r.json(); savedAttachments = d.attachments || []; renderAttachList(); toast('Attachment removed.', 'ok'); }
+        else toast('Could not remove attachment. Please try again.', 'err');
+      } catch { toast('Connection error. Please check your network.', 'err'); }
     }
     function clearImgSilent() {
       imgFile = null;
@@ -4834,7 +4979,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       r.onload = e => {
         const text = e.target.result;
         csvParsedRows = parseCsv(text);
-        if (csvParsedRows.length === 0) { toast('No data rows found in CSV.', 'err'); return; }
+        if (csvParsedRows.length === 0) { toast('No records found in the CSV file. Please check the format.', 'err'); return; }
         document.getElementById('csvUploadDefault').style.display = 'none';
         document.getElementById('csvUploadLoaded').style.display = 'block';
         document.getElementById('csvFileName').textContent = file.name;
@@ -4964,7 +5109,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     }
 
     async function doImportCsv() {
-      if (csvParsedRows.length === 0) { toast('No CSV data loaded.', 'err'); return; }
+      if (csvParsedRows.length === 0) { toast('Please upload a CSV file before importing.', 'err'); return; }
       const quarter = document.getElementById('csvQuarter').value;
       const mode = document.getElementById('csvMode').value;
       const records = csvParsedRows.map(r => buildCertFromRow(r, quarter, mode));
@@ -4983,7 +5128,7 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
           const r = await fetch(API + '/certs', { method: 'POST', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
           if (r.ok) { const saved = await r.json(); CERTS.push(saved); log.innerHTML += `<div style="color:var(--teal)">✓ Created ${cert.id} \u2014 ${cert.recipientName}</div>`; added++; }
           else { const e = await r.json(); log.innerHTML += `<div style="color:var(--invalid)">✗ Failed ${cert.id}: ${e.error||'Unknown error'}</div>`; failed++; }
-        } catch { log.innerHTML += `<div style="color:var(--invalid)">✗ Network error for ${cert.id}</div>`; failed++; }
+        } catch { log.innerHTML += `<div style="color:var(--invalid)">✗ Failed to import ${cert.id} — connection error.</div>`; failed++; }
         log.scrollTop = log.scrollHeight;
       }
       log.innerHTML += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--gold)">Done \u2014 ✓ ${added} created \u00b7 ⚠ ${skipped} skipped \u00b7 ✗ ${failed} failed</div>`;
@@ -4996,6 +5141,20 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
 
     document.getElementById('csvQuarter').addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); });
     document.getElementById('csvMode').addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); });
+
+    function downloadSampleCsv() {
+      const rows = [
+        'imo_number,vessel_name,chief_engineer,compliance_date,cert_number,recipient_email,notes',
+        '9623740,NORD KUDU,JOHN A SMITH,2026-01-30,CST-9623740-01-26,master@example.com,',
+        '9689536,BW CHINOOK,TARAK NATH,2026-02-12,CST-9689536-02-26,engineer@example.com,'
+      ].join('\n');
+      const blob = new Blob([rows], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'cst_sample.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
 
     function clearCsvFile(e) { e.stopPropagation(); clearCsvFileSilent(); }
     function clearCsvFileSilent() {
@@ -5166,6 +5325,178 @@ function applyConfig() {
   }
   // Also call applyConfig when config.js (deferred) finishes loading
   document.addEventListener('appconfigready', applyConfig);
+</script>
+
+<script>
+// ════════════════════════════════════════════════════
+// MODULE: Internal Validity (90-Day Window)
+// Logic: Issue Date (issuedAt or complianceDate) + 90 days
+// ════════════════════════════════════════════════════
+
+function ivDeadline(cert) {
+  const base = cert.issuedAt || cert.complianceDate;
+  if (!base) return null;
+  const d = new Date(base);
+  if (isNaN(d)) return null;
+  d.setDate(d.getDate() + 90);
+  return d;
+}
+
+function ivDaysLeft(cert) {
+  const dl = ivDeadline(cert);
+  if (!dl) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  dl.setHours(0, 0, 0, 0);
+  return Math.round((dl - now) / 86400000);
+}
+
+function ivStatus(cert) {
+  const d = ivDaysLeft(cert);
+  if (d === null) return 'nodate';
+  if (d < 0) return 'expired';
+  if (d <= 30) return 'expiring';
+  return 'valid';
+}
+
+function computeIVStats(certs) {
+  let valid = 0, expiring = 0, expired = 0, nodate = 0;
+  certs.forEach(c => {
+    const s = ivStatus(c);
+    if (s === 'valid') valid++;
+    else if (s === 'expiring') expiring++;
+    else if (s === 'expired') expired++;
+    else nodate++;
+  });
+  return { valid, expiring, expired, nodate, total: certs.length };
+}
+
+function renderValidityPage(q) {
+  const filterSel = document.getElementById('ivFilterSel');
+  const filter = filterSel ? filterSel.value : '';
+  const search = (q || (document.getElementById('ivSearchQ') ? document.getElementById('ivSearchQ').value : '')).toLowerCase();
+
+  const certs = (typeof CERTS !== 'undefined' ? CERTS : []);
+  const stats = computeIVStats(certs);
+
+  // KPI cards
+  const kpiRow = document.getElementById('ivKpiRow');
+  if (kpiRow) {
+    kpiRow.innerHTML = [
+      { label: 'Within Window', count: stats.valid, color: 'var(--teal)', bg: 'rgba(100,255,218,.08)', border: 'rgba(100,255,218,.2)', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+      { label: 'Expiring ≤ 30d', count: stats.expiring, color: 'var(--warn)', bg: 'rgba(255,179,71,.08)', border: 'rgba(255,179,71,.22)', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+      { label: 'Passed 90-Day Window', count: stats.expired, color: 'var(--invalid)', bg: 'rgba(255,107,138,.07)', border: 'rgba(255,107,138,.2)', icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' },
+      { label: 'No Issue Date', count: stats.nodate, color: '#8892B0', bg: 'rgba(136,146,176,.06)', border: 'rgba(136,146,176,.18)', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+    ].map(k => `
+      <div class="stat-card" style="border-color:${k.border};background:${k.bg}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="slabel" style="margin:0;color:${k.color}">${k.label}</div>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${k.color}" stroke-width="1.5" opacity=".5"><path stroke-linecap="round" stroke-linejoin="round" d="${k.icon}"/></svg>
+        </div>
+        <div class="snum" style="color:${k.color}">${k.count}</div>
+        <div style="font-size:.57rem;color:var(--text-sec);margin-top:4px">of ${stats.total} total certificates</div>
+      </div>`).join('');
+  }
+
+  // Filter + search certs
+  let rows = certs.filter(c => {
+    const s = ivStatus(c);
+    if (filter && s !== filter) return false;
+    if (search) {
+      const haystack = [c.id, c.recipientName, c.vesselName, c.vesselIMO].join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort: expired first, then expiring, then valid, then nodate
+  const order = { expired: 0, expiring: 1, valid: 2, nodate: 3 };
+  rows.sort((a, b) => {
+    const sa = order[ivStatus(a)], sb = order[ivStatus(b)];
+    if (sa !== sb) return sa - sb;
+    const da = ivDaysLeft(a), db = ivDaysLeft(b);
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da - db;
+  });
+
+  const wrap = document.getElementById('ivTableWrap');
+  if (!wrap) return;
+
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-sec);font-size:.82rem">No certificates match the current filter.</div>';
+    return;
+  }
+
+  const statusLabel = { valid: ['Within Window', 'var(--teal)', 'rgba(100,255,218,.12)'], expiring: ['Expiring Soon', 'var(--warn)', 'rgba(255,179,71,.12)'], expired: ['Passed Window', 'var(--invalid)', 'rgba(255,107,138,.12)'], nodate: ['No Date', '#8892B0', 'rgba(136,146,176,.1)'] };
+
+  const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+  wrap.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.75rem">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      ${['Cert ID','Recipient / Vessel','Issue Date','90-Day Deadline','Days Left','Internal Status','Cert Status'].map(h =>
+        `<th style="padding:9px 12px;text-align:left;color:var(--text-sec);font-weight:600;font-size:.68rem;letter-spacing:.04em;white-space:nowrap">${h}</th>`
+      ).join('')}
+    </tr></thead>
+    <tbody>
+    ${rows.map(c => {
+      const ivSt = ivStatus(c);
+      const [stLabel, stColor, stBg] = statusLabel[ivSt];
+      const dl = ivDaysLeft(c);
+      const deadline = ivDeadline(c);
+      const daysStr = dl === null ? '—' : dl < 0 ? `${Math.abs(dl)}d overdue` : `${dl}d left`;
+      const daysColor = dl === null ? '#8892B0' : dl < 0 ? 'var(--invalid)' : dl <= 30 ? 'var(--warn)' : 'var(--teal)';
+      const certSt = (c.status || 'VALID').toUpperCase();
+      const csBg = certSt === 'VALID' ? 'rgba(100,255,218,.1)' : certSt === 'REVOKED' ? 'rgba(255,107,138,.1)' : 'rgba(255,179,71,.1)';
+      const csColor = certSt === 'VALID' ? 'var(--teal)' : certSt === 'REVOKED' ? 'var(--invalid)' : 'var(--warn)';
+      return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background=''">
+        <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;color:var(--gold);font-size:.68rem">${c.id}</td>
+        <td style="padding:9px 12px">
+          <div style="color:var(--text-bright);font-weight:500">${c.recipientName || '—'}</div>
+          <div style="font-size:.64rem;color:var(--text-sec);margin-top:1px">${c.vesselName || ''}${c.vesselIMO ? ' · IMO ' + c.vesselIMO : ''}</div>
+        </td>
+        <td style="padding:9px 12px;color:var(--text-sec)">${fmtD(c.issuedAt || c.complianceDate)}</td>
+        <td style="padding:9px 12px;color:var(--text-sec)">${deadline ? fmtD(deadline.toISOString()) : '—'}</td>
+        <td style="padding:9px 12px;font-weight:600;color:${daysColor}">${daysStr}</td>
+        <td style="padding:9px 12px">
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.63rem;font-weight:700;letter-spacing:.04em;background:${stBg};color:${stColor};border:1px solid ${stColor}40">
+            ${stLabel}
+          </span>
+        </td>
+        <td style="padding:9px 12px">
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.63rem;font-weight:700;letter-spacing:.04em;background:${csBg};color:${csColor};border:1px solid ${csColor}40">
+            ${certSt}
+          </span>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function exportValidityCSV() {
+  const certs = (typeof CERTS !== 'undefined' ? CERTS : []);
+  const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+  const rows = [['Cert ID','Recipient','Vessel','Vessel IMO','Issue Date','90-Day Deadline','Days Left','Internal Status','Cert Status']];
+  certs.forEach(c => {
+    const dl = ivDaysLeft(c);
+    const deadline = ivDeadline(c);
+    rows.push([
+      c.id, c.recipientName || '', c.vesselName || '', c.vesselIMO || '',
+      fmtD(c.issuedAt || c.complianceDate),
+      deadline ? fmtD(deadline.toISOString()) : '',
+      dl === null ? '' : dl < 0 ? `${Math.abs(dl)}d overdue` : `${dl}d left`,
+      ivStatus(c).toUpperCase(),
+      (c.status || 'VALID').toUpperCase()
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'internal-validity-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
 </script>
 </body>
 

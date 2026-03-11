@@ -3,7 +3,7 @@
  * Pure Node.js · Zero npm dependencies
  *
  * ╔══════════════════════════════════════════════════════════════╗
- * ║  SECURITY HARDENING — v3.1 (Refined Edition)                ║
+ * ║  SECURITY HARDENING — v3.2 (Bug-Fix & Hardening Release)   ║
  * ║                                                              ║
  * ║  ✦ AES-256-GCM encrypted + HMAC-signed public cert URLs     ║
  * ║  ✦ Random 128-bit token prefix (opaque, non-enumerable)     ║
@@ -16,14 +16,12 @@
  * ║  ✦ No credentials ever exposed in startup logs              ║
  * ║  ✦ Input sanitisation on all cert ID parameters             ║
  * ║                                                              ║
- * ║  CHANGES v3.1                                                ║
- * ║  • https module hoisted to top (was re-required per call)   ║
- * ║  • deriveQuarterFields() now called on CST PUT updates       ║
- * ║  • GET /api/health endpoint added for monitoring             ║
- * ║  • /api/stats & /api/vapt/stats now return lastIssued date  ║
- * ║  • Rate-limit Map capped at 50k entries to prevent OOM      ║
- * ║  • Duplicate JSDoc on sesSendRaw removed                    ║
- * ║  • VAPT PUT now preserves ID-rename logic same as CST PUT   ║
+ * ║  FIXES v3.2                                                  ║
+ * ║  • POST /api/verify-email/:id — server-side email gate      ║
+ * ║    for CST (replaces broken client-side compare)            ║
+ * ║  • POST /api/vapt/verify-email/:id — same for VAPT          ║
+ * ║  • Email gate now timing-safe HMAC compare (no PII leak)    ║
+ * ║  • Brute-force delay added to email gate endpoints          ║
  * ╚══════════════════════════════════════════════════════════════╝
  *
  * Public Portal  → http://localhost:3000/
@@ -34,10 +32,20 @@
 'use strict';
 
 const http   = require('http');
-const https  = require('https');   // FIX: hoisted — was re-required inside sesSendRaw on every email send
+const https  = require('https');
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
+
+// ─── LOGGER ──────────────────────────────────────────────────────────────────
+const LOG_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase();
+const _logLvl   = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 }[LOG_LEVEL] ?? 1;
+function _ts() { return new Date().toISOString().slice(11, 23); }
+const log = {
+  info:  (...a) => _logLvl <= 1 && console.log( _ts(), '[info] ', ...a),
+  warn:  (...a) => _logLvl <= 2 && console.warn( _ts(), '[warn] ', ...a),
+  error: (...a) => _logLvl <= 3 && console.error(_ts(), '[error]', ...a),
+};
 
 // ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
 const CFG = require('../config/app.config');
@@ -64,7 +72,7 @@ const CFG = require('../config/app.config');
       }
       if (process.env[key] === undefined) process.env[key] = val;
     }
-    console.log(`[ENV] Loaded configuration from ${envFile}`);
+    log.info('Configuration loaded from', envFile);
     break;
   }
 })();
@@ -112,7 +120,7 @@ function loadOrCreateKeys() {
     pwdSalt:   crypto.randomBytes(32).toString('hex'),
   };
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2), { encoding: 'utf8', mode: 0o600 });
-  console.log('[SECURITY] Generated new cryptographic keys → .keys.json');
+  log.info('New cryptographic keys generated and persisted.');
   return keys;
 }
 const KEYS = loadOrCreateKeys();
@@ -122,15 +130,7 @@ const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 
 if (!ADMIN_USER || !ADMIN_PASS) {
-  console.error('\n╔══════════════════════════════════════════════════════════════╗');
-  console.error('║  FATAL: Missing required environment variables!               ║');
-  console.error('║                                                                ║');
-  console.error('║  Create a .env file in the project root with:                 ║');
-  console.error('║    ADMIN_USER=your_admin_username                              ║');
-  console.error('║    ADMIN_PASS=your_strong_password                             ║');
-  console.error('║                                                                ║');
-  console.error('║  Never hardcode credentials in source code.                   ║');
-  console.error('╚══════════════════════════════════════════════════════════════╝\n');
+  log.error('ADMIN_USER and ADMIN_PASS must be set in your .env file before starting the server.');
   process.exit(1);
 }
 
@@ -149,9 +149,9 @@ let serverReady = false;
 hashPassword(ADMIN_PASS).then(hash => {
   ADMIN_PASS_HASH = hash;
   serverReady = true;
-  console.log('[SECURITY] Admin password hash ready.');
+  log.info('Authentication ready.');
 }).catch(err => {
-  console.error('[FATAL] Failed to hash admin password:', err);
+  log.error('Failed to initialise authentication:', err.message);
   process.exit(1);
 });
 
@@ -348,8 +348,12 @@ function loadData() {
 }
 function saveData(data) {
   _certCache = data;
-  fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
-    .catch(err => console.error('[DATA] Failed to save certificates.json:', err));
+  // Debounced write — coalesces rapid successive saves into one disk write
+  clearTimeout(saveData._t);
+  saveData._t = setTimeout(() => {
+    fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
+      .catch(err => log.error('Failed to persist certificate data:', err.message));
+  }, 50);
 }
 
 // ─── VAPT SEED DATA ──────────────────────────────────────────────────────────
@@ -396,8 +400,11 @@ function loadVaptData() {
 }
 function saveVaptData(data) {
   _vaptCache = data;
-  fs.promises.writeFile(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
-    .catch(err => console.error('[DATA] Failed to save vapt_certificates.json:', err));
+  clearTimeout(saveVaptData._t);
+  saveVaptData._t = setTimeout(() => {
+    fs.promises.writeFile(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
+      .catch(err => log.error('Failed to persist VAPT certificate data:', err.message));
+  }, 50);
 }
 
 // ─── VAPT CERT URL BUILDER ───────────────────────────────────────────────────
@@ -407,19 +414,15 @@ function buildVaptCertUrl(certId, baseUrl) {
   return `${baseUrl}${CFG.routes.vpt}/cert/${token}?s=${sig}`;
 }
 
-// ─── AWS SES EMAIL (pure Node.js — zero npm deps) ────────────────────────────
-//
-//  Uses the AWS Signature Version 4 + SES SendRawMessage API directly over HTTPS.
-//  No SDK required — only Node built-ins (https, crypto).
-//
-//  Required .env variables:
-//    AWS_SES_REGION      = us-east-1          (SES region where your domain is verified)
-//    AWS_SES_ACCESS_KEY  = AKIA…              (IAM user with ses:SendRawMessage permission)
-//    AWS_SES_SECRET_KEY  = xxxxxxxx           (IAM secret access key)
-//    AWS_SES_FROM_CST    = "Synergy CST" <trainingawareness@synergyship.com>
-//    AWS_SES_FROM_VAPT   = "Synergy VAPT" <vapt@synergyship.com>
-//
-// Accept both naming styles (standard AWS CLI names or legacy AWS_SES_* names)
+// ─── EMAIL DISPATCH (AWS SES — pure Node.js, zero npm deps) ────────────────────
+// Authenticates with AWS Signature Version 4 and sends via the SES v2 REST API.
+// Configure the following in your .env file:
+//   AWS_REGION            SES region  (e.g. us-east-1)
+//   AWS_ACCESS_KEY_ID     IAM access key with ses:SendEmail permission
+//   AWS_SECRET_ACCESS_KEY IAM secret key
+//   AWS_SES_FROM_CST      Verified sender address for CST emails
+//   AWS_SES_FROM_VAPT     Verified sender address for VAPT emails
+// Legacy aliases AWS_SES_REGION / AWS_SES_ACCESS_KEY / AWS_SES_SECRET_KEY are also accepted.
 const SES_REGION     = process.env.AWS_REGION             || process.env.AWS_SES_REGION     || '';
 const SES_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID      || process.env.AWS_SES_ACCESS_KEY || '';
 const SES_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY  || process.env.AWS_SES_SECRET_KEY || '';
@@ -429,30 +432,22 @@ const SES_FROM_VAPT  = process.env.AWS_SES_FROM_VAPT  || CFG.contact.vaptEmail;
 const SES_ENABLED = Boolean(SES_REGION && SES_ACCESS_KEY && SES_SECRET_KEY);
 
 if (SES_ENABLED) {
-  console.log(`[SES] ✓ AWS SES v2 ready — region: ${SES_REGION}`);
-  console.log(`[SES]   CST : ${SES_FROM_CST}`);
-  console.log(`[SES]   VAPT: ${SES_FROM_VAPT}`);
+  log.info(`Email dispatch ready (${SES_REGION}) — CST: ${SES_FROM_CST} · VAPT: ${SES_FROM_VAPT}`);
 } else {
-  console.error('[SES] ✗ NOT configured — /send-email will return 503.');
-  if (!SES_REGION)     console.error('[SES]   MISSING: AWS_REGION');
-  if (!SES_ACCESS_KEY) console.error('[SES]   MISSING: AWS_ACCESS_KEY_ID');
-  if (!SES_SECRET_KEY) console.error('[SES]   MISSING: AWS_SECRET_ACCESS_KEY');
+  log.warn('Email dispatch not configured — credential emails will be unavailable until AWS credentials are set in .env.');
 }
 
 /**
- * Send a raw RFC-2822 email via AWS SES v2 REST API (SendEmail with RawMessage).
- * Uses SES v2 endpoint which works in all regions including ap-south-1.
- * Path: POST /v2/email/outbound-emails
- * Docs: https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_SendEmail.html
- * @param {string}   rawMessage   - RFC 2822 email string (headers + body)
- * @param {string}   fromAddress  - Verified SES sender address
- * @param {string[]} toAddresses  - Recipient address(es)
+ * Dispatch a raw RFC-2822 message via the AWS SES v2 REST API.
+ * @param {string}   rawMessage   RFC-2822 formatted email string
+ * @param {string}   fromAddress  Verified sender address
+ * @param {string[]} toAddresses  Recipient address(es)
  * @returns {Promise<{success:boolean, messageId?:string, error?:string}>}
  */
 function sesSendRaw(rawMessage, fromAddress, toAddresses) {
   return new Promise((resolve) => {
     if (!SES_ENABLED) {
-      resolve({ success: false, error: 'SES not configured' });
+      resolve({ success: false, error: 'Email service not configured.' });
       return;
     }
 
@@ -530,6 +525,7 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
         }
       });
     });
+    httpreq.setTimeout(15_000, () => { httpreq.destroy(); resolve({ success: false, error: 'Email service did not respond in time.' }); });
     httpreq.on('error', (err) => resolve({ success: false, error: err.message }));
     httpreq.write(bodyStr);
     httpreq.end();
@@ -537,8 +533,7 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
 }
 
 /**
- * Build a minimal RFC 2822 email string accepted by SES SendRawMessage.
- * Handles UTF-8 subject encoding and plain-text body.
+ * Build a minimal RFC 2822 email string with UTF-8 encoded subject.
  */
 function buildRawEmail({ from, to, subject, body, replyTo }) {
   const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
@@ -569,9 +564,8 @@ function logEmail(logFile, fields, sesResult) {
     messageId: sesResult.messageId || null,
     sesError:  sesResult.error     || null,
   };
-  try {
-    fs.appendFileSync(logFile, JSON.stringify(entry) + '\n', 'utf8');
-  } catch { /* non-fatal */ }
+  fs.promises.appendFile(logFile, JSON.stringify(entry) + '\n', 'utf8')
+    .catch(() => { /* non-fatal */ });
 }
 
 // ─── CST CREDENTIAL EMAIL ─────────────────────────────────────────────────────
@@ -708,43 +702,62 @@ function sendJSON(res, status, data, extraHeaders = {}) {
   res.end(body);
 }
 
-function sendFile(res, filePath) {
+function sendFile(res, filePath, req) {
   const ext  = path.extname(filePath).toLowerCase();
   const base = MIME[ext] || 'text/plain';
   const mime = (base.startsWith('text/') || base === 'application/javascript')
     ? base + '; charset=utf-8'
     : base;
-  const cacheControl = (ext === '.html' || ext === '')
+  const isHtml = ext === '.html' || ext === '';
+  const cacheControl = isHtml
     ? 'no-cache, no-store, must-revalidate'
     : (ext === '.js' || ext === '.css' || ext === '.woff2' || ext === '.woff')
       ? 'public, max-age=86400'
       : 'public, max-age=3600';
-  try {
-    const content = fs.readFileSync(filePath);
+  fs.stat(filePath, (statErr, stat) => {
+    if (statErr || !stat.isFile()) {
+      res.writeHead(404, SECURITY_HEADERS);
+      return res.end('Not found');
+    }
+    // ETag: mtime hex + file size (lightweight, no hashing)
+    const etag = `"${stat.mtimeMs.toString(16)}-${stat.size.toString(16)}"`;
+    const lastModified = stat.mtime.toUTCString();
+    // Conditional GET support — skip body for unchanged static files
+    if (!isHtml && req) {
+      const ifNoneMatch  = req.headers['if-none-match'];
+      const ifModSince   = req.headers['if-modified-since'];
+      if ((ifNoneMatch && ifNoneMatch === etag) ||
+          (!ifNoneMatch && ifModSince && new Date(ifModSince) >= stat.mtime)) {
+        res.writeHead(304, { ETag: etag, 'Last-Modified': lastModified, 'Cache-Control': cacheControl, ...SECURITY_HEADERS });
+        return res.end();
+      }
+    }
     res.writeHead(200, {
       'Content-Type':   mime,
-      'Content-Length': content.length,
+      'Content-Length': stat.size,
       'Cache-Control':  cacheControl,
+      'ETag':           etag,
+      'Last-Modified':  lastModified,
       ...SECURITY_HEADERS,
     });
-    res.end(content);
-  } catch {
-    res.writeHead(404, SECURITY_HEADERS);
-    res.end('Not found');
-  }
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => { if (!res.headersSent) res.end(); else res.destroy(); });
+    stream.pipe(res);
+  });
 }
 
-function getBody(req) {
+function getBody(req, timeoutMs = 10_000) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    const timer = setTimeout(() => { req.destroy(); reject(new Error('Request took too long. Please try again.')); }, timeoutMs);
     req.on('data', c => {
       size += c.length;
-      if (size > 10 * 1024 * 1024) { req.destroy(); reject(new Error('Payload too large')); return; }
+      if (size > 10 * 1024 * 1024) { clearTimeout(timer); req.destroy(); reject(new Error('File is too large to upload.')); return; }
       chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
-    req.on('error', reject);
+    req.on('end', () => { clearTimeout(timer); resolve(Buffer.concat(chunks).toString()); });
+    req.on('error', err => { clearTimeout(timer); reject(err); });
   });
 }
 
@@ -799,7 +812,7 @@ function parseMultipart(req) {
     let totalSize = 0;
     req.on('data', c => {
       totalSize += c.length;
-      if (totalSize > 10 * 1024 * 1024) { req.destroy(); return reject(new Error('Payload too large')); }
+      if (totalSize > 10 * 1024 * 1024) { req.destroy(); return reject(new Error('File is too large to upload.')); }
       chunks.push(c);
     });
     req.on('end', () => {
@@ -879,7 +892,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/auth/login ──────────────────────────────────────────────────
   if (route === '/auth/login' && method === 'POST') {
     if (!serverReady)
-      return sendJSON(res, 503, { error: 'Server initialising, please retry in a moment.' }, corsH);
+      return sendJSON(res, 503, { error: 'Server is starting up, please try again in a moment.' }, corsH);
     const rl = checkRateLimit(ip, 'login');
     if (!rl.ok)
       return sendJSON(res, 429, { error: 'Too many login attempts. Try again later.' },
@@ -903,13 +916,13 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/auth/verify ──────────────────────────────────────────────────
   if (route === '/auth/verify' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     return sendJSON(res, 200, { ok: true }, corsH);
   }
 
   // ── GET /api/certs ── (admin — list all)
   if (route === '/certs' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     return sendJSON(res, 200, Object.values(loadData()), corsH);
   }
 
@@ -918,7 +931,7 @@ async function handleAPI(req, res, parsed) {
   if (route.startsWith('/certs/') && method === 'GET') {
     const segments = route.split('/').filter(Boolean);   // ['certs', '<id>']
     if (segments.length === 2) {
-      if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+      if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
       const certId = sanitiseCertId(segments[1]);
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const cert = loadData()[certId];
@@ -971,7 +984,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/cert-url/:id ── (admin — generate public cert URL)
   if (route.startsWith('/cert-url/') && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(route.replace('/cert-url/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadData();
@@ -982,7 +995,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/certs ── (admin — create)
   if (route === '/certs' && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const ct = req.headers['content-type'] || '';
     let cert;
     try {
@@ -1014,11 +1027,11 @@ async function handleAPI(req, res, parsed) {
 
   // ── PUT /api/certs/:id ── (admin — update)
   if (route.startsWith('/certs/') && method === 'PUT') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(route.replace('/certs/', '').replace('/send-email', '').split('/')[0]);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     // Guard: don't match send-email sub-route
-    if (route.includes('/send-email')) return sendJSON(res, 404, { error: 'Route not found' }, corsH);
+    if (route.includes('/send-email')) return sendJSON(res, 404, { error: 'Not found.' }, corsH);
     const data = loadData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
     const ct = req.headers['content-type'] || '';
@@ -1061,9 +1074,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, updated, corsH);
   }
 
-  // ── POST /api/certs/:id/send-email ── (admin — send via AWS SES)
+  // ── POST /api/certs/:id/send-email ── (admin — dispatch credential email)
   if (route.match(/^\/certs\/[^/]+\/send-email$/) && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(
       decodeURIComponent(route.replace('/certs/', '').replace('/send-email', ''))
     );
@@ -1084,7 +1097,7 @@ async function handleAPI(req, res, parsed) {
 
     if (!SES_ENABLED) {
       return sendJSON(res, 503, {
-        error: 'AWS SES is not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.',
+        error: 'Email dispatch is not available on this server. Contact your system administrator.',
         sesEnabled: false,
       }, corsH);
     }
@@ -1107,14 +1120,42 @@ async function handleAPI(req, res, parsed) {
     }
 
     return sendJSON(res, 500, {
-      error: 'AWS SES rejected the request: ' + (result.error || 'unknown'),
-      sesError: result.error, sesEnabled: true,
+      error: 'Email could not be delivered. Please verify the recipient address and try again.',
+      sesEnabled: true,
     }, corsH);
+  }
+
+  // ── POST /api/import-csv ── (admin — bulk import CST certs, mirrors /api/vapt/import-csv)
+  if (route === '/import-csv' && method === 'POST') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const records = Array.isArray(body) ? body : [];
+    const data = loadData();
+    let added = 0, skipped = 0, failed = 0;
+    const results = [];
+    for (const cert of records) {
+      const certId = sanitiseCertId(cert.id);
+      if (!certId) { results.push({ id: cert.id, status: 'failed', reason: 'Invalid ID' }); failed++; continue; }
+      if (data[certId]) { results.push({ id: certId, status: 'skipped', reason: 'Already exists' }); skipped++; continue; }
+      cert.id = certId;
+      deriveQuarterFields(cert);
+      cert.emailStatus = 'NOT_SENT';
+      cert.emailSentAt = null;
+      cert.attachments = [];
+      cert.createdAt = new Date().toISOString();
+      cert.updatedAt = new Date().toISOString();
+      data[certId] = cert;
+      results.push({ id: certId, status: 'created' });
+      added++;
+    }
+    saveData(data);
+    return sendJSON(res, 200, { added, skipped, failed, results }, corsH);
   }
 
   // ── DELETE /api/certs/:id ── (admin)
   if (route.startsWith('/certs/') && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(route.replace('/certs/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadData();
@@ -1149,18 +1190,18 @@ async function handleAPI(req, res, parsed) {
     }, corsH);
   }
 
-  // ── GET /api/ses-status ── (admin — check if AWS SES is configured)
+  // ── GET /api/ses-status ── (admin — email service status)
   if (route === '/ses-status' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     return sendJSON(res, 200, {
       enabled:  SES_ENABLED,
       region:   SES_REGION   || null,
       fromCST:  SES_FROM_CST || null,
       fromVAPT: SES_FROM_VAPT || null,
       missing: [
-        !SES_REGION     && 'AWS_REGION',
-        !SES_ACCESS_KEY && 'AWS_ACCESS_KEY_ID',
-        !SES_SECRET_KEY && 'AWS_SECRET_ACCESS_KEY',
+        !SES_REGION     && 'region',
+        !SES_ACCESS_KEY && 'access key',
+        !SES_SECRET_KEY && 'secret key',
       ].filter(Boolean),
     }, corsH);
   }
@@ -1190,6 +1231,60 @@ async function handleAPI(req, res, parsed) {
     }, corsH);
   }
 
+  // ── POST /api/verify-email/:certId ── (public — gate check for CST PDF access)
+  // Accepts { email } in JSON body. Returns { ok: true } only when email matches
+  // the stored recipientEmail (case-insensitive, timing-safe). Never reveals the email.
+  if (route.match(/^\/verify-email\/[^/]+$/) && method === 'POST') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
+    const certId = sanitiseCertId(route.replace('/verify-email/', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const entered  = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
+    if (!entered)  return sendJSON(res, 400, { error: 'Email is required' }, corsH);
+    const cert = loadData()[certId];
+    if (!cert)     return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+    const stored   = (cert.recipientEmail || '').trim().toLowerCase();
+    // If no email is configured for this cert, deny access (prevents gate bypass on unconfigured certs)
+    if (!stored)   return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
+    // Timing-safe compare using fixed-length HMAC to prevent timing attacks
+    const hmacEntered = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
+    const hmacStored  = crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex');
+    const bufA = Buffer.from(hmacEntered, 'hex');
+    const bufB = Buffer.from(hmacStored,  'hex');
+    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+      await new Promise(r => setTimeout(r, 150 + Math.random() * 100)); // delay brute-force
+      return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
+    }
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── POST /api/vapt/verify-email/:certId ── (public — gate check for VAPT PDF access)
+  if (route.match(/^\/vapt\/verify-email\/[^/]+$/) && method === 'POST') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
+    const certId = sanitiseCertId(route.replace('/vapt/verify-email/', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const entered  = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
+    if (!entered)  return sendJSON(res, 400, { error: 'Email is required' }, corsH);
+    const cert = loadVaptData()[certId];
+    if (!cert)     return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+    const stored   = (cert.recipientEmail || '').trim().toLowerCase();
+    if (!stored)   return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
+    const hmacEntered = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
+    const hmacStored  = crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex');
+    const bufA = Buffer.from(hmacEntered, 'hex');
+    const bufB = Buffer.from(hmacStored,  'hex');
+    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+      await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
+      return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
+    }
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
   // ── GET /api/vapt/verify-by-id/:certId ── (public)
   if (route.startsWith('/vapt/verify-by-id/') && method === 'GET') {
     const rl = checkRateLimit(ip, 'verify');
@@ -1203,7 +1298,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/vapt/certs ── (admin — list all VAPT certs)
   if (route === '/vapt/certs' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     return sendJSON(res, 200, Object.values(loadVaptData()), corsH);
   }
 
@@ -1211,7 +1306,7 @@ async function handleAPI(req, res, parsed) {
   if (route.startsWith('/vapt/certs/') && method === 'GET') {
     const segments = route.split('/').filter(Boolean);   // ['vapt', 'certs', '<id>']
     if (segments.length === 3) {
-      if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+      if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
       const certId = sanitiseCertId(segments[2]);
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const cert = loadVaptData()[certId];
@@ -1251,7 +1346,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/vapt/cert-url/:id ── (admin — generate public VAPT cert URL)
   if (route.startsWith('/vapt/cert-url/') && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(route.replace('/vapt/cert-url/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
@@ -1262,7 +1357,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/vapt/certs ── (admin — create VAPT cert)
   if (route === '/vapt/certs' && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const ct = req.headers['content-type'] || '';
     let cert;
     try {
@@ -1293,7 +1388,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/vapt/import-csv ── (admin — bulk import VAPT certs)
   if (route === '/vapt/import-csv' && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
@@ -1320,8 +1415,8 @@ async function handleAPI(req, res, parsed) {
 
   // ── PUT /api/vapt/certs/:id ── (admin — update VAPT cert)
   if (route.startsWith('/vapt/certs/') && method === 'PUT') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
-    if (route.includes('/send-email')) return sendJSON(res, 404, { error: 'Route not found' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (route.includes('/send-email')) return sendJSON(res, 404, { error: 'Not found.' }, corsH);
     const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
@@ -1360,9 +1455,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, updated, corsH);
   }
 
-  // ── POST /api/vapt/certs/:id/send-email ── (admin — send via AWS SES)
+  // ── POST /api/vapt/certs/:id/send-email ── (admin — dispatch VAPT credential email)
   if (route.match(/^\/vapt\/certs\/[^/]+\/send-email$/) && method === 'POST') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(decodeURIComponent(route.replace('/vapt/certs/', '').replace('/send-email', '')));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
@@ -1380,7 +1475,7 @@ async function handleAPI(req, res, parsed) {
 
     if (!SES_ENABLED) {
       return sendJSON(res, 503, {
-        error: 'AWS SES is not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY in .env and restart.',
+        error: 'Email dispatch is not available on this server. Contact your system administrator.',
         sesEnabled: false,
       }, corsH);
     }
@@ -1403,14 +1498,14 @@ async function handleAPI(req, res, parsed) {
     }
 
     return sendJSON(res, 500, {
-      error: 'AWS SES rejected the request: ' + (result.error || 'unknown'),
-      sesError: result.error, sesEnabled: true,
+      error: 'Email could not be delivered. Please verify the recipient address and try again.',
+      sesEnabled: true,
     }, corsH);
   }
 
   // ── DELETE /api/vapt/certs/:id ── (admin)
   if (route.startsWith('/vapt/certs/') && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
@@ -1426,7 +1521,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── DELETE /api/certs/:id/attachments/:idx ── (admin — remove one attachment)
   if (route.match(/^\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const parts  = route.split('/');
     const certId = sanitiseCertId(parts[2]);
     const idx    = parseInt(parts[4], 10);
@@ -1448,7 +1543,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── DELETE /api/vapt/certs/:id/attachments/:idx ── (admin — remove one VAPT attachment)
   if (route.match(/^\/vapt\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const parts  = route.split('/');
     const certId = sanitiseCertId(parts[3]);
     const idx    = parseInt(parts[5], 10);
@@ -1468,7 +1563,7 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, { success: true, attachments: atts }, corsH);
   }
 
-  sendJSON(res, 404, { error: 'Route not found' }, corsH);
+  sendJSON(res, 404, { error: 'Not found.' }, corsH);
 }
 
 // ─── SINGLE UNIFIED SERVER ────────────────────────────────────────────────────
@@ -1509,7 +1604,7 @@ const server = http.createServer(async (req, res) => {
 
   // ── Config (browser-side app.config.js) ──────────────────────────────────
   if (p === '/config.js') {
-    return sendFile(res, path.join(__dirname, '..', 'config', 'app.config.js'));
+    return sendFile(res, path.join(__dirname, '..', 'config', 'app.config.js'), req);
   }
 
   // ── API (shared) ──────────────────────────────────────────────────────────
@@ -1532,7 +1627,7 @@ const server = http.createServer(async (req, res) => {
 
   if (p === CFG.routes.cstAdmin || p === CFG.routes.cstAdmin + '/') {
     if (p === CFG.routes.cstAdmin) { res.writeHead(301, { Location: CFG.routes.cstAdmin + '/' }); return res.end(); }
-    return sendFile(res, path.join(adminDir, 'dashboard.html'));
+    return sendFile(res, path.join(adminDir, 'dashboard.html'), req);
   }
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
     const relative = p.slice((CFG.routes.cstAdmin + '/').length);
@@ -1541,15 +1636,15 @@ const server = http.createServer(async (req, res) => {
     if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
-    return sendFile(res, filePath);
+    return sendFile(res, filePath, req);
   }
 
   if (p.startsWith(CFG.routes.cst + '/cert/')) {
-    return sendFile(res, path.join(publicDir, 'index.html'));
+    return sendFile(res, path.join(publicDir, 'index.html'), req);
   }
 
   if (p === CFG.routes.cst || p === CFG.routes.cst + '/') {
-    return sendFile(res, path.join(publicDir, 'index.html'));
+    return sendFile(res, path.join(publicDir, 'index.html'), req);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1558,7 +1653,7 @@ const server = http.createServer(async (req, res) => {
 
   if (p === CFG.routes.vptAdmin || p === CFG.routes.vptAdmin + '/') {
     if (p === CFG.routes.vptAdmin) { res.writeHead(301, { Location: CFG.routes.vptAdmin + '/' }); return res.end(); }
-    return sendFile(res, path.join(adminDir, 'vapt-dashboard.html'));
+    return sendFile(res, path.join(adminDir, 'vapt-dashboard.html'), req);
   }
   if (p.startsWith(CFG.routes.vptAdmin + '/')) {
     const relative = p.slice((CFG.routes.vptAdmin + '/').length);
@@ -1567,15 +1662,15 @@ const server = http.createServer(async (req, res) => {
     if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
-    return sendFile(res, filePath);
+    return sendFile(res, filePath, req);
   }
 
   if (p.startsWith(CFG.routes.vpt + '/cert/')) {
-    return sendFile(res, path.join(publicDir, 'vapt-index.html'));
+    return sendFile(res, path.join(publicDir, 'vapt-index.html'), req);
   }
 
   if (p === CFG.routes.vpt || p === CFG.routes.vpt + '/') {
-    return sendFile(res, path.join(publicDir, 'vapt-index.html'));
+    return sendFile(res, path.join(publicDir, 'vapt-index.html'), req);
   }
 
   // ── Legacy redirect support ───────────────────────────────────────────────
@@ -1602,7 +1697,7 @@ const server = http.createServer(async (req, res) => {
   if (!filePath.startsWith(publicDir + path.sep) && filePath !== publicDir) {
     res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
   }
-  if (fs.existsSync(filePath)) return sendFile(res, filePath);
+  if (fs.existsSync(filePath)) return sendFile(res, filePath, req);
 
   // 404
   res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8' });
@@ -1643,51 +1738,68 @@ const server = http.createServer(async (req, res) => {
 // ─── START ───────────────────────────────────────────────────────────────────
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`\n[FATAL] Port ${PORT} is already in use. Stop the existing process or set a different PORT in .env.\n`);
+    log.error(`Port ${PORT} is already in use. Set a different PORT in .env or stop the conflicting process.`);
   } else {
-    console.error('[FATAL] Server error:', err);
+    log.error('Server startup error:', err.message);
   }
   process.exit(1);
 });
 
 server.listen(PORT, () => {
-  const _p = s => ('║  ' + s).padEnd(56) + '║';
-  console.log('\n╔' + '═'.repeat(56) + '╗');
-  console.log(_p(CFG.brand.companyFull.toUpperCase() + ' — CERTIFICATE PORTAL'));
-  console.log('╠' + '═'.repeat(56) + '╣');
-  console.log(_p('🛡️  CST Portal  → ' + BASE_ORIGIN + CFG.routes.cst));
-  console.log(_p('🔐 CST Admin   → ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/'));
-  console.log(_p('🔍 VPT Portal  → ' + BASE_ORIGIN + CFG.routes.vpt));
-  console.log(_p('🔐 VPT Admin   → ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/'));
-  console.log(_p('📡 API         → ' + BASE_ORIGIN + '/api'));
-  console.log(_p('💚 Health      → ' + BASE_ORIGIN + '/api/health'));
-  console.log('║' + ' '.repeat(56) + '║');
-  console.log(_p('🌐 CORS origins: ' + ALLOWED_ORIGINS.join(' · ')));
-  console.log('║' + ' '.repeat(56) + '║');
-  console.log(_p('🔒 AES-256-GCM · HMAC · PBKDF2 · JWT(8h) · Rate limit'));
-  console.log('║' + ' '.repeat(56) + '║');
-  console.log(_p('⚠  .env: ADMIN_USER / ADMIN_PASS / BASE_ORIGIN'));
-  console.log('╚' + '═'.repeat(56) + '╝\n');
+  const W = 58;
+  const line  = s  => console.log('║  ' + s.padEnd(W - 4) + '║');
+  const blank = () => console.log('║' + ' '.repeat(W - 2) + '║');
+  console.log('\n╔' + '═'.repeat(W - 2) + '╗');
+  line(CFG.brand.companyFull + ' — Certificate Portal');
+  console.log('╠' + '═'.repeat(W - 2) + '╣');
+  blank();
+  line('  CST Portal  →  ' + BASE_ORIGIN + CFG.routes.cst);
+  line('  CST Admin   →  ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/');
+  line('  VAPT Portal →  ' + BASE_ORIGIN + CFG.routes.vpt);
+  line('  VAPT Admin  →  ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/');
+  line('  Health      →  ' + BASE_ORIGIN + '/api/health');
+  blank();
+  line('  Email dispatch: ' + (SES_ENABLED ? 'Active (' + SES_REGION + ')' : 'Not configured'));
+  blank();
+  console.log('╚' + '═'.repeat(W - 2) + '╝\n');
 });
 
 // ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────
+function flushPendingSaves() {
+  // If a debounced save is pending, flush it synchronously before exit
+  [
+    { timer: saveData._t,     file: DATA_FILE,      cache: () => _certCache },
+    { timer: saveVaptData._t, file: VAPT_DATA_FILE,  cache: () => _vaptCache },
+  ].forEach(({ timer, file, cache }) => {
+    if (timer) {
+      clearTimeout(timer);
+      const d = cache();
+      if (d) {
+        try { fs.writeFileSync(file, JSON.stringify(d, null, 2), 'utf8'); }
+        catch (e) { log.error('Data flush on shutdown failed:', e.message); }
+      }
+    }
+  });
+}
+
 function gracefulShutdown(signal) {
-  console.log(`\n[SHUTDOWN] ${signal} received — draining connections…`);
+  log.info(`${signal} received — shutting down gracefully…`);
   clearInterval(_rlCleanup);
+  flushPendingSaves();
   server.close(err => {
-    if (err) { console.error('[SHUTDOWN] Error:', err); process.exit(1); }
-    console.log('[SHUTDOWN] Clean exit.');
+    if (err) { log.error('Server close error:', err.message); process.exit(1); }
+    log.info('Server stopped cleanly.');
     process.exit(0);
   });
-  setTimeout(() => { console.error('[SHUTDOWN] Forced exit after 10 s timeout.'); process.exit(1); }, 10_000).unref();
+  setTimeout(() => { log.error('Forced exit — shutdown exceeded 10 s.'); process.exit(1); }, 10_000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 // ─── SAFETY NETS ─────────────────────────────────────────────────────────────
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[UNHANDLED REJECTION]', reason, 'at:', promise);
+  log.error('Unhandled promise rejection:', reason);
 });
 process.on('uncaughtException', err => {
-  console.error('[UNCAUGHT EXCEPTION]', err);
+  log.error('Uncaught exception:', err.message || err);
 });
