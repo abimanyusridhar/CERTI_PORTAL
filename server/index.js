@@ -624,10 +624,15 @@ function certPublicFields(cert) {
     trainingTitle, organizer, complianceDate, complianceQuarter,
     trainingMode, validFor, validUntil, verifiedBy, status,
     issuedAt, certificateImage, notes, attachments } = cert;
+  // Compute effectiveStatus: if status=VALID but past validUntil → EXPIRED
+  const now = new Date();
+  const isExpired = (status || 'VALID').toUpperCase() === 'VALID' && validUntil && new Date(validUntil) < now;
+  const effectiveStatus = isExpired ? 'EXPIRED' : (status || 'VALID').toUpperCase();
   return {
     id, recipientName, vesselName, vesselIMO, chiefEngineer,
     trainingTitle, organizer, complianceDate, complianceQuarter,
     trainingMode, validFor, validUntil, verifiedBy, status,
+    effectiveStatus,
     issuedAt, certificateImage, notes,
     attachments: Array.isArray(attachments) ? attachments : [],
   };
@@ -637,10 +642,14 @@ function vaptPublicFields(cert) {
   const { id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
     validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
     scopeItems, status, issuedAt, certificateImage, notes, attachments } = cert;
+  // Compute effectiveStatus: if status=VALID but past validUntil → EXPIRED
+  const now = new Date();
+  const isExpired = (status || 'VALID').toUpperCase() === 'VALID' && validUntil && new Date(validUntil) < now;
+  const effectiveStatus = isExpired ? 'EXPIRED' : (status || 'VALID').toUpperCase();
   return {
     id, recipientName, vesselName, vesselIMO, certificateNumber, assessmentDate,
     validUntil, verifiedBy, verifierTitle, assessingOrg, frameworks,
-    scopeItems, status, issuedAt, certificateImage, notes,
+    scopeItems, status, effectiveStatus, issuedAt, certificateImage, notes,
     attachments: Array.isArray(attachments) ? attachments : [],
   };
 }
@@ -860,6 +869,22 @@ function parseMultipart(req) {
 // ─── SERVER STARTUP TIME (for /api/health) ───────────────────────────────────
 const SERVER_START_TIME = Date.now();
 
+// ─── SHARED STAT CALCULATOR ──────────────────────────────────────────────────
+function calcStats(certs) {
+  const now = new Date();
+  let total = 0, valid = 0, expired = 0, pending = 0, lastIssuedDate = '';
+  for (const c of certs) {
+    total++;
+    const st = (c.status || 'VALID').toUpperCase();
+    if (st === 'PENDING') { pending++; }
+    else if (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now) { expired++; }
+    else if (st === 'VALID') { valid++; }
+    const d = c.createdAt || c.issuedAt || c.complianceDate || c.assessmentDate || '';
+    if (d > lastIssuedDate) lastIssuedDate = d;
+  }
+  return { total, valid, expired, pending, lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null };
+}
+
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
 async function handleAPI(req, res, parsed) {
   const method = req.method.toUpperCase();
@@ -1020,6 +1045,11 @@ async function handleAPI(req, res, parsed) {
     cert.emailSentAt = cert.emailSentAt || null;
     cert.createdAt   = new Date().toISOString();
     cert.updatedAt   = new Date().toISOString();
+    // Auto-status: if all 5 required fields present → VALID; otherwise → PENDING
+    // (client sends intended status, but we enforce server-side for consistency)
+    const _cstRequired = !!(cert.vesselIMO && cert.recipientEmail && cert.chiefEngineer && cert.complianceDate && cert.certificateImage);
+    if (!_cstRequired) cert.status = 'PENDING';
+    else if (!cert.status || cert.status === 'PENDING') cert.status = 'VALID';
     data[cert.id]    = cert;
     saveData(data);
     return sendJSON(res, 201, cert, corsH);
@@ -1050,6 +1080,10 @@ async function handleAPI(req, res, parsed) {
       }
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
+    // Enforce: EXPIRED or REVOKED → validUntil must be today (so radar & filters are always accurate)
+    if (updated.status === 'EXPIRED' || updated.status === 'REVOKED') {
+      updated.validUntil = new Date().toISOString().slice(0, 10);
+    }
     // FIX: re-derive quarter fields on update when compliance fields change.
     // Reset derived fields so deriveQuarterFields can recalculate them.
     if (updates.complianceQuarter || updates.complianceDate) {
@@ -1170,24 +1204,8 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── GET /api/stats ── (public — aggregate cert stats for index page)
-  // IMPROVED: now returns lastIssued date for display on the public portal
   if (route === '/stats' && method === 'GET') {
-    const data  = loadData();
-    const certs = Object.values(data);
-    const now   = new Date();
-    const total = certs.length;
-    const valid = certs.filter(c =>
-      c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)
-    ).length;
-    const lastIssuedDate = certs.reduce((best, c) => {
-      const d = c.createdAt || c.issuedAt || c.complianceDate || '';
-      return d > best ? d : best;
-    }, '');
-    return sendJSON(res, 200, {
-      total,
-      valid,
-      lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
-    }, corsH);
+    return sendJSON(res, 200, calcStats(Object.values(loadData())), corsH);
   }
 
   // ── GET /api/ses-status ── (admin — email service status)
@@ -1211,78 +1229,38 @@ async function handleAPI(req, res, parsed) {
   // ══════════════════════════════════════════════════════════════════════════
 
   // ── GET /api/vapt/stats ── (public — aggregate VAPT cert stats)
-  // IMPROVED: now returns lastIssued date
   if (route === '/vapt/stats' && method === 'GET') {
-    const data  = loadVaptData();
-    const certs = Object.values(data);
-    const now   = new Date();
-    const total = certs.length;
-    const valid = certs.filter(c =>
-      c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)
-    ).length;
-    const lastIssuedDate = certs.reduce((best, c) => {
-      const d = c.createdAt || c.issuedAt || c.assessmentDate || '';
-      return d > best ? d : best;
-    }, '');
-    return sendJSON(res, 200, {
-      total,
-      valid,
-      lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
-    }, corsH);
+    return sendJSON(res, 200, calcStats(Object.values(loadVaptData())), corsH);
   }
 
-  // ── POST /api/verify-email/:certId ── (public — gate check for CST PDF access)
-  // Accepts { email } in JSON body. Returns { ok: true } only when email matches
-  // the stored recipientEmail (case-insensitive, timing-safe). Never reveals the email.
-  if (route.match(/^\/verify-email\/[^/]+$/) && method === 'POST') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const certId = sanitiseCertId(route.replace('/verify-email/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const entered  = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
-    if (!entered)  return sendJSON(res, 400, { error: 'Email is required' }, corsH);
-    const cert = loadData()[certId];
-    if (!cert)     return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    const stored   = (cert.recipientEmail || '').trim().toLowerCase();
-    // If no email is configured for this cert, deny access (prevents gate bypass on unconfigured certs)
-    if (!stored)   return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
-    // Timing-safe compare using fixed-length HMAC to prevent timing attacks
-    const hmacEntered = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
-    const hmacStored  = crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex');
-    const bufA = Buffer.from(hmacEntered, 'hex');
-    const bufB = Buffer.from(hmacStored,  'hex');
-    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
-      await new Promise(r => setTimeout(r, 150 + Math.random() * 100)); // delay brute-force
-      return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
+  // ── POST /api/verify-email/:certId  &  /api/vapt/verify-email/:certId ──
+  // Shared email-gate: timing-safe HMAC compare, brute-force delay.
+  {
+    const _cstMatch  = method === 'POST' && route.match(/^\/verify-email\/([^/]+)$/);
+    const _vaptMatch = method === 'POST' && route.match(/^\/vapt\/verify-email\/([^/]+)$/);
+    const _match     = _cstMatch || _vaptMatch;
+    if (_match) {
+      const rl = checkRateLimit(ip, 'verify');
+      if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
+      const certId = sanitiseCertId(_match[1]);
+      if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+      let body;
+      try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+      const entered = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
+      if (!entered) return sendJSON(res, 400, { error: 'Email is required' }, corsH);
+      const store = _vaptMatch ? loadVaptData() : loadData();
+      const cert  = store[certId];
+      if (!cert)   return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+      const stored = (cert.recipientEmail || '').trim().toLowerCase();
+      if (!stored) return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
+      const bufA = Buffer.from(crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex'), 'hex');
+      const bufB = Buffer.from(crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex'),  'hex');
+      if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+        await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
+        return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
+      }
+      return sendJSON(res, 200, { ok: true }, corsH);
     }
-    return sendJSON(res, 200, { ok: true }, corsH);
-  }
-
-  // ── POST /api/vapt/verify-email/:certId ── (public — gate check for VAPT PDF access)
-  if (route.match(/^\/vapt\/verify-email\/[^/]+$/) && method === 'POST') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
-    const certId = sanitiseCertId(route.replace('/vapt/verify-email/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const entered  = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
-    if (!entered)  return sendJSON(res, 400, { error: 'Email is required' }, corsH);
-    const cert = loadVaptData()[certId];
-    if (!cert)     return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    const stored   = (cert.recipientEmail || '').trim().toLowerCase();
-    if (!stored)   return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
-    const hmacEntered = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
-    const hmacStored  = crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex');
-    const bufA = Buffer.from(hmacEntered, 'hex');
-    const bufB = Buffer.from(hmacStored,  'hex');
-    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
-      await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
-      return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
-    }
-    return sendJSON(res, 200, { ok: true }, corsH);
   }
 
   // ── GET /api/vapt/verify-by-id/:certId ── (public)
@@ -1381,6 +1359,10 @@ async function handleAPI(req, res, parsed) {
     cert.emailSentAt = cert.emailSentAt || null;
     cert.createdAt   = new Date().toISOString();
     cert.updatedAt   = new Date().toISOString();
+    // Auto-status: if all 5 required fields present → VALID; otherwise → PENDING
+    const _vaptRequired = !!(cert.vesselName && cert.recipientName && cert.assessmentDate && cert.validUntil && cert.recipientEmail && cert.certificateImage);
+    if (!_vaptRequired) cert.status = 'PENDING';
+    else if (!cert.status || cert.status === 'PENDING') cert.status = 'VALID';
     data[cert.id] = cert;
     saveVaptData(data);
     return sendJSON(res, 201, cert, corsH);
@@ -1437,6 +1419,10 @@ async function handleAPI(req, res, parsed) {
       }
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
+    // Enforce: EXPIRED or REVOKED → validUntil must be today (so radar & filters are always accurate)
+    if (updated.status === 'EXPIRED' || updated.status === 'REVOKED') {
+      updated.validUntil = new Date().toISOString().slice(0, 10);
+    }
     // FIX: consistent ID-rename logic (same as CST PUT)
     if (updates.id) {
       const newId = sanitiseCertId(updates.id);

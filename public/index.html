@@ -62,8 +62,8 @@
     .hero-sub{font-size:.95rem;font-weight:300;color:var(--text-sec);max-width:500px;line-height:1.8;margin-bottom:48px;animation:fadeUp .8s ease-out .2s both}
     /* SEARCH */
     .search-container{width:100%;max-width:660px;animation:fadeUp .8s ease-out .3s both}
-    .search-wrap{position:relative;background:rgba(255,255,255,0.04);border:1px solid var(--border-gold);border-radius:14px;padding:5px;display:flex;transition:all .3s}
-    .search-wrap:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,168,67,0.1),0 20px 60px rgba(0,0,0,0.3);background:rgba(255,255,255,0.06)}
+    .search-wrap{position:relative;background:rgba(255,255,255,0.04);border:1px solid var(--border-gold);border-radius:14px;padding:5px;display:flex;transition:all .35s cubic-bezier(.25,.8,.25,1)}
+    .search-wrap:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,168,67,0.1),0 24px 64px rgba(0,0,0,0.35);background:rgba(255,255,255,0.06);transform:translateY(-1px)}
     .search-icon-wrap{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--text-sec)}
     input.search-input{flex:1;background:none;border:none;outline:none;padding:15px 18px 15px 52px;color:var(--text-bright);font-family:'JetBrains Mono',monospace;font-size:.88rem;letter-spacing:.06em}
     input.search-input::placeholder{color:var(--text-sec)}
@@ -74,7 +74,9 @@
     .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
     /* STATS */
-    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:20px 0;margin-bottom:60px}
+    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:22px 0;margin-bottom:60px}
+    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1;transition:color .3s,transform .3s}
+    .stat-num.updating{transform:scale(1.08)}
     .stat-item{text-align:center;padding:0 36px;border-right:1px solid var(--border)}
     .stat-item:last-child{border-right:none}
     .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1;transition:color .3s}
@@ -116,6 +118,7 @@
     .status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:30px;font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
     .badge-valid{background:rgba(100,255,218,0.1);color:var(--teal);border:1px solid rgba(100,255,218,0.3)}
     .badge-invalid{background:rgba(255,107,138,0.1);color:var(--invalid);border:1px solid rgba(255,107,138,0.3)}
+    .badge-expired{background:rgba(255,179,71,0.1);color:var(--warn);border:1px solid rgba(255,179,71,0.3)}
     .badge-pending{background:rgba(126,184,247,0.1);color:#7EB8F7;border:1px solid rgba(126,184,247,0.3)}
     .btn-copy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:11px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:14px;margin-bottom:10px}
     .btn-copy-valid{background:rgba(100,255,218,0.08);border:1px solid rgba(100,255,218,0.3);color:var(--teal)}
@@ -131,16 +134,17 @@
     .cert-img-card img{width:100%;display:block;cursor:zoom-in;transition:transform .4s ease}
     .cert-img-card img:hover{transform:scale(1.012)}
     /* VALIDITY BANNER */
-    .val-banner{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:14px;backdrop-filter:blur(12px)}
+    .val-banner{display:flex;align-items:center;gap:14px;padding:18px 22px;border-radius:16px;backdrop-filter:blur(12px);transition:box-shadow .3s}
     .val-valid{background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2)}
     .val-invalid{background:rgba(255,107,138,0.06);border:1px solid rgba(255,107,138,0.2)}
     .val-pending{background:rgba(126,184,247,0.06);border:1px solid rgba(126,184,247,0.2)}
-    .val-text h4{font-size:.8rem;font-weight:600;letter-spacing:.05em}
-    .val-text p{font-size:.73rem;color:var(--text-sec);margin-top:4px;line-height:1.65}
+    .val-text h4{font-size:.85rem;font-weight:700;letter-spacing:.04em}
+    .val-text p{font-size:.74rem;color:var(--text-sec);margin-top:5px;line-height:1.7}
     /* NEAR EXPIRY */
     .near-exp{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,179,71,.06);border:1px solid rgba(255,179,71,.25);border-radius:12px;font-size:.72rem;color:var(--warn)}
     /* INFO CARDS */
-    .info-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:18px;padding:22px 26px;backdrop-filter:blur(12px)}
+    .info-card{background:rgba(17,34,64,0.7);border:1px solid var(--border);border-radius:18px;padding:22px 26px;backdrop-filter:blur(12px);transition:border-color .25s,box-shadow .25s}
+    .info-card:hover{border-color:rgba(212,168,67,0.12);box-shadow:0 4px 24px rgba(0,0,0,.2)}
     .sect-title{font-size:.55rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
     .sect-title::after{content:'';flex:1;height:1px;background:var(--border)}
     /* ISSUED BY */
@@ -687,6 +691,7 @@
 <div class="stats-bar">
   <div class="stat-item"><div class="stat-num" id="statTotal" aria-label="Certificates issued: loading">—</div><div class="stat-label">Certificates Issued</div></div>
   <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)" aria-label="Currently active certificates: loading">—</div><div class="stat-label">Currently Active</div></div>
+  <div class="stat-item"><div class="stat-num" id="statExpired" style="color:var(--warn)" aria-label="Expired certificates: loading">—</div><div class="stat-label">Expired</div></div>
   <div class="stat-item"><div class="stat-num" id="statLastIssued" style="color:var(--gold);font-size:1.1rem;letter-spacing:.04em" aria-label="Most recently issued certificate date: loading">—</div><div class="stat-label">Last Issued</div></div>
   <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="Registry available 24 hours a day, 7 days a week">24/7</div><div class="stat-label">Registry Available</div></div>
 </div>
@@ -771,25 +776,49 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  // Stats
-  fetch(API + '/stats').then(r => r.json()).then(d => {
-    if (d.total !== undefined) {
-      const tot = document.getElementById('statTotal');
-      const val = document.getElementById('statValid');
-      const lst = document.getElementById('statLastIssued');
-      tot.textContent = d.total;
-      tot.setAttribute('aria-label', 'Certificates issued: ' + d.total);
-      val.textContent = d.valid;
-      val.setAttribute('aria-label', 'Currently active certificates: ' + d.valid);
-      if (lst && d.lastIssued) {
-        const dt = new Date(d.lastIssued);
-        lst.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-        lst.setAttribute('aria-label', 'Most recently issued certificate date: ' + lst.textContent);
-      } else if (lst) {
-        lst.textContent = '—';
+  // Animated counter helper
+  function animateNum(el, to) {
+    if (!el) return;
+    const from = parseInt(el.textContent) || 0;
+    if (from === to) return;
+    el.classList.add('updating');
+    const dur = 600, start = performance.now();
+    const ease = t => t < .5 ? 2*t*t : -1+(4-2*t)*t;
+    const tick = now => {
+      const p = Math.min((now - start) / dur, 1);
+      el.textContent = Math.round(from + (to - from) * ease(p));
+      if (p < 1) requestAnimationFrame(tick);
+      else { el.textContent = to; setTimeout(() => el.classList.remove('updating'), 200); }
+    };
+    requestAnimationFrame(tick);
+  }
+
+  // Stats — initial fetch + auto-refresh every 60 s
+  function loadStats() {
+    fetch(API + '/stats').then(r => r.json()).then(d => {
+      if (d.total !== undefined) {
+        animateNum(document.getElementById('statTotal'), d.total);
+        animateNum(document.getElementById('statValid'), d.valid);
+        animateNum(document.getElementById('statExpired'), d.expired || 0);
+        const tot = document.getElementById('statTotal');
+        const val = document.getElementById('statValid');
+        const exp = document.getElementById('statExpired');
+        const lst = document.getElementById('statLastIssued');
+        if (tot) tot.setAttribute('aria-label', 'Certificates issued: ' + d.total);
+        if (val) val.setAttribute('aria-label', 'Currently active certificates: ' + d.valid);
+        if (exp) exp.setAttribute('aria-label', 'Expired certificates: ' + (d.expired || 0));
+        if (lst && d.lastIssued) {
+          const dt = new Date(d.lastIssued);
+          lst.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+          lst.setAttribute('aria-label', 'Most recently issued certificate date: ' + lst.textContent);
+        } else if (lst) {
+          lst.textContent = '—';
+        }
       }
-    }
-  }).catch(() => {});
+    }).catch(() => {});
+  }
+  loadStats();
+  setInterval(loadStats, 60000);
 
   function hideDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = 'none'; }
   function showDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = ''; }
@@ -800,10 +829,17 @@
   }
 
   function isCertValid(c) {
-    return c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= new Date());
+    const es = (c.effectiveStatus || c.status || '').toUpperCase();
+    return es === 'VALID';
+  }
+  function isCertExpired(c) {
+    const es = (c.effectiveStatus || c.status || '').toUpperCase();
+    if (es === 'EXPIRED') return true;
+    // Fallback client-side check if effectiveStatus not yet present
+    return (c.status || 'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < new Date();
   }
   function isCertPending(c) {
-    return (c.status || '').toUpperCase() === 'PENDING';
+    return (c.effectiveStatus || c.status || '').toUpperCase() === 'PENDING';
   }
 
   function scroll() { document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
@@ -916,12 +952,14 @@
     _currentCertId = cert.id || '';
     _emailGateVerified = false;
     const valid   = isCertValid(cert);
-    const pending = isCertPending(cert);
-    const accent  = valid ? 'var(--teal)' : pending ? '#7EB8F7' : 'var(--invalid)';
-    const badgeCls = valid ? 'badge-valid' : pending ? 'badge-pending' : 'badge-invalid';
+    const expired = !valid && isCertExpired(cert);
+    const pending = !valid && !expired && isCertPending(cert);
+    const accent  = valid ? 'var(--teal)' : pending ? '#7EB8F7' : expired ? 'var(--warn)' : 'var(--invalid)';
+    const badgeCls = valid ? 'badge-valid' : pending ? 'badge-pending' : expired ? 'badge-expired' : 'badge-invalid';
     const copyCls  = valid ? 'btn-copy-valid' : pending ? 'btn-copy-pending' : 'btn-copy-invalid';
-    const valCls   = valid ? 'val-valid' : pending ? 'val-pending' : 'val-invalid';
-    const statusTxt = valid ? 'VERIFIED &amp; VALID' : pending ? 'PENDING ACTIVATION' : cert.status;
+    const valCls   = valid ? 'val-valid' : pending ? 'val-pending' : expired ? 'val-invalid' : 'val-invalid';
+    const effectiveSt = (cert.effectiveStatus || cert.status || 'UNKNOWN').toUpperCase();
+    const statusTxt = valid ? 'VERIFIED &amp; VALID' : pending ? 'PENDING ACTIVATION' : expired ? 'EXPIRED' : effectiveSt;
 
     // Days left
     const dLeft = cert.validUntil
@@ -938,15 +976,19 @@
       ? `Certificate is <strong style="color:var(--teal)">active and accepted</strong> — valid until ${fmt(cert.validUntil)}${dLeft!==null && dLeft>0 ? ` · <strong>${dLeft} day${dLeft===1?'':'s'}</strong> remaining` : ''}`
       : pending
       ? `This certificate is <strong style="color:#7EB8F7">registered but not yet activated</strong>. ${(window.APP_CONFIG&&window.APP_CONFIG.cst)?window.APP_CONFIG.cst.pendingNote:'Contact the Synergy Cyber Security Team for status updates.'}`
-      : `This certificate is <strong style="color:var(--invalid)">${cert.status.toLowerCase()}</strong> and not currently accepted for compliance.`;
+      : expired
+      ? `This certificate <strong style="color:var(--warn)">expired on ${fmt(cert.validUntil)}</strong> and is no longer valid for compliance. Please contact the issuer for renewal.`
+      : `This certificate is <strong style="color:var(--invalid)">${effectiveSt.toLowerCase()}</strong> and not currently accepted for compliance.`;
 
     const valIconPath = valid
       ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
       : pending
       ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+      : expired
+      ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
       : 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
 
-    const valTitle = valid ? 'CERTIFICATE IS VALID &amp; AUTHENTIC' : pending ? 'CERTIFICATE PENDING ACTIVATION' : 'CERTIFICATE IS NOT VALID';
+    const valTitle = valid ? 'CERTIFICATE IS VALID &amp; AUTHENTIC' : pending ? 'CERTIFICATE PENDING ACTIVATION' : expired ? 'CERTIFICATE HAS EXPIRED' : 'CERTIFICATE IS NOT VALID';
 
     // Cert image
     const imgBlock = cert.certificateImage ? `
@@ -1086,7 +1128,7 @@
           </div>
           <div class="vrow">
             <div class="vrow-lbl">Expiration Date</div>
-            <div class="vrow-val" style="${!valid && !pending ? 'color:var(--invalid)' : ''}">${fmt(cert.validUntil)}</div>
+            <div class="vrow-val" style="${expired ? 'color:var(--warn)' : !valid && !pending ? 'color:var(--invalid)' : ''}">${fmt(cert.validUntil)}</div>
           </div>
           <div class="vrow">
             <div class="vrow-lbl">Status</div>

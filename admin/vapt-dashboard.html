@@ -105,7 +105,8 @@
 
     /* ── STATS ── */
     .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
-    .stat-card{padding:18px 20px;border-radius:14px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden}
+    .stat-card{padding:18px 20px;border-radius:14px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden;transition:border-color .25s,box-shadow .25s,transform .25s}
+    .stat-card[style*="cursor:pointer"]:hover{box-shadow:0 6px 28px rgba(0,0,0,.3);transform:translateY(-2px)}
     .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
     .stat-card.gold::before{background:linear-gradient(90deg,var(--gold),transparent)}
     .stat-card.green::before{background:linear-gradient(90deg,var(--teal),transparent)}
@@ -162,7 +163,8 @@
     th{padding:9px 14px;text-align:left;font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;background:var(--navy-mid);border-bottom:1px solid var(--border);white-space:nowrap}
     td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text);vertical-align:middle}
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:rgba(255,255,255,.02)}
+    tr{transition:background .15s,box-shadow .15s}
+    tr:hover td{background:rgba(255,255,255,.03);box-shadow:inset 2px 0 0 var(--teal)}
     .cid{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)}
     .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
     .pill.valid{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.25)}
@@ -1560,10 +1562,11 @@
         else valid++;
         if (c.emailStatus==='SENT') emailSent++; else emailPending++;
         const dl = daysUntil(c.validUntil);
-        if (dl === null) noExpiryCount++;
-        else if (dl < 0) expiredPastCount++;
+        const isTerminated = st === 'EXPIRED' || st === 'REVOKED';
+        if (isTerminated || (dl !== null && dl < 0)) expiredPastCount++;
+        else if (dl === null) noExpiryCount++;
         else if (dl <= 90) expSoon90Count++;
-        if (dl!==null && dl>=0 && dl<=45) nearExpiry.push({...c,daysLeft:dl});
+        if (!isTerminated && dl!==null && dl>=0 && dl<=45) nearExpiry.push({...c,daysLeft:dl});
       });
       nearExpiry.sort((a,b)=>a.daysLeft-b.daysLeft);
       const total = CERTS.length;
@@ -1597,6 +1600,9 @@
       const now2 = new Date(); now2.setHours(0,0,0,0);
       let exp7=0, exp8to30=0, exp31to90=0, healthyCount=0;
       CERTS.forEach(c => {
+        const st2 = (c.status || 'VALID').toUpperCase();
+        // EXPIRED and REVOKED by status already counted in expiredPastCount — skip from future buckets
+        if (st2 === 'EXPIRED' || st2 === 'REVOKED') return;
         if (!c.validUntil) return;
         const dl2 = Math.round((new Date(c.validUntil).setHours(0,0,0,0) - now2.getTime()) / 86400000);
         if (dl2 < 0) return; // already counted in expiredPastCount
@@ -1881,8 +1887,17 @@
     const el = document.getElementById(id);
     let list = CERTS;
     if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').includes(ql)||(c.vesselName||'').toLowerCase().includes(ql)); }
-    if (statusFilter) list=list.filter(c=>c.status===statusFilter);
-    else if (filterStatus) list=list.filter(c=>c.status===filterStatus);
+    if (statusFilter) {
+      if (statusFilter === 'EXPIRED') {
+        const _now = new Date();
+        list = list.filter(c => (c.status === 'VALID' && c.validUntil && new Date(c.validUntil) < _now) || c.status === 'EXPIRED');
+      } else if (statusFilter === 'VALID') {
+        const _now = new Date();
+        list = list.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= _now));
+      } else {
+        list = list.filter(c => c.status === statusFilter);
+      }
+    } else if (filterStatus) list=list.filter(c=>c.status===filterStatus);
     if (emailFilter==='SENT') list=list.filter(c=>c.emailStatus==='SENT');
     else if (emailFilter==='NOT_SENT') list=list.filter(c=>c.emailStatus!=='SENT');
     // Update count badge
@@ -2061,14 +2076,15 @@
     const doneCount=checks.filter(c=>c.done).length;
     const pct=Math.round(doneCount/checks.length*100);
     const allDone=doneCount===checks.length;
+    const isEdit=!!editingId;
+    const statusSel=document.getElementById('fStatus');
+    const saveBtn=document.getElementById('saveBtn');
+    const saveTxt=document.getElementById('saveTxt');
     const cpBar=document.getElementById('cpBar');
     const cpHeader=document.getElementById('cpHeader');
     cpBar.style.width=pct+'%';
     cpBar.style.background=allDone?'var(--teal)':doneCount>=3?'var(--gold)':'var(--warn)';
     document.getElementById('cpProgressBadge').textContent=`${doneCount}/${checks.length}`;
-    document.getElementById('cpHeaderTitle').textContent=allDone?'Ready to Save':'Incomplete';
-    document.getElementById('cpHeaderTitle').style.color=allDone?'var(--teal)':doneCount>=3?'var(--gold)':'var(--warn)';
-    document.getElementById('cpHeaderSub').textContent=allDone?'All fields complete — certificate ready':'Complete required fields to activate';
     document.getElementById('cpProgressBadge').style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,179,71,.12)';
     document.getElementById('cpProgressBadge').style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,179,71,.25)';
     document.getElementById('cpProgressBadge').style.color=allDone?'var(--teal)':'var(--warn)';
@@ -2077,6 +2093,36 @@
     icon.style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,179,71,.12)';
     icon.style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,179,71,.3)';
     icon.style.color=allDone?'var(--teal)':'var(--warn)';
+    if (allDone) {
+      document.getElementById('cpHeaderTitle').textContent=isEdit?'Ready to Update':'Ready to Activate';
+      document.getElementById('cpHeaderTitle').style.color='var(--teal)';
+      document.getElementById('cpHeaderSub').textContent=isEdit?'All fields complete — certificate ready':'All fields complete — auto-set to VALID';
+      if (cpHeader) cpHeader.style.background='rgba(100,255,218,.04)';
+      // New cert → auto-set VALID; edit → unlock but keep existing status
+      if (!isEdit && statusSel) {
+        statusSel.value='VALID';
+        statusSel.disabled=false;
+        statusSel.style.opacity='';
+      } else if (statusSel) {
+        statusSel.disabled=false;
+        statusSel.style.opacity='';
+      }
+      if (saveBtn) { saveBtn.removeAttribute('style'); saveBtn.setAttribute('style','flex:1;justify-content:center;padding:12px'); }
+      if (saveTxt) saveTxt.textContent=isEdit?'Update Certificate':'Save & Activate';
+    } else {
+      document.getElementById('cpHeaderTitle').textContent='Pending Activation';
+      document.getElementById('cpHeaderTitle').style.color=doneCount>=3?'var(--gold)':'var(--warn)';
+      document.getElementById('cpHeaderSub').textContent='Complete required fields to auto-activate';
+      if (cpHeader) cpHeader.style.background='';
+      // New cert only → force PENDING and lock
+      if (!isEdit && statusSel) {
+        statusSel.value='PENDING';
+        statusSel.disabled=true;
+        statusSel.style.opacity='0.5';
+        if (saveBtn) saveBtn.setAttribute('style','flex:1;justify-content:center;padding:12px;background:rgba(126,184,247,.15);border-color:rgba(126,184,247,.35);color:#7EB8F7');
+        if (saveTxt) saveTxt.textContent='Save as Pending';
+      }
+    }
     document.getElementById('cpItems').innerHTML=checks.map(c=>`
       <div class="cp-item ${c.done?'done':c.warn?'warn':'missing'}">
         <div class="cp-check">${c.done?'✓':c.warn?'⚠':''}</div>
@@ -2282,6 +2328,12 @@
         const d = new Date(); d.setFullYear(d.getFullYear() + 1);
         fd.append('validUntil', d.toISOString().slice(0, 10));
         c.validUntil = d.toISOString().slice(0, 10);
+      }
+      // When marking EXPIRED or REVOKED → set validUntil to today so radar + filters are accurate
+      if (newStatus === 'EXPIRED' || newStatus === 'REVOKED') {
+        const today = new Date().toISOString().slice(0, 10);
+        fd.append('validUntil', today);
+        c.validUntil = today;
       }
       const r = await fetch(API + '/vapt/certs/' + encodeURIComponent(id), {
         method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd

@@ -77,7 +77,8 @@
     .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:20px 0;margin-bottom:60px}
     .stat-item{text-align:center;padding:0 36px;border-right:1px solid var(--border)}
     .stat-item:last-child{border-right:none}
-    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--teal);line-height:1}
+    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--teal);line-height:1;transition:transform .3s}
+    .stat-num.updating{transform:scale(1.08)}
     .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
     @media(max-width:600px){
       .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
@@ -115,6 +116,8 @@
     .status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:30px;font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
     .badge-valid{background:rgba(100,255,218,0.1);color:var(--teal);border:1px solid rgba(100,255,218,0.3)}
     .badge-invalid{background:rgba(255,107,138,0.1);color:var(--invalid);border:1px solid rgba(255,107,138,0.3)}
+    .badge-expired{background:rgba(255,179,71,0.1);color:var(--warn);border:1px solid rgba(255,179,71,0.3)}
+    .badge-pending{background:rgba(126,184,247,0.1);color:#7EB8F7;border:1px solid rgba(126,184,247,0.3)}
     .btn-copy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:11px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:14px;margin-bottom:10px}
     .btn-copy-valid{background:rgba(100,255,218,0.08);border:1px solid rgba(100,255,218,0.3);color:var(--teal)}
     .btn-copy-invalid{background:rgba(255,107,138,0.06);border:1px solid rgba(255,107,138,0.25);color:var(--invalid)}
@@ -701,6 +704,7 @@
 <div class="stats-bar">
   <div class="stat-item"><div class="stat-num" id="statTotal" aria-label="Assessments issued: loading">—</div><div class="stat-label">Assessments Issued</div></div>
   <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)" aria-label="Currently valid assessments: loading">—</div><div class="stat-label">Currently Valid</div></div>
+  <div class="stat-item"><div class="stat-num" id="statExpired" style="color:var(--warn)" aria-label="Expired assessments: loading">—</div><div class="stat-label">Expired</div></div>
   <div class="stat-item"><div class="stat-num" id="statLastIssued" style="color:var(--gold);font-size:1.1rem;letter-spacing:.04em" aria-label="Most recently issued certificate date: loading">—</div><div class="stat-label">Last Issued</div></div>
   <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="IMO MSC-FAL.1/Circ.3 aligned">IMO</div><div class="stat-label">MSC-FAL.1/Circ.3</div></div>
 </div>
@@ -789,20 +793,46 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  fetch(API + '/vapt/stats').then(r => r.json()).then(d => {
-    if (d && d.total !== undefined) {
-      const tEl = document.getElementById('statTotal');
-      const vEl = document.getElementById('statValid');
-      const lEl = document.getElementById('statLastIssued');
-      if (tEl) { tEl.textContent = d.total; tEl.setAttribute('aria-label', 'Assessments issued: ' + d.total); }
-      if (vEl) { vEl.textContent = d.valid;  vEl.setAttribute('aria-label', 'Currently valid: ' + d.valid); }
-      if (lEl && d.lastIssued) {
-        const dt = new Date(d.lastIssued);
-        lEl.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-        lEl.setAttribute('aria-label', 'Most recently issued certificate date: ' + lEl.textContent);
-      } else if (lEl) { lEl.textContent = '—'; }
-    }
-  }).catch(() => {});
+  // Stats — initial fetch + auto-refresh every 60 s
+  function animateNum(el, to) {
+    if (!el) return;
+    const from = parseInt(el.textContent) || 0;
+    if (from === to) return;
+    el.classList.add('updating');
+    const dur = 600, start = performance.now();
+    const ease = t => t < .5 ? 2*t*t : -1+(4-2*t)*t;
+    const tick = now => {
+      const p = Math.min((now - start) / dur, 1);
+      el.textContent = Math.round(from + (to - from) * ease(p));
+      if (p < 1) requestAnimationFrame(tick);
+      else { el.textContent = to; setTimeout(() => el.classList.remove('updating'), 200); }
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function loadStats() {
+    fetch(API + '/vapt/stats').then(r => r.json()).then(d => {
+      if (d && d.total !== undefined) {
+        animateNum(document.getElementById('statTotal'), d.total);
+        animateNum(document.getElementById('statValid'), d.valid);
+        animateNum(document.getElementById('statExpired'), d.expired || 0);
+        const tEl = document.getElementById('statTotal');
+        const vEl = document.getElementById('statValid');
+        const eEl = document.getElementById('statExpired');
+        const lEl = document.getElementById('statLastIssued');
+        if (tEl) tEl.setAttribute('aria-label', 'Assessments issued: ' + d.total);
+        if (vEl) vEl.setAttribute('aria-label', 'Currently valid: ' + d.valid);
+        if (eEl) eEl.setAttribute('aria-label', 'Expired assessments: ' + (d.expired || 0));
+        if (lEl && d.lastIssued) {
+          const dt = new Date(d.lastIssued);
+          lEl.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+          lEl.setAttribute('aria-label', 'Most recently issued certificate date: ' + lEl.textContent);
+        } else if (lEl) { lEl.textContent = '—'; }
+      }
+    }).catch(() => {});
+  }
+  loadStats();
+  setInterval(loadStats, 60000);
 
   function hideDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = 'none'; }
   function showDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = ''; }
@@ -949,12 +979,17 @@
     const now  = new Date(); now.setHours(0,0,0,0);
     const vu   = c.validUntil ? new Date(c.validUntil) : null;
     if (vu) vu.setHours(0,0,0,0);
-    const isV  = c.status === 'VALID' && (!vu || vu >= now);
-    const accent = isV ? 'var(--teal)' : 'var(--invalid)';
-    const badgeCls = isV ? 'badge-valid' : 'badge-invalid';
-    const copyCls  = isV ? 'btn-copy-valid' : 'btn-copy-invalid';
-    const valCls   = isV ? 'val-valid' : 'val-invalid';
+    // Use server-computed effectiveStatus if available, else derive client-side
+    const effectiveSt = (c.effectiveStatus || c.status || '').toUpperCase();
+    const isV     = effectiveSt === 'VALID';
+    const isExp   = effectiveSt === 'EXPIRED' || (!isV && (c.status || '').toUpperCase() === 'VALID' && vu && vu < now);
+    const isPend  = effectiveSt === 'PENDING';
+    const accent  = isV ? 'var(--teal)' : isPend ? '#7EB8F7' : isExp ? 'var(--warn)' : 'var(--invalid)';
+    const badgeCls = isV ? 'badge-valid' : isPend ? 'badge-pending' : isExp ? 'badge-expired' : 'badge-invalid';
+    const copyCls  = isV ? 'btn-copy-valid' : isPend ? 'btn-copy-pending' : 'btn-copy-invalid';
+    const valCls   = isV ? 'val-valid' : isPend ? 'val-pending' : 'val-invalid';
     const daysLeft = vu ? Math.round((vu - now) / 86400000) : null;
+    const statusLabel = isV ? 'VERIFIED &amp; VALID' : isPend ? 'PENDING' : isExp ? 'EXPIRED' : escH(effectiveSt);
 
     const nearExpiry = (isV && daysLeft !== null && daysLeft >= 0 && daysLeft <= 30) ? `
     <div class="near-exp">
@@ -964,11 +999,21 @@
 
     const validMsg = isV
       ? `Assessment is <strong style="color:var(--teal)">current and verified</strong> — valid until ${fmtLong(c.validUntil)}${daysLeft!==null&&daysLeft>0?` · <strong>${daysLeft} day${daysLeft===1?'':'s'}</strong> remaining`:''}`
-      : `This assessment is <strong style="color:var(--invalid)">${c.status?c.status.toLowerCase():'expired'}</strong> and not currently valid for compliance purposes.`;
+      : isPend
+      ? `This assessment is <strong style="color:#7EB8F7">registered but not yet activated</strong>. Contact the VAPT team for status updates.`
+      : isExp
+      ? `This assessment <strong style="color:var(--warn)">expired on ${fmtLong(c.validUntil)}</strong> and is no longer valid for compliance. Please contact the issuer for re-assessment.`
+      : `This assessment is <strong style="color:var(--invalid)">${effectiveSt.toLowerCase()}</strong> and not currently valid for compliance purposes.`;
 
     const valIconPath = isV
       ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+      : isPend
+      ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+      : isExp
+      ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
       : 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
+
+    const valTitle = isV ? 'ASSESSMENT IS VALID &amp; AUTHENTIC' : isPend ? 'ASSESSMENT PENDING ACTIVATION' : isExp ? 'ASSESSMENT HAS EXPIRED' : 'ASSESSMENT IS NOT VALID';
 
     const imgBlock = c.certificateImage ? `
     <div class="cert-img-card">
@@ -1027,13 +1072,13 @@
           </div>
           <div class="vrow">
             <div class="vrow-lbl">Expiration Date</div>
-            <div class="vrow-val" style="${!isV ? 'color:var(--invalid)' : ''}">${fmtLong(c.validUntil)}</div>
+            <div class="vrow-val" style="${isExp ? 'color:var(--warn)' : !isV && !isPend ? 'color:var(--invalid)' : ''}">${fmtLong(c.validUntil)}</div>
           </div>
           <div class="vrow">
             <div class="vrow-lbl">Status</div>
             <span class="status-badge ${badgeCls}">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
-              ${isV ? 'VERIFIED' : c.status || 'EXPIRED'}
+              ${statusLabel}
             </span>
           </div>
           <button class="btn-copy ${copyCls}" onclick="copyVerifyLink(this)">
@@ -1053,7 +1098,7 @@
         <div class="val-banner ${valCls} ${isV ? 'val-valid-glow' : 'val-invalid-glow'}">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${accent}" stroke-width="1.8" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="${valIconPath}"/></svg>
           <div class="val-text">
-            <h4 style="color:${accent}">${isV ? 'ASSESSMENT IS VALID &amp; VERIFIED' : 'ASSESSMENT IS NOT VALID'}</h4>
+            <h4 style="color:${accent}">${valTitle}</h4>
             <p>${validMsg}</p>
           </div>
         </div>
@@ -1086,7 +1131,7 @@
             <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${c.vesselName || '—'}</span></div>
             <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${c.vesselIMO || '—'}</span></div>
             <div class="ii"><span class="ilbl">Assessment Date</span><span class="ival">${fmtLong(c.assessmentDate)}</span></div>
-            <div class="ii"><span class="ilbl">Valid Until</span><span class="ival ${!isV ? 'red' : ''}">${fmtLong(c.validUntil)}</span></div>
+            <div class="ii"><span class="ilbl">Valid Until</span><span class="ival ${isExp ? '' : !isV && !isPend ? 'red' : ''}" style="${isExp ? 'color:var(--warn)' : ''}">${fmtLong(c.validUntil)}</span></div>
             <div class="ii fw"><span class="ilbl">Frameworks / Standards</span><span class="ival">${c.frameworks || 'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013'}</span></div>
             ${scopeList.length ? `<div class="ii fw">
               <span class="ilbl">Assessment Scope</span>

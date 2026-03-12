@@ -504,11 +504,12 @@
       border: 1px solid var(--border);
       position: relative;
       overflow: hidden;
-      transition: border-color .2s, box-shadow .2s;
+      transition: border-color .25s, box-shadow .25s, transform .25s;
     }
 
     .stat-card[style*="cursor:pointer"]:hover {
-      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      box-shadow: 0 6px 28px rgba(0,0,0,.3);
+      transform: translateY(-2px);
     }
 
     .stat-card::before {
@@ -825,11 +826,12 @@
 
     tbody tr {
       border-bottom: 1px solid var(--border);
-      transition: background .12s;
+      transition: background .15s, box-shadow .15s;
     }
 
     tbody tr:hover {
       background: var(--surface-hover);
+      box-shadow: inset 2px 0 0 var(--gold);
     }
 
     tbody tr:last-child {
@@ -840,6 +842,7 @@
       padding: 12px 15px;
       font-size: .82rem;
       vertical-align: middle;
+      transition: color .15s;
     }
 
     .cid {
@@ -1774,25 +1777,28 @@
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, .75);
+      background: rgba(0, 0, 0, .8);
       z-index: 200;
       display: flex;
       align-items: flex-start;
       justify-content: center;
       overflow-y: auto;
       padding: 36px 18px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(14px);
+      animation: overlayIn .18s ease;
     }
+
+    @keyframes overlayIn { from{opacity:0} to{opacity:1} }
 
     .modal {
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255,255,255,.1);
       border-radius: 20px;
       width: 100%;
       max-width: 720px;
       overflow: hidden;
-      animation: pop .3s cubic-bezier(.34, 1.56, .64, 1);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+      animation: pop .28s cubic-bezier(.34, 1.4, .64, 1);
+      box-shadow: 0 40px 100px rgba(0, 0, 0, .7), 0 0 0 1px rgba(212,168,67,.06);
     }
 
     .modal-sm {
@@ -3480,8 +3486,9 @@
         else if (!isV) expired++;
         else valid++;
         const dl = daysUntil(c.validUntil);
-        if (dl === null) noExpiry++;
-        else if (dl < 0) expiredPast++;
+        const isTerminated = st === 'EXPIRED' || st === 'REVOKED';
+        if (isTerminated || (dl !== null && dl < 0)) expiredPast++;
+        else if (dl === null) noExpiry++;
         else if (dl <= 30) { expSoon30++; nearExpiry.push({ ...c, daysLeft: dl }); }
         else if (dl <= 90) { expSoon90++; if (dl <= 45) nearExpiry.push({ ...c, daysLeft: dl }); }
         if (c.issuedAt) { const ii = new Date(c.issuedAt); if (!earliestIssued || ii < earliestIssued) earliestIssued = ii; }
@@ -3494,6 +3501,9 @@
       // Non-overlapping buckets for expiry radar
       let exp7=0, exp8to30=0, exp31to90=0, healthyBucket=0;
       certs.forEach(c => {
+        const st2 = (c.status || 'VALID').toUpperCase();
+        // EXPIRED and REVOKED by status are already counted in expiredPast — exclude from future buckets
+        if (st2 === 'EXPIRED' || st2 === 'REVOKED') return;
         const dl2 = daysUntil(c.validUntil);
         if (dl2 === null || dl2 < 0) return;
         if (dl2 <= 7) exp7++;
@@ -3759,6 +3769,12 @@
           fd.append('validUntil', d.toISOString().slice(0, 10));
           c.validUntil = d.toISOString().slice(0, 10);
         }
+        // When marking EXPIRED or REVOKED → set validUntil to today so radar + filters are accurate
+        if (newStatus === 'EXPIRED' || newStatus === 'REVOKED') {
+          const today = new Date().toISOString().slice(0, 10);
+          fd.append('validUntil', today);
+          c.validUntil = today;
+        }
         const r = await fetch(API + '/certs/' + encodeURIComponent(id), {
           method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd
         });
@@ -3811,7 +3827,18 @@
       const el = document.getElementById(id);
       let list = CERTS;
       if (q) { const ql = q.toLowerCase(); list = list.filter(c => c.id.toLowerCase().includes(ql) || (c.recipientName || '').toLowerCase().includes(ql) || (c.vesselIMO || '').includes(ql) || (c.vesselName || '').toLowerCase().includes(ql) || (c.chiefEngineer || '').toLowerCase().includes(ql)); }
-      if (statusFilter) list = list.filter(c => c.status === statusFilter);
+      if (statusFilter) {
+        if (statusFilter === 'EXPIRED') {
+          // EXPIRED = stored VALID but past validUntil
+          const _now = new Date();
+          list = list.filter(c => (c.status === 'VALID' || c.status === 'EXPIRED') && c.validUntil && new Date(c.validUntil) < _now || c.status === 'EXPIRED');
+        } else if (statusFilter === 'VALID') {
+          const _now = new Date();
+          list = list.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= _now));
+        } else {
+          list = list.filter(c => c.status === statusFilter);
+        }
+      }
       if (quarterFilter) list = list.filter(c => (c.complianceQuarter || '').toUpperCase() === quarterFilter);
       if (modeFilter) list = list.filter(c => (c.trainingMode || '').toUpperCase() === modeFilter);
       if (emailFilter === 'SENT') list = list.filter(c => c.emailStatus === 'SENT');
@@ -4125,39 +4152,38 @@
         // ── ALL COMPLETE ──
         headerTitle.textContent = isEdit ? 'Ready to Update' : 'Ready to Activate';
         headerTitle.style.color = 'var(--teal)';
-        headerSub.textContent = 'All required fields complete';
+        headerSub.textContent = isEdit ? 'All required fields complete' : 'All fields complete — auto-set to VALID';
         headerIcon.style.cssText = 'width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:var(--teal)';
         headerIcon.textContent = '✓';
         bar.style.background = 'var(--teal)';
         badge.style.cssText = 'margin-left:auto;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);color:var(--teal)';
         cpHeader.style.background = 'rgba(100,255,218,.04)';
-        actionText.innerHTML = '· All required fields completed ✓<br>· Set status to <strong style="color:var(--teal)">VALID</strong> — certificate will be publicly verifiable<br>· Or keep as <strong style="color:#7EB8F7">PENDING</strong> to hold for review';
-        // Unlock status
+        // New cert → auto-set VALID; edit → leave existing status as-is but unlock
+        if (!isEdit) {
+          statusSel.value = 'VALID';
+          actionText.innerHTML = '· All required fields completed ✓<br>· Status automatically set to <strong style="color:var(--teal)">VALID</strong> — certificate is publicly verifiable<br>· You can change the status above if needed';
+        } else {
+          actionText.innerHTML = '· All required fields completed ✓<br>· Update the certificate to apply changes';
+        }
         statusSel.disabled = false;
         statusSel.style.opacity = '';
-        if (statusSel.value === 'VALID') {
-          saveBtn.setAttribute('style', 'flex:1;justify-content:center;padding:12px');
-          saveBtn.className = 'btn btn-primary';
-          saveTxt.textContent = isEdit ? 'Update Certificate' : 'Save & Activate';
-        } else {
-          saveBtn.setAttribute('style', 'flex:1;justify-content:center;padding:12px');
-          saveBtn.className = 'btn btn-primary';
-          saveTxt.textContent = isEdit ? 'Update Certificate' : 'Save Certificate';
-        }
+        saveBtn.setAttribute('style', 'flex:1;justify-content:center;padding:12px');
+        saveBtn.className = 'btn btn-primary';
+        saveTxt.textContent = isEdit ? 'Update Certificate' : 'Save & Activate';
         statusHint.style.display = statusSel.value === 'PENDING' ? 'block' : 'none';
       } else {
         // ── INCOMPLETE ──
         const missing = fields.filter(f => !f.ok).length;
         headerTitle.textContent = 'Pending Activation';
         headerTitle.style.color = done === 0 ? 'var(--text-sec)' : 'var(--warn)';
-        headerSub.textContent = missing + ' required field' + (missing === 1 ? '' : 's') + ' missing';
+        headerSub.textContent = missing + ' required field' + (missing === 1 ? '' : 's') + ' missing — will save as PENDING';
         headerIcon.style.cssText = 'width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;' + (done === 0 ? 'background:var(--surface);border:1px solid var(--border);color:var(--text-sec)' : 'background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.3);color:var(--warn)');
         headerIcon.textContent = done === 0 ? '○' : '!';
         bar.style.background = pct > 60 ? 'var(--warn)' : 'var(--invalid)';
         badge.style.cssText = 'margin-left:auto;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(255,179,71,.1);border:1px solid rgba(255,179,71,.25);color:var(--warn)';
         cpHeader.style.background = '';
-        actionText.innerHTML = '· Fill missing fields above to unlock activation<br>· Will be saved as <strong style="color:#7EB8F7">PENDING</strong> — not publicly verifiable until VALID<br>· All 5 fields required: IMO, Email, Chief Engineer, Date, Image';
-        // Force PENDING and lock dropdown (new certs only)
+        actionText.innerHTML = '· Fill missing fields above to auto-activate<br>· Will be saved as <strong style="color:#7EB8F7">PENDING</strong> — not publicly verifiable until all fields filled<br>· All 5 fields required: IMO, Email, Chief Engineer, Date, Image';
+        // Force PENDING and lock dropdown (new certs only — don't override existing cert status on edit)
         if (!isEdit) {
           statusSel.value = 'PENDING';
           statusSel.disabled = true;
