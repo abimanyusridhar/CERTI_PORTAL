@@ -79,10 +79,11 @@ const CFG = require('../config/app.config');
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT           = parseInt(process.env.PORT || '3000', 10);
-const DATA_FILE      = path.join(__dirname, '..', 'data', 'certificates.json');
-const VAPT_DATA_FILE = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
-const UPLOADS_DIR    = path.join(__dirname, '..', 'uploads');
-const KEYS_FILE      = path.join(__dirname, '..', 'data', '.keys.json');
+const DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
+const VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
+const TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
+const UPLOADS_DIR      = path.join(__dirname, '..', 'uploads');
+const KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
 
 // ─── DEPLOYMENT CONFIG ───────────────────────────────────────────────────────
 const BASE_ORIGIN = (process.env.BASE_ORIGIN || `http://localhost:${PORT}`).replace(/\/+$/, '');
@@ -535,10 +536,25 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
 /**
  * Build a minimal RFC 2822 email string with UTF-8 encoded subject.
  */
-function buildRawEmail({ from, to, subject, body, replyTo }) {
+function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
   const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
   const msgId  = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${(from.match(/@([^>\s]+)/) || [])[1] || 'mail'}>`;
   const dateStr = new Date().toUTCString().replace(/GMT$/, '+0000');
+  const boundary = 'SYNBND_' + crypto.randomBytes(8).toString('hex');
+
+  // Plain-text part (base64)
+  const plainB64 = Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, '');
+
+  // HTML part — plain text converted to basic HTML + tracking pixel appended
+  const htmlBody = '<html><body><pre style="font-family:Arial,sans-serif;font-size:14px;white-space:pre-wrap">'
+    + body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    + '</pre>'
+    + (trackingPixelUrl
+        ? `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none" alt="" />`
+        : '')
+    + '</body></html>';
+  const htmlB64  = Buffer.from(htmlBody).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, '');
+
   const lines = [
     `From: ${from}`,
     `To: ${to}`,
@@ -546,12 +562,23 @@ function buildRawEmail({ from, to, subject, body, replyTo }) {
     `Message-ID: ${msgId}`,
     `Date: ${dateStr}`,
     `MIME-Version: 1.0`,
-    `Content-Type: text/plain; charset=UTF-8`,
-    `Content-Transfer-Encoding: base64`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ];
   if (replyTo && replyTo !== from) lines.push(`Reply-To: ${replyTo}`);
   lines.push('');
-  lines.push(Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, ''));
+  lines.push(`--${boundary}`);
+  lines.push('Content-Type: text/plain; charset=UTF-8');
+  lines.push('Content-Transfer-Encoding: base64');
+  lines.push('');
+  lines.push(plainB64);
+  lines.push('');
+  lines.push(`--${boundary}`);
+  lines.push('Content-Type: text/html; charset=UTF-8');
+  lines.push('Content-Transfer-Encoding: base64');
+  lines.push('');
+  lines.push(htmlB64);
+  lines.push('');
+  lines.push(`--${boundary}--`);
   return lines.join('\r\n');
 }
 
@@ -568,11 +595,83 @@ function logEmail(logFile, fields, sesResult) {
     .catch(() => { /* non-fatal */ });
 }
 
+// ─── ENGAGEMENT TRACKING ─────────────────────────────────────────────────────
+// Events: email_opened | cert_viewed | document_downloaded
+// Each cert stores an `engagement` object with timestamped arrays per event.
+
+/**
+ * Append a tracking event to the JSONL log file (non-blocking, non-fatal).
+ */
+function appendTrackEvent(certId, event, meta = {}) {
+  const entry = JSON.stringify({
+    t:      new Date().toISOString(),
+    certId,
+    event,
+    ...meta,
+  }) + '\n';
+  fs.promises.appendFile(TRACK_FILE, entry, 'utf8').catch(() => {});
+}
+
+/**
+ * Record an engagement event on the cert object itself and persist.
+ * @param {object} data   - the full data store object (mutated in-place)
+ * @param {string} certId
+ * @param {'email_opened'|'cert_viewed'|'document_downloaded'} event
+ * @param {object} [meta] - optional extra info (e.g. { file: 'cert.pdf' })
+ * @param {function} saveFn - saveData or saveVaptData
+ */
+function recordEngagement(data, certId, event, meta, saveFn) {
+  const cert = data[certId];
+  if (!cert) return;
+  if (!cert.engagement) cert.engagement = {};
+  const eng = cert.engagement;
+  const ts  = new Date().toISOString();
+  switch (event) {
+    case 'email_opened':
+      if (!eng.emailOpenedAt) eng.emailOpenedAt = ts;
+      eng.emailOpenCount = (eng.emailOpenCount || 0) + 1;
+      eng.emailLastOpenAt = ts;
+      break;
+    case 'cert_viewed':
+      if (!eng.certFirstViewedAt) eng.certFirstViewedAt = ts;
+      eng.certViewCount = (eng.certViewCount || 0) + 1;
+      eng.certLastViewedAt = ts;
+      break;
+    case 'document_downloaded':
+      if (!eng.docFirstDownloadAt) eng.docFirstDownloadAt = ts;
+      eng.docDownloadCount = (eng.docDownloadCount || 0) + 1;
+      eng.docLastDownloadAt = ts;
+      if (meta && meta.file) eng.docLastFile = meta.file;
+      break;
+  }
+  data[certId] = cert;
+  saveFn(data);
+  appendTrackEvent(certId, event, meta);
+}
+
+/**
+ * Build a signed 1×1 transparent GIF tracking pixel endpoint URL for an email.
+ * The token is an HMAC-signed compact string: base64url(certId) + '.' + hmac
+ */
+function buildTrackingPixelUrl(certId, baseUrl, kind /* 'cst' | 'vapt' */) {
+  const payload = Buffer.from(certId).toString('base64url');
+  const sig     = crypto.createHmac('sha256', KEYS.urlMacKey)
+    .update('track:' + kind + ':' + payload).digest('base64url').slice(0, 16);
+  const prefix  = kind === 'vapt' ? '/api/vapt/track-open/' : '/api/track-open/';
+  return `${baseUrl}${prefix}${payload}.${sig}`;
+}
+
+/** 1×1 transparent GIF bytes */
+const TRACKING_PIXEL_GIF = Buffer.from(
+  'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'
+);
+
 // ─── CST CREDENTIAL EMAIL ─────────────────────────────────────────────────────
-async function sendCstEmail({ to, from, cert, verifyUrl }) {
-  const body    = CFG.emailTemplates.cst(cert, verifyUrl);
-  const subject = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
-  const raw     = buildRawEmail({ from, to, subject, body, replyTo: from });
+async function sendCstEmail({ to, from, cert, verifyUrl, baseUrl }) {
+  const body             = CFG.emailTemplates.cst(cert, verifyUrl);
+  const subject          = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
+  const trackingPixelUrl = buildTrackingPixelUrl(cert.id, baseUrl || BASE_ORIGIN, 'cst');
+  const raw              = buildRawEmail({ from, to, subject, body, replyTo: from, trackingPixelUrl });
   const result  = await sesSendRaw(raw, from, [to]);
   logEmail(
     path.join(path.dirname(DATA_FILE), 'email_log.jsonl'),
@@ -583,7 +682,7 @@ async function sendCstEmail({ to, from, cert, verifyUrl }) {
 }
 
 // ─── VAPT CREDENTIAL EMAIL ────────────────────────────────────────────────────
-async function sendVaptEmail({ to, from, cert, verifyUrl }) {
+async function sendVaptEmail({ to, from, cert, verifyUrl, baseUrl }) {
   const body  = CFG.emailTemplates.vapt(cert, verifyUrl);
   const lines = body.split('\n');
   let subject   = `Your VAPT Certificate — ${cert.id} — ${CFG.brand.companyShort || CFG.brand.name} Group`;
@@ -592,7 +691,8 @@ async function sendVaptEmail({ to, from, cert, verifyUrl }) {
     subject   = lines[0].replace(/^Subject:\s*/, '').trim();
     cleanBody = lines.slice(2).join('\n');
   }
-  const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from });
+  const trackingPixelUrl = buildTrackingPixelUrl(cert.id, baseUrl || BASE_ORIGIN, 'vapt');
+  const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from, trackingPixelUrl });
   const result = await sesSendRaw(raw, from, [to]);
   logEmail(
     path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl'),
@@ -869,22 +969,6 @@ function parseMultipart(req) {
 // ─── SERVER STARTUP TIME (for /api/health) ───────────────────────────────────
 const SERVER_START_TIME = Date.now();
 
-// ─── SHARED STAT CALCULATOR ──────────────────────────────────────────────────
-function calcStats(certs) {
-  const now = new Date();
-  let total = 0, valid = 0, expired = 0, pending = 0, lastIssuedDate = '';
-  for (const c of certs) {
-    total++;
-    const st = (c.status || 'VALID').toUpperCase();
-    if (st === 'PENDING') { pending++; }
-    else if (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now) { expired++; }
-    else if (st === 'VALID') { valid++; }
-    const d = c.createdAt || c.issuedAt || c.complianceDate || c.assessmentDate || '';
-    if (d > lastIssuedDate) lastIssuedDate = d;
-  }
-  return { total, valid, expired, pending, lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null };
-}
-
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
 async function handleAPI(req, res, parsed) {
   const method = req.method.toUpperCase();
@@ -973,7 +1057,104 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const cert = loadData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+    // Track cert view
+    recordEngagement(loadData(), certId, 'cert_viewed', { src: 'id_lookup' }, saveData);
     return sendJSON(res, 200, certPublicFields(cert), corsH);
+  }
+
+  // ── GET /api/track-open/:token ── (public — 1×1 pixel, fires on email open for CST)
+  if (route.startsWith('/track-open/') && method === 'GET') {
+    const raw     = route.replace('/track-open/', '');
+    const dotIdx  = raw.lastIndexOf('.');
+    if (dotIdx > 0) {
+      const payload  = raw.slice(0, dotIdx);
+      const sig      = raw.slice(dotIdx + 1);
+      const expected = crypto.createHmac('sha256', KEYS.urlMacKey)
+        .update('track:cst:' + payload).digest('base64url').slice(0, 16);
+      const sigBuf = Buffer.from(sig.padEnd(expected.length, '=').slice(0, expected.length));
+      const expBuf = Buffer.from(expected);
+      const valid  = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+      if (valid) {
+        try {
+          const certId = Buffer.from(payload, 'base64url').toString('utf8');
+          const data   = loadData();
+          if (data[certId]) recordEngagement(data, certId, 'email_opened', { ua: req.headers['user-agent'] || '' }, saveData);
+        } catch { /* non-fatal */ }
+      }
+    }
+    res.writeHead(200, {
+      'Content-Type': 'image/gif',
+      'Content-Length': TRACKING_PIXEL_GIF.length,
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    });
+    return res.end(TRACKING_PIXEL_GIF);
+  }
+
+  // ── GET /api/vapt/track-open/:token ── (public — 1×1 pixel for VAPT email open)
+  if (route.startsWith('/vapt/track-open/') && method === 'GET') {
+    const raw     = route.replace('/vapt/track-open/', '');
+    const dotIdx  = raw.lastIndexOf('.');
+    if (dotIdx > 0) {
+      const payload  = raw.slice(0, dotIdx);
+      const sig      = raw.slice(dotIdx + 1);
+      const expected = crypto.createHmac('sha256', KEYS.urlMacKey)
+        .update('track:vapt:' + payload).digest('base64url').slice(0, 16);
+      const sigBuf = Buffer.from(sig.padEnd(expected.length, '=').slice(0, expected.length));
+      const expBuf = Buffer.from(expected);
+      const valid  = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+      if (valid) {
+        try {
+          const certId = Buffer.from(payload, 'base64url').toString('utf8');
+          const data   = loadVaptData();
+          if (data[certId]) recordEngagement(data, certId, 'email_opened', { ua: req.headers['user-agent'] || '' }, saveVaptData);
+        } catch { /* non-fatal */ }
+      }
+    }
+    res.writeHead(200, {
+      'Content-Type': 'image/gif',
+      'Content-Length': TRACKING_PIXEL_GIF.length,
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    });
+    return res.end(TRACKING_PIXEL_GIF);
+  }
+
+  // ── POST /api/track-event ── (public — cert viewed / document downloaded from browser)
+  if (route === '/track-event' && method === 'POST') {
+    let body;
+    try { body = JSON.parse(await getBody(req, 3000)); } catch { return sendJSON(res, 400, {}, corsH); }
+    const { certId: rawId, event, file, kind } = body || {};
+    const certId = sanitiseCertId(rawId);
+    if (!certId || !['cert_viewed', 'document_downloaded'].includes(event)) {
+      return sendJSON(res, 400, { error: 'Invalid event' }, corsH);
+    }
+    const isVapt = kind === 'vapt';
+    const data   = isVapt ? loadVaptData() : loadData();
+    if (data[certId]) {
+      recordEngagement(data, certId, event, file ? { file } : { src: 'portal' }, isVapt ? saveVaptData : saveData);
+    }
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── GET /api/certs/:id/engagement ── (admin — fetch engagement stats for one cert)
+  if (route.match(/^\/certs\/[^/]+\/engagement$/) && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const certId = sanitiseCertId(route.replace('/certs/', '').replace('/engagement', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid ID' }, corsH);
+    const cert = loadData()[certId];
+    if (!cert) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    return sendJSON(res, 200, { certId, engagement: cert.engagement || {} }, corsH);
+  }
+
+  // ── GET /api/vapt/certs/:id/engagement ── (admin — VAPT engagement stats)
+  if (route.match(/^\/vapt\/certs\/[^/]+\/engagement$/) && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const certId = sanitiseCertId(route.replace('/vapt/certs/', '').replace('/engagement', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid ID' }, corsH);
+    const cert = loadVaptData()[certId];
+    if (!cert) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    return sendJSON(res, 200, { certId, engagement: cert.engagement || {} }, corsH);
   }
 
   // ── GET /api/verify/:encToken ── (public — verify cert by encrypted token)
@@ -990,6 +1171,7 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+    recordEngagement(loadData(), certId, 'cert_viewed', { src: 'token_link' }, saveData);
     return sendJSON(res, 200, certPublicFields(cert), corsH);
   }
 
@@ -1137,7 +1319,7 @@ async function handleAPI(req, res, parsed) {
     }
 
     const result = await sendCstEmail({
-      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl
+      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl, baseUrl: base
     });
 
     if (result.success) {
@@ -1204,8 +1386,29 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── GET /api/stats ── (public — aggregate cert stats for index page)
+  // IMPROVED: now returns lastIssued date for display on the public portal
   if (route === '/stats' && method === 'GET') {
-    return sendJSON(res, 200, calcStats(Object.values(loadData())), corsH);
+    const data  = loadData();
+    const certs = Object.values(data);
+    const now   = new Date();
+    const total = certs.length;
+    const valid = certs.filter(c =>
+      (c.status || 'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)
+    ).length;
+    const expired = certs.filter(c =>
+      (c.status || 'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < now
+    ).length;
+    const pending = certs.filter(c =>
+      (c.status || '').toUpperCase() === 'PENDING'
+    ).length;
+    const lastIssuedDate = certs.reduce((best, c) => {
+      const d = c.createdAt || c.issuedAt || c.complianceDate || '';
+      return d > best ? d : best;
+    }, '');
+    return sendJSON(res, 200, {
+      total, valid, expired, pending,
+      lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
+    }, corsH);
   }
 
   // ── GET /api/ses-status ── (admin — email service status)
@@ -1229,38 +1432,83 @@ async function handleAPI(req, res, parsed) {
   // ══════════════════════════════════════════════════════════════════════════
 
   // ── GET /api/vapt/stats ── (public — aggregate VAPT cert stats)
+  // IMPROVED: now returns lastIssued date
   if (route === '/vapt/stats' && method === 'GET') {
-    return sendJSON(res, 200, calcStats(Object.values(loadVaptData())), corsH);
+    const data  = loadVaptData();
+    const certs = Object.values(data);
+    const now   = new Date();
+    const total = certs.length;
+    const valid = certs.filter(c =>
+      (c.status || 'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)
+    ).length;
+    const expired = certs.filter(c =>
+      (c.status || 'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < now
+    ).length;
+    const pending = certs.filter(c =>
+      (c.status || '').toUpperCase() === 'PENDING'
+    ).length;
+    const lastIssuedDate = certs.reduce((best, c) => {
+      const d = c.createdAt || c.issuedAt || c.assessmentDate || '';
+      return d > best ? d : best;
+    }, '');
+    return sendJSON(res, 200, {
+      total, valid, expired, pending,
+      lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
+    }, corsH);
   }
 
-  // ── POST /api/verify-email/:certId  &  /api/vapt/verify-email/:certId ──
-  // Shared email-gate: timing-safe HMAC compare, brute-force delay.
-  {
-    const _cstMatch  = method === 'POST' && route.match(/^\/verify-email\/([^/]+)$/);
-    const _vaptMatch = method === 'POST' && route.match(/^\/vapt\/verify-email\/([^/]+)$/);
-    const _match     = _cstMatch || _vaptMatch;
-    if (_match) {
-      const rl = checkRateLimit(ip, 'verify');
-      if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
-      const certId = sanitiseCertId(_match[1]);
-      if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-      let body;
-      try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-      const entered = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
-      if (!entered) return sendJSON(res, 400, { error: 'Email is required' }, corsH);
-      const store = _vaptMatch ? loadVaptData() : loadData();
-      const cert  = store[certId];
-      if (!cert)   return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-      const stored = (cert.recipientEmail || '').trim().toLowerCase();
-      if (!stored) return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
-      const bufA = Buffer.from(crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex'), 'hex');
-      const bufB = Buffer.from(crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex'),  'hex');
-      if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
-        await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
-        return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
-      }
-      return sendJSON(res, 200, { ok: true }, corsH);
+  // ── POST /api/verify-email/:certId ── (public — gate check for CST PDF access)
+  // Accepts { email } in JSON body. Returns { ok: true } only when email matches
+  // the stored recipientEmail (case-insensitive, timing-safe). Never reveals the email.
+  if (route.match(/^\/verify-email\/[^/]+$/) && method === 'POST') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
+    const certId = sanitiseCertId(route.replace('/verify-email/', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const entered  = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
+    if (!entered)  return sendJSON(res, 400, { error: 'Email is required' }, corsH);
+    const cert = loadData()[certId];
+    if (!cert)     return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+    const stored   = (cert.recipientEmail || '').trim().toLowerCase();
+    // If no email is configured for this cert, deny access (prevents gate bypass on unconfigured certs)
+    if (!stored)   return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
+    // Timing-safe compare using fixed-length HMAC to prevent timing attacks
+    const hmacEntered = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
+    const hmacStored  = crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex');
+    const bufA = Buffer.from(hmacEntered, 'hex');
+    const bufB = Buffer.from(hmacStored,  'hex');
+    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+      await new Promise(r => setTimeout(r, 150 + Math.random() * 100)); // delay brute-force
+      return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
     }
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── POST /api/vapt/verify-email/:certId ── (public — gate check for VAPT PDF access)
+  if (route.match(/^\/vapt\/verify-email\/[^/]+$/) && method === 'POST') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
+    const certId = sanitiseCertId(route.replace('/vapt/verify-email/', ''));
+    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const entered  = (typeof body.email === 'string' ? body.email : '').trim().toLowerCase();
+    if (!entered)  return sendJSON(res, 400, { error: 'Email is required' }, corsH);
+    const cert = loadVaptData()[certId];
+    if (!cert)     return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
+    const stored   = (cert.recipientEmail || '').trim().toLowerCase();
+    if (!stored)   return sendJSON(res, 403, { error: 'No registered email for this certificate' }, corsH);
+    const hmacEntered = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
+    const hmacStored  = crypto.createHmac('sha256', KEYS.urlMacKey).update(stored).digest('hex');
+    const bufA = Buffer.from(hmacEntered, 'hex');
+    const bufB = Buffer.from(hmacStored,  'hex');
+    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+      await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
+      return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
+    }
+    return sendJSON(res, 200, { ok: true }, corsH);
   }
 
   // ── GET /api/vapt/verify-by-id/:certId ── (public)
@@ -1271,6 +1519,7 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const cert = loadVaptData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
+    recordEngagement(loadVaptData(), certId, 'cert_viewed', { src: 'id_lookup' }, saveVaptData);
     return sendJSON(res, 200, vaptPublicFields(cert), corsH);
   }
 
@@ -1305,6 +1554,7 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadVaptData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
+    recordEngagement(loadVaptData(), certId, 'cert_viewed', { src: 'token_link' }, saveVaptData);
     return sendJSON(res, 200, vaptPublicFields(cert), corsH);
   }
 
@@ -1467,7 +1717,7 @@ async function handleAPI(req, res, parsed) {
     }
 
     const result = await sendVaptEmail({
-      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl
+      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl, baseUrl: base
     });
 
     if (result.success) {
@@ -1570,6 +1820,31 @@ const server = http.createServer(async (req, res) => {
     const ext   = path.extname(fpath).toLowerCase();
     const mime  = MIME[ext] || 'application/octet-stream';
     const isPdf = ext === '.pdf';
+
+    // ── Track document download: find which cert owns this file ──
+    try {
+      const fileUrl = '/uploads/' + fname;
+      // Check CST certs first
+      const cstData = loadData();
+      for (const [certId, cert] of Object.entries(cstData)) {
+        const owns = cert.certificateImage === fileUrl ||
+          (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl));
+        if (owns) {
+          recordEngagement(cstData, certId, 'document_downloaded', { file: fname }, saveData);
+          break;
+        }
+      }
+      // Check VAPT certs
+      const vaptData = loadVaptData();
+      for (const [certId, cert] of Object.entries(vaptData)) {
+        const owns = cert.certificateImage === fileUrl ||
+          (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl));
+        if (owns) {
+          recordEngagement(vaptData, certId, 'document_downloaded', { file: fname }, saveVaptData);
+          break;
+        }
+      }
+    } catch { /* non-fatal */ }
 
     try {
       const content = fs.readFileSync(fpath);

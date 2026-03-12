@@ -105,8 +105,7 @@
 
     /* ── STATS ── */
     .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
-    .stat-card{padding:18px 20px;border-radius:14px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden;transition:border-color .25s,box-shadow .25s,transform .25s}
-    .stat-card[style*="cursor:pointer"]:hover{box-shadow:0 6px 28px rgba(0,0,0,.3);transform:translateY(-2px)}
+    .stat-card{padding:18px 20px;border-radius:14px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden}
     .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
     .stat-card.gold::before{background:linear-gradient(90deg,var(--gold),transparent)}
     .stat-card.green::before{background:linear-gradient(90deg,var(--teal),transparent)}
@@ -160,11 +159,13 @@
     .filter-count-badge{display:inline-flex;align-items:center;padding:3px 9px;background:var(--navy-mid);border:1px solid var(--border);border-radius:8px;font-size:.65rem;color:var(--text-sec);white-space:nowrap;letter-spacing:.06em}
     .filter-count-badge strong{color:var(--gold);margin-right:2px}
     table{width:100%;border-collapse:collapse;min-width:800px}
-    th{padding:9px 14px;text-align:left;font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;background:var(--navy-mid);border-bottom:1px solid var(--border);white-space:nowrap}
-    td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text);vertical-align:middle}
+    th{padding:9px 13px;text-align:left;font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;background:var(--navy-mid);border-bottom:1px solid var(--border);white-space:nowrap}
+    td{padding:8px 13px;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text);vertical-align:middle;white-space:nowrap}
+    td.name-cell{white-space:normal;max-width:170px;word-break:break-word}
+    td.eng-cell{white-space:nowrap;width:130px;min-width:130px;max-width:130px}
+    td.eng-cell>div{display:flex;flex-wrap:nowrap;gap:4px;align-items:center}
     tr:last-child td{border-bottom:none}
-    tr{transition:background .15s,box-shadow .15s}
-    tr:hover td{background:rgba(255,255,255,.03);box-shadow:inset 2px 0 0 var(--teal)}
+    tr:hover td{background:rgba(255,255,255,.02)}
     .cid{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)}
     .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
     .pill.valid{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.25)}
@@ -172,6 +173,11 @@
     .pill.revoked{background:rgba(255,179,71,.1);color:var(--warn);border:1px solid rgba(255,179,71,.25)}
     .pill.pending{background:rgba(126,184,247,.1);color:#7EB8F7;border:1px solid rgba(126,184,247,.25)}
     .pill.sent{background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.25)}
+    /* ── ENGAGEMENT BADGES ── */
+    .eng-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:.58rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;cursor:default}
+    .eng-open{background:rgba(74,158,255,.12);color:#4A9EFF;border:1px solid rgba(74,158,255,.3)}
+    .eng-view{background:rgba(100,255,218,.10);color:var(--teal);border:1px solid rgba(100,255,218,.28)}
+    .eng-dl{background:rgba(212,168,67,.10);color:var(--gold);border:1px solid rgba(212,168,67,.28)}
     .pill.not-sent{background:rgba(255,107,138,.08);color:var(--invalid);border:1px solid rgba(255,107,138,.2)}
     /* Inline status selector */
     .inline-status-sel{border-radius:10px;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.1em;border:1px solid;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;transition:all .15s;text-transform:uppercase}
@@ -639,7 +645,736 @@
   }
   html.light .theme-toggle .tt-icon { background: rgba(30,60,120,0.06) !important; }
   html.light .theme-toggle:hover .tt-icon { background: rgba(181,134,10,0.12) !important; }
-  </style>
+  
+  /* ══════════════════════════════════
+     GLOBAL POLISH LAYER
+     ══════════════════════════════════ */
+
+  /* Scrollbar refinement (all scrollable areas) */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,168,67,0.25); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,168,67,0.5); }
+  * { scrollbar-width: thin; scrollbar-color: rgba(212,168,67,0.25) transparent; }
+
+  /* Focus ring — accessibility, unified style */
+  *:focus-visible {
+    outline: 2px solid rgba(212,168,67,0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Smoother selection highlight */
+  ::selection { background: rgba(212,168,67,0.22); color: inherit; }
+
+  /* Nav layout alignment fix — scoped to top nav only, NOT sb-nav */
+  nav:not(.sb-nav) {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .nav-brand { flex: 1 1 auto; min-width: 0; }
+  .nav-center { flex: 0 1 auto; }
+  .nav-right  { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Nav tabs — tighter, crisper */
+  .nav-tab {
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* Secure badge — refined */
+  .nav-secure-badge {
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* Hero eyebrow pill */
+  .hero-eyebrow {
+    line-height: 1 !important;
+  }
+
+  /* Search wrap — improved depth */
+  .search-wrap {
+    box-shadow: 0 4px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+  .search-wrap:focus-within {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 0 0 4px rgba(212,168,67,0.12), 0 16px 48px rgba(0,0,0,0.4) !important;
+  }
+
+  /* Stats bar — consistent vertical rhythm */
+  .stats-bar {
+    padding: 24px 0 !important;
+    gap: 0 !important;
+  }
+  .stat-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Sidebar cards — consistent shadows & hover */
+  .sidebar-card {
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2) !important;
+  }
+  .sidebar-card:hover {
+    box-shadow: 0 8px 36px rgba(0,0,0,0.38), 0 0 0 1px rgba(212,168,67,0.08) !important;
+    transform: translateY(-1px);
+    transition: all 0.25s ease !important;
+  }
+
+  /* Info cards */
+  .info-card {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important;
+  }
+  .info-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(212,168,67,0.18) !important;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.25) !important;
+  }
+
+  /* Validity banner — tighter inner spacing */
+  .val-banner {
+    gap: 16px !important;
+    padding: 20px 24px !important;
+  }
+
+  /* Not-found message polished */
+  .not-found {
+    border-radius: 20px !important;
+  }
+
+  /* Footer spacing */
+  footer {
+    padding: 28px 60px !important;
+  }
+
+  /* Doc items hover */
+  .doc-item {
+    transition: all 0.2s ease !important;
+  }
+  .doc-item:hover {
+    transform: translateX(2px) !important;
+  }
+
+  /* Skill tags */
+  .skill-tag {
+    transition: all 0.18s ease !important;
+  }
+
+  /* Pagination / page transitions */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Certificate image subtle zoom */
+  .cert-img-card img {
+    transition: transform 0.5s cubic-bezier(0.25,0.8,0.25,1) !important;
+  }
+  .cert-img-card img:hover {
+    transform: scale(1.014) !important;
+  }
+
+
+  /* ══════════════════════════════════
+     DASHBOARD POLISH LAYER
+     ══════════════════════════════════ */
+
+  /* Sidebar — refined depth */
+  .sidebar {
+    box-shadow: 2px 0 20px rgba(0,0,0,0.22) !important;
+  }
+
+  /* Sidebar brand area */
+  .sb-brand {
+    padding: 20px 18px !important;
+    gap: 14px !important;
+  }
+
+  /* Nav items — cleaner hover */
+  .nav-item {
+    transition: all 0.15s ease !important;
+    border-radius: 10px !important;
+  }
+  .nav-item:hover {
+    transform: translateX(2px) !important;
+  }
+  .nav-item.active {
+    box-shadow: inset 0 1px 0 rgba(212,168,67,0.15) !important;
+  }
+
+  /* Topbar — subtle elevation */
+  .topbar {
+    box-shadow: 0 1px 12px rgba(0,0,0,0.18) !important;
+  }
+
+  /* Stats row cards — refined */
+  .stat-card {
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18) !important;
+  }
+  .stat-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.28) !important;
+  }
+  .snum {
+    letter-spacing: -0.02em !important;
+    line-height: 1 !important;
+  }
+
+  /* Analytics cards */
+  .analytics-card {
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.14) !important;
+  }
+  .analytics-card:hover {
+    border-color: rgba(212,168,67,0.14) !important;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.22) !important;
+  }
+
+  /* Table card */
+  .table-card {
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18) !important;
+    border-radius: 16px !important;
+  }
+
+  /* Table rows — slightly more generous */
+  tbody td {
+    padding: 11px 14px !important;
+    vertical-align: middle !important;
+  }
+  thead th {
+    padding: 12px 14px !important;
+    font-size: .57rem !important;
+    letter-spacing: .18em !important;
+    background: rgba(0,0,0,0.12) !important;
+  }
+
+  /* Alternating row tint */
+  tbody tr:nth-child(even) {
+    background: rgba(255,255,255,0.012) !important;
+  }
+  tbody tr:hover {
+    background: rgba(212,168,67,0.04) !important;
+  }
+
+  /* Table header filter row */
+  .tbl-hdr {
+    padding: 14px 18px !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+
+  /* Mini search input */
+  .mini-search {
+    border-radius: 9px !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+  }
+  .mini-search:focus-within {
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.1) !important;
+    border-color: rgba(212,168,67,0.45) !important;
+  }
+
+  /* Filter selects */
+  .filter-select {
+    border-radius: 9px !important;
+    transition: border-color 0.2s !important;
+  }
+  .filter-select:focus {
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.1) !important;
+  }
+
+  /* Pills — refined */
+  .pill {
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: .1em !important;
+  }
+
+  /* Button polish */
+  .btn {
+    transition: all 0.18s ease !important;
+    border-radius: 10px !important;
+    letter-spacing: .08em !important;
+    font-weight: 600 !important;
+  }
+  .btn-primary {
+    box-shadow: 0 2px 12px rgba(212,168,67,0.25) !important;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 4px 20px rgba(212,168,67,0.35) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  /* Form controls */
+  .fcontrol {
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+    line-height: 1.5 !important;
+  }
+  .fcontrol:focus {
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.12) !important;
+  }
+
+  /* Issue cert rows */
+  .issue-cert-row {
+    transition: all 0.15s ease !important;
+  }
+  .issue-cert-row:hover {
+    transform: translateX(2px) !important;
+  }
+
+  /* Login card */
+  .login-card {
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,168,67,0.1) !important;
+  }
+
+  /* Admin tag */
+  .admin-tag {
+    border-radius: 12px !important;
+  }
+
+  /* Near expiry card items */
+  .near-expiry-card .ne-item {
+    transition: all 0.15s ease !important;
+  }
+  .near-expiry-card .ne-item:hover {
+    transform: translateX(2px) !important;
+  }
+
+  /* Completion checklist items */
+  .cp-item {
+    border-radius: 9px !important;
+    transition: background 0.15s ease !important;
+  }
+  .cp-item:hover {
+    background: rgba(255,255,255,0.04) !important;
+  }
+
+  /* Toast — refined */
+  #toast {
+    backdrop-filter: blur(12px) !important;
+    font-weight: 500 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+    border-radius: 12px !important;
+  }
+
+  /* Send panel */
+  .send-panel {
+    border-radius: 14px !important;
+  }
+
+  /* Near expiry card */
+  .near-expiry-card {
+    border-radius: 16px !important;
+  }
+
+  /* Cert canvas corners — polished */
+  .cert-canvas {
+    border-radius: 0 !important;
+  }
+
+  /* Light mode dashboard specifics */
+  html.light tbody tr:nth-child(even) {
+    background: rgba(30,60,120,0.02) !important;
+  }
+  html.light tbody tr:hover {
+    background: rgba(181,134,10,0.04) !important;
+  }
+  html.light thead th {
+    background: rgba(30,60,120,0.04) !important;
+  }
+  html.light .stat-card {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 16px rgba(30,60,120,0.07) !important;
+  }
+  html.light .stat-card:hover {
+    box-shadow: 0 8px 32px rgba(30,60,120,0.12) !important;
+  }
+  html.light .analytics-card {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+  }
+  html.light .table-card {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 16px rgba(30,60,120,0.07) !important;
+  }
+  html.light .topbar {
+    box-shadow: 0 1px 12px rgba(30,60,120,0.08) !important;
+  }
+  html.light .mini-search {
+    background: #F7FAFF !important;
+    border-color: rgba(30,60,120,0.12) !important;
+  }
+  html.light .filter-select {
+    background-color: #F7FAFF !important;
+    border-color: rgba(30,60,120,0.12) !important;
+    color: #1E3A5F !important;
+  }
+  html.light .fcontrol {
+    background: #F7FAFF !important;
+    border-color: rgba(30,60,120,0.14) !important;
+    color: #0A1628 !important;
+  }
+  html.light .fcontrol:focus {
+    border-color: rgba(181,134,10,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(181,134,10,0.10) !important;
+  }
+  html.light .btn-ghost {
+    background: rgba(30,60,120,0.05) !important;
+    border-color: rgba(30,60,120,0.15) !important;
+    color: #4A6080 !important;
+  }
+  html.light .btn-ghost:hover {
+    background: rgba(30,60,120,0.09) !important;
+    color: #0A1628 !important;
+  }
+  html.light .issue-cert-row {
+    background: #F0F4FA !important;
+    border-color: rgba(30,60,120,0.10) !important;
+  }
+  html.light .issue-cert-row:hover {
+    background: #E8EFF8 !important;
+  }
+  html.light .send-panel {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+  }
+  html.light .near-expiry-card {
+    background: #fff !important;
+  }
+  html.light .login-card {
+    background: rgba(255,255,255,0.98) !important;
+    border-color: rgba(181,134,10,0.25) !important;
+    box-shadow: 0 24px 80px rgba(30,60,120,0.16), 0 0 0 1px rgba(181,134,10,0.08) !important;
+  }
+  html.light .admin-tag {
+    background: rgba(181,134,10,0.08) !important;
+    border-color: rgba(181,134,10,0.22) !important;
+  }
+
+
+  /* ═══ DASHBOARD COMPONENT ALIGNMENT POLISH ═══ */
+
+  /* Topbar: right-align actions, left title block */
+  .topbar {
+    padding: 0 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  .topbar > .tb-title-group {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .tb-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  /* Sidebar bottom - always stick to bottom */
+  .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .sb-nav {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    padding: 12px 10px !important;
+  }
+  .sb-foot {
+    flex-shrink: 0 !important;
+    padding: 12px 10px !important;
+  }
+
+  /* Stats row — equal height cards */
+  .stats-row {
+    align-items: stretch !important;
+  }
+  .stat-card {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 20px 20px !important;
+    border-radius: 15px !important;
+  }
+
+  /* Analytics card head alignment */
+  .analytics-head {
+    padding: 14px 18px !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  /* Table card header consistent padding */
+  .tbl-hdr {
+    padding: 14px 18px 12px !important;
+  }
+  .tbl-hdr-top {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* Issue layout responsive fix */
+  .issue-layout {
+    align-items: start !important;
+  }
+  @media (max-width: 900px) {
+    .issue-layout {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* Form group labels - consistent weight */
+  .flabel {
+    font-weight: 600 !important;
+    letter-spacing: .14em !important;
+    font-size: .59rem !important;
+  }
+
+  /* Section titles in forms */
+  .issue-section-title {
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid var(--border) !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Email recipient rows */
+  .email-recipient-row {
+    border-radius: 10px !important;
+    transition: background 0.15s ease !important;
+  }
+  .email-recipient-row:hover {
+    background: var(--surface-hover) !important;
+  }
+
+  /* Send panel header */
+  .send-panel-hdr {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* Cert preview outer - cleaner border */
+  .cert-preview-outer {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  /* Login wrap logo */
+  .login-icon {
+    transition: transform 0.3s ease !important;
+  }
+  .login-icon:hover {
+    transform: scale(1.05) rotate(-2deg) !important;
+  }
+
+  /* Admin avatar */
+  .admin-av {
+    transition: transform 0.2s ease !important;
+  }
+  .admin-av:hover {
+    transform: scale(1.08) !important;
+  }
+
+  /* Page header spacing */
+  .page {
+    padding: 22px 26px !important;
+  }
+
+  /* Near expiry badge alignment */
+  .ne-days-badge {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 9px !important;
+    min-width: 52px !important;
+    font-weight: 700 !important;
+  }
+
+  /* Chart wrap */
+  .analytics-chart-wrap {
+    min-height: 150px !important;
+  }
+
+  /* Sidebar overlay (mobile) */
+  .sidebar-overlay {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+
+  /* Engagement badges alignment */
+  .eng-badge {
+    vertical-align: middle !important;
+  }
+
+  /* Inline status select */
+  .inline-status-sel {
+    padding: 4px 28px 4px 8px !important;
+    min-width: 90px !important;
+  }
+
+  /* Filter count badge */
+  .filter-count-badge {
+    border-radius: 9px !important;
+    font-weight: 500 !important;
+  }
+
+  /* No-img placeholder alignment */
+  .no-img {
+    vertical-align: middle !important;
+    border-radius: 6px !important;
+  }
+
+  /* Thumb alignment */
+  .thumb {
+    border-radius: 6px !important;
+    vertical-align: middle !important;
+    transition: opacity 0.2s !important;
+  }
+  .thumb:hover {
+    opacity: 0.88 !important;
+  }
+
+  /* Empty state */
+  .empty-state {
+    padding: 72px 24px !important;
+  }
+  .empty-state h3 {
+    color: var(--text) !important;
+    margin-top: 14px !important;
+  }
+
+  /* Light mode: page background */
+  html.light .page {
+    background: #F4F7FC !important;
+  }
+  html.light .main {
+    background: #F4F7FC !important;
+  }
+
+
+  /* ── SIDEBAR NAV VERTICAL RESET ── */
+  .sb-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* ═══════════════════════════════════════
+     SIDEBAR VERTICAL LAYOUT — HARD FIXES
+     ═══════════════════════════════════════ */
+
+  /* App shell: always horizontal split */
+  #appWrap {
+    display: flex !important;
+    flex-direction: row !important;
+    height: 100vh !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Sidebar: always vertical column, fixed width, never shrinks */
+  .sidebar {
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  /* Mobile: sidebar slides in from left as a vertical overlay */
+  @media (max-width: 900px) {
+    .sidebar {
+      position: fixed !important;
+      left: 0 !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      height: 100dvh !important;
+      z-index: 200 !important;
+      transform: translateX(-100%) !important;
+      transition: transform .28s cubic-bezier(.4,0,.2,1) !important;
+    }
+    .sidebar.open {
+      transform: translateX(0) !important;
+    }
+  }
+
+  /* Main content: fills remaining space, scrollable */
+  .main {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  /* Sidebar brand row */
+  .sb-brand {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Sidebar nav items: always vertical */
+  .nav-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  /* Sidebar footer: stick to bottom */
+  .sb-foot {
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
+  }
+
+  /* Side-mini quick stats */
+  .side-mini {
+    display: block !important;
+    width: 100% !important;
+  }
+  .side-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  }
+  html.light .side-row {
+    border-bottom-color: rgba(30,60,120,0.05) !important;
+  }
+
+  /* Light mode sidebar */
+  html.light .sidebar {
+    background: #fff !important;
+    border-right: 1px solid rgba(30,60,120,0.10) !important;
+    box-shadow: 2px 0 16px rgba(30,60,120,0.08) !important;
+  }
+
+</style>
   <script>
     /* ── THEME TOGGLE — BULLETPROOFED ──────────────────────────────────
        Runs synchronously in <head> — applies saved theme to <html>
@@ -1636,6 +2371,12 @@
     if (!d) return '—';
     return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   }
+  function fmtDt(d) {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})
+      + ' · ' + dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  }
   function fmtTiny(d) {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
@@ -1907,8 +2648,19 @@
     if(cb) cb.style.display=(q||statusFilter||emailFilter)?'':'none';
     if (!list.length) { el.innerHTML='<div class="empty-state"><h3>No VAPT certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:4px">Try adjusting your search or clearing filters.</p></div>'; return; }
     const isDash=id==='dashTbl';
-    el.innerHTML = `<table><thead><tr>
-      <th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th style="white-space:nowrap">Valid Until</th><th>Email</th><th>Image</th><th>Actions</th>
+    el.innerHTML = `<table><colgroup>
+      <col style="width:148px"><!-- Cert ID -->
+      <col style="width:160px"><!-- Vessel -->
+      <col style="width:80px"> <!-- IMO -->
+      <col style="width:110px"><!-- Assessment Date -->
+      <col style="width:110px"><!-- Status -->
+      <col style="width:120px"><!-- Valid Until -->
+      <col style="width:70px"> <!-- Email -->
+      <col style="width:130px"><!-- Engagement -->
+      <col style="width:68px"> <!-- Image -->
+      <col>                    <!-- Actions -->
+    </colgroup><thead><tr>
+      <th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
     </tr></thead><tbody>` + (isDash?list.slice(0,10):list).map(c => {
       const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
       const isV=c.status==='VALID'&&(!vu||vu>=now);
@@ -1922,9 +2674,18 @@
         : '<div class="no-img">—</div>';
       const emailCls=c.emailStatus==='SENT'?'sent':'not-sent';
       const canSend=c.recipientEmail&&c.emailStatus!=='SENT'&&c.status==='VALID';
+      const eng = c.engagement || {};
+      const engBadges = [
+        eng.emailOpenCount   ? `<span class="eng-badge eng-open" title="Email opened ${eng.emailOpenCount}× · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 ${eng.emailOpenCount}</span>` : '',
+        eng.certViewCount    ? `<span class="eng-badge eng-view" title="Cert viewed ${eng.certViewCount}× · First: ${fmtDt(eng.certFirstViewedAt)}">👁 ${eng.certViewCount}</span>` : '',
+        eng.docDownloadCount ? `<span class="eng-badge eng-dl"  title="Doc downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}">⬇ ${eng.docDownloadCount}</span>` : '',
+      ].filter(Boolean).join('');
+      const engCell = engBadges
+        ? `<div>${engBadges}</div>`
+        : `<span style="color:var(--text-sec);font-size:.65rem;font-style:italic">No activity</span>`;
       return `<tr>
         <td><span class="cid" title="${c.id}">${c.id}</span></td>
-        <td style="max-width:160px"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||c.vesselName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>`:''}</td>
+        <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||c.vesselName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>`:''}</td>
         <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO||'—'}</span></td>
         <td style="font-size:.76rem;color:var(--text-sec)">${fmt(c.assessmentDate)}</td>
         <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${c.id}" onchange="quickStatusChange('${c.id}',this.value,this)" title="Change status">
@@ -1933,8 +2694,9 @@
           <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
           <option value="REVOKED" ${c.status==='REVOKED'?'selected':''}>🚫 REVOKED</option>
         </select></td>
-        <td style="color:${vlColor};font-size:.76rem;white-space:nowrap">${vlStr}</td>
+        <td style="color:${vlColor};font-size:.76rem">${vlStr}</td>
         <td><span class="pill ${emailCls}" title="${c.recipientEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'—'}</span></td>
+        <td class="eng-cell">${engCell}</td>
         <td>${imgEl}</td>
         <td><div class="act-grp">
           <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
@@ -2300,6 +3062,30 @@
       </div>
       ${c.certificateImage?`<img src="${c.certificateImage}" style="width:100%;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;margin-bottom:${atts.length?'14px':'0'}" onclick="openLB(this.src)" />`:''}
       ${buildViewAttachments(atts)}
+      ${(function() {
+        const eng = c.engagement || {};
+        const events = [];
+        if (c.emailSentAt)          events.push({ ts: c.emailSentAt,          icon: '📤', label: 'Email sent',           color: 'var(--text-sec)' });
+        if (eng.emailOpenedAt)      events.push({ ts: eng.emailOpenedAt,      icon: '📧', label: `Email opened (${eng.emailOpenCount}×)`, color: '#4A9EFF' });
+        if (eng.certFirstViewedAt)  events.push({ ts: eng.certFirstViewedAt,  icon: '👁',  label: `Certificate viewed (${eng.certViewCount}×)`, color: 'var(--teal)' });
+        if (eng.docFirstDownloadAt) events.push({ ts: eng.docFirstDownloadAt, icon: '⬇',  label: `Document downloaded (${eng.docDownloadCount}×)${eng.docLastFile?' — '+eng.docLastFile:''}`, color: 'var(--gold)' });
+        events.sort((a,b) => a.ts < b.ts ? -1 : 1);
+        if (!events.length) return '';
+        return `<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Recipient Activity Log
+          </div>
+          <div style="position:relative;padding-left:20px">
+            <div style="position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--border)"></div>
+            ${events.map((e,i) => `<div style="position:relative;margin-bottom:${i<events.length-1?'10px':'0'}">
+              <div style="position:absolute;left:-17px;top:2px;width:7px;height:7px;border-radius:50%;background:${e.color};border:1px solid var(--bg)"></div>
+              <div style="font-size:.71rem;color:${e.color};font-weight:600">${e.icon} ${e.label}</div>
+              <div style="font-size:.62rem;color:var(--text-sec);margin-top:1px">${fmtDt(e.ts)}</div>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      })()}
     `;
     document.getElementById('viewFoot').innerHTML=`
       ${(c.status||'').toUpperCase()==='PENDING' ? `<button class="btn" style="background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:var(--teal);display:inline-flex;align-items:center;gap:7px" onclick="closeView();activateCert('${c.id}')"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> Activate</button>` : ''}

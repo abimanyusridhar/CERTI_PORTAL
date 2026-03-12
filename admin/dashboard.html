@@ -379,9 +379,8 @@
       .page { padding: 16px 14px; }
     }
 
-    /* Table overflow for wide tables */
-    .table-card { overflow-x: auto; }
-    table { min-width: 900px; }
+    /* Table base — min-width ensures horizontal scroll kicks in */
+    table { min-width: 1240px; }
     .tbl-hdr { min-width: 0; }
 
     .tb-title {
@@ -504,12 +503,11 @@
       border: 1px solid var(--border);
       position: relative;
       overflow: hidden;
-      transition: border-color .25s, box-shadow .25s, transform .25s;
+      transition: border-color .2s, box-shadow .2s;
     }
 
     .stat-card[style*="cursor:pointer"]:hover {
-      box-shadow: 0 6px 28px rgba(0,0,0,.3);
-      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
     }
 
     .stat-card::before {
@@ -697,8 +695,20 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 14px;
-      overflow: hidden;
+      overflow: hidden; /* clip rounded corners; scroll is on inner .tbl-scroll-wrap */
     }
+
+    /* Scrollable table wrapper — sits INSIDE .table-card, BELOW .tbl-hdr */
+    .tbl-scroll-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Scrollbar styling for table */
+    .tbl-scroll-wrap::-webkit-scrollbar { height: 5px; }
+    .tbl-scroll-wrap::-webkit-scrollbar-track { background: var(--navy); }
+    .tbl-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border-gold); border-radius: 4px; }
+    .tbl-scroll-wrap::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
     .tbl-hdr {
       padding: 14px 18px;
@@ -813,25 +823,13 @@
       border-collapse: collapse;
     }
 
-    thead th {
-      padding: 11px 15px;
-      text-align: left;
-      font-size: .58rem;
-      letter-spacing: .16em;
-      color: var(--text-sec);
-      text-transform: uppercase;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-
     tbody tr {
       border-bottom: 1px solid var(--border);
-      transition: background .15s, box-shadow .15s;
+      transition: background .12s;
     }
 
     tbody tr:hover {
       background: var(--surface-hover);
-      box-shadow: inset 2px 0 0 var(--gold);
     }
 
     tbody tr:last-child {
@@ -839,13 +837,31 @@
     }
 
     tbody td {
-      padding: 12px 15px;
+      padding: 10px 14px;
       font-size: .82rem;
       vertical-align: middle;
-      transition: color .15s;
+      white-space: nowrap;
+      border-right: 1px solid rgba(255,255,255,0.03);
     }
 
-    .cid {
+    tbody td:last-child {
+      border-right: none;
+    }
+
+    thead th {
+      padding: 11px 14px;
+      text-align: left;
+      font-size: .58rem;
+      letter-spacing: .16em;
+      color: var(--text-sec);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid rgba(255,255,255,0.03);
+      white-space: nowrap;
+    }
+
+    thead th:last-child { border-right: none; }
+    .cert-id-mono {
       font-family: 'JetBrains Mono', monospace;
       font-size: .7rem;
       color: var(--gold);
@@ -891,6 +907,44 @@
       background: rgba(255, 179, 71, .1);
       color: var(--warn);
       border: 1px solid rgba(255, 179, 71, .25);
+    }
+
+    /* ── ENGAGEMENT BADGES ── */
+    .eng-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-size: .58rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      white-space: nowrap;
+      cursor: default;
+    }
+    .eng-open  { background: rgba(74,158,255,.12); color: #4A9EFF; border: 1px solid rgba(74,158,255,.3); }
+    .eng-view  { background: rgba(100,255,218,.10); color: var(--teal); border: 1px solid rgba(100,255,218,.28); }
+    .eng-dl    { background: rgba(212,168,67,.10);  color: var(--gold); border: 1px solid rgba(212,168,67,.28); }
+
+    /* Engagement cell — fixed width, never blows out the row */
+    td.eng-cell {
+      white-space: nowrap;
+      width: 130px;
+      min-width: 130px;
+      max-width: 130px;
+    }
+    td.eng-cell > div {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    /* Vessel/recipient column — allow wrap for long names */
+    td.name-cell {
+      white-space: normal;
+      max-width: 180px;
+      word-break: break-word;
     }
 
     /* ── NEAR EXPIRY LIST CARD ── */
@@ -1076,8 +1130,9 @@
 
     .act-grp {
       display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
+      gap: 4px;
+      flex-wrap: nowrap;
+      align-items: center;
     }
 
     .thumb {
@@ -1777,28 +1832,25 @@
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, .8);
+      background: rgba(0, 0, 0, .75);
       z-index: 200;
       display: flex;
       align-items: flex-start;
       justify-content: center;
       overflow-y: auto;
       padding: 36px 18px;
-      backdrop-filter: blur(14px);
-      animation: overlayIn .18s ease;
+      backdrop-filter: blur(10px);
     }
-
-    @keyframes overlayIn { from{opacity:0} to{opacity:1} }
 
     .modal {
       background: var(--surface);
-      border: 1px solid rgba(255,255,255,.1);
+      border: 1px solid var(--border);
       border-radius: 20px;
       width: 100%;
       max-width: 720px;
       overflow: hidden;
-      animation: pop .28s cubic-bezier(.34, 1.4, .64, 1);
-      box-shadow: 0 40px 100px rgba(0, 0, 0, .7), 0 0 0 1px rgba(212,168,67,.06);
+      animation: pop .3s cubic-bezier(.34, 1.56, .64, 1);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
     }
 
     .modal-sm {
@@ -2274,7 +2326,736 @@
   }
   html.light .theme-toggle .tt-icon { background: rgba(30,60,120,0.06) !important; }
   html.light .theme-toggle:hover .tt-icon { background: rgba(181,134,10,0.12) !important; }
-  </style>
+  
+  /* ══════════════════════════════════
+     GLOBAL POLISH LAYER
+     ══════════════════════════════════ */
+
+  /* Scrollbar refinement (all scrollable areas) */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,168,67,0.25); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,168,67,0.5); }
+  * { scrollbar-width: thin; scrollbar-color: rgba(212,168,67,0.25) transparent; }
+
+  /* Focus ring — accessibility, unified style */
+  *:focus-visible {
+    outline: 2px solid rgba(212,168,67,0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Smoother selection highlight */
+  ::selection { background: rgba(212,168,67,0.22); color: inherit; }
+
+  /* Nav layout alignment fix — scoped to top nav only, NOT sb-nav */
+  nav:not(.sb-nav) {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .nav-brand { flex: 1 1 auto; min-width: 0; }
+  .nav-center { flex: 0 1 auto; }
+  .nav-right  { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Nav tabs — tighter, crisper */
+  .nav-tab {
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* Secure badge — refined */
+  .nav-secure-badge {
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* Hero eyebrow pill */
+  .hero-eyebrow {
+    line-height: 1 !important;
+  }
+
+  /* Search wrap — improved depth */
+  .search-wrap {
+    box-shadow: 0 4px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  }
+  .search-wrap:focus-within {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 0 0 4px rgba(212,168,67,0.12), 0 16px 48px rgba(0,0,0,0.4) !important;
+  }
+
+  /* Stats bar — consistent vertical rhythm */
+  .stats-bar {
+    padding: 24px 0 !important;
+    gap: 0 !important;
+  }
+  .stat-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Sidebar cards — consistent shadows & hover */
+  .sidebar-card {
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2) !important;
+  }
+  .sidebar-card:hover {
+    box-shadow: 0 8px 36px rgba(0,0,0,0.38), 0 0 0 1px rgba(212,168,67,0.08) !important;
+    transform: translateY(-1px);
+    transition: all 0.25s ease !important;
+  }
+
+  /* Info cards */
+  .info-card {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important;
+  }
+  .info-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(212,168,67,0.18) !important;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.25) !important;
+  }
+
+  /* Validity banner — tighter inner spacing */
+  .val-banner {
+    gap: 16px !important;
+    padding: 20px 24px !important;
+  }
+
+  /* Not-found message polished */
+  .not-found {
+    border-radius: 20px !important;
+  }
+
+  /* Footer spacing */
+  footer {
+    padding: 28px 60px !important;
+  }
+
+  /* Doc items hover */
+  .doc-item {
+    transition: all 0.2s ease !important;
+  }
+  .doc-item:hover {
+    transform: translateX(2px) !important;
+  }
+
+  /* Skill tags */
+  .skill-tag {
+    transition: all 0.18s ease !important;
+  }
+
+  /* Pagination / page transitions */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Certificate image subtle zoom */
+  .cert-img-card img {
+    transition: transform 0.5s cubic-bezier(0.25,0.8,0.25,1) !important;
+  }
+  .cert-img-card img:hover {
+    transform: scale(1.014) !important;
+  }
+
+
+  /* ══════════════════════════════════
+     DASHBOARD POLISH LAYER
+     ══════════════════════════════════ */
+
+  /* Sidebar — refined depth */
+  .sidebar {
+    box-shadow: 2px 0 20px rgba(0,0,0,0.22) !important;
+  }
+
+  /* Sidebar brand area */
+  .sb-brand {
+    padding: 20px 18px !important;
+    gap: 14px !important;
+  }
+
+  /* Nav items — cleaner hover */
+  .nav-item {
+    transition: all 0.15s ease !important;
+    border-radius: 10px !important;
+  }
+  .nav-item:hover {
+    transform: translateX(2px) !important;
+  }
+  .nav-item.active {
+    box-shadow: inset 0 1px 0 rgba(212,168,67,0.15) !important;
+  }
+
+  /* Topbar — subtle elevation */
+  .topbar {
+    box-shadow: 0 1px 12px rgba(0,0,0,0.18) !important;
+  }
+
+  /* Stats row cards — refined */
+  .stat-card {
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18) !important;
+  }
+  .stat-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.28) !important;
+  }
+  .snum {
+    letter-spacing: -0.02em !important;
+    line-height: 1 !important;
+  }
+
+  /* Analytics cards */
+  .analytics-card {
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.14) !important;
+  }
+  .analytics-card:hover {
+    border-color: rgba(212,168,67,0.14) !important;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.22) !important;
+  }
+
+  /* Table card */
+  .table-card {
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18) !important;
+    border-radius: 16px !important;
+  }
+
+  /* Table rows — slightly more generous */
+  tbody td {
+    padding: 11px 14px !important;
+    vertical-align: middle !important;
+  }
+  thead th {
+    padding: 12px 14px !important;
+    font-size: .57rem !important;
+    letter-spacing: .18em !important;
+    background: rgba(0,0,0,0.12) !important;
+  }
+
+  /* Alternating row tint */
+  tbody tr:nth-child(even) {
+    background: rgba(255,255,255,0.012) !important;
+  }
+  tbody tr:hover {
+    background: rgba(212,168,67,0.04) !important;
+  }
+
+  /* Table header filter row */
+  .tbl-hdr {
+    padding: 14px 18px !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+
+  /* Mini search input */
+  .mini-search {
+    border-radius: 9px !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+  }
+  .mini-search:focus-within {
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.1) !important;
+    border-color: rgba(212,168,67,0.45) !important;
+  }
+
+  /* Filter selects */
+  .filter-select {
+    border-radius: 9px !important;
+    transition: border-color 0.2s !important;
+  }
+  .filter-select:focus {
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.1) !important;
+  }
+
+  /* Pills — refined */
+  .pill {
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: .1em !important;
+  }
+
+  /* Button polish */
+  .btn {
+    transition: all 0.18s ease !important;
+    border-radius: 10px !important;
+    letter-spacing: .08em !important;
+    font-weight: 600 !important;
+  }
+  .btn-primary {
+    box-shadow: 0 2px 12px rgba(212,168,67,0.25) !important;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 4px 20px rgba(212,168,67,0.35) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  /* Form controls */
+  .fcontrol {
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+    line-height: 1.5 !important;
+  }
+  .fcontrol:focus {
+    box-shadow: 0 0 0 3px rgba(212,168,67,0.12) !important;
+  }
+
+  /* Issue cert rows */
+  .issue-cert-row {
+    transition: all 0.15s ease !important;
+  }
+  .issue-cert-row:hover {
+    transform: translateX(2px) !important;
+  }
+
+  /* Login card */
+  .login-card {
+    box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,168,67,0.1) !important;
+  }
+
+  /* Admin tag */
+  .admin-tag {
+    border-radius: 12px !important;
+  }
+
+  /* Near expiry card items */
+  .near-expiry-card .ne-item {
+    transition: all 0.15s ease !important;
+  }
+  .near-expiry-card .ne-item:hover {
+    transform: translateX(2px) !important;
+  }
+
+  /* Completion checklist items */
+  .cp-item {
+    border-radius: 9px !important;
+    transition: background 0.15s ease !important;
+  }
+  .cp-item:hover {
+    background: rgba(255,255,255,0.04) !important;
+  }
+
+  /* Toast — refined */
+  #toast {
+    backdrop-filter: blur(12px) !important;
+    font-weight: 500 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+    border-radius: 12px !important;
+  }
+
+  /* Send panel */
+  .send-panel {
+    border-radius: 14px !important;
+  }
+
+  /* Near expiry card */
+  .near-expiry-card {
+    border-radius: 16px !important;
+  }
+
+  /* Cert canvas corners — polished */
+  .cert-canvas {
+    border-radius: 0 !important;
+  }
+
+  /* Light mode dashboard specifics */
+  html.light tbody tr:nth-child(even) {
+    background: rgba(30,60,120,0.02) !important;
+  }
+  html.light tbody tr:hover {
+    background: rgba(181,134,10,0.04) !important;
+  }
+  html.light thead th {
+    background: rgba(30,60,120,0.04) !important;
+  }
+  html.light .stat-card {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 16px rgba(30,60,120,0.07) !important;
+  }
+  html.light .stat-card:hover {
+    box-shadow: 0 8px 32px rgba(30,60,120,0.12) !important;
+  }
+  html.light .analytics-card {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+  }
+  html.light .table-card {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+    box-shadow: 0 2px 16px rgba(30,60,120,0.07) !important;
+  }
+  html.light .topbar {
+    box-shadow: 0 1px 12px rgba(30,60,120,0.08) !important;
+  }
+  html.light .mini-search {
+    background: #F7FAFF !important;
+    border-color: rgba(30,60,120,0.12) !important;
+  }
+  html.light .filter-select {
+    background-color: #F7FAFF !important;
+    border-color: rgba(30,60,120,0.12) !important;
+    color: #1E3A5F !important;
+  }
+  html.light .fcontrol {
+    background: #F7FAFF !important;
+    border-color: rgba(30,60,120,0.14) !important;
+    color: #0A1628 !important;
+  }
+  html.light .fcontrol:focus {
+    border-color: rgba(181,134,10,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(181,134,10,0.10) !important;
+  }
+  html.light .btn-ghost {
+    background: rgba(30,60,120,0.05) !important;
+    border-color: rgba(30,60,120,0.15) !important;
+    color: #4A6080 !important;
+  }
+  html.light .btn-ghost:hover {
+    background: rgba(30,60,120,0.09) !important;
+    color: #0A1628 !important;
+  }
+  html.light .issue-cert-row {
+    background: #F0F4FA !important;
+    border-color: rgba(30,60,120,0.10) !important;
+  }
+  html.light .issue-cert-row:hover {
+    background: #E8EFF8 !important;
+  }
+  html.light .send-panel {
+    background: #fff !important;
+    border-color: rgba(30,60,120,0.10) !important;
+  }
+  html.light .near-expiry-card {
+    background: #fff !important;
+  }
+  html.light .login-card {
+    background: rgba(255,255,255,0.98) !important;
+    border-color: rgba(181,134,10,0.25) !important;
+    box-shadow: 0 24px 80px rgba(30,60,120,0.16), 0 0 0 1px rgba(181,134,10,0.08) !important;
+  }
+  html.light .admin-tag {
+    background: rgba(181,134,10,0.08) !important;
+    border-color: rgba(181,134,10,0.22) !important;
+  }
+
+
+  /* ═══ DASHBOARD COMPONENT ALIGNMENT POLISH ═══ */
+
+  /* Topbar: right-align actions, left title block */
+  .topbar {
+    padding: 0 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  .topbar > .tb-title-group {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .tb-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  /* Sidebar bottom - always stick to bottom */
+  .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .sb-nav {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    padding: 12px 10px !important;
+  }
+  .sb-foot {
+    flex-shrink: 0 !important;
+    padding: 12px 10px !important;
+  }
+
+  /* Stats row — equal height cards */
+  .stats-row {
+    align-items: stretch !important;
+  }
+  .stat-card {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 20px 20px !important;
+    border-radius: 15px !important;
+  }
+
+  /* Analytics card head alignment */
+  .analytics-head {
+    padding: 14px 18px !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  /* Table card header consistent padding */
+  .tbl-hdr {
+    padding: 14px 18px 12px !important;
+  }
+  .tbl-hdr-top {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* Issue layout responsive fix */
+  .issue-layout {
+    align-items: start !important;
+  }
+  @media (max-width: 900px) {
+    .issue-layout {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* Form group labels - consistent weight */
+  .flabel {
+    font-weight: 600 !important;
+    letter-spacing: .14em !important;
+    font-size: .59rem !important;
+  }
+
+  /* Section titles in forms */
+  .issue-section-title {
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid var(--border) !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Email recipient rows */
+  .email-recipient-row {
+    border-radius: 10px !important;
+    transition: background 0.15s ease !important;
+  }
+  .email-recipient-row:hover {
+    background: var(--surface-hover) !important;
+  }
+
+  /* Send panel header */
+  .send-panel-hdr {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* Cert preview outer - cleaner border */
+  .cert-preview-outer {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  /* Login wrap logo */
+  .login-icon {
+    transition: transform 0.3s ease !important;
+  }
+  .login-icon:hover {
+    transform: scale(1.05) rotate(-2deg) !important;
+  }
+
+  /* Admin avatar */
+  .admin-av {
+    transition: transform 0.2s ease !important;
+  }
+  .admin-av:hover {
+    transform: scale(1.08) !important;
+  }
+
+  /* Page header spacing */
+  .page {
+    padding: 22px 26px !important;
+  }
+
+  /* Near expiry badge alignment */
+  .ne-days-badge {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 9px !important;
+    min-width: 52px !important;
+    font-weight: 700 !important;
+  }
+
+  /* Chart wrap */
+  .analytics-chart-wrap {
+    min-height: 150px !important;
+  }
+
+  /* Sidebar overlay (mobile) */
+  .sidebar-overlay {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+
+  /* Engagement badges alignment */
+  .eng-badge {
+    vertical-align: middle !important;
+  }
+
+  /* Inline status select */
+  .inline-status-sel {
+    padding: 4px 28px 4px 8px !important;
+    min-width: 90px !important;
+  }
+
+  /* Filter count badge */
+  .filter-count-badge {
+    border-radius: 9px !important;
+    font-weight: 500 !important;
+  }
+
+  /* No-img placeholder alignment */
+  .no-img {
+    vertical-align: middle !important;
+    border-radius: 6px !important;
+  }
+
+  /* Thumb alignment */
+  .thumb {
+    border-radius: 6px !important;
+    vertical-align: middle !important;
+    transition: opacity 0.2s !important;
+  }
+  .thumb:hover {
+    opacity: 0.88 !important;
+  }
+
+  /* Empty state */
+  .empty-state {
+    padding: 72px 24px !important;
+  }
+  .empty-state h3 {
+    color: var(--text) !important;
+    margin-top: 14px !important;
+  }
+
+  /* Light mode: page background */
+  html.light .page {
+    background: #F4F7FC !important;
+  }
+  html.light .main {
+    background: #F4F7FC !important;
+  }
+
+
+  /* ── SIDEBAR NAV VERTICAL RESET ── */
+  .sb-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* ═══════════════════════════════════════
+     SIDEBAR VERTICAL LAYOUT — HARD FIXES
+     ═══════════════════════════════════════ */
+
+  /* App shell: always horizontal split */
+  #appWrap {
+    display: flex !important;
+    flex-direction: row !important;
+    height: 100vh !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Sidebar: always vertical column, fixed width, never shrinks */
+  .sidebar {
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  /* Mobile: sidebar slides in from left as a vertical overlay */
+  @media (max-width: 900px) {
+    .sidebar {
+      position: fixed !important;
+      left: 0 !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      height: 100dvh !important;
+      z-index: 200 !important;
+      transform: translateX(-100%) !important;
+      transition: transform .28s cubic-bezier(.4,0,.2,1) !important;
+    }
+    .sidebar.open {
+      transform: translateX(0) !important;
+    }
+  }
+
+  /* Main content: fills remaining space, scrollable */
+  .main {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  /* Sidebar brand row */
+  .sb-brand {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Sidebar nav items: always vertical */
+  .nav-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  /* Sidebar footer: stick to bottom */
+  .sb-foot {
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
+  }
+
+  /* Side-mini quick stats */
+  .side-mini {
+    display: block !important;
+    width: 100% !important;
+  }
+  .side-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  }
+  html.light .side-row {
+    border-bottom-color: rgba(30,60,120,0.05) !important;
+  }
+
+  /* Light mode sidebar */
+  html.light .sidebar {
+    background: #fff !important;
+    border-right: 1px solid rgba(30,60,120,0.10) !important;
+    box-shadow: 2px 0 16px rgba(30,60,120,0.08) !important;
+  }
+
+</style>
   <script>
     /* ── THEME TOGGLE — BULLETPROOFED ──────────────────────────────────
        Runs synchronously in <head> — applies saved theme to <html>
@@ -2479,10 +3260,8 @@
           <div class="tb-bread" id="pageBread">Admin › Overview</div>
         </div>
         <div class="tb-actions">
-          <button class="btn btn-ghost btn-sm" onclick="window.open(window.location.origin,'_blank')">🌐 Public
-            Portal</button>
-          <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue
-            Credentials</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.open(window.location.origin,'_blank')">🌐 Public Portal</button>
+          <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue Credentials</button>
           <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add Certificate</button>
           <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.6rem;font-weight:600;letter-spacing:.1em;color:var(--teal)">
             <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite;flex-shrink:0"></span>
@@ -2674,10 +3453,19 @@
       <!-- ══ ALL CERTS PAGE ══ -->
       <div class="page" id="page-certs" style="display:none">
         <div class="table-card">
-          <div class="tbl-hdr">
-            <div class="tbl-title">All Certificates</div>
-            <div class="tbl-filters">
-              <div class="mini-search">
+          <div class="tbl-hdr" style="flex-direction:column;align-items:stretch;gap:10px;padding:14px 18px">
+            <!-- Row 1: title + actions -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <div class="tbl-title">All Certificates</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="filter-count-badge" id="allCertCount"><strong>0</strong> records</span>
+                <button class="btn btn-ghost btn-sm" id="allClearFilters" onclick="clearAllFilters()" style="display:none;white-space:nowrap">✕ Clear</button>
+                <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add New</button>
+              </div>
+            </div>
+            <!-- Row 2: filters -->
+            <div class="tbl-filters" style="flex-wrap:wrap;gap:8px">
+              <div class="mini-search" style="flex:1;min-width:200px;max-width:340px">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2">
                   <circle cx="11" cy="11" r="8" />
                   <path stroke-linecap="round" d="M21 21l-4.35-4.35" />
@@ -2714,14 +3502,12 @@
                 <option value="SENT">✉ Sent</option>
                 <option value="NOT_SENT">✉ Not Sent</option>
               </select>
-              <span class="filter-count-badge" id="allCertCount"><strong>0</strong> records</span>
             </div>
-            <button class="btn btn-ghost btn-sm" id="allClearFilters" onclick="clearAllFilters()" style="display:none;white-space:nowrap">✕ Clear Filters</button>
-            <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add New</button>
           </div>
           <div id="allTbl"></div>
         </div>
       </div>
+
 
       <!-- ══ CSV IMPORT PAGE ══ -->
       <div class="page" id="page-csv" style="display:none">
@@ -3472,6 +4258,12 @@
       if (!d) return '—';
       return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     }
+    function fmtDt(d) {
+      if (!d) return '—';
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        + ' · ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
     function computeAnalytics(certs) {
       const now = new Date();
       let valid = 0, revoked = 0, expired = 0, pending = 0, expSoon30 = 0, expSoon90 = 0, expiredPast = 0, noExpiry = 0, emailSent = 0, emailPending = 0, earliestIssued = null;
@@ -3851,8 +4643,21 @@
       if (cb) cb.style.display = (q || statusFilter || quarterFilter || modeFilter || emailFilter) ? '' : 'none';
       if (!list.length) { el.innerHTML = `<div class="empty-state"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto;opacity:.3"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>No certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:6px">Try adjusting your search or clearing filters</p></div>`; return; }
       const isDash = id === 'dashTbl';
-      el.innerHTML = `<table><thead><tr>
-    <th style="width:155px">Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th style="white-space:nowrap">Valid Until</th><th>Email</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
+      el.innerHTML = `<div class="tbl-scroll-wrap"><table><colgroup>
+    <col style="width:160px"><!-- Cert ID -->
+    <col style="width:185px"><!-- Vessel/Recipient -->
+    <col style="width:88px"> <!-- IMO -->
+    <col style="width:145px"><!-- Chief Engineer -->
+    <col style="width:68px"> <!-- Quarter -->
+    <col style="width:80px"> <!-- Mode -->
+    <col style="width:118px"><!-- Status -->
+    <col style="width:145px"><!-- Valid Until -->
+    <col style="width:78px"> <!-- Email -->
+    <col style="width:140px"><!-- Engagement -->
+    ${!isDash ? '<col style="width:72px">' : ''}<!-- Image -->
+    <col style="min-width:180px"><!-- Actions (fill rest) -->
+  </colgroup><thead><tr>
+    <th>Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
   </tr></thead><tbody>`+ (isDash ? list.slice(0, 10) : list).map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isV = c.status === 'VALID' && (!vu || vu >= now);
@@ -3873,6 +4678,16 @@
         const emailCls = c.emailStatus === 'SENT' ? 'sent' : 'not-sent';
         const emailLabel = c.emailStatus === 'SENT' ? '✓ Sent' : '—';
         const canSend = c.recipientEmail && c.emailStatus !== 'SENT' && c.status === 'VALID';
+        // ── Engagement badges ──
+        const eng = c.engagement || {};
+        const engBadges = [
+          eng.emailOpenCount   ? `<span class="eng-badge eng-open"   title="Email opened ${eng.emailOpenCount}× · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 ${eng.emailOpenCount}</span>`   : '',
+          eng.certViewCount    ? `<span class="eng-badge eng-view"   title="Cert viewed ${eng.certViewCount}× · First: ${fmtDt(eng.certFirstViewedAt)}">👁 ${eng.certViewCount}</span>`     : '',
+          eng.docDownloadCount ? `<span class="eng-badge eng-dl"     title="Doc downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}">⬇ ${eng.docDownloadCount}</span>` : '',
+        ].filter(Boolean).join('');
+        const engCell = engBadges
+          ? `<div>${engBadges}</div>`
+          : `<span style="color:var(--text-sec);font-size:.65rem;font-style:italic">No activity</span>`;
         const qVal = (c.complianceQuarter || '').toUpperCase();
         const qColors = { Q1: '#4A9EFF', Q2: '#64FFDA', Q3: '#FFB347', Q4: '#FF6B8A' };
         const qBg    = { Q1: 'rgba(74,158,255,0.12)', Q2: 'rgba(100,255,218,0.10)', Q3: 'rgba(255,179,71,0.12)', Q4: 'rgba(255,107,138,0.12)' };
@@ -3886,7 +4701,7 @@
           : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
         return `<tr>
       <td><span class="cid" title="${c.id}">${c.id}</span></td>
-      <td style="max-width:180px"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName || '—'}</div>${c.vesselName && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>` : ''}</td>
+      <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName || '—'}</div>${c.vesselName && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>` : ''}</td>
       <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO || '—'}</span></td>
       <td style="font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.chiefEngineer || '—'}</td>
       <td>${qBadge}</td>
@@ -3899,6 +4714,7 @@
       </select></td>
       <td style="color:${vlColor};font-size:.76rem;white-space:nowrap">${vl}</td>
       <td><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
+      <td class="eng-cell">${engCell}</td>
       ${!isDash ? `<td>${imgEl}</td>` : ''}
       <td><div class="act-grp">
         <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
@@ -3908,7 +4724,7 @@
         <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Delete</button>
       </div></td>
     </tr>`;
-      }).join('') + '</tbody></table>';
+      }).join('') + '</tbody></table></div>';
       el.querySelectorAll('img.thumb[data-haserr]').forEach(img => {
         img.addEventListener('error', function() {
           this.style.display = 'none';
@@ -4711,8 +5527,36 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
             }).join('')}
           </div>
         </div>` : ''}
+
+        <!-- ── Engagement Timeline ── -->
+        ${(function() {
+          const eng = c.engagement || {};
+          const events = [];
+          if (c.emailSentAt)          events.push({ ts: c.emailSentAt,          icon: '📤', label: 'Email sent',            color: 'var(--text-sec)' });
+          if (eng.emailOpenedAt)      events.push({ ts: eng.emailOpenedAt,      icon: '📧', label: `Email opened (${eng.emailOpenCount}×)`, color: '#4A9EFF' });
+          if (eng.certFirstViewedAt)  events.push({ ts: eng.certFirstViewedAt,  icon: '👁',  label: `Certificate viewed (${eng.certViewCount}×)`, color: 'var(--teal)' });
+          if (eng.docFirstDownloadAt) events.push({ ts: eng.docFirstDownloadAt, icon: '⬇',  label: `Document downloaded (${eng.docDownloadCount}×)${eng.docLastFile ? ' — ' + eng.docLastFile : ''}`, color: 'var(--gold)' });
+          events.sort((a, b) => a.ts < b.ts ? -1 : 1);
+          if (!events.length && c.emailStatus !== 'SENT') return '';
+          return `
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Recipient Activity Log
+          </div>
+          ${events.length === 0 ? `<div style="font-size:.72rem;color:var(--text-sec);font-style:italic">No recipient activity recorded yet.</div>` :
+            `<div style="position:relative;padding-left:20px">
+              <div style="position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--border)"></div>
+              ${events.map((e, i) => `
+              <div style="position:relative;margin-bottom:${i < events.length-1 ? '10px' : '0'}">
+                <div style="position:absolute;left:-17px;top:2px;width:7px;height:7px;border-radius:50%;background:${e.color};border:1px solid var(--bg)"></div>
+                <div style="font-size:.71rem;color:${e.color};font-weight:600">${e.icon} ${e.label}</div>
+                <div style="font-size:.62rem;color:var(--text-sec);margin-top:1px">${fmtDt(e.ts)}</div>
+              </div>`).join('')}
+            </div>`}
+        </div>`;
+        })()}
       `;
-      // ── Inject Activate button into modal footer if PENDING ──
       const viewFoot = document.querySelector('#viewMod .modal-foot');
       // Remove any previous activate btn
       const prevAct = viewFoot && viewFoot.querySelector('#viewActivateBtn');
