@@ -88,6 +88,15 @@ const KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
 // ─── DEPLOYMENT CONFIG ───────────────────────────────────────────────────────
 const BASE_ORIGIN = (process.env.BASE_ORIGIN || `http://localhost:${PORT}`).replace(/\/+$/, '');
 
+// Warn loudly if BASE_ORIGIN is still localhost — tracking pixels embedded in emails
+// point to this value. If it's localhost, recipients' email clients hit their own
+// machine instead of this server, so email-open events are never recorded.
+if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE_ORIGIN)) {
+  log.warn('⚠️  BASE_ORIGIN is set to localhost (' + BASE_ORIGIN + '). ' +
+    'Email open tracking will NOT work for external recipients. ' +
+    'Set BASE_ORIGIN=https://your-public-domain.com in your .env file.');
+}
+
 function _originVariants(origin) {
   if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) return [origin];
   const alt = origin.startsWith('https://')
@@ -670,7 +679,7 @@ const TRACKING_PIXEL_GIF = Buffer.from(
 async function sendCstEmail({ to, from, cert, verifyUrl, baseUrl }) {
   const body             = CFG.emailTemplates.cst(cert, verifyUrl);
   const subject          = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
-  const trackingPixelUrl = buildTrackingPixelUrl(cert.id, baseUrl || BASE_ORIGIN, 'cst');
+  const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'cst');
   const raw              = buildRawEmail({ from, to, subject, body, replyTo: from, trackingPixelUrl });
   const result  = await sesSendRaw(raw, from, [to]);
   logEmail(
@@ -691,7 +700,7 @@ async function sendVaptEmail({ to, from, cert, verifyUrl, baseUrl }) {
     subject   = lines[0].replace(/^Subject:\s*/, '').trim();
     cleanBody = lines.slice(2).join('\n');
   }
-  const trackingPixelUrl = buildTrackingPixelUrl(cert.id, baseUrl || BASE_ORIGIN, 'vapt');
+  const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'vapt');
   const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from, trackingPixelUrl });
   const result = await sesSendRaw(raw, from, [to]);
   logEmail(
@@ -1935,30 +1944,41 @@ const server = http.createServer(async (req, res) => {
     const mime  = MIME[ext] || 'application/octet-stream';
     const isPdf = ext === '.pdf';
 
-    // ── Track document download: find which cert owns this file ──
-    try {
-      const fileUrl = '/uploads/' + fname;
-      // Check CST certs first
-      const cstData = loadData();
-      for (const [certId, cert] of Object.entries(cstData)) {
-        const owns = cert.certificateImage === fileUrl ||
-          (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl));
-        if (owns) {
-          recordEngagement(cstData, certId, 'document_downloaded', { file: fname }, saveData);
-          break;
+    // ── Track document download: only real downloads, not image thumbnail loads ──
+    // Rules:
+    //  1. Skip image files (jpg/png/webp/gif) — these are cert thumbnails rendered by
+    //     the admin dashboard on every page load, NOT recipient downloads. Counting them
+    //     would inflate the download counter with admin activity.
+    //  2. Skip requests whose Referer header originates from the admin panel — same reason.
+    //  3. For PDFs and other attachments, record the engagement against the owning cert.
+    const isImageExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
+    const referer    = (req.headers['referer'] || req.headers['referrer'] || '').toLowerCase();
+    const isAdminReferer = referer.includes('/misecure') || referer.includes('admin');
+    if (!isImageExt && !isAdminReferer) {
+      try {
+        const fileUrl = '/uploads/' + fname;
+        // Check CST certs first
+        const cstData = loadData();
+        for (const [certId, cert] of Object.entries(cstData)) {
+          const owns = cert.certificateImage === fileUrl ||
+            (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl));
+          if (owns) {
+            recordEngagement(cstData, certId, 'document_downloaded', { file: fname }, saveData);
+            break;
+          }
         }
-      }
-      // Check VAPT certs
-      const vaptData = loadVaptData();
-      for (const [certId, cert] of Object.entries(vaptData)) {
-        const owns = cert.certificateImage === fileUrl ||
-          (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl));
-        if (owns) {
-          recordEngagement(vaptData, certId, 'document_downloaded', { file: fname }, saveVaptData);
-          break;
+        // Check VAPT certs
+        const vaptData = loadVaptData();
+        for (const [certId, cert] of Object.entries(vaptData)) {
+          const owns = cert.certificateImage === fileUrl ||
+            (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl));
+          if (owns) {
+            recordEngagement(vaptData, certId, 'document_downloaded', { file: fname }, saveVaptData);
+            break;
+          }
         }
-      }
-    } catch { /* non-fatal */ }
+      } catch { /* non-fatal */ }
+    }
 
     try {
       const content = fs.readFileSync(fpath);
