@@ -79,7 +79,6 @@
     .stat-num.updating{transform:scale(1.08)}
     .stat-item{text-align:center;padding:8px 36px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center}
     .stat-item:last-child{border-right:none}
-    .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1;transition:color .3s}
     .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
     @media(max-width:600px){
       .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
@@ -708,12 +707,6 @@
     transition: all 0.18s ease !important;
   }
 
-  /* Pagination / page transitions */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
   /* Certificate image subtle zoom */
   .cert-img-card img {
     transition: transform 0.5s cubic-bezier(0.25,0.8,0.25,1) !important;
@@ -992,7 +985,7 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <a id="navTabCST" href="#" class="nav-tab nav-tab-active"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
-    <a id="navTabVPT" href="#" class="nav-tab"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VPT Assessment</span></a>
+    <a id="navTabVPT" href="#" class="nav-tab"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VAPT Assessment</span></a>
     <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Verification</div>
     <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
     <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>

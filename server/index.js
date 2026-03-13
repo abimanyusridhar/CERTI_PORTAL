@@ -550,7 +550,7 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
     + body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     + '</pre>'
     + (trackingPixelUrl
-        ? `<img src="${trackingPixelUrl}" width="1" height="1" style="display:none" alt="" />`
+        ? `<img src="${trackingPixelUrl}" width="1" height="1" border="0" alt="" style="width:1px!important;height:1px!important;min-width:1px;min-height:1px;overflow:hidden;display:block!important;mso-hide:none" />`
         : '')
     + '</body></html>';
   const htmlB64  = Buffer.from(htmlBody).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, '');

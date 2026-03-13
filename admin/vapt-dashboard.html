@@ -162,8 +162,8 @@
     th{padding:9px 13px;text-align:left;font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;background:var(--navy-mid);border-bottom:1px solid var(--border);white-space:nowrap}
     td{padding:8px 13px;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text);vertical-align:middle;white-space:nowrap}
     td.name-cell{white-space:normal;max-width:170px;word-break:break-word}
-    td.eng-cell{white-space:nowrap;width:130px;min-width:130px;max-width:130px}
-    td.eng-cell>div{display:flex;flex-wrap:nowrap;gap:4px;align-items:center}
+    td.eng-cell{white-space:normal;width:140px;min-width:100px;max-width:160px;vertical-align:middle}
+    td.eng-cell>div{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
     tr:last-child td{border-bottom:none}
     tr:hover td{background:rgba(255,255,255,.02)}
     .cid{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)}
@@ -1279,7 +1279,6 @@
 
   /* App shell: always horizontal split */
   #appWrap {
-    display: flex !important;
     flex-direction: row !important;
     height: 100vh !important;
     width: 100% !important;
@@ -1374,6 +1373,39 @@
     box-shadow: 2px 0 16px rgba(30,60,120,0.08) !important;
   }
 
+
+  /* ── ENGAGEMENT BADGES — light mode overrides ── */
+  html.light .eng-badge {
+    background: rgba(0,0,0,.05) !important;
+    border-color: rgba(0,0,0,.12) !important;
+    color: var(--text-sec) !important;
+  }
+  html.light .eng-open {
+    background: rgba(30,100,220,.09) !important;
+    border-color: rgba(30,100,220,.28) !important;
+    color: #1A5DC8 !important;
+  }
+  html.light .eng-view {
+    background: rgba(0,140,110,.08) !important;
+    border-color: rgba(0,140,110,.28) !important;
+    color: #007A60 !important;
+  }
+  html.light .eng-dl {
+    background: rgba(160,100,0,.08) !important;
+    border-color: rgba(160,100,0,.28) !important;
+    color: #8B6000 !important;
+  }
+
+  /* ── ENGAGEMENT: light mode awaiting badge ── */
+  html.light .eng-badge[style*="rgba(255,179,71"] {
+    background: rgba(180,110,0,.08) !important;
+    border-color: rgba(180,110,0,.25) !important;
+    color: #7A5500 !important;
+  }
+  /* ── ENGAGEMENT SECTION header: ensure visibility ── */
+  html.light #viewEngagementSection [style*="letter-spacing:.16em"] {
+    color: var(--text-sec) !important;
+  }
 </style>
   <script>
     /* ── THEME TOGGLE — BULLETPROOFED ──────────────────────────────────
@@ -1384,33 +1416,19 @@
     (function () {
       var LS_KEY = 'smg-theme';
 
-      // 1. Determine theme: saved preference → OS preference → default dark
-      var saved;
+      // 1. Resolve theme: localStorage → OS preference → default dark
+      var saved = null;
       try { saved = localStorage.getItem(LS_KEY); } catch (e) {}
       var prefersDark = true;
-      try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
-      var theme = saved ? saved : (prefersDark ? 'dark' : 'light');
-
-      if (theme === 'light') {
+      try { prefersDark = !window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+      var isDark = saved !== null ? (saved !== 'light') : prefersDark;
+      if (!isDark) {
         document.documentElement.classList.add('light');
       } else {
         document.documentElement.classList.remove('light');
       }
 
-      // 2. Listen for OS theme changes (only when user hasn't set a preference)
-      try {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-          var hasSaved = false;
-          try { hasSaved = Boolean(localStorage.getItem(LS_KEY)); } catch (_) {}
-          if (!hasSaved) {
-            if (e.matches) { document.documentElement.classList.remove('light'); }
-            else           { document.documentElement.classList.add('light'); }
-            syncButtons();
-          }
-        });
-      } catch (e) {}
-
-      // 3. Sync every .theme-toggle button icon + label
+      // 2. Sync every .theme-toggle button icon + label
       function syncButtons() {
         var isLight = document.documentElement.classList.contains('light');
         var buttons = document.querySelectorAll('.theme-toggle');
@@ -1421,6 +1439,9 @@
           if (labelEl) labelEl.textContent = isLight ? 'Dark' : 'Light';
         }
       }
+
+      // 3. Expose globally so post-login code can call it
+      window.syncButtons = syncButtons;
 
       // 4. Global toggle — called by onclick="toggleTheme()"
       window.toggleTheme = function () {
@@ -2226,6 +2247,7 @@
       sessionStorage.setItem('adminToken', TOKEN);
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('appWrap').style.display = 'flex';
+      if (window.syncButtons) window.syncButtons();
       initApp();
     } catch { document.getElementById('loginErr').style.display = 'block'; }
     document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
@@ -2235,6 +2257,7 @@
     if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
     document.getElementById('loginWrap').style.display = 'flex';
     document.getElementById('appWrap').style.display = 'none';
+    if (window.syncButtons) window.syncButtons();
   }
 
   // ── INIT ──
@@ -2689,7 +2712,9 @@
         engPartsV.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}${eng.docLastFile?' · '+eng.docLastFile:''}">⬇ <strong>${eng.docDownloadCount}</strong></span>`);
       const engCell = engPartsV.length
         ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${engPartsV.join('')}</div>`
-        : `<span style="color:var(--text-sec);font-size:.62rem;font-style:italic">${emailSentV ? 'Sent, awaiting' : 'No activity'}</span>`;
+        : (emailSentV
+        ? `<span class="eng-badge" style="background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
+        : `<span style="color:var(--text-sec);font-size:.6rem;font-style:italic;opacity:.6">No activity</span>`);
       return `<tr>
         <td><span class="cid" title="${c.id}">${c.id}</span></td>
         <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||c.vesselName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>`:''}</td>
@@ -3073,7 +3098,7 @@
         const eng = c.engagement || {};
         const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
         const emailSent        = c.emailStatus === 'SENT';
-        if (!emailSent && !hasAnyEngagement) return '';
+        // Always render wrapper — async live-refresh needs the div to exist
 
         const events = [];
         if (c.emailSentAt)
@@ -3096,13 +3121,13 @@
         const chips = [];
         if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
         if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
-        if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} dl</span>`);
+        if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
         if (!hasAnyEngagement && emailSent)
           chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
 
-        return `<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+        return `<div id="viewEngagementSection" data-certid="${c.id}" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px">
+            <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Recipient Activity
             </div>
@@ -3135,6 +3160,66 @@
       ${c.recipientEmail&&c.emailStatus!=='SENT'?`<button class="btn btn-issue btn-sm" onclick="closeView();goIssue('${c.id}')">Send Credential</button>`:''}
     `;
     document.getElementById('viewOverlay').style.display='flex';
+
+  // ── Async: refresh engagement data live when modal opens ──
+  (async function loadViewEngagementVapt(certId) {
+    try {
+      const r = await fetch(API + '/vapt/certs/' + encodeURIComponent(certId) + '/engagement', {
+        headers: { Authorization: 'Bearer ' + TOKEN }
+      });
+      if (!r.ok) return;
+      const { engagement } = await r.json();
+      const cached = CERTS.find(x => x.id === certId);
+      if (cached) cached.engagement = engagement;
+      // Guard: only update if this modal is still showing the same cert (race-condition fix)
+      const actDiv = document.getElementById('viewEngagementSection');
+      if (!actDiv || actDiv.dataset.certid !== certId) return;
+      const eng = engagement || {};
+      const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
+      const emailSent = cached ? cached.emailStatus === 'SENT' : false;
+      const cachedC = cached || {};
+      const events = [];
+      if (cachedC.emailSentAt)
+        events.push({ ts: cachedC.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)', sub: cachedC.recipientEmail ? 'To: ' + cachedC.recipientEmail : null });
+      if (eng.emailOpenedAt)
+        events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened', sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once', color: '#4A9EFF', count: eng.emailOpenCount });
+      if (eng.certFirstViewedAt)
+        events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed', sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once', color: 'var(--teal)', count: eng.certViewCount });
+      if (eng.docFirstDownloadAt)
+        events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded', sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''), color: 'var(--gold)', count: eng.docDownloadCount });
+      events.sort((a, b) => a.ts < b.ts ? -1 : 1);
+      const chips = [];
+      if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+      if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
+      if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
+      if (!hasAnyEngagement && emailSent)
+        chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+      actDiv.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Recipient Activity
+          </div>
+          ${chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips.join('')+'</div>' : ''}
+        </div>
+        ${events.length === 0
+          ? '<div style="font-size:.72rem;color:var(--text-sec);font-style:italic;padding:6px 0">No recipient activity recorded yet.</div>'
+          : '<div style="position:relative;padding-left:22px">'
+            + '<div style="position:absolute;left:7px;top:6px;bottom:6px;width:1px;background:linear-gradient(to bottom,var(--border),transparent)"></div>'
+            + events.map((ev, i) =>
+                '<div style="position:relative;margin-bottom:' + (i < events.length-1 ? '13px' : '0') + '">'
+                + '<div style="position:absolute;left:-18px;top:3px;width:8px;height:8px;border-radius:50%;background:' + ev.color + ';box-shadow:0 0 6px ' + ev.color + '55;border:1.5px solid var(--bg)"></div>'
+                + '<div style="display:flex;align-items:center;gap:6px">'
+                + '<span style="font-size:.72rem;color:' + ev.color + ';font-weight:700">' + ev.icon + ' ' + ev.label + '</span>'
+                + (ev.count > 1 ? '<span style="padding:1px 6px;border-radius:10px;background:' + ev.color + '20;color:' + ev.color + ';font-size:.56rem;font-weight:700">×' + ev.count + '</span>' : '')
+                + '</div>'
+                + '<div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">' + fmtDt(ev.ts) + (ev.sub ? ' · ' + ev.sub : '') + '</div>'
+                + '</div>'
+              ).join('')
+            + '</div>'
+        }`;
+    } catch(e) { /* silent — stale data from cache is fine */ }
+  })(id);
   }
   function closeView(){document.getElementById('viewOverlay').style.display='none';}
 
@@ -3477,15 +3562,31 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
     const sent=CERTS.filter(c=>c.emailStatus==='SENT').sort((a,b)=>new Date(b.emailSentAt||0)-new Date(a.emailSentAt||0));
     const el=document.getElementById('sentLogList');
     if (!sent.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:.78rem">No credentials marked as sent yet</div>';return;}
-    el.innerHTML=sent.slice(0,20).map(c=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border)">
-        <div style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></div>
-        <div style="flex:1">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--gold)">${c.id}</div>
-          <div style="font-size:.72rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
+    el.innerHTML=sent.slice(0,20).map(c=>{
+      const eng = c.engagement || {};
+      const engBadges = [];
+      if (eng.emailOpenCount)
+        engBadges.push(`<span class="eng-badge eng-open" title="Opened ${eng.emailOpenCount}× · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 ${eng.emailOpenCount}</span>`);
+      else
+        engBadges.push(`<span class="eng-badge" style="opacity:.4;font-size:.57rem" title="Not yet opened">📧 0</span>`);
+      if (eng.certViewCount)
+        engBadges.push(`<span class="eng-badge eng-view" title="Viewed ${eng.certViewCount}× · Last: ${fmtDt(eng.certLastViewedAt)}">👁 ${eng.certViewCount}</span>`);
+      if (eng.docDownloadCount)
+        engBadges.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}×">⬇ ${eng.docDownloadCount}</span>`);
+      return `
+      <div style="padding:12px 14px;border-radius:9px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)">${c.id}</span>
+          <div style="display:flex;align-items:center;gap:4px">${engBadges.join('')}</div>
         </div>
-        <div style="font-size:.62rem;color:var(--text-sec)">${c.emailSentAt?fmt(c.emailSentAt):''}</div>
-      </div>`).join('');
+        <div style="font-size:.78rem;color:var(--text-bright);font-weight:500">${c.recipientName||'—'}</div>
+        <div style="font-size:.65rem;color:var(--text-sec);margin-top:2px">IMO: ${c.vesselIMO||'—'} ${c.recipientEmail?'· 📧 '+c.recipientEmail:''}</div>
+        <div style="font-size:.6rem;color:var(--text-sec);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${c.emailSentAt?fmt(c.emailSentAt):'—'}
+        </div>
+      </div>`;
+    }).join('');
   }
 
   // ── IMAGE UPLOAD ──
