@@ -2116,6 +2116,8 @@
     <div class="page" id="page-csv" style="display:none">
       <div class="info-banner">
         📋 <strong>VAPT CSV Format:</strong> Required: <code>imo_number</code>, <code>vessel_name</code>, <code>assessment_date</code> — Optional: <code>cert_number</code>, <code>recipient_email</code>, <code>notes</code>
+                &nbsp;·&nbsp; Also accepts: <code>vessel imo</code>, <code>ship name</code>, <code>issue date</code>, <code>email</code>
+                &nbsp;·&nbsp; Dates: <code>DD-Mon-YY</code>, <code>DD/MM/YYYY</code>, <code>YYYY-MM-DD</code>
         &nbsp;·&nbsp; <button class="btn btn-ghost btn-sm" onclick="downloadSampleCsv()">Download Sample CSV</button>
       </div>
       <div class="section-card">
@@ -2675,14 +2677,19 @@
       const emailCls=c.emailStatus==='SENT'?'sent':'not-sent';
       const canSend=c.recipientEmail&&c.emailStatus!=='SENT'&&c.status==='VALID';
       const eng = c.engagement || {};
-      const engBadges = [
-        eng.emailOpenCount   ? `<span class="eng-badge eng-open" title="Email opened ${eng.emailOpenCount}× · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 ${eng.emailOpenCount}</span>` : '',
-        eng.certViewCount    ? `<span class="eng-badge eng-view" title="Cert viewed ${eng.certViewCount}× · First: ${fmtDt(eng.certFirstViewedAt)}">👁 ${eng.certViewCount}</span>` : '',
-        eng.docDownloadCount ? `<span class="eng-badge eng-dl"  title="Doc downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}">⬇ ${eng.docDownloadCount}</span>` : '',
-      ].filter(Boolean).join('');
-      const engCell = engBadges
-        ? `<div>${engBadges}</div>`
-        : `<span style="color:var(--text-sec);font-size:.65rem;font-style:italic">No activity</span>`;
+      const emailSentV = c.emailStatus === 'SENT';
+      const engPartsV = [];
+      if (eng.emailOpenCount)
+        engPartsV.push(`<span class="eng-badge eng-open" title="Email opened ${eng.emailOpenCount}× · First: ${fmtDt(eng.emailOpenedAt)} · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 <strong>${eng.emailOpenCount}</strong></span>`);
+      else if (emailSentV)
+        engPartsV.push(`<span class="eng-badge" style="opacity:.4;font-size:.58rem" title="Sent, not yet opened">📧 0</span>`);
+      if (eng.certViewCount)
+        engPartsV.push(`<span class="eng-badge eng-view" title="Viewed ${eng.certViewCount}× · First: ${fmtDt(eng.certFirstViewedAt)} · Last: ${fmtDt(eng.certLastViewedAt)}">👁 <strong>${eng.certViewCount}</strong></span>`);
+      if (eng.docDownloadCount)
+        engPartsV.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}${eng.docLastFile?' · '+eng.docLastFile:''}">⬇ <strong>${eng.docDownloadCount}</strong></span>`);
+      const engCell = engPartsV.length
+        ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${engPartsV.join('')}</div>`
+        : `<span style="color:var(--text-sec);font-size:.62rem;font-style:italic">${emailSentV ? 'Sent, awaiting' : 'No activity'}</span>`;
       return `<tr>
         <td><span class="cid" title="${c.id}">${c.id}</span></td>
         <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||c.vesselName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>`:''}</td>
@@ -3064,26 +3071,59 @@
       ${buildViewAttachments(atts)}
       ${(function() {
         const eng = c.engagement || {};
+        const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
+        const emailSent        = c.emailStatus === 'SENT';
+        if (!emailSent && !hasAnyEngagement) return '';
+
         const events = [];
-        if (c.emailSentAt)          events.push({ ts: c.emailSentAt,          icon: '📤', label: 'Email sent',           color: 'var(--text-sec)' });
-        if (eng.emailOpenedAt)      events.push({ ts: eng.emailOpenedAt,      icon: '📧', label: `Email opened (${eng.emailOpenCount}×)`, color: '#4A9EFF' });
-        if (eng.certFirstViewedAt)  events.push({ ts: eng.certFirstViewedAt,  icon: '👁',  label: `Certificate viewed (${eng.certViewCount}×)`, color: 'var(--teal)' });
-        if (eng.docFirstDownloadAt) events.push({ ts: eng.docFirstDownloadAt, icon: '⬇',  label: `Document downloaded (${eng.docDownloadCount}×)${eng.docLastFile?' — '+eng.docLastFile:''}`, color: 'var(--gold)' });
+        if (c.emailSentAt)
+          events.push({ ts: c.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)',
+            sub: c.recipientEmail ? 'To: ' + c.recipientEmail : null });
+        if (eng.emailOpenedAt)
+          events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened',
+            sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once',
+            color: '#4A9EFF', count: eng.emailOpenCount });
+        if (eng.certFirstViewedAt)
+          events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed',
+            sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once',
+            color: 'var(--teal)', count: eng.certViewCount });
+        if (eng.docFirstDownloadAt)
+          events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded',
+            sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''),
+            color: 'var(--gold)', count: eng.docDownloadCount });
         events.sort((a,b) => a.ts < b.ts ? -1 : 1);
-        if (!events.length) return '';
-        return `<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-          <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Recipient Activity Log
+
+        const chips = [];
+        if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+        if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
+        if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} dl</span>`);
+        if (!hasAnyEngagement && emailSent)
+          chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+
+        return `<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Recipient Activity
+            </div>
+            ${chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips.join('')+'</div>' : ''}
           </div>
-          <div style="position:relative;padding-left:20px">
-            <div style="position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--border)"></div>
-            ${events.map((e,i) => `<div style="position:relative;margin-bottom:${i<events.length-1?'10px':'0'}">
-              <div style="position:absolute;left:-17px;top:2px;width:7px;height:7px;border-radius:50%;background:${e.color};border:1px solid var(--bg)"></div>
-              <div style="font-size:.71rem;color:${e.color};font-weight:600">${e.icon} ${e.label}</div>
-              <div style="font-size:.62rem;color:var(--text-sec);margin-top:1px">${fmtDt(e.ts)}</div>
-            </div>`).join('')}
-          </div>
+          ${events.length === 0
+            ? '<div style="font-size:.72rem;color:var(--text-sec);font-style:italic;padding:6px 0">No recipient activity recorded yet.</div>'
+            : '<div style="position:relative;padding-left:22px">'
+              + '<div style="position:absolute;left:7px;top:6px;bottom:6px;width:1px;background:linear-gradient(to bottom,var(--border),transparent)"></div>'
+              + events.map((ev, i) =>
+                  '<div style="position:relative;margin-bottom:' + (i < events.length-1 ? '13px' : '0') + '">'
+                  + '<div style="position:absolute;left:-18px;top:3px;width:8px;height:8px;border-radius:50%;background:' + ev.color + ';box-shadow:0 0 6px ' + ev.color + '55;border:1.5px solid var(--bg)"></div>'
+                  + '<div style="display:flex;align-items:center;gap:6px">'
+                  + '<span style="font-size:.72rem;color:' + ev.color + ';font-weight:700">' + ev.icon + ' ' + ev.label + '</span>'
+                  + (ev.count > 1 ? '<span style="padding:1px 6px;border-radius:10px;background:' + ev.color + '20;color:' + ev.color + ';font-size:.56rem;font-weight:700">×' + ev.count + '</span>' : '')
+                  + '</div>'
+                  + '<div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">' + fmtDt(ev.ts) + (ev.sub ? ' · ' + ev.sub : '') + '</div>'
+                  + '</div>'
+                ).join('')
+              + '</div>'
+          }
         </div>`;
       })()}
     `;
@@ -3549,125 +3589,257 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
     updateCompletion();
   }
 
-  // ── CSV IMPORT ──
-  function handleCsvDrop(e){e.preventDefault();document.getElementById('csvDrop').classList.remove('drag-over');if(e.dataTransfer.files[0])loadCsvFile(e.dataTransfer.files[0]);}
-  function loadCsvFile(f){
-    if(!f) return;
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const text=e.target.result;
-      const rows=text.split('\n').map(r=>r.trim()).filter(Boolean);
-      const headers=rows[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-      csvParsedRows=rows.slice(1).map(row=>{
-        const vals=row.split(',').map(v=>v.trim().replace(/"/g,''));
-        return Object.fromEntries(headers.map((h,i)=>[h,vals[i]||'']));
-      }).filter(r=>r.imo_number||r.vessel_name);
-      document.getElementById('csvUploadDefault').style.display='none';
-      document.getElementById('csvUploadLoaded').style.display='flex';
-      document.getElementById('csvLoadedName').textContent=f.name+' ('+csvParsedRows.length+' rows)';
+  // ── CSV IMPORT (v2 — flexible column mapping) ──
+  const VAPT_CSV_FIELD_ALIASES = {
+    vesselIMO:      ['imo_number','imo number','imo no','imo','vessel imo','vessel_imo','imonumber'],
+    vesselName:     ['vessel_name','vessel name','ship name','ship_name','vessel'],
+    assessmentDate: ['assessment_date','assessment date','assess date','date','issue date','issue_date'],
+    recipientEmail: ['recipient_email','recipient email','email','email address','master email','contact email'],
+    certId:         ['cert_number','cert number','certificate number','certificate_number','cert no','cert id'],
+    notes:          ['notes','remarks','comment','comments'],
+  };
+
+  function vaptMatchHeader(header) {
+    const h = header.toLowerCase().trim().replace(/['"]/g,'');
+    for (const [field, aliases] of Object.entries(VAPT_CSV_FIELD_ALIASES)) {
+      if (aliases.includes(h)) return field;
+    }
+    return null;
+  }
+
+  function vaptAutoDetectMapping(headers) {
+    const map = {};
+    headers.forEach((h, idx) => {
+      const field = vaptMatchHeader(h);
+      if (field && !(field in map)) map[field] = idx;
+    });
+    return map;
+  }
+
+  let csvRawHeaders = [], csvColMapVapt = {};
+
+  function vaptGetRowVal(row, field) {
+    if (csvColMapVapt && field in csvColMapVapt) {
+      const idx = csvColMapVapt[field];
+      const key  = csvRawHeaders[idx];
+      if (key) return (row[key] || row[key.toLowerCase()] || '').trim();
+    }
+    const aliases = VAPT_CSV_FIELD_ALIASES[field] || [];
+    for (const alias of aliases) {
+      const v = row[alias] || row[alias.replace(/_/g,' ')] || '';
+      if (v) return v.trim();
+    }
+    return '';
+  }
+
+  function vaptParseCsvDate(raw) {
+    if (!raw) return '';
+    raw = raw.trim();
+    const m1 = raw.match(/^(\d{1,2})[-\/\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/\s](\d{2,4})$/i);
+    if (m1) {
+      const yr  = m1[3].length === 2 ? (parseInt(m1[3]) < 50 ? '20' + m1[3] : '19' + m1[3]) : m1[3];
+      const MON = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' };
+      return yr + '-' + MON[m1[2].toLowerCase()] + '-' + m1[1].padStart(2,'0');
+    }
+    const m2 = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+    if (m2) {
+      const yr = m2[3].length === 2 ? (parseInt(m2[3]) < 50 ? '20' + m2[3] : '19' + m2[3]) : m2[3];
+      return yr + '-' + m2[2].padStart(2,'0') + '-' + m2[1].padStart(2,'0');
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    try { const d = new Date(raw); if (!isNaN(d)) return d.toISOString().slice(0,10); } catch(err) {}
+    return '';
+  }
+
+  function vaptParseCsvFull(text) {
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return { rawHeaders: [], rows: [] };
+    function splitLine(line) {
+      const result = []; let cur = ''; let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQ = !inQ; }
+        else if ((ch === ',' || ch === '\t') && !inQ) { result.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      result.push(cur.trim()); return result;
+    }
+    let hi = 0;
+    while (hi < lines.length && !lines[hi].trim()) hi++;
+    if (hi >= lines.length) return { rawHeaders: [], rows: [] };
+    const rawHeaders = splitLine(lines[hi]).map(h => h.replace(/^"|"$/g,'').trim());
+    const rows = [];
+    for (let i = hi+1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      const vals = splitLine(line).map(v => v.replace(/^"|"$/g,'').trim());
+      if (vals.every(v => !v)) continue;
+      const obj = {};
+      rawHeaders.forEach((h, idx) => { obj[h] = vals[idx]||''; obj[h.toLowerCase()] = vals[idx]||''; });
+      rows.push(obj);
+    }
+    return { rawHeaders, rows };
+  }
+
+  function handleCsvDrop(e) {
+    e.preventDefault();
+    document.getElementById('csvDrop').classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadCsvFile(e.dataTransfer.files[0]);
+  }
+
+  function loadCsvFile(f) {
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const { rawHeaders, rows } = vaptParseCsvFull(e.target.result);
+      csvRawHeaders  = rawHeaders;
+      csvColMapVapt  = vaptAutoDetectMapping(rawHeaders);
+      csvParsedRows  = rows.filter(r => vaptGetRowVal(r,'vesselIMO') || vaptGetRowVal(r,'vesselName'));
+      if (!csvParsedRows.length) { alert('No valid data rows found.'); return; }
+      const missing = ['vesselIMO','vesselName','assessmentDate'].filter(field => !(field in csvColMapVapt));
+      document.getElementById('csvUploadDefault').style.display = 'none';
+      document.getElementById('csvUploadLoaded').style.display  = 'flex';
+      document.getElementById('csvLoadedName').textContent =
+        f.name + ' (' + csvParsedRows.length + ' rows)' + (missing.length ? ' ⚠ missing: ' + missing.join(', ') : ' ✓');
       renderCsvPreview();
     };
     reader.readAsText(f);
   }
-  function buildVaptCertFromRow(row){
-    const imo=row.imo_number||'';
-    const ad=row.assessment_date||'';
-    let dateStr='';
-    if(ad){
-      const p=ad.split(/[-\/]/);
-      if(p.length===3){
-        const y=p[2]?.length===4?p[2]:'20'+p[2];
-        dateStr=`${y}-${p[1]?.padStart(2,'0')}-${p[0]?.padStart(2,'0')}`;
-      }
+
+  function buildVaptCertFromRow(row) {
+    const imo    = vaptGetRowVal(row,'vesselIMO');
+    const vessel = vaptGetRowVal(row,'vesselName');
+    const adRaw  = vaptGetRowVal(row,'assessmentDate');
+    const email  = vaptGetRowVal(row,'recipientEmail');
+    const notes  = vaptGetRowVal(row,'notes');
+    const manId  = vaptGetRowVal(row,'certId');
+    const dateStr = vaptParseCsvDate(adRaw);
+    const CFG = window.APP_CONFIG || {};
+    const vaptPfx = (CFG.certFormats||{}).vaptPrefix || 'VAP';
+    let certId = manId || '';
+    if (!certId && imo && dateStr) {
+      const d  = new Date(dateStr);
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yy = String(d.getFullYear()).slice(-2);
+      certId = vaptPfx + '-' + imo + '-' + mm + yy;
     }
-    let certId=row.cert_number||'';
-    if(!certId&&imo&&dateStr){
-      const d=new Date(dateStr);
-      const mm=String(d.getMonth()+1).padStart(2,'0');
-      const yy=String(d.getFullYear()).slice(-2);
-      certId=`${(window.APP_CONFIG&&window.APP_CONFIG.certFormats)?window.APP_CONFIG.certFormats.vaptPrefix:'VAP'}-${imo}-${mm}${yy}`;
-    }
-    let vu='';
-    if(dateStr){const d=new Date(dateStr);d.setFullYear(d.getFullYear()+1);vu=d.toISOString().slice(0,10);}
-    const notes=row.notes||'Re-assessment recommended within 2 weeks from date of participation.';
-    const email=row.recipient_email||'';
-    return {id:certId,vesselIMO:imo,vesselName:row.vessel_name||'',recipientName:row.vessel_name||'',assessmentDate:dateStr,validUntil:vu,verifiedBy:(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh'),verifierTitle:(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group'),assessingOrg:(window.APP_CONFIG?window.APP_CONFIG.vapt.assessingOrg:'Synergy Cybersecurity team'),frameworks:(window.APP_CONFIG?window.APP_CONFIG.vapt.frameworks:'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013'),scopeItems:(window.APP_CONFIG?window.APP_CONFIG.vapt.scopeItems:'Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits'),status:'PENDING',recipientEmail:email,issuerEmail:(window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com'),emailStatus:'NOT_SENT',emailSentAt:null,notes,certificateImage:null};
+    let validUntil = '';
+    if (dateStr) { const d = new Date(dateStr); d.setFullYear(d.getFullYear()+1); validUntil = d.toISOString().slice(0,10); }
+    return {
+      id: (certId||'').toUpperCase(),
+      vesselIMO: imo, vesselName: vessel, recipientName: vessel,
+      assessmentDate: dateStr, validUntil,
+      verifiedBy:    (CFG.vapt||{}).verifiedBy    || 'Gaurav Singh',
+      verifierTitle: (CFG.vapt||{}).verifierTitle || 'CISO — Synergy Group',
+      assessingOrg:  (CFG.vapt||{}).assessingOrg  || 'Synergy Marine Group Cybersecurity Team',
+      frameworks:    (CFG.vapt||{}).frameworks     || 'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013',
+      scopeItems:    (CFG.vapt||{}).scopeItems     || 'Access Control,IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits',
+      status: 'PENDING', certificateImage: null,
+      recipientEmail: email,
+      issuerEmail: (CFG.contact||{}).vaptEmail || 'vapt@synergyship.com',
+      emailStatus: 'NOT_SENT', emailSentAt: null,
+      notes: notes || 'Re-assessment recommended within 2 weeks from date of participation.',
+    };
   }
-  function renderCsvPreview(){
-    const records=csvParsedRows.map(buildVaptCertFromRow);
-    const dups=[];
-    document.getElementById('csvPreviewWrap').style.display='block';
-    document.getElementById('csvPreviewCount').textContent=records.length;
-    document.getElementById('csvImportBtn').disabled=false;
-    let html='<table style="width:100%;border-collapse:collapse"><thead><tr style="position:sticky;top:0;background:var(--navy-mid)">';
-    ['#','Cert ID','Vessel','IMO','Assessment Date','Valid Until','Status'].forEach(h=>html+=`<th style="padding:8px 10px;text-align:left;font-size:.6rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap">${h}</th>`);
-    html+='</tr></thead><tbody>';
-    records.forEach((c,i)=>{
-      const existing=CERTS.find(x=>x.id===c.id);
-      const idStyle=existing?'color:var(--warn)':'color:var(--teal)';
-      const status=existing?'⚠ Exists':'✓ New';
-      const statusColor=existing?'var(--warn)':'var(--teal)';
-      if(existing)dups.push(c.id);
-      html+=`<tr style="${existing?'background:rgba(255,179,71,.05)':''};border-bottom:1px solid var(--border)">
-        <td style="padding:7px 10px;color:var(--text-sec);font-size:.65rem">${i+1}</td>
-        <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:.63rem;${idStyle}">${c.id||'—'}</td>
-        <td style="padding:7px 10px;font-size:.67rem;color:var(--text-bright)">${c.recipientName||'—'}</td>
-        <td style="padding:7px 10px;font-size:.67rem">${c.vesselIMO||'—'}</td>
-        <td style="padding:7px 10px;font-size:.65rem">${c.assessmentDate||'—'}</td>
-        <td style="padding:7px 10px;font-size:.65rem;color:var(--teal)">${c.validUntil||'—'}</td>
-        <td style="padding:7px 10px;font-size:.65rem;color:${statusColor}">${status}</td></tr>`;
+
+  function renderCsvPreview() {
+    const records = csvParsedRows.map(buildVaptCertFromRow);
+    const dups = [], noId = [];
+    document.getElementById('csvPreviewWrap').style.display = 'block';
+    document.getElementById('csvPreviewCount').textContent  = records.length;
+    document.getElementById('csvImportBtn').disabled = false;
+    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="position:sticky;top:0;background:var(--navy-mid);z-index:1">';
+    ['#','Cert ID','Vessel','IMO','Assess Date','Valid Until','Email','Status'].forEach(h =>
+      html += '<th style="padding:7px 10px;text-align:left;font-size:.59rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap">' + h + '</th>'
+    );
+    html += '</tr></thead><tbody>';
+    records.forEach((c, i) => {
+      const existing    = CERTS.find(x => x.id === c.id);
+      const hasId       = !!c.id;
+      const rowBg       = existing ? 'background:rgba(255,179,71,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
+      const idColor     = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
+      const statusTxt   = existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
+      const statusColor = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
+      const emailChip   = c.recipientEmail ? '<span style="color:var(--teal);font-size:.6rem">✓</span>' : '<span style="color:var(--text-sec);font-size:.6rem">—</span>';
+      if (existing) dups.push(c.id);
+      if (!hasId)   noId.push(i+1);
+      html += '<tr style="' + rowBg + ';border-bottom:1px solid var(--border)">'
+        + '<td style="padding:6px 10px;color:var(--text-sec);font-size:.63rem">' + (i+1) + '</td>'
+        + '<td style="padding:6px 10px;font-family:\'JetBrains Mono\',monospace;font-size:.61rem;color:' + idColor + '">' + (c.id||'—') + '</td>'
+        + '<td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + c.vesselName + '">' + (c.vesselName||'—') + '</td>'
+        + '<td style="padding:6px 10px;font-size:.65rem">' + (c.vesselIMO||'—') + '</td>'
+        + '<td style="padding:6px 10px;font-size:.63rem">' + (c.assessmentDate||'—') + '</td>'
+        + '<td style="padding:6px 10px;font-size:.63rem;color:var(--teal)">' + (c.validUntil||'—') + '</td>'
+        + '<td style="padding:6px 10px;text-align:center">' + emailChip + '</td>'
+        + '<td style="padding:6px 10px;font-size:.63rem;color:' + statusColor + ';white-space:nowrap">' + statusTxt + '</td></tr>';
     });
-    html+='</tbody></table>';
-    document.getElementById('csvPreviewTable').innerHTML=html;
-    const warnBox=document.getElementById('csvWarnBox');
-    if(dups.length>0){warnBox.style.display='block';warnBox.textContent=`⚠ ${dups.length} record(s) already exist and will be SKIPPED: ${dups.slice(0,4).join(', ')}${dups.length>4?'…':''}`;}
+    html += '</tbody></table>';
+    document.getElementById('csvPreviewTable').innerHTML = html;
+    const warnBox = document.getElementById('csvWarnBox');
+    const warns   = [];
+    if (dups.length) warns.push('⚠ ' + dups.length + ' duplicate(s) will be skipped: ' + dups.slice(0,3).join(', ') + (dups.length>3?'…':''));
+    if (noId.length) warns.push('✗ ' + noId.length + ' row(s) cannot generate ID: rows ' + noId.slice(0,5).join(', '));
+    if (warns.length) { warnBox.style.display='block'; warnBox.innerHTML=warns.map(w=>'<div>'+w+'</div>').join(''); }
     else warnBox.style.display='none';
   }
-  async function doImportCsv(){
-    if(!csvParsedRows.length){toast('Please upload a CSV file before importing.', 'err');return;}
-    const records=csvParsedRows.map(buildVaptCertFromRow);
-    const btn=document.getElementById('csvImportBtn');btn.disabled=true;
-    document.getElementById('csvImportTxt').textContent='Importing…';
-    const log=document.getElementById('csvResultLog');log.style.display='block';log.innerHTML='';
-    const toImport=records.filter(c=>c.id&&!CERTS.find(x=>x.id===c.id));
-    const skipped=records.filter(c=>!c.id||CERTS.find(x=>x.id===c.id));
-    skipped.forEach(c=>{
-      if(!c.id)log.innerHTML+=`<div style="color:var(--warn)">⚠ Skipped row — could not generate ID</div>`;
-      else log.innerHTML+=`<div style="color:var(--warn)">⚠ Skipped ${c.id} — already exists</div>`;
+
+  async function doImportCsv() {
+    if (!csvParsedRows.length) { toast('Please upload a CSV file before importing.', 'err'); return; }
+    const records  = csvParsedRows.map(buildVaptCertFromRow);
+    const btn      = document.getElementById('csvImportBtn'); btn.disabled = true;
+    document.getElementById('csvImportTxt').textContent = 'Importing…';
+    const logEl    = document.getElementById('csvResultLog'); logEl.style.display='block'; logEl.innerHTML='';
+    const toImport = records.filter(c => c.id && !CERTS.find(x => x.id === c.id));
+    const skipped  = records.filter(c => !c.id || CERTS.find(x => x.id === c.id));
+    skipped.forEach(c => {
+      if (!c.id) logEl.innerHTML += '<div style="color:var(--warn)">⚠ Skipped row — could not generate ID</div>';
+      else       logEl.innerHTML += '<div style="color:var(--warn)">⚠ Skipped ' + c.id + ' — already exists</div>';
     });
-    if(toImport.length>0){
-      try{
-        const r=await fetch(API+'/vapt/import-csv',{method:'POST',headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify(toImport)});
-        const d=await r.json();
-        if(r.ok){
-          d.results.forEach(res=>{
-            if(res.status==='created')log.innerHTML+=`<div style="color:var(--teal)">✓ Created ${res.id}</div>`;
-            else if(res.status==='skipped')log.innerHTML+=`<div style="color:var(--warn)">⚠ Skipped ${res.id}: ${res.reason}</div>`;
-            else log.innerHTML+=`<div style="color:var(--invalid)">✗ Failed ${res.id}: ${res.reason}</div>`;
+    if (toImport.length > 0) {
+      try {
+        const r = await fetch(API + '/vapt/import-csv', { method:'POST', headers:{ Authorization:'Bearer '+TOKEN, 'Content-Type':'application/json' }, body:JSON.stringify(toImport) });
+        const d = await r.json();
+        if (r.ok) {
+          d.results.forEach(res => {
+            if (res.status==='created')       logEl.innerHTML += '<div style="color:var(--teal)">✓ Created ' + res.id + '</div>';
+            else if (res.status==='skipped')  logEl.innerHTML += '<div style="color:var(--warn)">⚠ Skipped ' + res.id + ': ' + res.reason + '</div>';
+            else                              logEl.innerHTML += '<div style="color:var(--invalid)">✗ Failed ' + res.id + ': ' + (res.reason||'Error') + '</div>';
           });
-          log.innerHTML+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--gold)">Done — ✓ ${d.added} created · ⚠ ${d.skipped+skipped.length} skipped · ✗ ${d.failed} failed</div>`;
+          logEl.innerHTML += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--gold)">Done — ✓ ' + d.added + ' created · ⚠ ' + (d.skipped+skipped.length) + ' skipped · ✗ ' + d.failed + ' failed</div>';
           await refreshStats(); renderTbl('dashTbl',''); renderTbl('allTbl','');
-          if(d.added>0)toast(`${d.added} VAPT certificate(s) imported!`,'ok');
-        } else log.innerHTML+=`<div style="color:var(--invalid)">✗ Import failed: ${d.error||'Unknown error'}</div>`;
-      } catch { log.innerHTML += `<div style="color:var(--invalid)">✗ Import interrupted — connection error.</div>`; }
+          if (d.added > 0) toast(d.added + ' VAPT certificate(s) imported!', 'ok');
+        } else {
+          logEl.innerHTML += '<div style="color:var(--invalid)">✗ Import failed: ' + (d.error||'Unknown error') + '</div>';
+        }
+      } catch(err) { logEl.innerHTML += '<div style="color:var(--invalid)">✗ Import interrupted — connection error.</div>'; }
     }
-    document.getElementById('csvImportTxt').textContent='Import All Records';
-    btn.disabled=false;
+    document.getElementById('csvImportTxt').textContent = 'Import All Records';
+    btn.disabled = false;
   }
-  function clearCsvFile(e){
-    if(e)e.stopPropagation();
-    csvParsedRows=[];
-    document.getElementById('csvFileInput').value='';
-    document.getElementById('csvUploadDefault').style.display='block';
-    document.getElementById('csvUploadLoaded').style.display='none';
-    document.getElementById('csvPreviewWrap').style.display='none';
-    document.getElementById('csvResultLog').style.display='none';
-    document.getElementById('csvImportBtn').disabled=true;
+
+  function clearCsvFile(e) {
+    if (e) e.stopPropagation();
+    csvParsedRows = []; csvRawHeaders = []; csvColMapVapt = {};
+    document.getElementById('csvFileInput').value = '';
+    document.getElementById('csvUploadDefault').style.display = 'block';
+    document.getElementById('csvUploadLoaded').style.display  = 'none';
+    document.getElementById('csvPreviewWrap').style.display   = 'none';
+    document.getElementById('csvResultLog').style.display     = 'none';
+    document.getElementById('csvImportBtn').disabled          = true;
   }
-  function downloadSampleCsv(){
-    const csv='imo_number,vessel_name,assessment_date,cert_number,recipient_email,notes\nXXXXXXX,MV Vessel Name,DD-MM-YYYY,VAP-XXXXXXX-MMYY,master@vessel.com,Sample VAPT cert\nXXXXXXX,MV Vessel Name 2,DD-MM-YYYY,,master@vessel2.com,';
-    const blob=new Blob([csv],{type:'text/csv'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vapt_sample.csv';a.click();
+
+  function downloadSampleCsv() {
+    const csv = [
+      'imo_number,vessel_name,assessment_date,cert_number,recipient_email,notes',
+      '9491666,MV EFFICIENCY OL,10-Feb-26,VAP-9491666-0226,master@efficiencyol.com,VAPT completed',
+      '9623740,MV NORD KUDU,15-Mar-26,,master@nordkudu.com,',
+      '9689536,MT BW CHINOOK,20-Mar-26,,chief@bwchinook.com,Follow-up required',
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'vapt_import_sample.csv';
+    a.click();
   }
 
   // ── UTILS ──

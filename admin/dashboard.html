@@ -3595,21 +3595,28 @@
               <div style="font-size:.67rem;color:var(--text-sec);margin-bottom:10px">Your CSV should have these exact column headers:</div>
               <div style="background:var(--navy);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:.63rem;line-height:2.2;color:var(--teal);border:1px solid var(--border)">
                 IMO Number<br>
-                ISSUES_DATES<br>
+                VESSEL_NAME<br>
                 Chif Name<br>
-                VESSEL_NAME
+                ISSUES_DATES
+              </div>
+              <div style="margin-top:10px;padding:10px 12px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.15);border-radius:8px;font-size:.63rem;color:var(--text-sec);line-height:1.9">
+                <strong style="color:var(--teal)">Also recognised:</strong><br>
+                <span style="color:var(--text)">imo_number, vessel imo</span><br>
+                <span style="color:var(--text)">vessel name, ship name</span><br>
+                <span style="color:var(--text)">chief name, chief engineer</span><br>
+                <span style="color:var(--text)">issue date, compliance date</span><br>
+                <span style="color:var(--text)">recipient_email, email</span>
               </div>
               <div style="margin-top:10px;padding:10px 12px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.15);border-radius:8px;font-size:.63rem;color:var(--text-sec);line-height:1.8">
-                <strong style="color:var(--teal)">VESSEL_NAME</strong> is the full name as-is:<br>
+                <strong style="color:var(--teal)">VESSEL_NAME</strong> — full name as-is:<br>
                 <span style="font-family:'JetBrains Mono',monospace;color:var(--text)">MV - PALADIN TRADER</span><br>
                 <span style="font-family:'JetBrains Mono',monospace;color:var(--text)">MT - BW CHINOOK</span>
               </div>
               <div style="margin-top:12px;font-size:.65rem;color:var(--text-sec);line-height:1.7">
-                <strong style="color:var(--text)">Certificate ID</strong> is auto-generated as:<br>
+                <strong style="color:var(--text)">Cert ID auto-generated:</strong><br>
                 <span style="font-family:'JetBrains Mono',monospace;color:var(--gold);font-size:.62rem">CST-{IMO}-{MM}-{YY}</span><br><br>
-                <strong style="color:var(--text)">Date format:</strong> DD-Mon-YY &nbsp;(e.g. 18-Feb-26)<br>
-                <strong style="color:var(--text)">Quarter:</strong> Set globally above<br>
-                <strong style="color:var(--text)">Image:</strong> Add per-record after import via Edit
+                <strong style="color:var(--text)">Date formats accepted:</strong><br>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:.61rem">30-Jan-26 · 30/01/2026 · 2026-01-30</span>
               </div>
             </div>
 
@@ -4680,14 +4687,19 @@
         const canSend = c.recipientEmail && c.emailStatus !== 'SENT' && c.status === 'VALID';
         // ── Engagement badges ──
         const eng = c.engagement || {};
-        const engBadges = [
-          eng.emailOpenCount   ? `<span class="eng-badge eng-open"   title="Email opened ${eng.emailOpenCount}× · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 ${eng.emailOpenCount}</span>`   : '',
-          eng.certViewCount    ? `<span class="eng-badge eng-view"   title="Cert viewed ${eng.certViewCount}× · First: ${fmtDt(eng.certFirstViewedAt)}">👁 ${eng.certViewCount}</span>`     : '',
-          eng.docDownloadCount ? `<span class="eng-badge eng-dl"     title="Doc downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}">⬇ ${eng.docDownloadCount}</span>` : '',
-        ].filter(Boolean).join('');
-        const engCell = engBadges
-          ? `<div>${engBadges}</div>`
-          : `<span style="color:var(--text-sec);font-size:.65rem;font-style:italic">No activity</span>`;
+        const emailSent = c.emailStatus === 'SENT';
+        const engParts = [];
+        if (eng.emailOpenCount)
+          engParts.push(`<span class="eng-badge eng-open" title="Email opened ${eng.emailOpenCount}× · First: ${fmtDt(eng.emailOpenedAt)} · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 <strong>${eng.emailOpenCount}</strong></span>`);
+        else if (emailSent)
+          engParts.push(`<span class="eng-badge" style="opacity:.45;font-size:.58rem" title="Email sent but not yet opened">📧 0</span>`);
+        if (eng.certViewCount)
+          engParts.push(`<span class="eng-badge eng-view" title="Cert viewed ${eng.certViewCount}× · First: ${fmtDt(eng.certFirstViewedAt)} · Last: ${fmtDt(eng.certLastViewedAt)}">👁 <strong>${eng.certViewCount}</strong></span>`);
+        if (eng.docDownloadCount)
+          engParts.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}× · Last: ${fmtDt(eng.docLastDownloadAt)}${eng.docLastFile?' · '+eng.docLastFile:''}">⬇ <strong>${eng.docDownloadCount}</strong></span>`);
+        const engCell = engParts.length
+          ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${engParts.join('')}</div>`
+          : `<span style="color:var(--text-sec);font-size:.62rem;font-style:italic">${emailSent ? 'Sent, awaiting' : 'No activity'}</span>`;
         const qVal = (c.complianceQuarter || '').toUpperCase();
         const qColors = { Q1: '#4A9EFF', Q2: '#64FFDA', Q3: '#FFB347', Q4: '#FF6B8A' };
         const qBg    = { Q1: 'rgba(74,158,255,0.12)', Q2: 'rgba(100,255,218,0.10)', Q3: 'rgba(255,179,71,0.12)', Q4: 'rgba(255,107,138,0.12)' };
@@ -5528,32 +5540,67 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
           </div>
         </div>` : ''}
 
-        <!-- ── Engagement Timeline ── -->
+        <!-- ── Engagement / Activity Log ── -->
         ${(function() {
           const eng = c.engagement || {};
+          const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
+          const emailSent        = c.emailStatus === 'SENT';
+
+          // Build rich event entries
           const events = [];
-          if (c.emailSentAt)          events.push({ ts: c.emailSentAt,          icon: '📤', label: 'Email sent',            color: 'var(--text-sec)' });
-          if (eng.emailOpenedAt)      events.push({ ts: eng.emailOpenedAt,      icon: '📧', label: `Email opened (${eng.emailOpenCount}×)`, color: '#4A9EFF' });
-          if (eng.certFirstViewedAt)  events.push({ ts: eng.certFirstViewedAt,  icon: '👁',  label: `Certificate viewed (${eng.certViewCount}×)`, color: 'var(--teal)' });
-          if (eng.docFirstDownloadAt) events.push({ ts: eng.docFirstDownloadAt, icon: '⬇',  label: `Document downloaded (${eng.docDownloadCount}×)${eng.docLastFile ? ' — ' + eng.docLastFile : ''}`, color: 'var(--gold)' });
+          if (c.emailSentAt)
+            events.push({ ts: c.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)',
+              sub: c.recipientEmail ? 'To: ' + c.recipientEmail : null });
+          if (eng.emailOpenedAt)
+            events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened',
+              sub: eng.emailOpenCount > 1 ? `${eng.emailOpenCount} times · most recently ${fmtDt(eng.emailLastOpenAt)}` : 'Once',
+              color: '#4A9EFF', count: eng.emailOpenCount });
+          if (eng.certFirstViewedAt)
+            events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed',
+              sub: eng.certViewCount > 1 ? `${eng.certViewCount} times · last: ${fmtDt(eng.certLastViewedAt)}` : 'Once',
+              color: 'var(--teal)', count: eng.certViewCount });
+          if (eng.docFirstDownloadAt)
+            events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded',
+              sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''),
+              color: 'var(--gold)', count: eng.docDownloadCount });
+
           events.sort((a, b) => a.ts < b.ts ? -1 : 1);
-          if (!events.length && c.emailStatus !== 'SENT') return '';
+
+          // Only show if email was sent or there's some engagement
+          if (!emailSent && !hasAnyEngagement) return '';
+
+          // Engagement summary chips
+          const chips = [];
+          if (eng.emailOpenCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+          if (eng.certViewCount)     chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
+          if (eng.docDownloadCount)  chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
+          if (!hasAnyEngagement && emailSent)
+            chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+
           return `
-        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-          <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Recipient Activity Log
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Recipient Activity
+            </div>
+            ${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${chips.join('')}</div>` : ''}
           </div>
-          ${events.length === 0 ? `<div style="font-size:.72rem;color:var(--text-sec);font-style:italic">No recipient activity recorded yet.</div>` :
-            `<div style="position:relative;padding-left:20px">
-              <div style="position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--border)"></div>
-              ${events.map((e, i) => `
-              <div style="position:relative;margin-bottom:${i < events.length-1 ? '10px' : '0'}">
-                <div style="position:absolute;left:-17px;top:2px;width:7px;height:7px;border-radius:50%;background:${e.color};border:1px solid var(--bg)"></div>
-                <div style="font-size:.71rem;color:${e.color};font-weight:600">${e.icon} ${e.label}</div>
-                <div style="font-size:.62rem;color:var(--text-sec);margin-top:1px">${fmtDt(e.ts)}</div>
-              </div>`).join('')}
-            </div>`}
+          ${events.length === 0
+            ? `<div style="font-size:.72rem;color:var(--text-sec);font-style:italic;padding:6px 0">No recipient activity recorded yet.</div>`
+            : `<div style="position:relative;padding-left:22px">
+                <div style="position:absolute;left:7px;top:6px;bottom:6px;width:1px;background:linear-gradient(to bottom,var(--border),transparent)"></div>
+                ${events.map((ev, i) => `
+                <div style="position:relative;margin-bottom:${i < events.length-1 ? '13px' : '0'}">
+                  <div style="position:absolute;left:-18px;top:3px;width:8px;height:8px;border-radius:50%;background:${ev.color};box-shadow:0 0 6px ${ev.color}55;border:1.5px solid var(--bg)"></div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:.72rem;color:${ev.color};font-weight:700">${ev.icon} ${ev.label}</span>
+                    ${ev.count > 1 ? `<span style="padding:1px 6px;border-radius:10px;background:${ev.color}20;color:${ev.color};font-size:.56rem;font-weight:700">×${ev.count}</span>` : ''}
+                  </div>
+                  <div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">${fmtDt(ev.ts)}${ev.sub ? ' · ' + ev.sub : ''}</div>
+                </div>`).join('')}
+              </div>`
+          }
         </div>`;
         })()}
       `;
@@ -5835,147 +5882,258 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     }
 
     // ════════════════════════════════════════════════════
-    // MODULE: CSV IMPORT
     // ════════════════════════════════════════════════════
-    let csvParsedRows = [];
+    // MODULE: CSV IMPORT  (v2 — flexible column mapping)
+    // ════════════════════════════════════════════════════
+    let csvParsedRows   = [];
+    let csvRawHeaders   = [];   // original headers from file
+    let csvColMap       = {};   // { logicalField: detectedColumnIndex }
+
+    // ── Canonical field aliases (lower-cased, trimmed) ──
+    const CSV_FIELD_ALIASES = {
+      vesselIMO:      ['imo number','imo_number','imo no','imo','vessel imo','vessel_imo','imonumber'],
+      complianceDate: ['issues_dates','issue date','issue_date','compliance date','compliance_date','issueddate','issued date','issued_date','training date','date'],
+      chiefEngineer:  ['chif name','chief name','chief_engineer','chief engineer','chief eng','chiefofficer','chief','ce name','master'],
+      recipientName:  ['vessel_name','vessel name','(mv/mt) - vessel name','vessel','ship name','ship_name','full vessel name','mv/mt vessel name'],
+      recipientEmail: ['recipient email','recipient_email','email','email address','master email','contact email'],
+      notes:          ['notes','remarks','comment','comments'],
+      certId:         ['cert number','cert_number','certificate number','certificate_number','cert no','cert id'],
+    };
+
+    function matchHeader(header) {
+      const h = header.toLowerCase().trim().replace(/['"]/g,'');
+      for (const [field, aliases] of Object.entries(CSV_FIELD_ALIASES)) {
+        if (aliases.includes(h)) return field;
+      }
+      return null;
+    }
+
+    function autoDetectMapping(headers) {
+      const map = {};
+      headers.forEach((h, idx) => {
+        const field = matchHeader(h);
+        if (field && !(field in map)) map[field] = idx;
+      });
+      return map;
+    }
 
     function csvDragOver(e) { e.preventDefault(); document.getElementById('csvDropZone').classList.add('drag-over'); }
     function csvDragLeave() { document.getElementById('csvDropZone').classList.remove('drag-over'); }
     function csvDrop(e) { e.preventDefault(); document.getElementById('csvDropZone').classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) handleCsvFile({ files: [f] }); }
 
     function handleCsvFile(input) {
-      const file = input.files[0]; if (!file) return;
+      // accept both <input> element and drag-and-drop file reference
+      const file = input.files ? input.files[0] : input; if (!file) return;
       const r = new FileReader();
       r.onload = e => {
         const text = e.target.result;
-        csvParsedRows = parseCsv(text);
-        if (csvParsedRows.length === 0) { toast('No records found in the CSV file. Please check the format.', 'err'); return; }
+        const parsed = parseCsv(text);
+        csvParsedRows = parsed.rows;
+        csvRawHeaders = parsed.headers;
+        csvColMap     = autoDetectMapping(parsed.rawHeaders);
+
+        if (csvParsedRows.length === 0) { toast('No data rows found. Check that your CSV has a header row and at least one data row.', 'err'); return; }
+
+        // Warn if key fields not detected
+        const missing = ['vesselIMO','complianceDate','recipientName'].filter(f => !(f in csvColMap));
+        const hintsEl = document.getElementById('csvHint');
+        if (missing.length > 0) {
+          hintsEl.style.color = 'var(--warn)';
+          hintsEl.textContent = '⚠ Could not auto-detect: ' + missing.join(', ') + ' — check column names';
+        } else {
+          hintsEl.style.color = 'var(--teal)';
+          hintsEl.textContent = '✓ All required columns detected';
+        }
+
         document.getElementById('csvUploadDefault').style.display = 'none';
         document.getElementById('csvUploadLoaded').style.display = 'block';
         document.getElementById('csvFileName').textContent = file.name;
-        document.getElementById('csvRowCount').textContent = csvParsedRows.length + ' data row(s) detected';
+        document.getElementById('csvRowCount').textContent = csvParsedRows.length + ' data row(s) · ' + csvRawHeaders.length + ' column(s)';
         renderCsvPreview();
       };
       r.readAsText(file);
     }
 
     function parseCsv(text) {
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) return [];
+      const lines = text.split(/\r?\n/);
+      if (lines.length < 2) return { headers: [], rawHeaders: [], rows: [] };
+
       function splitLine(line) {
         const result = []; let cur = ''; let inQ = false;
         for (let i = 0; i < line.length; i++) {
-          if (line[i] === '"') { inQ = !inQ; }
-          else if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-          else { cur += line[i]; }
+          const ch = line[i];
+          if (ch === '"') { inQ = !inQ; }
+          else if ((ch === ',' || ch === '\t') && !inQ) { result.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
         }
         result.push(cur.trim());
         return result;
       }
-      const headers = splitLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+
+      // Find first non-empty line as header
+      let headerIdx = 0;
+      while (headerIdx < lines.length && !lines[headerIdx].trim()) headerIdx++;
+      if (headerIdx >= lines.length) return { headers: [], rawHeaders: [], rows: [] };
+
+      const rawHeaders = splitLine(lines[headerIdx]).map(h => h.replace(/^"|"$/g, '').trim());
+      const headers    = rawHeaders.map(h => h.toLowerCase());
       const rows = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const vals = splitLine(lines[i]).map(v => v.replace(/^"|"$/g, '').trim());
+
+      for (let i = headerIdx + 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        const vals = splitLine(line).map(v => v.replace(/^"|"$/g, '').trim());
+        // Skip completely empty rows
+        if (vals.every(v => !v)) continue;
         const obj = {};
-        headers.forEach((h, idx) => obj[h] = vals[idx] || '');
+        rawHeaders.forEach((h, idx) => { obj[h] = vals[idx] || ''; obj[h.toLowerCase()] = vals[idx] || ''; });
         rows.push(obj);
       }
-      return rows;
+      return { headers, rawHeaders, rows };
     }
 
     function parseCsvDate(raw) {
       if (!raw) return '';
+      raw = raw.trim();
+      // DD-Mon-YY or DD-Mon-YYYY  e.g. 18-Feb-26 or 18-Feb-2026
       const m1 = raw.match(/^(\d{1,2})[-\/\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/\s](\d{2,4})$/i);
       if (m1) {
-        const yr = m1[3].length === 2 ? (parseInt(m1[3]) < 50 ? '20' + m1[3] : '19' + m1[3]) : m1[3];
-        const mon = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' }[m1[2].toLowerCase()];
-        return `${yr}-${mon}-${m1[1].padStart(2,'0')}`;
+        const yr  = m1[3].length === 2 ? (parseInt(m1[3]) < 50 ? '20' + m1[3] : '19' + m1[3]) : m1[3];
+        const MON = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' };
+        return `${yr}-${MON[m1[2].toLowerCase()]}-${m1[1].padStart(2,'0')}`;
       }
+      // DD/MM/YYYY or DD-MM-YYYY
+      const m2 = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+      if (m2) {
+        const yr = m2[3].length === 2 ? (parseInt(m2[3]) < 50 ? '20' + m2[3] : '19' + m2[3]) : m2[3];
+        return `${yr}-${m2[2].padStart(2,'0')}-${m2[1].padStart(2,'0')}`;
+      }
+      // YYYY-MM-DD passthrough
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
       try { const d = new Date(raw); if (!isNaN(d)) return d.toISOString().slice(0,10); } catch {}
       return '';
     }
 
+    function getRowVal(row, field) {
+      // Use auto-detected column map index, then fall back to alias scan on row keys
+      if (csvColMap && field in csvColMap) {
+        // row keys include both original and lowercased headers
+        const colIdx = csvColMap[field];
+        const keys   = csvRawHeaders;
+        if (keys && keys[colIdx]) return (row[keys[colIdx]] || row[keys[colIdx].toLowerCase()] || '').trim();
+      }
+      // Fallback: scan all known aliases directly on row
+      const aliases = CSV_FIELD_ALIASES[field] || [];
+      for (const alias of aliases) {
+        const v = row[alias] || row[alias.replace(/_/g,' ')] || '';
+        if (v) return v.trim();
+      }
+      return '';
+    }
+
     function buildCertFromRow(row, quarter, mode) {
-      // ── CSV columns: IMO Number | ISSUES_DATES | Chif Name | VESSEL_NAME ──
-      // VESSEL_NAME is the FULL name already, e.g. "MV - PALADIN TRADER" or "MT - BW CHINOOK"
-      // We use it as-is for recipientName — NO stripping, NO re-adding type prefix
+      const imo          = getRowVal(row, 'vesselIMO');
+      const rawDate      = getRowVal(row, 'complianceDate');
+      const chiefName    = getRowVal(row, 'chiefEngineer');
+      const recipientName= getRowVal(row, 'recipientName');
+      const email        = getRowVal(row, 'recipientEmail');
+      const notes        = getRowVal(row, 'notes');
+      const manualId     = getRowVal(row, 'certId');
 
-      const imo = (row['imo number'] || row['imo'] || row['vessel imo'] || '').trim();
-      const rawDate = (row['issues_dates'] || row['issue date'] || row['issueddate'] || row['compliance date'] || '').trim();
-      const chiefName = (row['chif name'] || row['chief name'] || row['chief engineer'] || row['chief'] || '').trim();
-
-      // VESSEL_NAME is the complete name — use it directly as recipientName
-      const recipientName = (row['vessel_name'] || row['vessel name'] || row['(mv/mt) - vessel name'] || row['vessel'] || '').trim();
-
-      // vesselName = clean name without type prefix (for the vesselName field only)
-      const vesselName = recipientName.replace(/^(MV|MT)\s*[-–]\s*/i, '').trim();
+      // vesselName = clean name without type prefix
+      const vesselName   = recipientName.replace(/^(MV|MT)\s*[-–]\s*/i, '').trim() || recipientName;
 
       const complianceDate = parseCsvDate(rawDate);
 
-      // Cert ID: CST-{IMO}-{MM}-{YY}  (2-digit year)
       var _cstPfx = (window.APP_CONFIG&&window.APP_CONFIG.certFormats)?window.APP_CONFIG.certFormats.cstPrefix:'CST';
-      let certId = '';
-      if (imo && complianceDate) {
-        const parts = complianceDate.split('-'); // ['2026','02','18']
-        const yy = parts[0].slice(-2);           // '26'
-        const mo = parts[1];                     // '02'
-        certId = `${_cstPfx}-${imo}-${mo}-${yy}`;
-      } else if (imo) {
-        const now = new Date();
-        const yy = String(now.getFullYear()).slice(-2);
-        const mo = String(now.getMonth() + 1).padStart(2, '0');
-        certId = `${_cstPfx}-${imo}-${mo}-${yy}`;
+      let certId = manualId || '';
+      // Auto-generate cert ID if not supplied in CSV
+      if (!certId) {
+        if (imo && complianceDate) {
+          const parts = complianceDate.split('-');
+          certId = `${_cstPfx}-${imo}-${parts[1]}-${parts[0].slice(-2)}`;
+        } else if (imo) {
+          const now = new Date();
+          certId = `${_cstPfx}-${imo}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getFullYear()).slice(-2)}`;
+        }
       }
+
       const qMap = { Q1:{label:'Q2 (APR–JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL–SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT–DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN–MAR)',end:'03-31',nextYear:true} };
       const qi = qMap[quarter] || qMap['Q1'];
       const baseYear = complianceDate ? parseInt(complianceDate.slice(0,4)) : new Date().getFullYear();
       const validYear = qi.nextYear ? baseYear + 1 : baseYear;
-      const validFor = qi.label + '-' + validYear;
-      const validUntil = validYear + '-' + qi.end;
+
+      const CFG = window.APP_CONFIG || {};
       return {
-        id: certId.toUpperCase(), recipientName, vesselName, vesselIMO: imo, chiefEngineer: chiefName,
-        trainingTitle: (window.APP_CONFIG?window.APP_CONFIG.cst.trainingTitle:'Cyber Security Threat Awareness Training'), organizer: (window.APP_CONFIG?window.APP_CONFIG.cst.organizer:'Synergy Cyber Security Team'),
-        complianceDate, complianceQuarter: quarter, trainingMode: mode, validFor, validUntil,
-        issuedAt: complianceDate,
-        verifiedBy: (window.APP_CONFIG?window.APP_CONFIG.cst.verifiedBy:'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group'),
+        id: (certId||'').toUpperCase(),
+        recipientName, vesselName, vesselIMO: imo, chiefEngineer: chiefName,
+        trainingTitle: (CFG.cst||{}).trainingTitle || 'Cyber Security Threat Intelligence Awareness Training',
+        organizer:     (CFG.cst||{}).organizer     || 'Synergy Marine Group Cyber Security Team',
+        complianceDate, complianceQuarter: quarter, trainingMode: mode,
+        validFor:      qi.label + '-' + validYear,
+        validUntil:    validYear + '-' + qi.end,
+        issuedAt:      complianceDate,
+        verifiedBy:    (CFG.cst||{}).verifiedBy    || 'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group',
         status: 'PENDING', certificateImage: null,
-        notes: (window.APP_CONFIG?window.APP_CONFIG.cst.notes:'Training conducted under supervision of ISO Lead Auditor and Security trainers'),
-        recipientEmail: '', issuerEmail: (window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:'trainingawareness@synergyship.com'), emailStatus: 'NOT_SENT', emailSentAt: null
+        notes:         notes || (CFG.cst||{}).notes || 'Training conducted under supervision of ISO Lead Auditor and Security trainers',
+        recipientEmail: email,
+        issuerEmail:   (CFG.contact||{}).cstEmail  || 'trainingawareness@synergyship.com',
+        emailStatus: 'NOT_SENT', emailSentAt: null,
       };
     }
 
     function renderCsvPreview() {
       const quarter = document.getElementById('csvQuarter').value;
-      const mode = document.getElementById('csvMode').value;
+      const mode    = document.getElementById('csvMode').value;
       const records = csvParsedRows.map(r => buildCertFromRow(r, quarter, mode));
-      const dups = [];
+      const dups = [], noId = [], noImo = [];
+
       document.getElementById('csvPreviewWrap').style.display = 'block';
       document.getElementById('csvPreviewCount').textContent = records.length;
       document.getElementById('csvImportBtn').disabled = false;
-      let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="position:sticky;top:0;background:var(--navy-mid)">';
-      ['#','Cert ID','Vessel','IMO','Chief Engineer','Date','Status'].forEach(h => html += `<th style="padding:8px 10px;text-align:left;font-size:.62rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap">${h}</th>`);
+
+      let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="position:sticky;top:0;background:var(--navy-mid);z-index:1">';
+      ['#','Cert ID','Vessel','IMO','Chief Engineer','Date','Email','Status'].forEach(h =>
+        html += `<th style="padding:8px 10px;text-align:left;font-size:.6rem;letter-spacing:.1em;color:var(--text-sec);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap">${h}</th>`
+      );
       html += '</tr></thead><tbody>';
+
       records.forEach((c, i) => {
-        const existing = CERTS.find(x => x.id === c.id);
-        const idStyle = existing ? 'color:var(--warn)' : 'color:var(--teal)';
-        const status = existing ? '\u26a0 Exists' : '\u2713 New';
-        const statusColor = existing ? 'var(--warn)' : 'var(--teal)';
+        const existing   = CERTS.find(x => x.id === c.id);
+        const hasId      = !!c.id;
+        const hasImo     = !!c.vesselIMO;
+        const rowBg      = existing ? 'background:rgba(255,179,71,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
+        const idColor    = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
+        const statusTxt  = existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
+        const statusColor= existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
+        const emailChip  = c.recipientEmail
+          ? `<span style="color:var(--teal);font-size:.6rem">✓</span>`
+          : `<span style="color:var(--text-sec);font-size:.6rem">—</span>`;
         if (existing) dups.push(c.id);
-        html += `<tr style="${existing ? 'background:rgba(255,179,71,.05)' : ''};border-bottom:1px solid var(--border)">
-          <td style="padding:7px 10px;color:var(--text-sec);font-size:.65rem">${i+1}</td>
-          <td style="padding:7px 10px;font-family:'JetBrains Mono',monospace;font-size:.63rem;${idStyle}">${c.id||'—'}</td>
-          <td style="padding:7px 10px;font-size:.67rem;color:var(--text-bright)">${c.recipientName||'—'}</td>
-          <td style="padding:7px 10px;font-size:.67rem">${c.vesselIMO||'—'}</td>
-          <td style="padding:7px 10px;font-size:.65rem;color:var(--text-sec);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.chiefEngineer}">${c.chiefEngineer||'—'}</td>
-          <td style="padding:7px 10px;font-size:.65rem">${c.complianceDate||'—'}</td>
-          <td style="padding:7px 10px;font-size:.65rem;color:${statusColor}">${status}</td></tr>`;
+        if (!hasId)   noId.push(i+1);
+        if (!hasImo)  noImo.push(i+1);
+        html += `<tr style="${rowBg};border-bottom:1px solid var(--border)">
+          <td style="padding:6px 10px;color:var(--text-sec);font-size:.63rem">${i+1}</td>
+          <td style="padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.61rem;color:${idColor}">${c.id||'—'}</td>
+          <td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.recipientName}">${c.recipientName||'—'}</td>
+          <td style="padding:6px 10px;font-size:.65rem">${c.vesselIMO||'—'}</td>
+          <td style="padding:6px 10px;font-size:.63rem;color:var(--text-sec);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.chiefEngineer}">${c.chiefEngineer||'—'}</td>
+          <td style="padding:6px 10px;font-size:.63rem">${c.complianceDate||'—'}</td>
+          <td style="padding:6px 10px;text-align:center">${emailChip}</td>
+          <td style="padding:6px 10px;font-size:.63rem;color:${statusColor};white-space:nowrap">${statusTxt}</td></tr>`;
       });
       html += '</tbody></table>';
       document.getElementById('csvPreviewTable').innerHTML = html;
+
+      // Build warning messages
       const warnBox = document.getElementById('csvWarnBox');
-      if (dups.length > 0) { warnBox.style.display = 'block'; warnBox.textContent = `⚠ ${dups.length} record(s) already exist and will be SKIPPED: ${dups.slice(0,4).join(', ')}${dups.length>4?'…':''}`; }
-      else { warnBox.style.display = 'none'; }
+      const warns = [];
+      if (dups.length)  warns.push(`⚠ ${dups.length} duplicate(s) will be skipped: ${dups.slice(0,3).join(', ')}${dups.length>3?'…':''}`);
+      if (noId.length)  warns.push(`✗ ${noId.length} row(s) missing IMO/date (cannot generate ID): rows ${noId.slice(0,5).join(', ')}`);
+      if (noImo.length && !noId.length) warns.push(`⚠ ${noImo.length} row(s) have no IMO number`);
+      if (warns.length) { warnBox.style.display = 'block'; warnBox.innerHTML = warns.map(w => `<div>${w}</div>`).join(''); }
+      else              { warnBox.style.display = 'none'; }
+      // warnings already set above
     }
 
     async function doImportCsv() {
@@ -6013,15 +6171,17 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     document.getElementById('csvMode').addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); });
 
     function downloadSampleCsv() {
+      // Headers match all supported aliases — use the canonical Synergy format
       const rows = [
-        'imo_number,vessel_name,chief_engineer,compliance_date,cert_number,recipient_email,notes',
-        '9623740,NORD KUDU,JOHN A SMITH,2026-01-30,CST-9623740-01-26,master@example.com,',
-        '9689536,BW CHINOOK,TARAK NATH,2026-02-12,CST-9689536-02-26,engineer@example.com,'
+        'IMO Number,VESSEL_NAME,Chif Name,ISSUES_DATES,recipient_email,notes',
+        '9623740,MV - NORD KUDU,BARREGA WILLIE PANIAMOGAN,30-Jan-26,master@nordkudu.com,',
+        '9689536,MT - BW CHINOOK,TARAK NATH,12-Feb-26,master@bwchinook.com,',
+        '9491666,MV - EFFICIENCY OL,JOHN A SMITH,10-Mar-26,chief@efficiencyol.com,Attended online session',
       ].join('\n');
       const blob = new Blob([rows], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'cst_sample.csv';
+      a.download = 'cst_import_sample.csv';
       a.click();
       URL.revokeObjectURL(a.href);
     }

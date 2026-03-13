@@ -900,17 +900,31 @@ function deriveQuarterFields(cert) {
   const q    = (cert.complianceQuarter || '').toUpperCase();
   const info = QUARTER_MAP[q];
   if (!info) return;
-  const baseYear = cert.complianceDate ? new Date(cert.complianceDate).getFullYear() : new Date().getFullYear();
-  const year     = info.nextYear ? baseYear + 1 : baseYear;
+
+  const baseYear = cert.complianceDate
+    ? new Date(cert.complianceDate).getFullYear()
+    : new Date().getFullYear();
+  const year = info.nextYear ? baseYear + 1 : baseYear;
+
+  // Set validFor / validUntil only when not already present
+  // (callers delete these fields before calling when forcing recalculation)
   if (!cert.validFor)   cert.validFor   = info.label + '-' + year;
   if (!cert.validUntil) {
     const d = new Date(year, info.endMonth - 1, info.endDay);
     cert.validUntil = d.toISOString().slice(0, 10);
   }
-  if (cert.vesselName && (!cert.recipientName || cert.recipientName === cert.vesselName)) {
-    const existingPrefix = (cert.recipientName || '').match(/^(MV|MT)\s*-\s*/i);
-    const prefix = existingPrefix ? existingPrefix[1].toUpperCase() : 'MV';
-    cert.recipientName = prefix + ' - ' + cert.vesselName;
+
+  // Normalise recipientName → "<PREFIX> - <VESSEL>" when missing or bare
+  if (cert.vesselName) {
+    const current = (cert.recipientName || '').trim();
+    const bare    = cert.vesselName.replace(/^(MV|MT)\s*[-\u2013]?\s*/i, '').trim();
+    const hasPrefix = /^(MV|MT)\s*[-\u2013]\s*/i.test(current);
+    if (!current || current === cert.vesselName.trim() || !hasPrefix) {
+      const srcForPrefix = current || cert.vesselName;
+      const m   = srcForPrefix.match(/^(MV|MT)\b/i);
+      const pfx = m ? m[1].toUpperCase() : 'MV';
+      cert.recipientName = pfx + ' - ' + bare;
+    }
   }
 }
 
@@ -1227,11 +1241,25 @@ async function handleAPI(req, res, parsed) {
     cert.emailSentAt = cert.emailSentAt || null;
     cert.createdAt   = new Date().toISOString();
     cert.updatedAt   = new Date().toISOString();
-    // Auto-status: if all 5 required fields present → VALID; otherwise → PENDING
-    // (client sends intended status, but we enforce server-side for consistency)
-    const _cstRequired = !!(cert.vesselIMO && cert.recipientEmail && cert.chiefEngineer && cert.complianceDate && cert.certificateImage);
-    if (!_cstRequired) cert.status = 'PENDING';
-    else if (!cert.status || cert.status === 'PENDING') cert.status = 'VALID';
+    // Normalise whitespace / casing on key fields
+    ['recipientName','vesselName','vesselIMO','chiefEngineer','trainingMode','complianceQuarter'].forEach(k => {
+      if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
+    });
+    if (cert.vesselIMO)         cert.vesselIMO         = cert.vesselIMO.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (cert.complianceQuarter) cert.complianceQuarter = cert.complianceQuarter.toUpperCase();
+    if (cert.trainingMode)      cert.trainingMode      = cert.trainingMode.toUpperCase();
+    // Apply config defaults for empty mandatory text fields
+    if (!cert.trainingTitle) cert.trainingTitle = CFG.cst.trainingTitle;
+    if (!cert.organizer)     cert.organizer     = CFG.cst.organizer;
+    if (!cert.verifiedBy)    cert.verifiedBy    = CFG.cst.verifiedBy;
+    if (!cert.notes)         cert.notes         = CFG.cst.notes;
+    if (!cert.issuerEmail)   cert.issuerEmail   = CFG.contact.cstEmail;
+    // Auto-status: VALID only when all core fields AND recipient email AND image are present
+    const _cstCore = !!(cert.vesselIMO && (cert.vesselName || cert.recipientName) && cert.chiefEngineer && cert.complianceDate && cert.complianceQuarter);
+    const _cstFull = _cstCore && !!(cert.recipientEmail && cert.certificateImage);
+    if (!_cstCore)                                               cert.status = 'PENDING';
+    else if (_cstFull && (!cert.status || cert.status === 'PENDING')) cert.status = 'VALID';
+    else if (!cert.status)                                       cert.status = 'PENDING';
     data[cert.id]    = cert;
     saveData(data);
     return sendJSON(res, 201, cert, corsH);
@@ -1341,32 +1369,62 @@ async function handleAPI(req, res, parsed) {
     }, corsH);
   }
 
-  // ── POST /api/import-csv ── (admin — bulk import CST certs, mirrors /api/vapt/import-csv)
+  // ── POST /api/import-csv ── (admin — bulk import CST certs)
   if (route === '/import-csv' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
+    if (records.length === 0) return sendJSON(res, 400, { error: 'No records provided' }, corsH);
+    if (records.length > 500) return sendJSON(res, 400, { error: 'Batch too large (max 500 per import)' }, corsH);
     const data = loadData();
     let added = 0, skipped = 0, failed = 0;
     const results = [];
+    const now = new Date().toISOString();
     for (const cert of records) {
       const certId = sanitiseCertId(cert.id);
-      if (!certId) { results.push({ id: cert.id, status: 'failed', reason: 'Invalid ID' }); failed++; continue; }
-      if (data[certId]) { results.push({ id: certId, status: 'skipped', reason: 'Already exists' }); skipped++; continue; }
+      if (!certId) {
+        results.push({ id: cert.id || '(blank)', status: 'failed', reason: 'Invalid or missing certificate ID' });
+        failed++; continue;
+      }
+      if (data[certId]) {
+        results.push({ id: certId, status: 'skipped', reason: 'Already exists' });
+        skipped++; continue;
+      }
+      // Require at minimum a vessel identifier
+      if (!cert.vesselIMO && !cert.vesselName && !cert.recipientName) {
+        results.push({ id: certId, status: 'failed', reason: 'Missing vesselIMO / vesselName' });
+        failed++; continue;
+      }
+      // Normalise
       cert.id = certId;
+      ['recipientName','vesselName','vesselIMO','chiefEngineer','trainingMode','complianceQuarter'].forEach(k => {
+        if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
+      });
+      if (cert.vesselIMO)         cert.vesselIMO         = cert.vesselIMO.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (cert.complianceQuarter) cert.complianceQuarter = cert.complianceQuarter.toUpperCase();
+      if (cert.trainingMode)      cert.trainingMode      = cert.trainingMode.toUpperCase();
+      // Apply config defaults
+      if (!cert.trainingTitle) cert.trainingTitle = CFG.cst.trainingTitle;
+      if (!cert.organizer)     cert.organizer     = CFG.cst.organizer;
+      if (!cert.verifiedBy)    cert.verifiedBy    = CFG.cst.verifiedBy;
+      if (!cert.notes)         cert.notes         = CFG.cst.notes;
+      if (!cert.issuerEmail)   cert.issuerEmail   = CFG.contact.cstEmail;
+      // Derive validFor / validUntil from quarter
       deriveQuarterFields(cert);
+      // Imported records always start PENDING (no image yet)
+      cert.status      = 'PENDING';
       cert.emailStatus = 'NOT_SENT';
       cert.emailSentAt = null;
       cert.attachments = [];
-      cert.createdAt = new Date().toISOString();
-      cert.updatedAt = new Date().toISOString();
+      cert.createdAt   = now;
+      cert.updatedAt   = now;
       data[certId] = cert;
-      results.push({ id: certId, status: 'created' });
+      results.push({ id: certId, status: 'created', vessel: cert.vesselName || cert.recipientName || '' });
       added++;
     }
     saveData(data);
-    return sendJSON(res, 200, { added, skipped, failed, results }, corsH);
+    return sendJSON(res, 200, { added, skipped, failed, total: records.length, results }, corsH);
   }
 
   // ── DELETE /api/certs/:id ── (admin)
@@ -1605,14 +1663,35 @@ async function handleAPI(req, res, parsed) {
     cert.id = certId;
     const data = loadVaptData();
     if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
-    cert.emailStatus = cert.emailStatus || 'NOT_SENT';
-    cert.emailSentAt = cert.emailSentAt || null;
-    cert.createdAt   = new Date().toISOString();
-    cert.updatedAt   = new Date().toISOString();
-    // Auto-status: if all 5 required fields present → VALID; otherwise → PENDING
-    const _vaptRequired = !!(cert.vesselName && cert.recipientName && cert.assessmentDate && cert.validUntil && cert.recipientEmail && cert.certificateImage);
-    if (!_vaptRequired) cert.status = 'PENDING';
-    else if (!cert.status || cert.status === 'PENDING') cert.status = 'VALID';
+    cert.emailStatus   = cert.emailStatus   || 'NOT_SENT';
+    cert.emailSentAt   = cert.emailSentAt   || null;
+    cert.createdAt     = new Date().toISOString();
+    cert.updatedAt     = new Date().toISOString();
+    // Normalise whitespace / casing
+    ['vesselName','recipientName','vesselIMO'].forEach(k => {
+      if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
+    });
+    if (cert.vesselIMO) cert.vesselIMO = cert.vesselIMO.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // Mirror vesselName → recipientName if absent
+    if (!cert.recipientName && cert.vesselName) cert.recipientName = cert.vesselName;
+    // Apply config defaults
+    if (!cert.verifiedBy)    cert.verifiedBy    = CFG.vapt.verifiedBy;
+    if (!cert.verifierTitle) cert.verifierTitle = CFG.vapt.verifierTitle;
+    if (!cert.assessingOrg)  cert.assessingOrg  = CFG.vapt.assessingOrg;
+    if (!cert.frameworks)    cert.frameworks    = CFG.vapt.frameworks;
+    if (!cert.scopeItems)    cert.scopeItems    = CFG.vapt.scopeItems;
+    if (!cert.issuerEmail)   cert.issuerEmail   = CFG.contact.vaptEmail;
+    // Derive validUntil (+1 year) if not supplied
+    if (!cert.validUntil && cert.assessmentDate) {
+      const d = new Date(cert.assessmentDate);
+      if (!isNaN(d)) { d.setFullYear(d.getFullYear() + 1); cert.validUntil = d.toISOString().slice(0, 10); }
+    }
+    // Auto-status: VALID only when core fields + email + image are all present
+    const _vaptCore = !!(cert.vesselIMO && (cert.vesselName || cert.recipientName) && cert.assessmentDate && cert.validUntil);
+    const _vaptFull = _vaptCore && !!(cert.recipientEmail && cert.certificateImage);
+    if (!_vaptCore)                                               cert.status = 'PENDING';
+    else if (_vaptFull && (!cert.status || cert.status === 'PENDING')) cert.status = 'VALID';
+    else if (!cert.status)                                       cert.status = 'PENDING';
     data[cert.id] = cert;
     saveVaptData(data);
     return sendJSON(res, 201, cert, corsH);
@@ -1624,25 +1703,60 @@ async function handleAPI(req, res, parsed) {
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
+    if (records.length === 0) return sendJSON(res, 400, { error: 'No records provided' }, corsH);
+    if (records.length > 500) return sendJSON(res, 400, { error: 'Batch too large (max 500 per import)' }, corsH);
     const data = loadVaptData();
     let added = 0, skipped = 0, failed = 0;
     const results = [];
+    const now = new Date().toISOString();
     for (const cert of records) {
       const certId = sanitiseCertId(cert.id);
-      if (!certId) { results.push({ id: cert.id, status: 'failed', reason: 'Invalid ID' }); failed++; continue; }
-      if (data[certId]) { results.push({ id: certId, status: 'skipped', reason: 'Already exists' }); skipped++; continue; }
+      if (!certId) {
+        results.push({ id: cert.id || '(blank)', status: 'failed', reason: 'Invalid or missing certificate ID' });
+        failed++; continue;
+      }
+      if (data[certId]) {
+        results.push({ id: certId, status: 'skipped', reason: 'Already exists' });
+        skipped++; continue;
+      }
+      // Require at minimum a vessel identifier
+      if (!cert.vesselIMO && !cert.vesselName && !cert.recipientName) {
+        results.push({ id: certId, status: 'failed', reason: 'Missing vesselIMO / vesselName' });
+        failed++; continue;
+      }
+      // Normalise
       cert.id = certId;
+      ['vesselName','recipientName','vesselIMO'].forEach(k => {
+        if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
+      });
+      if (cert.vesselIMO) cert.vesselIMO = cert.vesselIMO.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      // Mirror vesselName → recipientName
+      if (!cert.recipientName && cert.vesselName) cert.recipientName = cert.vesselName;
+      // Apply config defaults
+      if (!cert.verifiedBy)    cert.verifiedBy    = CFG.vapt.verifiedBy;
+      if (!cert.verifierTitle) cert.verifierTitle = CFG.vapt.verifierTitle;
+      if (!cert.assessingOrg)  cert.assessingOrg  = CFG.vapt.assessingOrg;
+      if (!cert.frameworks)    cert.frameworks    = CFG.vapt.frameworks;
+      if (!cert.scopeItems)    cert.scopeItems    = CFG.vapt.scopeItems;
+      if (!cert.issuerEmail)   cert.issuerEmail   = CFG.contact.vaptEmail;
+      // Derive validUntil (+1 year from assessmentDate) if absent
+      if (!cert.validUntil && cert.assessmentDate) {
+        const d = new Date(cert.assessmentDate);
+        if (!isNaN(d)) { d.setFullYear(d.getFullYear() + 1); cert.validUntil = d.toISOString().slice(0, 10); }
+      }
+      // Imported certs always start PENDING (image uploaded separately)
+      cert.status      = 'PENDING';
       cert.emailStatus = 'NOT_SENT';
       cert.emailSentAt = null;
       cert.attachments = [];
-      cert.createdAt = new Date().toISOString();
-      cert.updatedAt = new Date().toISOString();
+      cert.createdAt   = now;
+      cert.updatedAt   = now;
       data[certId] = cert;
-      results.push({ id: certId, status: 'created' });
+      results.push({ id: certId, status: 'created', vessel: cert.vesselName || cert.recipientName || '' });
       added++;
     }
     saveVaptData(data);
-    return sendJSON(res, 200, { added, skipped, failed, results }, corsH);
+    return sendJSON(res, 200, { added, skipped, failed, total: records.length, results }, corsH);
   }
 
   // ── PUT /api/vapt/certs/:id ── (admin — update VAPT cert)
