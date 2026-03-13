@@ -1563,6 +1563,14 @@
         a.href = url; a.download = 'Certificate-' + certId + ext;
         document.body.appendChild(a); a.click();
         document.body.removeChild(a); URL.revokeObjectURL(url);
+        // Fire download tracking — blob fetch bypasses the server /uploads/ handler
+        // so we must explicitly notify the server of this engagement event.
+        const fname = imgEl.src.split('/').pop().split('?')[0];
+        fetch('/api/track-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ certId, event: 'document_downloaded', file: fname, kind: 'cst' })
+        }).catch(() => {});
       } else {
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(window.location.href);

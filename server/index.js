@@ -1344,8 +1344,10 @@ async function handleAPI(req, res, parsed) {
 
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
-    const base      = body.baseUrl || BASE_ORIGIN;
-    const verifyUrl = buildCertUrl(cert.id, base);
+    // Always use BASE_ORIGIN for the verify URL embedded in the email.
+    // The admin dashboard sends window.location.origin as baseUrl, which becomes
+    // localhost when running locally — making the link dead for external recipients.
+    const verifyUrl = buildCertUrl(cert.id, BASE_ORIGIN);
     const fromAddr  = SES_FROM_CST || cert.issuerEmail || CFG.contact.cstEmail;
 
     if (!SES_ENABLED) {
@@ -1356,7 +1358,7 @@ async function handleAPI(req, res, parsed) {
     }
 
     const result = await sendCstEmail({
-      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl, baseUrl: base
+      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl, baseUrl: BASE_ORIGIN
     });
 
     if (result.success) {
@@ -1828,8 +1830,8 @@ async function handleAPI(req, res, parsed) {
 
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
-    const base      = body.baseUrl || BASE_ORIGIN;
-    const verifyUrl = buildVaptCertUrl(cert.id, base);
+    // Always use BASE_ORIGIN for the verify URL embedded in the email.
+    const verifyUrl = buildVaptCertUrl(cert.id, BASE_ORIGIN);
     const fromAddr  = SES_FROM_VAPT || cert.issuerEmail || CFG.contact.vaptEmail;
 
     if (!SES_ENABLED) {
@@ -1840,7 +1842,7 @@ async function handleAPI(req, res, parsed) {
     }
 
     const result = await sendVaptEmail({
-      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl, baseUrl: base
+      to: cert.recipientEmail, from: fromAddr, cert, verifyUrl, baseUrl: BASE_ORIGIN
     });
 
     if (result.success) {
