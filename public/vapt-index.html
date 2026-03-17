@@ -1124,8 +1124,10 @@
   }
 
   function loadStats() {
-    fetch(API + '/vapt/stats').then(r => r.json()).then(d => {
-      if (d && d.total !== undefined) {
+    fetch(API + '/vapt/stats')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => {
+        if (!d || d.total === undefined) return;
         animateNum(document.getElementById('statTotal'), d.total);
         animateNum(document.getElementById('statValid'), d.valid);
         animateNum(document.getElementById('statExpired'), d.expired || 0);
@@ -1135,14 +1137,14 @@
         const lEl = document.getElementById('statLastIssued');
         if (tEl) tEl.setAttribute('aria-label', 'Assessments issued: ' + d.total);
         if (vEl) vEl.setAttribute('aria-label', 'Currently valid: ' + d.valid);
-        if (eEl) eEl.setAttribute('aria-label', 'Expired assessments: ' + (d.expired || 0));
+        if (eEl) eEl.setAttribute('aria-label', 'Expired or revoked: ' + ((d.expired || 0) + (d.revoked || 0)));
         if (lEl && d.lastIssued) {
           const dt = new Date(d.lastIssued);
           lEl.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-          lEl.setAttribute('aria-label', 'Most recently issued certificate date: ' + lEl.textContent);
+          lEl.setAttribute('aria-label', 'Most recently issued: ' + lEl.textContent);
         } else if (lEl) { lEl.textContent = '—'; }
-      }
-    }).catch(() => {});
+      })
+      .catch(() => { /* silent — stats are non-critical */ });
   }
   loadStats();
   setInterval(loadStats, 60000);

@@ -3944,7 +3944,10 @@
                 </svg>
                 Issue Credentials
                 <!-- Email service status badge -->
-                <span id="sesBadgeCst" style="margin-left:8px;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:rgba(139,148,170,.08);color:var(--text-sec);border:1px solid rgba(139,148,170,.2)">Checking…</span>
+                <span id="sesBadgeCst" style="margin-left:auto;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:20px;background:rgba(139,148,170,.08);color:var(--text-sec);border:1px solid rgba(139,148,170,.18);display:inline-flex;align-items:center;gap:5px">
+                  <span id="sesBadgeCstDot" style="width:6px;height:6px;border-radius:50%;background:var(--text-sec);flex-shrink:0;transition:background .4s"></span>
+                  <span id="sesBadgeCstTxt">Checking…</span>
+                </span>
               </div>
 
               <!-- Prompt when nothing selected -->
@@ -3969,34 +3972,72 @@
 
                 <!-- Generated mail body preview -->
                 <div style="margin-bottom:14px">
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                    <div style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase">Email Preview</div>
-                    <button onclick="copyMailBody()" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s" onmouseover="this.style.background='rgba(212,168,67,.2)'" onmouseout="this.style.background='var(--gold-dim)'">
-                      <span id="copyBtnTxt">⎘ Copy</span>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;gap:7px">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                      <span style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase;font-weight:600">Email Preview</span>
+                    </div>
+                    <button onclick="copyMailBody()" style="display:inline-flex;align-items:center;gap:5px;background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:5px 13px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;letter-spacing:.08em;transition:all .18s" onmouseover="this.style.background='rgba(212,168,67,.22)';this.style.borderColor='var(--gold)'" onmouseout="this.style.background='var(--gold-dim)';this.style.borderColor='var(--border-gold)'">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path stroke-linecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                      <span id="copyBtnTxt">Copy Body</span>
                     </button>
                   </div>
-                  <div id="issueEmailPreview" style="background:var(--navy);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.75rem;color:var(--text);line-height:1.9;white-space:pre-wrap;font-family:'DM Sans',sans-serif;min-height:180px;user-select:text"></div>
+
+                  <!-- Styled email card -->
+                  <div style="border:1px solid var(--border-gold);border-radius:12px;overflow:hidden;background:var(--navy-mid)">
+                    <!-- Email card header bar -->
+                    <div style="background:linear-gradient(135deg,rgba(212,168,67,.12),rgba(212,168,67,.04));border-bottom:1px solid var(--border-gold);padding:10px 16px;display:flex;align-items:center;gap:10px">
+                      <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                      </div>
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:.72rem;font-weight:700;color:var(--text-bright)">Credential Notification Email</div>
+                        <div style="font-size:.6rem;color:var(--text-sec);margin-top:1px">Auto-generated · CST Certificate Registry</div>
+                      </div>
+                      <span style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.2)">AWS SES</span>
+                    </div>
+
+                    <!-- Email body -->
+                    <div id="issueEmailPreview" style="padding:16px 18px;font-size:.75rem;color:var(--text);line-height:1.95;font-family:'DM Sans',sans-serif;min-height:200px;user-select:text;background:var(--navy)"></div>
+                  </div>
                 </div>
 
                 <!-- Send result banner -->
-                <div id="sesSendResult" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:9px;font-size:.76rem;line-height:1.6"></div>
+                <div id="sesSendResult" style="display:none;margin-bottom:12px;padding:11px 16px;border-radius:10px;font-size:.76rem;line-height:1.6"></div>
 
                 <!-- Action buttons -->
-                <div style="display:flex;gap:10px;margin-top:4px">
-                  <!-- Primary send action -->
-                  <button class="btn btn-issue" style="flex:1;justify-content:center;padding:12px" id="sendSesBtn" onclick="sendViaSES()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                    <span id="sendSesTxt">Send Credential Email</span>
+                <div style="display:flex;gap:10px;margin-top:6px">
+                  <!-- Primary: AWS SES send -->
+                  <button class="btn btn-issue" style="flex:1;justify-content:center;padding:13px;font-size:.75rem;border-radius:10px;letter-spacing:.06em;box-shadow:0 2px 12px rgba(100,255,218,.12);transition:all .2s" id="sendSesBtn" onclick="sendViaSES()" onmouseover="this.style.boxShadow='0 4px 20px rgba(100,255,218,.22)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(100,255,218,.12)';this.style.transform=''">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    <span id="sendSesTxt">Send via AWS SES</span>
                   </button>
-                  <!-- Secondary: manual fallback -->
-                  <button class="btn btn-ghost" style="padding:12px 14px" id="markSentBtn" onclick="markAsSent()" title="Mark as sent without dispatching email">
+                  <!-- Secondary: manual mark sent -->
+                  <button style="display:inline-flex;align-items:center;gap:7px;padding:13px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.08em;cursor:pointer;border:1px solid rgba(100,255,218,.22);background:rgba(100,255,218,.05);color:var(--teal);transition:all .18s;white-space:nowrap" id="markSentBtn" onclick="markAsSent()" title="Record as sent manually — use if you emailed directly" onmouseover="this.style.background='rgba(100,255,218,.12)';this.style.borderColor='rgba(100,255,218,.4)'" onmouseout="this.style.background='rgba(100,255,218,.05)';this.style.borderColor='rgba(100,255,218,.22)'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     <span id="markSentTxt">Mark Sent</span>
                   </button>
-                  <button class="btn btn-ghost" onclick="clearIssueSelection()">Clear</button>
+                  <button class="btn btn-ghost" style="padding:13px 14px;border-radius:10px" onclick="clearIssueSelection()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
                 </div>
-                <div style="font-size:.62rem;color:var(--text-sec);margin-top:8px;line-height:1.7">
-                  <strong style="color:var(--teal)">Send Email</strong> dispatches the credential automatically and records delivery. &nbsp;·&nbsp; <strong style="color:var(--gold)">Mark Sent</strong> records it without dispatching (use after a manual send).
+
+                <!-- Button legend -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+                  <div style="padding:9px 12px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.15);border-radius:8px">
+                    <div style="font-size:.62rem;font-weight:700;color:var(--teal);margin-bottom:3px;display:flex;align-items:center;gap:5px">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                      Send via AWS SES
+                    </div>
+                    <div style="font-size:.6rem;color:var(--text-sec);line-height:1.6">Dispatches automatically via Amazon SES and records delivery timestamp.</div>
+                  </div>
+                  <div style="padding:9px 12px;background:rgba(100,255,218,.03);border:1px solid rgba(100,255,218,.12);border-radius:8px">
+                    <div style="font-size:.62rem;font-weight:700;color:var(--teal);margin-bottom:3px;display:flex;align-items:center;gap:5px">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      Mark Sent
+                    </div>
+                    <div style="font-size:.6rem;color:var(--text-sec);line-height:1.6">Records manually — use after sending the email yourself from your own client.</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4004,42 +4045,53 @@
 
           <!-- RIGHT: Stats + sent log -->
           <div style="display:flex;flex-direction:column;gap:16px">
-            <div class="send-panel">
-              <div class="send-panel-hdr">
+            <div class="send-panel" style="border-radius:14px;overflow:hidden">
+              <div class="send-panel-hdr" style="background:linear-gradient(135deg,rgba(100,255,218,.06),rgba(100,255,218,.02))">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                 </svg>
-                <span style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Credential Dispatch Stats</span>
+                <span style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Dispatch Stats</span>
+                <span style="margin-left:auto;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:10px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.18)">CST Registry</span>
               </div>
               <div class="send-panel-body">
-                <div class="send-stats">
-                  <div class="send-stat ss-sent">
+                <div class="send-stats" style="gap:12px">
+                  <div class="send-stat ss-sent" style="border-radius:12px;border-left:3px solid var(--teal)">
                     <div class="ss-num" id="dispatchSent">0</div>
-                    <div class="ss-label">Sent</div>
+                    <div class="ss-label" style="color:rgba(100,255,218,.7)">Dispatched</div>
                   </div>
-                  <div class="send-stat ss-pending">
+                  <div class="send-stat ss-pending" style="border-radius:12px;border-left:3px solid var(--invalid)">
                     <div class="ss-num" id="dispatchPending">0</div>
-                    <div class="ss-label">Pending</div>
+                    <div class="ss-label" style="color:rgba(255,107,138,.7)">Awaiting Send</div>
                   </div>
                 </div>
-                <div style="font-size:.7rem;color:var(--text-sec);line-height:1.8;margin-top:4px">
-                  · Select a certificate and enter recipient email<br>
-                  · Click <strong style="color:var(--teal)">Send Email</strong> to dispatch automatically<br>
-                  · Or copy the preview and send manually, then <strong style="color:var(--gold)">Mark Sent</strong>
+                <div style="margin-top:12px;display:flex;flex-direction:column;gap:5px">
+                  <div style="display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--text-sec)">
+                    <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>
+                    Select a certificate and enter recipient email
+                  </div>
+                  <div style="display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--text-sec)">
+                    <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>
+                    <strong style="color:var(--teal)">Send via AWS SES</strong>&nbsp;to dispatch automatically
+                  </div>
+                  <div style="display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--text-sec)">
+                    <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>
+                    Or copy the preview and <strong style="color:var(--teal)">Mark Sent</strong>&nbsp;manually
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Sent log -->
-            <div class="send-panel">
-              <div class="send-panel-hdr">
+            <div class="send-panel" style="border-radius:14px;overflow:hidden">
+              <div class="send-panel-hdr" style="background:linear-gradient(135deg,rgba(212,168,67,.06),rgba(212,168,67,.02))">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
                 <span style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Sent Log</span>
+                <span id="sentLogCount" style="margin-left:auto;font-size:.6rem;background:var(--gold-dim);color:var(--gold);border:1px solid var(--border-gold);border-radius:10px;padding:2px 8px">0 sent</span>
               </div>
-              <div style="max-height:380px;overflow-y:auto;padding:12px" id="sentLogList">
-                <div style="text-align:center;padding:24px;color:var(--text-sec);font-size:.78rem">No credentials marked as sent yet</div>
+              <div style="max-height:400px;overflow-y:auto;padding:12px" id="sentLogList">
+                <div style="text-align:center;padding:28px;color:var(--text-sec);font-size:.78rem">No credentials dispatched yet</div>
               </div>
             </div>
           </div>
@@ -4201,6 +4253,15 @@
     // ════════════════════════════════════════════════════
     let _autoRefreshInterval = null;
 
+    // Helper: returns true if any blocking modal/overlay is currently visible
+    function _isModalOpen() {
+      const modals = ['addMod', 'viewMod', 'delMod'];
+      return modals.some(id => {
+        const el = document.getElementById(id);
+        return el && el.style.display !== 'none' && el.style.display !== '';
+      });
+    }
+
     async function initApp() {
       await refreshStats();
       renderTbl('dashTbl', '');
@@ -4210,12 +4271,18 @@
       // ── Real-time auto-refresh: poll every 30 seconds ──
       if (_autoRefreshInterval) clearInterval(_autoRefreshInterval);
       _autoRefreshInterval = setInterval(async () => {
+        // Skip background refresh when a modal is open — prevents clobbering live edits
+        if (_isModalOpen()) return;
         await refreshStats();
-        // Re-render active table silently (no flicker on current page)
-        const dashPage = document.getElementById('page-dashboard');
+        const dashPage  = document.getElementById('page-dashboard');
         const certsPage = document.getElementById('page-certs');
-        if (dashPage && dashPage.style.display !== 'none') renderTbl('dashTbl', '');
+        const issuePage = document.getElementById('page-issue');
+        if (dashPage  && dashPage.style.display  !== 'none') renderTbl('dashTbl', '');
         if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value || '');
+        if (issuePage && issuePage.style.display !== 'none') {
+          renderIssueList(document.getElementById('issueSearch')?.value || '');
+          renderSentLog();
+        }
         updateRealTimeBadge();
       }, 30000);
     }
@@ -4553,22 +4620,37 @@
       const epCountEl = document.getElementById('emailPendingCountBadge');
       if (epEl && epCountEl) {
         const unsent = CERTS.filter(c => c.recipientEmail && c.emailStatus !== 'SENT');
-        epCountEl.textContent = unsent.length;
-        if (unsent.length === 0) {
+        const noEmail = CERTS.filter(c => !c.recipientEmail && c.emailStatus !== 'SENT' && (c.status||'').toUpperCase() !== 'PENDING');
+        epCountEl.textContent = unsent.length + noEmail.length;
+        const allMissing = [...unsent, ...noEmail];
+        if (allMissing.length === 0) {
           epEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--text-sec);font-size:.78rem">✓ All credentials dispatched</div>';
         } else {
-          epEl.innerHTML = unsent.map(c => {
+          epEl.innerHTML = allMissing.map(c => {
             const isPending = (c.status||'').toUpperCase() === 'PENDING';
-            return `<div class="ne-item">
-              <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center;font-size:.85rem">✉</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
-                <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName || '—'}</div>
-                <div style="font-size:.62rem;color:${isPending?'#7EB8F7':'var(--invalid)'}">
-                  ${isPending ? '⏳ Cert pending — activate first' : c.recipientEmail || 'No email address'}
-                </div>
+            const hasEmail  = !!c.recipientEmail;
+            const subColor  = isPending ? '#7EB8F7' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
+            const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? c.recipientEmail : '⚠ No email address on record';
+            return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="quickSend('${c.id}')"`:''}>
+              <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
-              ${!isPending ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="showPage('issue',document.getElementById('nav-issue'));setTimeout(()=>selectIssueCert&&selectIssueCert('${c.id}'),150)">Send</button>` : ''}
+              <div style="flex:1;min-width:0">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--gold)">${c.id}</div>
+                <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${c.recipientName || '—'}</div>
+                <div style="font-size:.61rem;color:${subColor};margin-top:1px">${subText}</div>
+              </div>
+              <div style="display:flex;gap:5px;flex-shrink:0">
+                ${!isPending && hasEmail
+                  ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" onclick="event.stopPropagation();quickSend('${c.id}')">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                      Send
+                    </button>`
+                  : !isPending && !hasEmail
+                  ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" onclick="event.stopPropagation();editCert('${c.id}')">+ Email</button>`
+                  : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${c.id}')">Activate</button>`
+                }
+              </div>
             </div>`;
           }).join('');
         }
@@ -4708,7 +4790,7 @@
           : `<div class="no-img">—</div>`;
         const emailCls = c.emailStatus === 'SENT' ? 'sent' : 'not-sent';
         const emailLabel = c.emailStatus === 'SENT' ? '✓ Sent' : '—';
-        const canSend = c.recipientEmail && c.emailStatus !== 'SENT' && c.status === 'VALID';
+        const canSend = !!(c.recipientEmail && c.emailStatus !== 'SENT');
         // ── Engagement badges ──
         const eng = c.engagement || {};
         const emailSent = c.emailStatus === 'SENT';
@@ -5152,15 +5234,15 @@
       document.getElementById('issueSelectedId').textContent = c.id;
       document.getElementById('issueSelectedName').textContent = (c.recipientName || '') + (c.vesselIMO ? '  ·  IMO ' + c.vesselIMO : '');
       document.getElementById('issueRecipEmail').value = c.recipientEmail || '';
-      // Grey out Mark as Sent if already sent
-      const btn = document.getElementById('markSentBtn');
-      if (c.emailStatus === 'SENT') {
-        btn.disabled = true;
-        document.getElementById('markSentTxt').textContent = '✓ Already Marked Sent';
-      } else {
-        btn.disabled = false;
-        document.getElementById('markSentTxt').textContent = 'Mark Sent';
-      }
+      // Always keep both buttons available — Mark Sent shows prior status but stays clickable
+      const markBtn = document.getElementById('markSentBtn');
+      const sendBtn = document.getElementById('sendSesBtn');
+      markBtn.disabled = false;
+      markBtn.style.background = ''; markBtn.style.borderColor = ''; markBtn.style.color = '';
+      sendBtn.disabled = false;
+      sendBtn.style.background = ''; sendBtn.style.borderColor = ''; sendBtn.style.color = '';
+      document.getElementById('markSentTxt').textContent = c.emailStatus === 'SENT' ? '✓ Re-Mark Sent' : 'Mark Sent';
+      document.getElementById('sendSesTxt').textContent = c.emailStatus === 'SENT' ? 'Re-Send via AWS' : 'Send via AWS SES';
       updateIssueEmailPreview();
     }
 
@@ -5176,49 +5258,101 @@
       const c = CERTS.find(x => x.id === selectedIssueCertId);
       if (!c) return;
       const verifyUrl = await getCertEncryptedUrl(c.id);
-      const compDate = c.complianceDate ? new Date(c.complianceDate).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
-      const body =
-`Dear Sir / Madam,
 
-Please find below the Cyber Security Threat Awareness Training certificate details for your records.
+      // Use config template if available, else inline fallback
+      const plainText = (window.APP_CONFIG && window.APP_CONFIG.emailTemplates && window.APP_CONFIG.emailTemplates.cst)
+        ? window.APP_CONFIG.emailTemplates.cst(c, verifyUrl)
+        : (() => {
+            const d = c.complianceDate ? new Date(c.complianceDate).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+            const team = window.APP_CONFIG ? window.APP_CONFIG.brand.cstTeam : 'Synergy Cyber Security Team';
+            const email = window.APP_CONFIG ? window.APP_CONFIG.contact.cstEmail : 'trainingawareness@synergyship.com';
+            return `Dear ${c.recipientName || 'Sir / Madam'},\n\nPlease find below the Cyber Security Threat Awareness Training certificate details for your records.\n\nVessel            : ${c.recipientName||'—'}\nVessel IMO        : ${c.vesselIMO||'—'}\nChief Engineer    : ${c.chiefEngineer||'—'}\nCertificate No.   : ${c.id}\nCompliance Date   : ${d}\nCompliance Quarter: ${c.complianceQuarter||'—'}\nTraining Mode     : ${c.trainingMode||'—'}\nValid For         : ${c.validFor||'—'}\n\nVerify online at:\n${verifyUrl}\n\n─────────────────────────────────────────────\n🔒 PDF DOCUMENT PASSWORD\nAny PDF attachments are protected with a personal password.\nYour password is your registered email address:\n   ${c.recipientEmail||'your registered email address'}\n─────────────────────────────────────────────\n\nThis training was organized by the ${team} and conducted\nunder supervision of ISO Lead Auditor and Security trainers.\n\nRegards,\n${team}\n${email}`;
+          })();
 
-Vessel: ${c.recipientName || '—'}
-Vessel IMO: ${c.vesselIMO || '—'}
-Chief Engineer: ${c.chiefEngineer || '—'}
-Certificate Number: ${c.id}
-Compliance Date: ${compDate}
-Compliance Quarter: ${c.complianceQuarter || '—'}
-Training Mode: ${c.trainingMode || '—'}
-Valid For: ${c.validFor || '—'}
+      const previewEl = document.getElementById('issueEmailPreview');
+      const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-You may verify this certificate online at:
-${verifyUrl}
+      // Split the body around the verify URL to inject the CTA button
+      const parts = plainText.split(verifyUrl);
 
-This training was organized by ${window.APP_CONFIG?window.APP_CONFIG.brand.cstTeam:"Synergy Cyber Security Team"} and conducted under supervision of ISO Lead Auditor and Security trainers.
+      // Split around the PDF password block to style it
+      const pdfSep = '─────────────────────────────────────────────';
+      const sections = (parts[0] || '').split(pdfSep);
+      const beforePdf = sections[0] || '';
+      // The rest after first separator pair
+      const allParts = plainText.split(pdfSep);
+      const pdfBlock = allParts.length >= 3 ? allParts[1] : null;
+      const afterPdf = allParts.length >= 3 ? allParts.slice(2).join(pdfSep) : (parts[1] || '');
 
-Regards,
-${(window.APP_CONFIG?window.APP_CONFIG.brand.cstTeam:"Synergy Cyber Security Team")}
-${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@synergyship.com")}`;
+      // Build body before verify URL but after greeting section
+      const bodyBeforeUrl = plainText.split(verifyUrl)[0] || '';
+      const bodyAfterUrl  = plainText.split(verifyUrl)[1] || '';
 
-      document.getElementById('issueEmailPreview').textContent = body;
+      // Parse out the PDF section from afterUrl
+      const pdfStart = bodyAfterUrl.indexOf(pdfSep);
+      const pdfEnd   = bodyAfterUrl.indexOf(pdfSep, pdfStart + pdfSep.length);
+      const afterUrl_pre  = pdfStart !== -1 ? bodyAfterUrl.slice(0, pdfStart) : bodyAfterUrl;
+      const pdfContent    = (pdfStart !== -1 && pdfEnd !== -1) ? bodyAfterUrl.slice(pdfStart + pdfSep.length, pdfEnd) : null;
+      const afterUrl_post = (pdfEnd !== -1) ? bodyAfterUrl.slice(pdfEnd + pdfSep.length) : '';
+
+      previewEl.innerHTML = `
+        <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text);line-height:1.9;font-family:'DM Sans',sans-serif">${esc(bodyBeforeUrl)}</div>
+
+        <!-- CTA Block -->
+        <div style="margin:14px 0 10px;padding:14px 16px;background:rgba(212,168,67,.06);border:1px solid rgba(212,168,67,.2);border-radius:10px">
+          <div style="font-size:.6rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:5px">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            Verification Link
+          </div>
+          <a href="${esc(verifyUrl)}" target="_blank" rel="noopener"
+            style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;
+                   background:linear-gradient(135deg,#D4A843,#9E7B0A);color:#0A1628;
+                   border-radius:9px;font-weight:700;font-size:.78rem;text-decoration:none;
+                   letter-spacing:.04em;font-family:'DM Sans',sans-serif;
+                   box-shadow:0 3px 12px rgba(212,168,67,.4);margin-bottom:10px;display:block;text-align:center">
+            🔗 &nbsp;Click Here to View &amp; Verify Certificate
+          </a>
+          <div style="font-size:.6rem;color:var(--text-sec);word-break:break-all;display:flex;align-items:flex-start;gap:5px;padding:8px 10px;background:var(--navy);border-radius:7px;border:1px solid var(--border)">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            <span style="font-family:'JetBrains Mono',monospace;color:var(--teal);font-size:.6rem">${esc(verifyUrl)}</span>
+          </div>
+        </div>
+
+        <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text);line-height:1.9">${esc(afterUrl_pre)}</div>
+
+        ${pdfContent ? `
+        <!-- PDF Password Block -->
+        <div style="margin:10px 0;padding:12px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:9px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="font-size:.75rem">🔒</span>
+            <span style="font-size:.65rem;font-weight:700;color:var(--teal);letter-spacing:.06em;text-transform:uppercase">PDF Document Password</span>
+          </div>
+          <div style="white-space:pre-wrap;font-size:.72rem;color:var(--text-sec);line-height:1.8">${esc(pdfContent)}</div>
+        </div>
+        ` : ''}
+
+        <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text-sec);line-height:1.9;border-top:1px solid var(--border);padding-top:10px;margin-top:6px">${esc(afterUrl_post)}</div>
+      `;
+
+      previewEl._plainText = plainText;
     }
 
     function copyMailBody() {
-      const body = document.getElementById('issueEmailPreview').textContent;
+      const el = document.getElementById('issueEmailPreview');
+      const body = el._plainText || el.textContent;
       if (!body) return;
       navigator.clipboard.writeText(body).then(() => {
         const btn = document.getElementById('copyBtnTxt');
-        btn.textContent = '✓ Copied!';
-        setTimeout(() => { btn.textContent = '⎘ Copy'; }, 2000);
+        const orig = btn ? btn.textContent : 'Copy Body';
+        if (btn) btn.textContent = '✓ Copied!';
+        setTimeout(() => { if (btn) btn.textContent = orig; }, 2000);
       }).catch(() => {
-        // Fallback for older browsers
         const ta = document.createElement('textarea');
         ta.value = body; ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta); ta.select();
         document.execCommand('copy'); document.body.removeChild(ta);
         const btn = document.getElementById('copyBtnTxt');
-        btn.textContent = '✓ Copied!';
-        setTimeout(() => { btn.textContent = '⎘ Copy'; }, 2000);
+        if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.textContent = 'Copy Body'; }, 2000); }
       });
     }
 
@@ -5228,28 +5362,30 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const r = await fetch(API + '/ses-status', { headers: { Authorization: 'Bearer ' + TOKEN } });
         const d = r.ok ? await r.json() : {};
         const badge = document.getElementById('sesBadgeCst');
-        const dot   = document.getElementById('sesSbDot');
+        const dot   = document.getElementById('sesBadgeCstDot');
+        const txt   = document.getElementById('sesBadgeCstTxt');
+        const sbDot = document.getElementById('sesSbDot');
         const lbl   = document.getElementById('sesSbLabel');
         if (d.enabled) {
           if (badge) {
-            badge.textContent = '✓ Email Dispatch Active';
-            badge.style.background  = 'rgba(100,255,218,.1)';
+            badge.style.background  = 'rgba(100,255,218,.08)';
             badge.style.color       = 'var(--teal)';
             badge.style.borderColor = 'rgba(100,255,218,.25)';
           }
-          if (dot)  dot.style.background = 'var(--teal)';
-          if (lbl)  lbl.textContent      = 'Mail On';
+          if (dot)  { dot.style.background = 'var(--teal)'; dot.style.animation = 'pulse 2s ease-in-out infinite'; }
+          if (txt)  txt.textContent = 'Email Dispatch Active';
+          if (sbDot) sbDot.style.background = 'var(--teal)';
+          if (lbl)  lbl.textContent = 'Mail On';
         } else {
           if (badge) {
-            badge.textContent = (d.missing && d.missing.length
-              ? '✗ Email dispatch unavailable'
-              : '✗ Email dispatch unavailable');
             badge.style.background  = 'rgba(255,107,138,.08)';
             badge.style.color       = '#ff6b8a';
             badge.style.borderColor = 'rgba(255,107,138,.2)';
           }
-          if (dot)  dot.style.background = 'var(--warn)';
-          if (lbl)  lbl.textContent      = 'Mail Off';
+          if (dot)  { dot.style.background = 'var(--invalid)'; dot.style.animation = ''; }
+          if (txt)  txt.textContent = 'Email Offline';
+          if (sbDot) sbDot.style.background = 'var(--invalid)';
+          if (lbl)  lbl.textContent = 'Mail Off';
         }
       } catch {
         const dot = document.getElementById('sesSbDot');
@@ -5286,15 +5422,6 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
       if (!recipEmail) { toast('Enter a recipient email address first.', 'warn'); return; }
 
-      // Persist the recipient email on the cert before sending
-      try {
-        const fdEmail = new FormData();
-        fdEmail.append('recipientEmail', recipEmail);
-        await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId), {
-          method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fdEmail
-        });
-      } catch { /* non-fatal — send will still work */ }
-
       const btn = document.getElementById('sendSesBtn');
       btn.disabled = true;
       document.getElementById('sendSesTxt').textContent = 'Sending…';
@@ -5302,59 +5429,67 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
       resultEl.style.display = 'none';
 
       try {
+        // Pass recipientEmail in the request body — server will persist it AND use it to send
         const r = await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId) + '/send-email', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ baseUrl: window.location.origin })
+          body: JSON.stringify({ recipientEmail: recipEmail, baseUrl: window.location.origin })
         });
         const d = await r.json();
 
         if (r.ok && d.success) {
-          // Success
+          const sentAt = d.emailSentAt ? new Date(d.emailSentAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : new Date().toLocaleString();
           resultEl.style.display = 'block';
-          resultEl.style.background = 'rgba(100,255,218,.08)';
-          resultEl.style.border     = '1px solid rgba(100,255,218,.25)';
+          resultEl.style.background = 'rgba(100,255,218,.07)';
+          resultEl.style.border     = '1px solid rgba(100,255,218,.22)';
           resultEl.style.color      = 'var(--teal)';
-          resultEl.innerHTML = `✓ Credential email dispatched successfully<br>
-            <span style="font-size:.65rem;opacity:.8">To: ${recipEmail} · ${new Date().toLocaleTimeString()}${d.messageId ? ' · MsgID: ' + d.messageId : ''}</span>`;
-          document.getElementById('sendSesTxt').textContent = '✓ Sent!';
-          btn.style.background  = 'rgba(100,255,218,.12)';
-          btn.style.borderColor = 'rgba(100,255,218,.35)';
-          btn.style.color       = 'var(--teal)';
+          resultEl.innerHTML = `
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              <div>
+                <div style="font-weight:700;font-size:.78rem">Dispatched via AWS SES</div>
+                <div style="font-size:.65rem;opacity:.85;margin-top:3px;line-height:1.6">
+                  To: <strong>${recipEmail}</strong><br>
+                  Sent: ${sentAt}${d.messageId ? '<br>Message ID: <code style="font-size:.6rem;opacity:.7">' + d.messageId + '</code>' : ''}
+                </div>
+              </div>
+            </div>`;
           toast('✓ Credential email sent successfully.', 'ok');
-          // Update local cert state
           const c = CERTS.find(x => x.id === selectedIssueCertId);
-          if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); c.recipientEmail = recipEmail; }
+          if (c) { c.emailStatus = 'SENT'; c.emailSentAt = d.emailSentAt || new Date().toISOString(); c.recipientEmail = recipEmail; }
           await refreshStats();
           renderIssueList(document.getElementById('issueSearch').value);
           renderSentLog();
-          return; // keep button disabled (already sent)
+          btn.disabled = false;
+          btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
+          document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
+          document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
+          return;
         } else {
           let errMsg;
           if (r.status === 503 || d.sesEnabled === false) {
-            errMsg = 'Email dispatch is not configured on this server. Please contact the system administrator.';
+            errMsg = 'Email dispatch (AWS SES) is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.';
           } else {
-            errMsg = d.sesError || d.error || ('HTTP ' + r.status);
+            errMsg = d.error || d.sesError || ('Server error — HTTP ' + r.status);
           }
           resultEl.style.display    = 'block';
-          resultEl.style.background = 'rgba(255,107,138,.08)';
+          resultEl.style.background = 'rgba(255,107,138,.07)';
           resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
-          resultEl.style.color      = '#ff6b8a';
-          resultEl.innerHTML = '✗ ' + errMsg;
-          toast('✗ ' + errMsg, 'err');
+          resultEl.style.color      = 'var(--invalid)';
+          resultEl.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${errMsg}</span></div>`;
+          toast('✗ ' + (d.error || 'Send failed'), 'err');
         }
       } catch (e) {
         resultEl.style.display = 'block';
-        resultEl.style.background = 'rgba(255,107,138,.08)';
+        resultEl.style.background = 'rgba(255,107,138,.07)';
         resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
-        resultEl.style.color      = '#ff6b8a';
-        resultEl.innerHTML = '✗ Could not reach the server. Please check your connection.';
+        resultEl.style.color      = 'var(--invalid)';
+        resultEl.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Could not reach the server. Check your network connection and try again.</span></div>`;
         toast('Connection error. Please try again.', 'err');
       }
-      // Re-enable only on failure
       btn.disabled = false;
       btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
-      document.getElementById('sendSesTxt').textContent = 'Send Credential Email';
+      document.getElementById('sendSesTxt').textContent = 'Send via AWS SES';
     }
 
     async function markAsSent() {
@@ -5371,16 +5506,19 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
         const r = await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId), {
           method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd
         });
-        if (!r.ok) { toast('Could not record dispatch status. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; return; }
-        document.getElementById('markSentTxt').textContent = '✓ Marked';
-        btn.style.background = 'rgba(212,168,67,.1)'; btn.style.borderColor = 'rgba(212,168,67,.3)'; btn.style.color = 'var(--gold)';
-        toast('Marked as sent!', 'ok');
+        if (!r.ok) { toast('Could not record dispatch status. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; return; }
+        toast('✓ Marked as sent!', 'ok');
         const c = CERTS.find(x => x.id === selectedIssueCertId);
         if (c) { c.emailStatus = 'SENT'; c.emailSentAt = new Date().toISOString(); if (recipEmail) c.recipientEmail = recipEmail; }
         await refreshStats();
         renderIssueList(document.getElementById('issueSearch').value);
         renderSentLog();
-      } catch { toast('Something went wrong. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark Sent'; }
+        // Re-enable — keep both options available
+        btn.disabled = false;
+        btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
+        document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
+        document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
+      } catch { toast('Something went wrong. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; }
     }
 
     async function quickSend(id) {
@@ -5394,30 +5532,36 @@ ${(window.APP_CONFIG?window.APP_CONFIG.contact.cstEmail:"trainingawareness@syner
     function renderSentLog() {
       const el = document.getElementById('sentLogList');
       const sent = CERTS.filter(c => c.emailStatus === 'SENT').sort((a, b) => new Date(b.emailSentAt) - new Date(a.emailSentAt));
-      if (!sent.length) { el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-sec);font-size:.78rem">No credentials marked as sent yet</div>`; return; }
+      // Update badge count
+      const badge = document.getElementById('sentLogCount');
+      if (badge) badge.textContent = sent.length + ' sent';
+      if (!sent.length) { el.innerHTML = `<div style="text-align:center;padding:28px;color:var(--text-sec);font-size:.78rem">No credentials dispatched yet</div>`; return; }
       el.innerHTML = sent.map(c => {
         const eng = c.engagement || {};
         const engBadges = [];
         if (eng.emailOpenCount)
           engBadges.push(`<span class="eng-badge eng-open" title="Opened ${eng.emailOpenCount}× · Last: ${fmtDt(eng.emailLastOpenAt)}">📧 ${eng.emailOpenCount}</span>`);
         else
-          engBadges.push(`<span class="eng-badge" style="opacity:.4;font-size:.57rem" title="Not yet opened">📧 0</span>`);
+          engBadges.push(`<span class="eng-badge" style="opacity:.35;font-size:.57rem" title="Not yet opened">📧 0</span>`);
         if (eng.certViewCount)
           engBadges.push(`<span class="eng-badge eng-view" title="Viewed ${eng.certViewCount}× · Last: ${fmtDt(eng.certLastViewedAt)}">👁 ${eng.certViewCount}</span>`);
         if (eng.docDownloadCount)
           engBadges.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}×">⬇ ${eng.docDownloadCount}</span>`);
         return `
-        <div style="padding:12px 14px;border-radius:9px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="padding:12px 14px;border-radius:10px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
             <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)">${c.id}</span>
             <div style="display:flex;align-items:center;gap:4px">${engBadges.join('')}</div>
           </div>
           <div style="font-size:.78rem;color:var(--text-bright);font-weight:500">${c.recipientName || '—'}</div>
-          <div style="font-size:.65rem;color:var(--text-sec);margin-top:2px">IMO: ${c.vesselIMO || '—'}</div>
-          ${c.recipientEmail ? `<div style="font-size:.65rem;color:var(--teal);margin-top:2px">📧 ${c.recipientEmail}</div>` : ''}
-          <div style="font-size:.6rem;color:var(--text-sec);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            ${c.emailSentAt ? new Date(c.emailSentAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' · ' + new Date(c.emailSentAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—'}
+          <div style="font-size:.64rem;color:var(--text-sec);margin-top:2px">IMO: ${c.vesselIMO || '—'}</div>
+          ${c.recipientEmail ? `<div style="font-size:.64rem;color:var(--teal);margin-top:2px;display:flex;align-items:center;gap:4px">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            ${c.recipientEmail}</div>` : ''}
+          <div style="font-size:.6rem;color:var(--text-sec);margin-top:7px;padding-top:7px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span style="color:var(--teal);font-weight:600">Sent</span>
+            ${c.emailSentAt ? '· ' + new Date(c.emailSentAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' · ' + new Date(c.emailSentAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—'}
           </div>
         </div>`;
       }).join('');

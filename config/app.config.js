@@ -128,10 +128,11 @@
 
     // ── ROUTES ───────────────────────────────────────────────────────────
     routes: {
-      cst:      A.routeCST,
-      vpt:      A.routeVPT,
-      cstAdmin: A.routeCST + '/misecure',
-      vptAdmin: A.routeVPT + '/misecure',
+      cst:       A.routeCST,
+      vpt:       A.routeVPT,
+      cstAdmin:  A.routeCST + '/misecure',
+      vptAdmin:  A.routeVPT + '/misecure',
+      vaptAdmin: A.routeVPT + '/misecure', // alias: kept in sync with vptAdmin
     },
 
     // ── CERTIFICATE ID FORMATS ───────────────────────────────────────────

@@ -544,27 +544,170 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
 
 /**
  * Build a minimal RFC 2822 email string with UTF-8 encoded subject.
+ * Produces a properly branded, responsive multipart/alternative email.
  */
 function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
   const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
-  const msgId  = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${(from.match(/@([^>\s]+)/) || [])[1] || 'mail'}>`;
-  const dateStr = new Date().toUTCString().replace(/GMT$/, '+0000');
-  const boundary = 'SYNBND_' + crypto.randomBytes(8).toString('hex');
+  const msgId      = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${(from.match(/@([^>\s]+)/) || [])[1] || 'mail'}>`;
+  const dateStr    = new Date().toUTCString().replace(/GMT$/, '+0000');
+  const boundary   = 'SYNBND_' + crypto.randomBytes(8).toString('hex');
 
-  // Plain-text part (base64)
-  const plainB64 = Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, '');
+  // ── Plain-text part ────────────────────────────────────────────────────────
+  const plainB64 = Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').trimEnd();
 
-  // HTML part — plain text converted to basic HTML + tracking pixel appended
-  const htmlBody = '<html><body><pre style="font-family:Arial,sans-serif;font-size:14px;white-space:pre-wrap">'
-    + body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    + '</pre>'
-    + (trackingPixelUrl
-        ? `<img src="${trackingPixelUrl}" width="1" height="1" border="0" alt="" style="width:1px!important;height:1px!important;min-width:1px;min-height:1px;overflow:hidden;display:block!important;mso-hide:none" />`
-        : '')
-    + '</body></html>';
-  const htmlB64  = Buffer.from(htmlBody).toString('base64').replace(/(.{76})/g, '$1\r\n').replace(/\r\n$/, '');
+  // ── HTML part: branded email template ─────────────────────────────────────
+  const urlRegex = /(https?:\/\/[^\s\r\n]+)/g;
 
-  const lines = [
+  // Escape HTML entities in the body text
+  const esc = s => s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Split the body into lines; detect separator lines (─── or ---) for styled blocks
+  const lines = body.split(/\r?\n/);
+  let htmlContent = '';
+  let inPdfBlock = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isSep = /^[\u2500\-]{10,}$/.test(line.trim());
+
+    if (isSep) {
+      if (!inPdfBlock) {
+        // Opening separator → start PDF password block
+        inPdfBlock = true;
+        htmlContent += `
+          <div style="margin:20px 0;padding:16px 20px;background:#f0f7ff;border:1px solid #c5d9f0;border-left:4px solid #1a6abf;border-radius:6px">
+            <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a4a7a;letter-spacing:.03em">🔒 PDF DOCUMENT PASSWORD</p>`;
+      } else {
+        // Closing separator → end PDF block
+        inPdfBlock = false;
+        htmlContent += `</div>`;
+      }
+      continue;
+    }
+
+    if (inPdfBlock) {
+      // Inside PDF block — render lines with special styling
+      const escaped = esc(line);
+      const urlReplaced = escaped.replace(urlRegex.source ? urlRegex : /(https?:\/\/[^\s<]+)/g, u =>
+        `<a href="${u}" style="color:#1a6abf;word-break:break-all">${u}</a>`);
+      if (line.trim()) {
+        htmlContent += `<p style="margin:4px 0;font-size:13px;color:#2a4a6a;line-height:1.6">${urlReplaced}</p>`;
+      }
+      continue;
+    }
+
+    // Regular lines — detect URLs and wrap them in a styled CTA block
+    const hasUrl = urlRegex.test(line);
+    urlRegex.lastIndex = 0; // reset stateful regex
+
+    if (hasUrl) {
+      // Add any non-URL text before the URL
+      const replaced = esc(line).replace(/(https?:\/\/[^\s&<]+(?:&amp;[^\s<]*)?)/g, (escapedUrl) => {
+        const rawUrl = escapedUrl.replace(/&amp;/g, '&');
+        return `</p>
+          <div style="margin:20px 0;text-align:center">
+            <a href="${rawUrl}" target="_blank" rel="noopener"
+              style="display:inline-block;padding:14px 32px;
+                     background:linear-gradient(135deg,#D4A843,#9E7B0A);
+                     color:#0A1628;border-radius:8px;
+                     font-family:Arial,Helvetica,sans-serif;font-size:15px;
+                     font-weight:700;text-decoration:none;letter-spacing:.04em;
+                     mso-padding-alt:14px 32px;line-height:1.2">
+              &#128279;&nbsp; View &amp; Verify Certificate
+            </a>
+            <p style="margin:10px 0 0;font-size:11px;color:#6a7a8a;word-break:break-all">
+              Or copy this link:<br>
+              <a href="${rawUrl}" style="color:#1a6abf;word-break:break-all;font-size:11px">${rawUrl}</a>
+            </p>
+          </div>
+          <p style="margin:0;font-size:14px;color:#2a3a4a;line-height:1.7">`;
+      });
+      htmlContent += `<p style="margin:0;font-size:14px;color:#2a3a4a;line-height:1.7">${replaced}</p>`;
+    } else if (line.trim() === '') {
+      htmlContent += `<p style="margin:0;font-size:7px;line-height:1">&nbsp;</p>`;
+    } else {
+      // Check if it looks like a section header (short, no lowercase, ends with colon, or is bold)
+      const isDataLine = /^[A-Za-z\s]+\s*:\s+\S/.test(line.trim());
+      if (isDataLine) {
+        const colonIdx = line.indexOf(':');
+        const label = esc(line.slice(0, colonIdx + 1));
+        const value = esc(line.slice(colonIdx + 1));
+        htmlContent += `<p style="margin:3px 0;font-size:13px;color:#2a3a4a;line-height:1.6">
+          <span style="color:#5a6a7a;min-width:160px;display:inline-block">${label}</span>${value}
+        </p>`;
+      } else {
+        htmlContent += `<p style="margin:3px 0;font-size:14px;color:#2a3a4a;line-height:1.7">${esc(line)}</p>`;
+      }
+    }
+  }
+
+  const brandName = CFG.brand.name || 'Synergy Marine Group';
+  const htmlBody = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${esc(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif">
+  <!-- Outer wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f7;padding:32px 16px">
+    <tr><td align="center">
+      <!-- Email card -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
+
+        <!-- Header bar -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#0A1628 0%,#1D3557 100%);padding:28px 32px;text-align:center">
+            <p style="margin:0;font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:#D4A843;font-weight:700">${brandName}</p>
+            <p style="margin:6px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.02em">${esc(subject.replace(/^(Subject:\s*)?Your (CST|VAPT) Certificate\s*—\s*/, '').replace(/\s*—\s*.+$/, '') || 'Certificate Notification')}</p>
+            <p style="margin:6px 0 0;font-size:11px;color:#8892B0;letter-spacing:.1em;text-transform:uppercase">Cyber Security Certificate Registry</p>
+          </td>
+        </tr>
+
+        <!-- Body content -->
+        <tr>
+          <td style="padding:32px 36px 20px">
+            ${htmlContent}
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr>
+          <td style="padding:0 36px">
+            <hr style="border:none;border-top:1px solid #e8edf4;margin:0">
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 36px 28px;text-align:center">
+            <p style="margin:0;font-size:11px;color:#8892B0;line-height:1.6">
+              This is an automated message from the ${esc(brandName)} Cyber Security Certificate Registry.<br>
+              Please do not reply directly to this email.
+            </p>
+            <p style="margin:10px 0 0;font-size:10px;color:#aab4c4">
+              &copy; ${new Date().getFullYear()} ${esc(brandName)} &middot; Cyber Security &amp; Compliance Division
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+  ${trackingPixelUrl
+    ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none!important;width:1px!important;height:1px!important;min-width:1px;min-height:1px;overflow:hidden;mso-hide:all" />`
+    : ''}
+</body>
+</html>`;
+
+  const htmlB64 = Buffer.from(htmlBody).toString('base64').replace(/(.{76})/g, '$1\r\n').trimEnd();
+
+  const emailLines = [
     `From: ${from}`,
     `To: ${to}`,
     `Subject: ${b64subject}`,
@@ -573,22 +716,22 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ];
-  if (replyTo && replyTo !== from) lines.push(`Reply-To: ${replyTo}`);
-  lines.push('');
-  lines.push(`--${boundary}`);
-  lines.push('Content-Type: text/plain; charset=UTF-8');
-  lines.push('Content-Transfer-Encoding: base64');
-  lines.push('');
-  lines.push(plainB64);
-  lines.push('');
-  lines.push(`--${boundary}`);
-  lines.push('Content-Type: text/html; charset=UTF-8');
-  lines.push('Content-Transfer-Encoding: base64');
-  lines.push('');
-  lines.push(htmlB64);
-  lines.push('');
-  lines.push(`--${boundary}--`);
-  return lines.join('\r\n');
+  if (replyTo && replyTo !== from) emailLines.push(`Reply-To: ${replyTo}`);
+  emailLines.push('');
+  emailLines.push(`--${boundary}`);
+  emailLines.push('Content-Type: text/plain; charset=UTF-8');
+  emailLines.push('Content-Transfer-Encoding: base64');
+  emailLines.push('');
+  emailLines.push(plainB64);
+  emailLines.push('');
+  emailLines.push(`--${boundary}`);
+  emailLines.push('Content-Type: text/html; charset=UTF-8');
+  emailLines.push('Content-Transfer-Encoding: base64');
+  emailLines.push('');
+  emailLines.push(htmlB64);
+  emailLines.push('');
+  emailLines.push(`--${boundary}--`);
+  return emailLines.join('\r\n');
 }
 
 // ─── EMAIL LOG HELPER ─────────────────────────────────────────────────────────
@@ -1250,6 +1393,8 @@ async function handleAPI(req, res, parsed) {
     cert.emailSentAt = cert.emailSentAt || null;
     cert.createdAt   = new Date().toISOString();
     cert.updatedAt   = new Date().toISOString();
+    // Auto-populate issuedAt from complianceDate if not explicitly supplied
+    if (!cert.issuedAt && cert.complianceDate) cert.issuedAt = cert.complianceDate;
     // Normalise whitespace / casing on key fields
     ['recipientName','vesselName','vesselIMO','chiefEngineer','trainingMode','complianceQuarter'].forEach(k => {
       if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
@@ -1337,22 +1482,33 @@ async function handleAPI(req, res, parsed) {
     const data = loadData();
     const cert = data[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    if (!cert.recipientEmail)
-      return sendJSON(res, 400, { error: 'No recipient email on this certificate' }, corsH);
-    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
-      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
 
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
+
+    // Allow the dashboard to supply an updated recipientEmail in the request body
+    const overrideEmail = (body && typeof body.recipientEmail === 'string' && body.recipientEmail.trim())
+      ? body.recipientEmail.trim().toLowerCase()
+      : null;
+    if (overrideEmail) {
+      cert.recipientEmail = overrideEmail;
+      data[certId] = cert;
+      // Persist the email update immediately so it survives even if send fails
+      saveData(data);
+    }
+
+    if (!cert.recipientEmail)
+      return sendJSON(res, 400, { error: 'No recipient email on this certificate. Add an email address first.' }, corsH);
+    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
+      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
+
     // Always use BASE_ORIGIN for the verify URL embedded in the email.
-    // The admin dashboard sends window.location.origin as baseUrl, which becomes
-    // localhost when running locally — making the link dead for external recipients.
     const verifyUrl = buildCertUrl(cert.id, BASE_ORIGIN);
     const fromAddr  = SES_FROM_CST || cert.issuerEmail || CFG.contact.cstEmail;
 
     if (!SES_ENABLED) {
       return sendJSON(res, 503, {
-        error: 'Email dispatch is not available on this server. Contact your system administrator.',
+        error: 'Email dispatch is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.',
         sesEnabled: false,
       }, corsH);
     }
@@ -1371,11 +1527,12 @@ async function handleAPI(req, res, parsed) {
         success: true, emailStatus: 'SENT',
         emailSentAt: cert.emailSentAt,
         verifyUrl, messageId: result.messageId || null, sesEnabled: true,
+        to: cert.recipientEmail,
       }, corsH);
     }
 
     return sendJSON(res, 500, {
-      error: 'Email could not be delivered. Please verify the recipient address and try again.',
+      error: result.error || 'Email could not be delivered. Please verify the recipient address and try again.',
       sesEnabled: true,
     }, corsH);
   }
@@ -1445,9 +1602,19 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    // Clean up certificate image from disk
     if (data[certId].certificateImage) {
       const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+      if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
+    }
+    // Clean up all attachments from disk
+    if (Array.isArray(data[certId].attachments)) {
+      for (const att of data[certId].attachments) {
+        if (att && att.url) {
+          const fp = path.join(UPLOADS_DIR, path.basename(att.url));
+          if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
+        }
+      }
     }
     delete data[certId];
     saveData(data);
@@ -1455,27 +1622,27 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── GET /api/stats ── (public — aggregate cert stats for index page)
-  // IMPROVED: now returns lastIssued date for display on the public portal
   if (route === '/stats' && method === 'GET') {
     const data  = loadData();
     const certs = Object.values(data);
     const now   = new Date();
-    const total = certs.length;
-    const valid = certs.filter(c =>
-      (c.status || 'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)
-    ).length;
-    const expired = certs.filter(c =>
-      (c.status || 'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < now
-    ).length;
-    const pending = certs.filter(c =>
-      (c.status || '').toUpperCase() === 'PENDING'
-    ).length;
+    const total   = certs.length;
+    const revoked = certs.filter(c => (c.status || '').toUpperCase() === 'REVOKED').length;
+    const pending = certs.filter(c => (c.status || '').toUpperCase() === 'PENDING').length;
+    const expired = certs.filter(c => {
+      const st = (c.status || 'VALID').toUpperCase();
+      return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now);
+    }).length;
+    const valid = certs.filter(c => {
+      const st = (c.status || 'VALID').toUpperCase();
+      return st === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now);
+    }).length;
     const lastIssuedDate = certs.reduce((best, c) => {
       const d = c.createdAt || c.issuedAt || c.complianceDate || '';
       return d > best ? d : best;
     }, '');
     return sendJSON(res, 200, {
-      total, valid, expired, pending,
+      total, valid, expired, pending, revoked,
       lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
     }, corsH);
   }
@@ -1501,27 +1668,27 @@ async function handleAPI(req, res, parsed) {
   // ══════════════════════════════════════════════════════════════════════════
 
   // ── GET /api/vapt/stats ── (public — aggregate VAPT cert stats)
-  // IMPROVED: now returns lastIssued date
   if (route === '/vapt/stats' && method === 'GET') {
     const data  = loadVaptData();
     const certs = Object.values(data);
     const now   = new Date();
-    const total = certs.length;
-    const valid = certs.filter(c =>
-      (c.status || 'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)
-    ).length;
-    const expired = certs.filter(c =>
-      (c.status || 'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < now
-    ).length;
-    const pending = certs.filter(c =>
-      (c.status || '').toUpperCase() === 'PENDING'
-    ).length;
+    const total   = certs.length;
+    const revoked = certs.filter(c => (c.status || '').toUpperCase() === 'REVOKED').length;
+    const pending = certs.filter(c => (c.status || '').toUpperCase() === 'PENDING').length;
+    const expired = certs.filter(c => {
+      const st = (c.status || 'VALID').toUpperCase();
+      return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now);
+    }).length;
+    const valid = certs.filter(c => {
+      const st = (c.status || 'VALID').toUpperCase();
+      return st === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now);
+    }).length;
     const lastIssuedDate = certs.reduce((best, c) => {
       const d = c.createdAt || c.issuedAt || c.assessmentDate || '';
       return d > best ? d : best;
     }, '');
     return sendJSON(res, 200, {
-      total, valid, expired, pending,
+      total, valid, expired, pending, revoked,
       lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
     }, corsH);
   }
@@ -1824,19 +1991,31 @@ async function handleAPI(req, res, parsed) {
     const data = loadVaptData();
     const cert = data[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
-    if (!cert.recipientEmail) return sendJSON(res, 400, { error: 'No recipient email on this certificate' }, corsH);
-    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
-      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
 
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
+
+    // Allow the dashboard to supply an updated recipientEmail in the request body
+    const overrideEmail = (body && typeof body.recipientEmail === 'string' && body.recipientEmail.trim())
+      ? body.recipientEmail.trim().toLowerCase()
+      : null;
+    if (overrideEmail) {
+      cert.recipientEmail = overrideEmail;
+      data[certId] = cert;
+      saveVaptData(data);
+    }
+
+    if (!cert.recipientEmail) return sendJSON(res, 400, { error: 'No recipient email on this certificate. Add an email address first.' }, corsH);
+    if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
+      return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
+
     // Always use BASE_ORIGIN for the verify URL embedded in the email.
     const verifyUrl = buildVaptCertUrl(cert.id, BASE_ORIGIN);
     const fromAddr  = SES_FROM_VAPT || cert.issuerEmail || CFG.contact.vaptEmail;
 
     if (!SES_ENABLED) {
       return sendJSON(res, 503, {
-        error: 'Email dispatch is not available on this server. Contact your system administrator.',
+        error: 'Email dispatch is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.',
         sesEnabled: false,
       }, corsH);
     }
@@ -1855,11 +2034,12 @@ async function handleAPI(req, res, parsed) {
         success: true, emailStatus: 'SENT',
         emailSentAt: cert.emailSentAt,
         verifyUrl, messageId: result.messageId || null, sesEnabled: true,
+        to: cert.recipientEmail,
       }, corsH);
     }
 
     return sendJSON(res, 500, {
-      error: 'Email could not be delivered. Please verify the recipient address and try again.',
+      error: result.error || 'Email could not be delivered. Please verify the recipient address and try again.',
       sesEnabled: true,
     }, corsH);
   }
@@ -1871,9 +2051,19 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    // Clean up certificate image from disk
     if (data[certId].certificateImage) {
       const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+      if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
+    }
+    // Clean up all attachments from disk
+    if (Array.isArray(data[certId].attachments)) {
+      for (const att of data[certId].attachments) {
+        if (att && att.url) {
+          const fp = path.join(UPLOADS_DIR, path.basename(att.url));
+          if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
+        }
+      }
     }
     delete data[certId];
     saveVaptData(data);

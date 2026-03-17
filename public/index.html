@@ -1120,8 +1120,10 @@
 
   // Stats — initial fetch + auto-refresh every 60 s
   function loadStats() {
-    fetch(API + '/stats').then(r => r.json()).then(d => {
-      if (d.total !== undefined) {
+    fetch(API + '/stats')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => {
+        if (d.total === undefined) return;
         animateNum(document.getElementById('statTotal'), d.total);
         animateNum(document.getElementById('statValid'), d.valid);
         animateNum(document.getElementById('statExpired'), d.expired || 0);
@@ -1131,16 +1133,16 @@
         const lst = document.getElementById('statLastIssued');
         if (tot) tot.setAttribute('aria-label', 'Certificates issued: ' + d.total);
         if (val) val.setAttribute('aria-label', 'Currently active certificates: ' + d.valid);
-        if (exp) exp.setAttribute('aria-label', 'Expired certificates: ' + (d.expired || 0));
+        if (exp) exp.setAttribute('aria-label', 'Expired or revoked: ' + ((d.expired || 0) + (d.revoked || 0)));
         if (lst && d.lastIssued) {
           const dt = new Date(d.lastIssued);
           lst.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-          lst.setAttribute('aria-label', 'Most recently issued certificate date: ' + lst.textContent);
+          lst.setAttribute('aria-label', 'Most recently issued: ' + lst.textContent);
         } else if (lst) {
           lst.textContent = '—';
         }
-      }
-    }).catch(() => {});
+      })
+      .catch(() => { /* silent — stats are non-critical display data */ });
   }
   loadStats();
   setInterval(loadStats, 60000);
