@@ -1487,7 +1487,7 @@
 </div>
 
 <!-- ══ APP ══ -->
-<div id="appWrap" style="display:flex">
+<div id="appWrap" style="display:none">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navigation sidebar">
     <div class="sb-brand">
@@ -2303,6 +2303,7 @@
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('appWrap').style.display = 'flex';
       if (window.syncButtons) window.syncButtons();
+      scheduleTokenExpiryWarning();
       initApp();
     } catch { document.getElementById('loginErr').style.display = 'block'; }
     document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
@@ -2832,7 +2833,7 @@
       dashboard:['VAPT Dashboard','Admin › VAPT › Overview'],
       certs:['All VAPT Certificates','Admin › VAPT › Certificates'],
       add:[editingId?'Edit VAPT Certificate':'Add VAPT Certificate','Admin › VAPT › '+(editingId?'Edit':'Add')],
-      issue:['Issue VAPT Credentialss','Admin › VAPT › Issue Credentials'],
+      issue:['Issue VAPT Credentials','Admin › VAPT › Issue Credentials'],
       csv:['Import VAPT CSV','Admin › VAPT › CSV Import']
     };
     const [t,b]=titles[name]||['',''];
@@ -3512,55 +3513,6 @@
     previewEl._plainText = plainText;
     _issueEmailCache[c.id]=plainText;
   }
-    // Build clean plain-text version (raw URL) for copying / manual sends
-    const plainText=
-`Subject: Your VAPT Certificate — ${c.id} — ${window.APP_CONFIG?(window.APP_CONFIG.brand.companyShort||window.APP_CONFIG.brand.name):"Synergy"}
-
-Dear ${c.recipientName||'Vessel Master / Company Representative'},
-
-Please find below your Vulnerability Assessment & Penetration Testing (VAPT) certificate details from ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:"Synergy Marine Group"} Cyber Security Division.
-
-🔐 Certificate ID:     ${c.id}
-🚢 Vessel:             ${c.recipientName||c.vesselName||'—'}
-📍 IMO Number:         ${c.vesselIMO||'—'}
-📅 Assessment Date:    ${fmt(c.assessmentDate)}
-✅ Valid Until:         ${fmt(c.validUntil)}
-
-To verify and view your certificate online, click the link below:
-${certUrl}
-
-Frameworks Assessed: ${c.frameworks||'OWASP / IMO Framework / ISO 27001:2013'}
-
-If you have any questions or require a re-assessment, please contact us at ${window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com'}.
-
-Regards,
-${c.verifiedBy||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh')}
-${c.verifierTitle||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group')}
-${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} · Cyber Security Division`;
-
-    // Render rich HTML preview: button + raw URL line underneath
-    const previewEl = document.getElementById('issueEmailPreview');
-    const escape = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const htmlParts = plainText.split(certUrl);
-    const beforeUrl = `<div style="white-space:pre-wrap;font-family:'DM Sans',sans-serif;font-size:.75rem;color:var(--text);line-height:1.9">${escape(htmlParts[0])}</div>`;
-    const ctaBtn    = `<div style="margin:10px 0 6px">
-      <a href="${certUrl}" target="_blank" rel="noopener"
-        style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;
-               background:linear-gradient(135deg,#64FFDA,#0A9E7A);color:#0A1628;
-               border-radius:9px;font-weight:700;font-size:.8rem;text-decoration:none;
-               letter-spacing:.04em;font-family:'DM Sans',sans-serif;
-               box-shadow:0 2px 8px rgba(100,255,218,.3)">
-        🔗 Click Here to View &amp; Verify Certificate
-      </a>
-    </div>
-    <div style="font-size:.62rem;color:var(--text-sec);margin-bottom:6px;word-break:break-all">
-      🔗 <span style="color:var(--teal);font-family:'JetBrains Mono',monospace">${escape(certUrl)}</span>
-    </div>`;
-    const afterUrl  = `<div style="white-space:pre-wrap;font-family:'DM Sans',sans-serif;font-size:.75rem;color:var(--text);line-height:1.9">${escape(htmlParts[1]||'')}</div>`;
-    previewEl.innerHTML = beforeUrl + ctaBtn + afterUrl;
-    previewEl._plainText = plainText;
-    _issueEmailCache[c.id]=plainText;
-  }
 
   async function copyMailBody() {
     const el=document.getElementById('issueEmailPreview');
@@ -4210,6 +4162,7 @@ ${window.APP_CONFIG?window.APP_CONFIG.brand.companyFull:'Synergy Marine Group'} 
   if(TOKEN){
     document.getElementById('loginWrap').style.display='none';
     document.getElementById('appWrap').style.display='flex';
+    scheduleTokenExpiryWarning();
     initApp();
   }else{
     document.getElementById('appWrap').style.display='none';
