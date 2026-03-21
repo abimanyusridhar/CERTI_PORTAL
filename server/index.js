@@ -542,69 +542,47 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
   });
 }
 
+
 /**
- * Build a minimal RFC 2822 email string with UTF-8 encoded subject.
- * Produces a properly branded, responsive multipart/alternative email.
+ * Build a branded RFC 2822 email with certificate image attachment.
+ * Produces multipart/mixed → multipart/alternative (text + HTML) + image attachment.
+ * @param {object} opts
+ * @param {string}  opts.from
+ * @param {string}  opts.to
+ * @param {string}  opts.subject
+ * @param {string}  opts.body          Plain-text body
+ * @param {string}  [opts.replyTo]
+ * @param {string}  [opts.trackingPixelUrl]
+ * @param {Buffer}  [opts.certImageData]   Raw bytes of certificate image
+ * @param {string}  [opts.certImageName]   Filename e.g. "certificate.png"
+ * @param {string}  [opts.certImageMime]   MIME type e.g. "image/png"
  */
-function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
+function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl, certImageData, certImageName, certImageMime }) {
   const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
   const msgId      = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${(from.match(/@([^>\s]+)/) || [])[1] || 'mail'}>`;
   const dateStr    = new Date().toUTCString().replace(/GMT$/, '+0000');
-  const boundary   = 'SYNBND_' + crypto.randomBytes(8).toString('hex');
+  const outerBnd   = 'SYNMIX_' + crypto.randomBytes(8).toString('hex');
+  const innerBnd   = 'SYNALT_' + crypto.randomBytes(8).toString('hex');
+  const hasImage   = certImageData && certImageData.length > 0;
 
-  // ── Plain-text part ────────────────────────────────────────────────────────
+  // ── Plain-text part ──────────────────────────────────────────────────────
   const plainB64 = Buffer.from(body).toString('base64').replace(/(.{76})/g, '$1\r\n').trimEnd();
 
-  // ── HTML part: branded email template ─────────────────────────────────────
+  // ── HTML part: branded email template ────────────────────────────────────
   const urlRegex = /(https?:\/\/[^\s\r\n]+)/g;
-
-  // Escape HTML entities in the body text
   const esc = s => s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  // Split the body into lines; detect separator lines (─── or ---) for styled blocks
   const lines = body.split(/\r?\n/);
   let htmlContent = '';
-  let inPdfBlock = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const isSep = /^[\u2500\-]{10,}$/.test(line.trim());
 
-    if (isSep) {
-      if (!inPdfBlock) {
-        // Opening separator → start PDF password block
-        inPdfBlock = true;
-        htmlContent += `
-          <div style="margin:20px 0;padding:16px 20px;background:#f0f7ff;border:1px solid #c5d9f0;border-left:4px solid #1a6abf;border-radius:6px">
-            <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a4a7a;letter-spacing:.03em">🔒 PDF DOCUMENT PASSWORD</p>`;
-      } else {
-        // Closing separator → end PDF block
-        inPdfBlock = false;
-        htmlContent += `</div>`;
-      }
-      continue;
-    }
-
-    if (inPdfBlock) {
-      // Inside PDF block — render lines with special styling
-      const escaped = esc(line);
-      const urlReplaced = escaped.replace(urlRegex.source ? urlRegex : /(https?:\/\/[^\s<]+)/g, u =>
-        `<a href="${u}" style="color:#1a6abf;word-break:break-all">${u}</a>`);
-      if (line.trim()) {
-        htmlContent += `<p style="margin:4px 0;font-size:13px;color:#2a4a6a;line-height:1.6">${urlReplaced}</p>`;
-      }
-      continue;
-    }
-
-    // Regular lines — detect URLs and wrap them in a styled CTA block
     const hasUrl = urlRegex.test(line);
-    urlRegex.lastIndex = 0; // reset stateful regex
+    urlRegex.lastIndex = 0;
 
     if (hasUrl) {
-      // Add any non-URL text before the URL
       const replaced = esc(line).replace(/(https?:\/\/[^\s&<]+(?:&amp;[^\s<]*)?)/g, (escapedUrl) => {
         const rawUrl = escapedUrl.replace(/&amp;/g, '&');
         return `</p>
@@ -629,7 +607,6 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
     } else if (line.trim() === '') {
       htmlContent += `<p style="margin:0;font-size:7px;line-height:1">&nbsp;</p>`;
     } else {
-      // Check if it looks like a section header (short, no lowercase, ends with colon, or is bold)
       const isDataLine = /^[A-Za-z\s]+\s*:\s+\S/.test(line.trim());
       if (isDataLine) {
         const colonIdx = line.indexOf(':');
@@ -645,6 +622,16 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
   }
 
   const brandName = CFG.brand.name || 'Synergy Marine Group';
+
+  // Logo SVG: shield with check — same icon used across the portal pages
+  const logoSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="1.8" style="display:inline-block;vertical-align:middle;margin-right:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`;
+
+  const certNote = hasImage
+    ? `<p style="margin:16px 0 0;font-size:12px;color:#6a7a8a;text-align:center;border-top:1px solid #e8edf4;padding-top:14px">
+        📎 Your certificate image is attached to this email.
+      </p>`
+    : '';
+
   const htmlBody = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -654,18 +641,16 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
   <title>${esc(subject)}</title>
 </head>
 <body style="margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif">
-  <!-- Outer wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f7;padding:32px 16px">
     <tr><td align="center">
-      <!-- Email card -->
       <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
 
-        <!-- Header bar -->
+        <!-- Header bar with logo -->
         <tr>
           <td style="background:linear-gradient(135deg,#0A1628 0%,#1D3557 100%);padding:28px 32px;text-align:center">
-            <p style="margin:0;font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:#D4A843;font-weight:700">${brandName}</p>
-            <p style="margin:6px 0 0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.02em">${esc(subject.replace(/^(Subject:\s*)?Your (CST|VAPT) Certificate\s*—\s*/, '').replace(/\s*—\s*.+$/, '') || 'Certificate Notification')}</p>
-            <p style="margin:6px 0 0;font-size:11px;color:#8892B0;letter-spacing:.1em;text-transform:uppercase">Cyber Security Certificate Registry</p>
+            <div style="margin-bottom:10px">${logoSvg}<span style="font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#D4A843;font-weight:800;vertical-align:middle">${esc(brandName)}</span></div>
+            <p style="margin:4px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:.02em">${esc(subject.replace(/^(Subject:\s*)?Your (CST|VAPT) Certificate\s*—\s*/, '').replace(/\s*—\s*.+$/, '') || 'Certificate Notification')}</p>
+            <p style="margin:6px 0 0;font-size:10px;color:#8892B0;letter-spacing:.14em;text-transform:uppercase">Cyber Security &amp; Compliance Division</p>
           </td>
         </tr>
 
@@ -673,6 +658,7 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
         <tr>
           <td style="padding:32px 36px 20px">
             ${htmlContent}
+            ${certNote}
           </td>
         </tr>
 
@@ -707,6 +693,10 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
 
   const htmlB64 = Buffer.from(htmlBody).toString('base64').replace(/(.{76})/g, '$1\r\n').trimEnd();
 
+  // ── Build MIME structure ─────────────────────────────────────────────────
+  // With image: multipart/mixed → [multipart/alternative → [text, html]] + [image]
+  // Without:    multipart/alternative → [text, html]
+  const topType    = hasImage ? `multipart/mixed; boundary="${outerBnd}"` : `multipart/alternative; boundary="${innerBnd}"`;
   const emailLines = [
     `From: ${from}`,
     `To: ${to}`,
@@ -714,27 +704,55 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl }) {
     `Message-ID: ${msgId}`,
     `Date: ${dateStr}`,
     `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Content-Type: ${topType}`,
   ];
   if (replyTo && replyTo !== from) emailLines.push(`Reply-To: ${replyTo}`);
   emailLines.push('');
-  emailLines.push(`--${boundary}`);
+
+  if (hasImage) {
+    // Outer mixed: first part = alternative (text+html)
+    emailLines.push(`--${outerBnd}`);
+    emailLines.push(`Content-Type: multipart/alternative; boundary="${innerBnd}"`);
+    emailLines.push('');
+  }
+
+  // Text part
+  emailLines.push(`--${innerBnd}`);
   emailLines.push('Content-Type: text/plain; charset=UTF-8');
   emailLines.push('Content-Transfer-Encoding: base64');
   emailLines.push('');
   emailLines.push(plainB64);
   emailLines.push('');
-  emailLines.push(`--${boundary}`);
+
+  // HTML part
+  emailLines.push(`--${innerBnd}`);
   emailLines.push('Content-Type: text/html; charset=UTF-8');
   emailLines.push('Content-Transfer-Encoding: base64');
   emailLines.push('');
   emailLines.push(htmlB64);
   emailLines.push('');
-  emailLines.push(`--${boundary}--`);
+  emailLines.push(`--${innerBnd}--`);
+
+  if (hasImage) {
+    // Certificate image attachment
+    const imgMime  = certImageMime || 'image/png';
+    const imgName  = certImageName || 'certificate.png';
+    const imgB64   = certImageData.toString('base64').replace(/(.{76})/g, '$1\r\n').trimEnd();
+    emailLines.push('');
+    emailLines.push(`--${outerBnd}`);
+    emailLines.push(`Content-Type: ${imgMime}; name="${imgName}"`);
+    emailLines.push('Content-Transfer-Encoding: base64');
+    emailLines.push(`Content-Disposition: attachment; filename="${imgName}"`);
+    emailLines.push('');
+    emailLines.push(imgB64);
+    emailLines.push('');
+    emailLines.push(`--${outerBnd}--`);
+  }
+
   return emailLines.join('\r\n');
 }
 
-// ─── EMAIL LOG HELPER ─────────────────────────────────────────────────────────
+// ─── EMAIL LOG HELPER// ─── EMAIL LOG HELPER ─────────────────────────────────────────────────────────
 function logEmail(logFile, fields, sesResult) {
   const entry = {
     timestamp: new Date().toISOString(),
@@ -823,7 +841,22 @@ async function sendCstEmail({ to, from, cert, verifyUrl, baseUrl }) {
   const body             = CFG.emailTemplates.cst(cert, verifyUrl);
   const subject          = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'cst');
-  const raw              = buildRawEmail({ from, to, subject, body, replyTo: from, trackingPixelUrl });
+
+  // Load certificate image for attachment (if present)
+  let certImageData = null, certImageName = null, certImageMime = null;
+  if (cert.certificateImage) {
+    try {
+      const imgPath = path.join(UPLOADS_DIR, path.basename(cert.certificateImage));
+      if (fs.existsSync(imgPath)) {
+        certImageData = fs.readFileSync(imgPath);
+        const ext     = path.extname(imgPath).toLowerCase();
+        certImageMime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }[ext] || 'image/png';
+        certImageName = `certificate-${cert.id}${ext}`;
+      }
+    } catch (e) { log.warn('Could not load cert image for email attachment:', e.message); }
+  }
+
+  const raw     = buildRawEmail({ from, to, subject, body, replyTo: from, trackingPixelUrl, certImageData, certImageName, certImageMime });
   const result  = await sesSendRaw(raw, from, [to]);
   logEmail(
     path.join(path.dirname(DATA_FILE), 'email_log.jsonl'),
@@ -844,7 +877,22 @@ async function sendVaptEmail({ to, from, cert, verifyUrl, baseUrl }) {
     cleanBody = lines.slice(2).join('\n');
   }
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'vapt');
-  const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from, trackingPixelUrl });
+
+  // Load certificate image for attachment (if present)
+  let certImageData = null, certImageName = null, certImageMime = null;
+  if (cert.certificateImage) {
+    try {
+      const imgPath = path.join(UPLOADS_DIR, path.basename(cert.certificateImage));
+      if (fs.existsSync(imgPath)) {
+        certImageData = fs.readFileSync(imgPath);
+        const ext     = path.extname(imgPath).toLowerCase();
+        certImageMime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }[ext] || 'image/png';
+        certImageName = `certificate-${cert.id}${ext}`;
+      }
+    } catch (e) { log.warn('Could not load cert image for email attachment:', e.message); }
+  }
+
+  const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from, trackingPixelUrl, certImageData, certImageName, certImageMime });
   const result = await sesSendRaw(raw, from, [to]);
   logEmail(
     path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl'),
@@ -1149,18 +1197,25 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── GET /api/health ── (public — liveness / monitoring probe)
-  // NEW: returns uptime, config version, SES status, and cert counts.
+  // Returns uptime, config version, SES status, cert counts, and maintenance state.
   // Intentionally does NOT expose sensitive details.
   if (route === '/health' && method === 'GET') {
     const cstCerts  = Object.values(loadData());
     const vaptCerts = Object.values(loadVaptData());
+    const maintenance = CFG.maintenance || {};
     return sendJSON(res, 200, {
-      ok:        true,
-      uptime:    Math.floor((Date.now() - SERVER_START_TIME) / 1000),
-      timestamp: new Date().toISOString(),
-      version:   CFG.version || '1.0.0',
-      ses:       SES_ENABLED,
-      certs:     { cst: cstCerts.length, vapt: vaptCerts.length },
+      ok:          true,
+      status:      'operational',
+      uptime:      Math.floor((Date.now() - SERVER_START_TIME) / 1000),
+      timestamp:   new Date().toISOString(),
+      version:     CFG.version || '1.0.0',
+      ses:         SES_ENABLED,
+      maintenance: maintenance.enabled || false,
+      certs:       { cst: cstCerts.length, vapt: vaptCerts.length },
+      compliance: {
+        standards: (CFG.compliance && CFG.compliance.standards) || '',
+        dataRetentionYears: (CFG.compliance && CFG.compliance.dataRetentionYears) || 5,
+      },
     }, corsH);
   }
 

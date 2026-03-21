@@ -3144,28 +3144,51 @@
 
 <body>
 
+<!-- ACCESSIBILITY: Skip navigation -->
+<a href="#main-content" style="position:absolute;left:-9999px;top:0;z-index:9999;padding:10px 20px;background:var(--gold);color:var(--navy);font-weight:700;font-size:.82rem;border-radius:0 0 8px 0;text-decoration:none;letter-spacing:.06em;text-transform:uppercase">Skip to main content</a>
+
+<!-- SESSION EXPIRY WARNING (shown via JS) -->
+<div id="sessionWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9990;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,179,71,0.14);border-bottom:2px solid rgba(255,179,71,0.4);color:var(--warn);box-shadow:0 2px 16px rgba(0,0,0,.3)">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  Your session will expire in <span id="sessionCountdown">5 minutes</span>. 
+  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,179,71,0.2);border:1px solid rgba(255,179,71,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
+  <button onclick="document.getElementById('sessionWarningBanner').style.display='none'" style="margin-left:8px;padding:4px 10px;border-radius:6px;background:none;border:1px solid rgba(255,255,255,0.1);color:var(--text-sec);cursor:pointer;font-size:.72rem;font-family:'DM Sans',sans-serif">Dismiss</button>
+</div>
+
+<!-- IDLE WARNING (shown via JS) -->
+<div id="idleWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9991;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,107,138,0.14);border-bottom:2px solid rgba(255,107,138,0.4);color:var(--invalid);box-shadow:0 2px 16px rgba(0,0,0,.3)">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+  Inactivity detected — you will be logged out in <span id="idleCountdown">2 minutes</span>.
+  <button onclick="resetIdle()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
+</div>
+
   <!-- ══ LOGIN ══ -->
-  <div id="loginWrap">
-    <div class="login-bg-grid"></div>
-    <div class="login-card">
+  <div id="loginWrap" role="main">
+    <div class="login-bg-grid" aria-hidden="true"></div>
+    <div class="login-card" role="form" aria-labelledby="loginTitle">
       <div class="login-icon" style="background:none;border:none;display:flex;align-items:center;justify-content:center">
-        <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy" style="width:56px;height:56px" />
+        <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Marine Group" style="width:56px;height:56px" />
       </div>
-      <div class="login-title">Admin Access</div>
+      <div class="login-title" id="loginTitle">Admin Access</div>
       <div class="login-sub" id="loginSub"></div>
-      <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
+      <!-- Admin data / audit notice -->
+      <div style="margin-bottom:18px;padding:10px 14px;background:rgba(212,168,67,0.06);border:1px solid rgba(212,168,67,0.18);border-radius:9px;font-size:.68rem;color:var(--text-sec);line-height:1.7" role="note" id="adminDataNotice">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        All administrative actions are logged and audited. Unauthorised access is prohibited.
+      </div>
+      <div class="login-err" id="loginErr" role="alert">Invalid credentials. Please try again.</div>
       <div class="fgroup" style="margin-bottom:14px">
-        <label class="flabel">Username</label>
-        <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" />
+        <label class="flabel" for="lUser">Username</label>
+        <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" aria-required="true" />
       </div>
       <div class="fgroup" style="margin-bottom:26px">
-        <label class="flabel">Password</label>
+        <label class="flabel" for="lPass">Password</label>
         <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password"
-          onkeydown="if(event.key==='Enter')doLogin()" />
+          onkeydown="if(event.key==='Enter')doLogin()" aria-required="true" />
       </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:.82rem"
-        onclick="doLogin()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        onclick="doLogin()" aria-label="Login to Admin Panel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
@@ -3270,8 +3293,8 @@
       </div>
     </aside>
 
-    <main class="main">
-      <div class="topbar" style="gap:16px">
+    <main class="main" id="main-content">
+      <div class="topbar" style="gap:16px" role="banner">
         <!-- Hamburger — visible only on mobile -->
         <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar" aria-expanded="false" id="hamburgerBtn">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -3779,21 +3802,6 @@
               </div>
             </div>
 
-            <!-- ── PDF ATTACHMENTS ── -->
-            <div class="fgroup form-full" style="margin-top:8px">
-              <label class="flabel" style="display:flex;align-items:center;gap:6px">
-                Reference Documents <span style="color:var(--teal);font-size:.6rem">(PDFs shown on public portal per cert)</span>
-              </label>
-              <div id="attachList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-              <div style="position:relative;border:2px dashed var(--border);border-radius:10px;padding:14px 16px;text-align:center;cursor:pointer;background:var(--navy-mid);transition:border-color .2s" id="pdfDropZone"
-                ondragover="pdfDragOver(event)" ondragleave="pdfDragLeave()" ondrop="pdfDrop(event)">
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple id="pdfFileInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="pdfFileSelect(this)" />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.4" style="margin:0 auto 6px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <div style="font-size:.75rem;color:var(--text-sec)">Click or drag PDFs or images to attach reference documents</div>
-                <div style="font-size:.62rem;color:var(--text-sec);margin-top:3px;opacity:.6">PDF, JPG, PNG, WEBP · Multiple files · Max 10MB each</div>
-              </div>
-            </div>
-
             <div style="display:flex;gap:10px;margin-top:22px">
               <button class="btn btn-primary" id="saveBtn" style="flex:1;justify-content:center;padding:12px" onclick="saveCert()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -4230,10 +4238,14 @@
         if (!r.ok) throw new Error();
         TOKEN = d.token;
         sessionStorage.setItem('adminToken', TOKEN);
+        // Also store for cross-tab session timer recovery
+        try { localStorage.setItem('smg-admin-token', TOKEN); } catch(e) {}
         document.getElementById('loginWrap').style.display = 'none';
         document.getElementById('appWrap').style.display = 'flex';
         if (window.syncButtons) window.syncButtons();
         scheduleTokenExpiryWarning();
+        // Start session expiry + idle timeout monitoring
+        if (window._startSessionTimers) window._startSessionTimers(Date.now());
         initApp();
       } catch {
         document.getElementById('loginErr').style.display = 'block';
@@ -4242,6 +4254,7 @@
     }
     function doLogout() {
       sessionStorage.removeItem('adminToken'); TOKEN = '';
+      try { localStorage.removeItem('smg-admin-token'); } catch(e) {}
       if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
       document.getElementById('loginWrap').style.display = 'flex';
       document.getElementById('appWrap').style.display = 'none';
@@ -5266,37 +5279,23 @@
             const d = c.complianceDate ? new Date(c.complianceDate).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
             const team = window.APP_CONFIG ? window.APP_CONFIG.brand.cstTeam : 'Synergy Cyber Security Team';
             const email = window.APP_CONFIG ? window.APP_CONFIG.contact.cstEmail : 'trainingawareness@synergyship.com';
-            return `Dear ${c.recipientName || 'Sir / Madam'},\n\nPlease find below the Cyber Security Threat Awareness Training certificate details for your records.\n\nVessel            : ${c.recipientName||'—'}\nVessel IMO        : ${c.vesselIMO||'—'}\nChief Engineer    : ${c.chiefEngineer||'—'}\nCertificate No.   : ${c.id}\nCompliance Date   : ${d}\nCompliance Quarter: ${c.complianceQuarter||'—'}\nTraining Mode     : ${c.trainingMode||'—'}\nValid For         : ${c.validFor||'—'}\n\nVerify online at:\n${verifyUrl}\n\n─────────────────────────────────────────────\n🔒 PDF DOCUMENT PASSWORD\nAny PDF attachments are protected with a personal password.\nYour password is your registered email address:\n   ${c.recipientEmail||'your registered email address'}\n─────────────────────────────────────────────\n\nThis training was organized by the ${team} and conducted\nunder supervision of ISO Lead Auditor and Security trainers.\n\nRegards,\n${team}\n${email}`;
+            return `Dear ${c.recipientName || 'Sir / Madam'},\n\nPlease find below the Cyber Security Threat Awareness Training certificate details for your records.\n\nVessel            : ${c.recipientName||'—'}\nVessel IMO        : ${c.vesselIMO||'—'}\nChief Engineer    : ${c.chiefEngineer||'—'}\nCertificate No.   : ${c.id}\nCompliance Date   : ${d}\nCompliance Quarter: ${c.complianceQuarter||'—'}\nTraining Mode     : ${c.trainingMode||'—'}\nValid For         : ${c.validFor||'—'}\n\nYour certificate image is attached to this email for your records.\n\nTo verify the authenticity of this certificate at any time, visit the link below\nor enter Certificate No. ${c.id} at the verification portal:\n\n${verifyUrl}\n\nThis training was organized by the ${team} and conducted\nunder supervision of ISO Lead Auditor and Security trainers.\n\nRegards,\n${team}\n${email}`;
           })();
 
       const previewEl = document.getElementById('issueEmailPreview');
       const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
       // Split the body around the verify URL to inject the CTA button
-      const parts = plainText.split(verifyUrl);
-
-      // Split around the PDF password block to style it
-      const pdfSep = '─────────────────────────────────────────────';
-      const sections = (parts[0] || '').split(pdfSep);
-      const beforePdf = sections[0] || '';
-      // The rest after first separator pair
-      const allParts = plainText.split(pdfSep);
-      const pdfBlock = allParts.length >= 3 ? allParts[1] : null;
-      const afterPdf = allParts.length >= 3 ? allParts.slice(2).join(pdfSep) : (parts[1] || '');
-
-      // Build body before verify URL but after greeting section
       const bodyBeforeUrl = plainText.split(verifyUrl)[0] || '';
-      const bodyAfterUrl  = plainText.split(verifyUrl)[1] || '';
-
-      // Parse out the PDF section from afterUrl
-      const pdfStart = bodyAfterUrl.indexOf(pdfSep);
-      const pdfEnd   = bodyAfterUrl.indexOf(pdfSep, pdfStart + pdfSep.length);
-      const afterUrl_pre  = pdfStart !== -1 ? bodyAfterUrl.slice(0, pdfStart) : bodyAfterUrl;
-      const pdfContent    = (pdfStart !== -1 && pdfEnd !== -1) ? bodyAfterUrl.slice(pdfStart + pdfSep.length, pdfEnd) : null;
-      const afterUrl_post = (pdfEnd !== -1) ? bodyAfterUrl.slice(pdfEnd + pdfSep.length) : '';
+      const bodyAfterUrl  = (plainText.split(verifyUrl)[1] || '').trim();
 
       previewEl.innerHTML = `
         <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text);line-height:1.9;font-family:'DM Sans',sans-serif">${esc(bodyBeforeUrl)}</div>
+
+        <!-- Cert image note -->
+        <div style="margin:10px 0;padding:10px 14px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:9px;font-size:.72rem;color:var(--teal);display:flex;align-items:center;gap:7px">
+          <span>📎</span><span>Certificate image is attached to this email.</span>
+        </div>
 
         <!-- CTA Block -->
         <div style="margin:14px 0 10px;padding:14px 16px;background:rgba(212,168,67,.06);border:1px solid rgba(212,168,67,.2);border-radius:10px">
@@ -5318,20 +5317,7 @@
           </div>
         </div>
 
-        <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text);line-height:1.9">${esc(afterUrl_pre)}</div>
-
-        ${pdfContent ? `
-        <!-- PDF Password Block -->
-        <div style="margin:10px 0;padding:12px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:9px">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-            <span style="font-size:.75rem">🔒</span>
-            <span style="font-size:.65rem;font-weight:700;color:var(--teal);letter-spacing:.06em;text-transform:uppercase">PDF Document Password</span>
-          </div>
-          <div style="white-space:pre-wrap;font-size:.72rem;color:var(--text-sec);line-height:1.8">${esc(pdfContent)}</div>
-        </div>
-        ` : ''}
-
-        <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text-sec);line-height:1.9;border-top:1px solid var(--border);padding-top:10px;margin-top:6px">${esc(afterUrl_post)}</div>
+        <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text-sec);line-height:1.9;border-top:1px solid var(--border);padding-top:10px;margin-top:6px">${esc(bodyAfterUrl)}</div>
       `;
 
       previewEl._plainText = plainText;
@@ -5678,11 +5664,11 @@
           <img id="viewCertImg" src="${imgUrl(c.certificateImage)}" style="max-height:220px;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;box-shadow:0 8px 32px rgba(0,0,0,.3)" loading="lazy" onclick="openLB(this.src)" />
         </div>` : ''}
 
-        ${Array.isArray(c.attachments) && c.attachments.length ? `
-        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-          <div style="font-size:.5rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:8px">📎 Reference Documents (${c.attachments.length})</div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            ${c.attachments.map((a, i) => {
+        ${false ? `
+        <div style="display:none">
+          <div></div>
+          <div>
+            ${(c.attachments||[]).map((a, i) => {
               const uL = (a.url || '').toLowerCase(), nL = (a.name || '').toLowerCase();
               const isPdf = uL.endsWith('.pdf') || nL.endsWith('.pdf');
               const isImg = /\.(jpg|jpeg|png|webp|gif)$/.test(uL) || /\.(jpg|jpeg|png|webp|gif)$/.test(nL);
@@ -6040,79 +6026,17 @@
     function onDragLeave() { document.getElementById('dropZone').classList.remove('drag-over'); }
     function onDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) onFileSelect({ files: [f] }); }
     function clearImg(e) { e.stopPropagation(); clearImgSilent(); }
-
-    // ── PDF ATTACHMENTS ──
+    // ── PDF ATTACHMENTS (removed – reference docs feature disabled) ──
     let pendingPdfs = [];
     let savedAttachments = [];
+    function renderAttachList() { /* disabled */ }
+    function pdfFileSelect() { /* disabled */ }
+    function pdfDragOver(e) { e.preventDefault(); }
+    function pdfDragLeave() {}
+    function pdfDrop(e) { e.preventDefault(); }
+    function removePendingPdf() {}
+    async function removeServerAttachment() {}
 
-    function renderAttachList() {
-      const el = document.getElementById('attachList'); if (!el) return;
-      const all = [
-        ...savedAttachments.map((a, i) => ({ ...a, kind: 'saved', idx: i })),
-        ...pendingPdfs.map((p, i) => ({ name: p.name, kind: 'pending', idx: i }))
-      ];
-      if (!all.length) { el.innerHTML = ''; return; }
-      el.innerHTML = all.map(a => {
-        const ext = (a.name || '').split('.').pop().toLowerCase();
-        const typeColor = ext === 'pdf' ? 'var(--gold)' : 'var(--teal)';
-        const typeLabel = ext.toUpperCase() || 'FILE';
-        const isPdf = ext === 'pdf';
-        const isImg = ['jpg','jpeg','png','webp','gif'].includes(ext);
-        const safeUrl = (a.url || '').replace(/'/g, "\\'");
-        const safeName = (a.name || '').replace(/'/g, "\\'");
-        const viewBtn = a.kind === 'saved' && a.url
-          ? isPdf
-            ? `<button onclick="event.preventDefault();event.stopPropagation();window.open('${safeUrl}','_blank')" style="background:rgba(212,168,67,.1);border:1px solid var(--border-gold);color:var(--gold);border-radius:5px;padding:3px 8px;font-size:.58rem;cursor:pointer;font-weight:600;flex-shrink:0">👁 View</button>` + `<a href="${safeUrl}" download="${safeName}" onclick="event.stopPropagation()" title="Download" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.3);color:var(--teal);border-radius:5px;padding:3px 8px;font-size:.58rem;text-decoration:none;flex-shrink:0;margin-left:4px;display:inline-flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>`
-            : isImg
-              ? `<button onclick="openLB('${safeUrl}')" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);color:var(--teal);border-radius:5px;padding:3px 8px;font-size:.58rem;cursor:pointer;font-weight:600;flex-shrink:0">🔍 Zoom</button>`
-              : `<a href="${safeUrl}" target="_blank" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text-sec);border-radius:5px;padding:3px 8px;font-size:.58rem;text-decoration:none;font-weight:600;flex-shrink:0">↗ Open</a>`
-          : '';
-        return `
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--navy-mid)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${typeColor}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          <span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.name || ''}">${a.name || 'Unnamed file'}</span>
-          <span style="font-size:.58rem;font-weight:600;color:${typeColor};letter-spacing:.06em;flex-shrink:0">${typeLabel}</span>
-          <span style="font-size:.6rem;color:${a.kind==='pending'?'var(--warn)':'var(--teal)'};flex-shrink:0">${a.kind==='pending'?'⏳ Pending':'✓ Saved'}</span>
-          ${viewBtn}
-          <button onclick="${a.kind==='saved'?`removeServerAttachment(${a.idx})`:`removePendingPdf(${a.idx})`}" style="background:none;border:none;color:var(--invalid);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px;flex-shrink:0" title="Remove">✕</button>
-        </div>`;
-      }).join('');
-    }
-
-    function pdfFileSelect(input) {
-      if (!input.files) return;
-      const allowed = ['.pdf','.jpg','.jpeg','.png','.webp'];
-      for (const f of input.files) {
-        const ext = '.' + f.name.split('.').pop().toLowerCase();
-        if (!allowed.includes(ext)) { toast(`${f.name}: unsupported file type (PDF, JPG, PNG, WEBP only)`, 'err'); continue; }
-        if (f.size > 10 * 1024 * 1024) { toast(`${f.name} exceeds 10MB limit`, 'err'); continue; }
-        pendingPdfs.push({ file: f, name: f.name });
-      }
-      input.value = '';
-      renderAttachList();
-    }
-    function pdfDragOver(e) { e.preventDefault(); document.getElementById('pdfDropZone').style.borderColor='var(--border-gold)'; }
-    function pdfDragLeave() { const el=document.getElementById('pdfDropZone'); if(el) el.style.borderColor=''; }
-    function pdfDrop(e) {
-      e.preventDefault(); pdfDragLeave();
-      const allowed = ['.pdf','.jpg','.jpeg','.png','.webp'];
-      for (const f of e.dataTransfer.files) {
-        const ext = '.' + f.name.split('.').pop().toLowerCase();
-        if (!allowed.includes(ext)) { toast(`${f.name}: unsupported file type (PDF, JPG, PNG, WEBP only)`, 'err'); continue; }
-        if (f.size > 10 * 1024 * 1024) { toast(`${f.name} exceeds 10MB limit`, 'err'); continue; }
-        pendingPdfs.push({ file: f, name: f.name });
-      }
-      renderAttachList();
-    }
-    function removePendingPdf(idx) { pendingPdfs.splice(idx, 1); renderAttachList(); }
-    async function removeServerAttachment(idx) {
-      if (!editingId) return;
-      try {
-        const r = await fetch(`${API}/certs/${editingId}/attachments/${idx}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
-        if (r.ok) { const d = await r.json(); savedAttachments = d.attachments || []; renderAttachList(); toast('Attachment removed.', 'ok'); }
-        else toast('Could not remove attachment. Please try again.', 'err');
-      } catch { toast('Connection error. Please check your network.', 'err'); }
-    }
     function clearImgSilent() {
       imgFile = null;
       document.getElementById('prevImg').src = '';
@@ -6588,6 +6512,11 @@ function applyConfig() {
   // Sidebar nav links
   var sbCST = document.getElementById("sbLinkCST");      if (sbCST)      sbCST.href      = C.routes.cst;
   var sbVPT = document.getElementById("sbLinkVPTAdmin"); if (sbVPT)      sbVPT.href      = C.routes.vptAdmin;
+  // Admin data notice from compliance config
+  if (C.compliance && C.compliance.adminDataNotice) {
+    var notice = document.getElementById("adminDataNotice");
+    if (notice) notice.lastChild.textContent = ' ' + C.compliance.adminDataNotice;
+  }
 }
   // Call immediately (fast path if config.js already loaded)
   applyConfig();
@@ -6597,6 +6526,167 @@ function applyConfig() {
   }
   // Also call applyConfig when config.js (deferred) finishes loading
   document.addEventListener('appconfigready', applyConfig);
+
+// ── SESSION EXPIRY & IDLE TIMEOUT MANAGEMENT ─────────────────────────────────
+(function () {
+  'use strict';
+
+  // Read timing from config or use safe defaults
+  function getCfg() {
+    return (window.APP_CONFIG && window.APP_CONFIG.session) || {};
+  }
+
+  var _sessionStart    = null;
+  var _sessionTimer    = null;
+  var _idleTimer       = null;
+  var _idleWarnTimer   = null;
+  var _sessionWarnTimer= null;
+  var _idleCountdownInterval = null;
+  var _sessionCountdownInterval = null;
+
+  // Format mm:ss for countdown displays
+  function fmtMs(ms) {
+    var s   = Math.max(0, Math.ceil(ms / 1000));
+    var m   = Math.floor(s / 60);
+    var sec = s % 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  function showSessionWarn(msLeft) {
+    var banner = document.getElementById('sessionWarningBanner');
+    var el     = document.getElementById('sessionCountdown');
+    if (!banner) return;
+    banner.style.display = 'block';
+    if (el) el.textContent = fmtMs(msLeft);
+    clearInterval(_sessionCountdownInterval);
+    var remaining = msLeft;
+    _sessionCountdownInterval = setInterval(function () {
+      remaining -= 1000;
+      if (el) el.textContent = fmtMs(remaining);
+      if (remaining <= 0) { clearInterval(_sessionCountdownInterval); }
+    }, 1000);
+  }
+
+  function hideSessionWarn() {
+    var b = document.getElementById('sessionWarningBanner');
+    if (b) b.style.display = 'none';
+    clearInterval(_sessionCountdownInterval);
+  }
+
+  function showIdleWarn(msLeft) {
+    var banner = document.getElementById('idleWarningBanner');
+    var el     = document.getElementById('idleCountdown');
+    if (!banner) return;
+    banner.style.display = 'block';
+    if (el) el.textContent = fmtMs(msLeft);
+    clearInterval(_idleCountdownInterval);
+    var remaining = msLeft;
+    _idleCountdownInterval = setInterval(function () {
+      remaining -= 1000;
+      if (el) el.textContent = fmtMs(remaining);
+      if (remaining <= 0) { clearInterval(_idleCountdownInterval); }
+    }, 1000);
+  }
+
+  function hideIdleWarn() {
+    var b = document.getElementById('idleWarningBanner');
+    if (b) b.style.display = 'none';
+    clearInterval(_idleCountdownInterval);
+  }
+
+  // Called by "I'm still here" button
+  window.resetIdle = function () {
+    hideIdleWarn();
+    startIdleTimeout();
+  };
+
+  // Called by "Extend Session" button — re-verify token with server
+  window.refreshSession = function () {
+    const tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('smg-admin-token') || '';
+    if (!tok) return;
+    fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) {
+        if (r.ok) {
+          hideSessionWarn();
+          // Restart session timer from now
+          if (_sessionStart) _sessionStart = Date.now();
+          scheduleSessionTimers();
+        } else {
+          doLogout();
+        }
+      })
+      .catch(function () { /* network error — just dismiss */ hideSessionWarn(); });
+  };
+
+  function scheduleSessionTimers() {
+    clearTimeout(_sessionTimer);
+    clearTimeout(_sessionWarnTimer);
+    var cfg        = getCfg();
+    var maxMs      = cfg.maxDurationMs      || 8 * 60 * 60 * 1000;
+    var warnBefore = cfg.warningBeforeMs    || 5 * 60 * 1000;
+    var now        = Date.now();
+    var elapsed    = _sessionStart ? (now - _sessionStart) : 0;
+    var remaining  = Math.max(0, maxMs - elapsed);
+    var warnAt     = Math.max(0, remaining - warnBefore);
+
+    _sessionWarnTimer = setTimeout(function () { showSessionWarn(warnBefore); }, warnAt);
+    _sessionTimer     = setTimeout(function () {
+      clearInterval(_sessionCountdownInterval);
+      doLogout();
+    }, remaining);
+  }
+
+  function startIdleTimeout() {
+    clearTimeout(_idleTimer);
+    clearTimeout(_idleWarnTimer);
+    var cfg        = getCfg();
+    var idleMs     = cfg.idleTimeoutMs       || 30 * 60 * 1000;
+    var warnBefore = cfg.idleWarningBeforeMs || 2  * 60 * 1000;
+    var warnAt     = idleMs - warnBefore;
+
+    _idleWarnTimer = setTimeout(function () { showIdleWarn(warnBefore); }, warnAt);
+    _idleTimer     = setTimeout(function () {
+      clearInterval(_idleCountdownInterval);
+      doLogout();
+    }, idleMs);
+  }
+
+  // Reset idle on user activity
+  var _actThrottle = null;
+  function onActivity() {
+    if (_actThrottle) return;
+    _actThrottle = setTimeout(function () { _actThrottle = null; }, 10000);
+    hideIdleWarn();
+    startIdleTimeout();
+  }
+  ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart'].forEach(function (ev) {
+    document.addEventListener(ev, onActivity, { passive: true });
+  });
+
+  // Hook into the existing post-login flow — expose start function globally
+  window._startSessionTimers = function (sessionStartMs) {
+    _sessionStart = sessionStartMs || Date.now();
+    scheduleSessionTimers();
+    startIdleTimeout();
+  };
+
+  // If already logged in (page reload), start timers with token issue time if available
+  var _tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('smg-admin-token') || '';
+  if (_tok) {
+    // Parse JWT payload to get iat (issued-at)
+    try {
+      var parts = _tok.split('.');
+      if (parts.length === 3) {
+        var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload && payload.iat) { _sessionStart = payload.iat; }
+      }
+    } catch (e) { /* use now */ }
+    if (!_sessionStart) _sessionStart = Date.now();
+    scheduleSessionTimers();
+    startIdleTimeout();
+  }
+})();
+
 </script>
 
 <script>

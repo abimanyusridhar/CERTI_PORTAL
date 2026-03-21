@@ -40,6 +40,38 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+    /* SKIP NAV — accessibility */
+    .skip-nav{position:absolute;left:-9999px;top:0;z-index:9999;padding:10px 20px;background:var(--gold);color:var(--navy);font-weight:700;font-size:.82rem;border-radius:0 0 8px 0;text-decoration:none;letter-spacing:.06em;text-transform:uppercase}
+    .skip-nav:focus{left:0}
+    /* OFFLINE / MAINTENANCE BANNER */
+    #offlineBanner,#maintenanceBanner{display:none;position:sticky;top:70px;z-index:49;padding:9px 36px;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-align:center;animation:fadeUp .3s ease}
+    #offlineBanner{background:rgba(255,107,138,0.12);border-bottom:1px solid rgba(255,107,138,0.3);color:var(--invalid)}
+    #maintenanceBanner{background:rgba(255,179,71,0.1);border-bottom:1px solid rgba(255,179,71,0.3);color:var(--warn)}
+    @media(max-width:640px){#offlineBanner,#maintenanceBanner{top:60px;padding:9px 16px}}
+    /* RETRY INDICATOR */
+    .retry-info{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;color:var(--warn);margin-top:8px}
+    /* COMPLIANCE FOOTER ENHANCEMENT */
+    .compliance-bar{position:relative;z-index:1;margin-top:0;padding:16px 36px;background:rgba(10,22,40,0.8);border-top:1px solid var(--border);font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-align:center;line-height:1.9}
+    .compliance-bar a{color:var(--text-sec);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s,color .2s}
+    .compliance-bar a:hover{color:var(--gold);border-bottom-color:var(--gold)}
+    .compliance-bar .divider{margin:0 10px;opacity:.4}
+    .data-class-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);color:var(--gold);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;margin-left:10px;vertical-align:middle}
+    /* FOCUS RING — accessibility */
+    :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+    /* TOOLTIP */
+    [data-tip]{position:relative;cursor:help}
+    [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--navy-mid);border:1px solid var(--border-gold);color:var(--text);font-size:.68rem;font-weight:400;letter-spacing:.04em;white-space:nowrap;padding:6px 12px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100;max-width:260px;white-space:normal;text-align:center;line-height:1.5}
+    [data-tip]:hover::after{opacity:1}
+    /* PRINT */
+    @media print{
+      .bg-scene,.nav-secure-badge,#offlineBanner,#maintenanceBanner,.hero-eyebrow,.compliance-bar{display:none!important}
+      body{background:#fff;color:#000}
+      nav{background:#f5f5f5;box-shadow:none;border-bottom:2px solid #ccc;position:static}
+      .cred-layout{display:block}
+      .cred-sidebar{position:static}
+      .sidebar-card,.verify-card,.info-card,.cert-img-card{border:1px solid #ccc;border-radius:4px;box-shadow:none;background:#fff}
+      .cred-main{gap:8px}
+    }
     /* NAV */
     nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 36px;height:70px;background:rgba(10,22,40,0.96);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-bottom:1px solid var(--border);box-shadow:0 1px 20px rgba(0,0,0,0.25)}
     @media(max-width:640px){nav{padding:0 16px;height:60px}.nav-secure-badge{display:none}}
@@ -74,17 +106,11 @@
     .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
     /* STATS */
-    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:22px 0;margin-bottom:60px}
     .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--gold);line-height:1;transition:color .3s,transform .3s}
     .stat-num.updating{transform:scale(1.08)}
-    .stat-item{text-align:center;padding:8px 36px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center}
-    .stat-item:last-child{border-right:none}
     .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
     @media(max-width:600px){
-      .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
-      .stat-item:nth-child(even){border-right:none}
-      .stat-item:nth-child(odd){border-right:1px solid var(--border)}
-    }
+          }
     /* RESULT */
     #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
     .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
@@ -368,8 +394,6 @@
   html.light .search-hint { color: #5A7090 !important; }
 
   /* Stats bar */
-  html.light .stats-bar { background: rgba(255,255,255,0.9) !important; border-color: rgba(30,60,120,0.10) !important; }
-  html.light .stat-item { border-right-color: rgba(30,60,120,0.10) !important; }
   html.light .stat-label { color: #5A7090 !important; }
 
   /* Cards & panels */
@@ -647,16 +671,6 @@
   }
 
   /* Stats bar — consistent vertical rhythm */
-  .stats-bar {
-    padding: 24px 0 !important;
-    gap: 0 !important;
-  }
-  .stat-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
 
   /* Sidebar cards — consistent shadows & hover */
   .sidebar-card {
@@ -735,19 +749,6 @@
     justify-content: center !important;
     gap: 8px !important;
     margin-top: 14px !important;
-  }
-
-  /* Stats bar fixed consistent width */
-  .stat-item:not(:last-child) {
-    border-right: 1px solid var(--border) !important;
-  }
-  @media (max-width: 600px) {
-    .stat-item:not(:nth-child(2n)) {
-      border-right: 1px solid var(--border) !important;
-    }
-    .stat-item:nth-child(2n) {
-      border-right: none !important;
-    }
   }
 
   /* Cred sidebar sticky offset match nav */
@@ -968,9 +969,22 @@
 </head>
 <body>
 
+<!-- ACCESSIBILITY: skip to main content -->
+<a class="skip-nav" href="#main-content">Skip to main content</a>
 
+<!-- OFFLINE BANNER — shown when server is unreachable -->
+<div id="offlineBanner" role="alert" aria-live="assertive">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+  Connection issue detected — verification service may be unavailable. Retrying automatically…
+</div>
 
-<div class="bg-scene">
+<!-- MAINTENANCE BANNER — controlled via APP_CONFIG.maintenance -->
+<div id="maintenanceBanner" role="status" aria-live="polite">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span id="maintenanceBannerMsg"></span>
+</div>
+
+<div class="bg-scene" aria-hidden="true">
   <div class="bg-grid"></div>
   <div class="bg-orb-1"></div>
   <div class="bg-orb-2" style="background:radial-gradient(circle,rgba(100,255,218,0.04) 0%,transparent 70%)"></div>
@@ -993,67 +1007,86 @@
   </div>
 </nav>
 
-<section class="hero">
-  <div class="hero-eyebrow">
+<main id="main-content">
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero-eyebrow" aria-hidden="true">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-    Trusted Certificate Authority
+    IMO-Aligned Maritime Cyber Compliance
   </div>
-  <h1 class="hero-title">Verify <em>Authenticity</em><br>Instantly &amp; Securely</h1>
+  <h1 class="hero-title" id="heroTitle">Verify <em>CST Compliance</em><br>Instantly &amp; Securely</h1>
   <p class="hero-sub" id="heroSub"></p>
-  <div class="search-container">
+  <div class="search-container" role="search" aria-label="Certificate verification">
     <div class="search-wrap" id="searchWrap">
-      <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="Certificate number input" />
-      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify certificate">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <div class="search-icon-wrap" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="Certificate number" aria-describedby="searchHint" aria-required="true" />
+      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify certificate authenticity">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
     </div>
-    <div class="search-hint" id="searchHint">Enter your CST certificate number as provided in your training document</div>
+    <div class="search-hint" id="searchHint" aria-live="polite">Enter your CST certificate number as provided in your training document</div>
   </div>
 </section>
 
-<div class="stats-bar">
-  <div class="stat-item"><div class="stat-num" id="statTotal" aria-label="Certificates issued: loading">—</div><div class="stat-label">Certificates Issued</div></div>
-  <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)" aria-label="Currently active certificates: loading">—</div><div class="stat-label">Currently Active</div></div>
-  <div class="stat-item"><div class="stat-num" id="statExpired" style="color:var(--warn)" aria-label="Expired certificates: loading">—</div><div class="stat-label">Expired</div></div>
-  <div class="stat-item"><div class="stat-num" id="statLastIssued" style="color:var(--gold);font-size:1.1rem;letter-spacing:.04em" aria-label="Most recently issued certificate date: loading">—</div><div class="stat-label">Last Issued</div></div>
-  <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="Registry available 24 hours a day, 7 days a week">24/7</div><div class="stat-label">Registry Available</div></div>
-</div>
 
-<div id="result" aria-live="polite" aria-atomic="true"></div>
+
+<div id="result" role="region" aria-live="polite" aria-atomic="true" aria-label="Verification result"></div>
 
 <!-- DESCRIPTION BLOCK -->
 <div class="desc-block" id="descBlock">
   <div class="desc-section full-col">
     <div class="desc-section-title">About This Certificate</div>
     <p class="desc-text">The <strong style="color:var(--text-bright)">Cyber Security Threat Awareness Training (CST)</strong> certificate is issued by the <strong style="color:var(--gold)" id="descCstTeam"></strong> to vessels that have successfully completed the mandatory maritime cybersecurity training programme, organized under the supervision of ISO Lead Auditors and certified Security Trainers.</p>
-    <p class="desc-text" style="margin-top:12px">Compliance is aligned with international maritime regulations and is valid for one quarter following completion. Port State Control (PSC) officers, vetting inspectors, and compliance managers can independently verify the authenticity and current validity of any CST certificate issued by <span id="descCompanyName"></span>.</p>
+    <p class="desc-text" style="margin-top:12px">Compliance is aligned with IMO Maritime Cyber Risk Management guidelines (MSC-FAL.1/Circ.3), the ISM Code (SOLAS Chapter IX), and ISPS Code requirements. Certificates are valid for one quarter following completion. Port State Control (PSC) officers, vetting inspectors, SIRE inspectors, and Flag State compliance managers can independently verify the authenticity and current validity of any CST certificate issued by <span id="descCompanyName"></span> by entering the certificate number below.</p>
   </div>
   <div class="desc-section">
     <div class="desc-section-title">Validated Competencies</div>
     <div class="comp-list">
-      <div class="comp-item"><div class="comp-lbl">Regulatory Frameworks</div><div class="comp-desc">Proficiency in navigating ISM Code, ISPS, and NIS2 compliance requirements as they apply to maritime operations.</div></div>
-      <div class="comp-item"><div class="comp-lbl">Threat Intelligence</div><div class="comp-desc">Ability to identify maritime-specific risks, including AIS/GPS manipulation, OT-targeted ransomware, and phishing vectors.</div></div>
-      <div class="comp-item"><div class="comp-lbl">Operational Security</div><div class="comp-desc">Mastery of maritime cyber hygiene, including secure media handling, password management, and social engineering defense.</div></div>
-      <div class="comp-item"><div class="comp-lbl">Emergency Preparedness</div><div class="comp-desc">Knowledge of incident response and recovery protocols to ensure vessel safety and operational continuity post-incident.</div></div>
+      <div class="comp-item"><div class="comp-lbl">IMO &amp; Flag State Compliance</div><div class="comp-desc">Proficiency in IMO MSC-FAL.1/Circ.3 cyber risk management, ISM Code obligations, SOLAS Chapter XI-2, and ISPS Code requirements applicable to vessel operations.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Maritime Threat Intelligence</div><div class="comp-desc">Ability to identify vessel-specific cyber threats including AIS/GNSS spoofing, ECDIS manipulation, OT-targeted ransomware, and phishing vectors targeting seafarers.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Shipboard Cyber Hygiene</div><div class="comp-desc">Mastery of onboard cyber hygiene practices: secure USB media handling, network segmentation on IT/OT systems, password discipline, and social engineering defence.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Incident Response &amp; Continuity</div><div class="comp-desc">Knowledge of maritime cyber incident reporting procedures, CAMS notification protocols, and recovery plans to ensure vessel safety and operational continuity post-incident.</div></div>
     </div>
   </div>
   <div class="desc-section">
     <div class="desc-section-title">Skills Validated</div>
     <div class="skills-wrap">
-      <span class="skill-tag">Cybersecurity Compliance</span><span class="skill-tag">Cyber Hygiene</span><span class="skill-tag">Cyber Incident Response</span><span class="skill-tag">Cyber Safety</span><span class="skill-tag">Cyber Security Assessment</span><span class="skill-tag">Cyber Security Management</span><span class="skill-tag">Threat Intelligence</span><span class="skill-tag">Social Engineering Defense</span><span class="skill-tag">ISM / ISPS Compliance</span>
+      <span class="skill-tag">IMO Cyber Risk Management</span><span class="skill-tag">ISM / ISPS Compliance</span><span class="skill-tag">PSC Inspection Readiness</span><span class="skill-tag">SIRE Vetting Compliance</span><span class="skill-tag">AIS / GNSS Security</span><span class="skill-tag">ECDIS Integrity</span><span class="skill-tag">IT / OT Network Security</span><span class="skill-tag">Shipboard Cyber Hygiene</span><span class="skill-tag">Cyber Incident Response</span><span class="skill-tag">Flag State Reporting</span>
     </div>
   </div>
 </div>
+</main>
 
-<footer>
+<footer role="contentinfo">
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span id="footerCredit"></span> &middot; <span id="footerEmail" style="color:var(--text-sec)"></span>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span id="footerCredit"></span> &middot; <a id="footerEmail" href="#" style="color:var(--text-sec);text-decoration:none" aria-label="Contact CST team"></a>
   </div>
-  <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
+  <div style="opacity:.45;font-size:.62rem;line-height:1.8">
+    Verification data is encrypted in transit (TLS 1.2+). All certificate records are maintained under
+    <abbr title="International Safety Management Code" style="text-decoration:dotted underline;cursor:help">ISM</abbr> /
+    <abbr title="International Ship and Port Facility Security Code" style="text-decoration:dotted underline;cursor:help">ISPS</abbr>
+    compliance obligations. For disputes, contact the CISO office directly.
+  </div>
 </footer>
+
+<!-- COMPLIANCE BAR -->
+<div class="compliance-bar" role="contentinfo" aria-label="Legal and compliance information">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px;opacity:.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  <span id="complianceStandards">IMO MSC-FAL.1/Circ.3 · ISO 27001:2022 · OWASP · ISM Code · ISPS Code</span>
+  <span class="divider" aria-hidden="true">|</span>
+  <span id="complianceDataClass">Data Classification: RESTRICTED</span>
+  <span class="data-class-badge" aria-label="Restricted data classification">
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    Restricted
+  </span>
+  <span class="divider" aria-hidden="true">|</span>
+  Jurisdiction: <span id="complianceJurisdiction">Singapore MPA</span>
+  <span class="divider" aria-hidden="true">|</span>
+  <a href="mailto:" id="compliancePrivacy" aria-label="Contact data protection officer">Privacy / DPO</a>
+  <span class="divider" aria-hidden="true">|</span>
+  <span id="complianceRetention">Records retained per maritime compliance obligations</span>
+</div>
 
 <!-- Email Gate Overlay (CST) -->
 <div id="emailGateOverlay" role="dialog" aria-modal="true" aria-label="Identity verification" aria-hidden="true">
@@ -1117,35 +1150,6 @@
     };
     requestAnimationFrame(tick);
   }
-
-  // Stats — initial fetch + auto-refresh every 60 s
-  function loadStats() {
-    fetch(API + '/stats')
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(d => {
-        if (d.total === undefined) return;
-        animateNum(document.getElementById('statTotal'), d.total);
-        animateNum(document.getElementById('statValid'), d.valid);
-        animateNum(document.getElementById('statExpired'), d.expired || 0);
-        const tot = document.getElementById('statTotal');
-        const val = document.getElementById('statValid');
-        const exp = document.getElementById('statExpired');
-        const lst = document.getElementById('statLastIssued');
-        if (tot) tot.setAttribute('aria-label', 'Certificates issued: ' + d.total);
-        if (val) val.setAttribute('aria-label', 'Currently active certificates: ' + d.valid);
-        if (exp) exp.setAttribute('aria-label', 'Expired or revoked: ' + ((d.expired || 0) + (d.revoked || 0)));
-        if (lst && d.lastIssued) {
-          const dt = new Date(d.lastIssued);
-          lst.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-          lst.setAttribute('aria-label', 'Most recently issued: ' + lst.textContent);
-        } else if (lst) {
-          lst.textContent = '—';
-        }
-      })
-      .catch(() => { /* silent — stats are non-critical display data */ });
-  }
-  loadStats();
-  setInterval(loadStats, 60000);
 
   function hideDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = 'none'; }
   function showDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = ''; }
@@ -1790,6 +1794,74 @@
   document.addEventListener('appconfigready', applyConfig);
   // Belt-and-suspenders: run once more after full page load
   window.addEventListener('load', applyConfig);
+
+  // ── OFFLINE DETECTION & RESILIENCE ───────────────────────────────────────────
+  (function () {
+    const banner   = document.getElementById('offlineBanner');
+    const CFG_RES  = () => (window.APP_CONFIG && window.APP_CONFIG.resilience) || {};
+    let pollTimer  = null;
+
+    function showOffline()  { if (banner) banner.style.display = 'block'; }
+    function hideOffline()  { if (banner) banner.style.display = 'none'; clearInterval(pollTimer); pollTimer = null; }
+
+    async function healthCheck() {
+      try {
+        const r = await fetch('/api/health', { cache: 'no-store' });
+        if (r.ok) hideOffline();
+      } catch { /* still offline */ }
+    }
+
+    window.addEventListener('offline', () => {
+      showOffline();
+      const interval = CFG_RES().offlinePollMs || 8000;
+      if (!pollTimer) pollTimer = setInterval(healthCheck, interval);
+    });
+    window.addEventListener('online',  () => healthCheck());
+
+    // Initial health check
+    if (!navigator.onLine) {
+      showOffline();
+      const interval = CFG_RES().offlinePollMs || 8000;
+      pollTimer = setInterval(healthCheck, interval);
+    }
+  })();
+
+  // ── MAINTENANCE MODE BANNER ───────────────────────────────────────────────────
+  (function () {
+    const mb  = document.getElementById('maintenanceBanner');
+    const msg = document.getElementById('maintenanceBannerMsg');
+    function checkMaintenance() {
+      const C = window.APP_CONFIG;
+      if (C && C.maintenance && C.maintenance.enabled && mb && msg) {
+        let text = C.maintenance.message || 'Scheduled maintenance in progress.';
+        if (C.maintenance.eta) text += ' Expected: ' + C.maintenance.eta;
+        msg.textContent = text;
+        mb.style.display = 'block';
+      }
+    }
+    checkMaintenance();
+    document.addEventListener('appconfigready', checkMaintenance);
+  })();
+
+  // ── COMPLIANCE FOOTER BINDING ─────────────────────────────────────────────────
+  function applyComplianceFooter() {
+    const C = window.APP_CONFIG;
+    if (!C || !C.compliance) return;
+    var el;
+    if ((el=document.getElementById('complianceStandards')))  el.textContent = C.compliance.standards || el.textContent;
+    if ((el=document.getElementById('complianceDataClass')))  el.textContent = 'Data Classification: ' + (C.compliance.dataClassification || 'RESTRICTED');
+    if ((el=document.getElementById('complianceJurisdiction'))) el.textContent = C.compliance.jurisdiction || 'Singapore MPA';
+    if ((el=document.getElementById('compliancePrivacy')))    { el.href = 'mailto:' + (C.compliance.privacyContact || ''); el.textContent = 'Privacy / DPO (' + (C.compliance.privacyContact || '') + ')'; }
+    if ((el=document.getElementById('complianceRetention'))) el.textContent = 'Records retained ' + (C.compliance.dataRetentionYears || 5) + ' years per maritime compliance obligations';
+    // Update footer email as mailto link
+    var fEmail = document.getElementById('footerEmail');
+    if (fEmail && C.contact && C.contact.cstEmail) {
+      fEmail.textContent = C.contact.cstEmail;
+      fEmail.href = 'mailto:' + C.contact.cstEmail;
+    }
+  }
+  applyComplianceFooter();
+  document.addEventListener('appconfigready', applyComplianceFooter);
 </script>
 </body>
 </html>

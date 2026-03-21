@@ -101,7 +101,7 @@
     // ── CONFIG VERSION ───────────────────────────────────────────────────
     // Increment when making structural changes so pages can detect stale
     // cached configs.  Format: "<major>.<minor>.<patch>"
-    version: '1.1.0',
+    version: '2.0.0',  // Added: compliance, session, resilience, maintenance, health, support sections
 
     // ── STORAGE KEYS ─────────────────────────────────────────────────────
     // Centralised so all pages share the same key — never diverge silently.
@@ -209,6 +209,103 @@
       footerCredit:    A.company + ' &middot; VAPT Certificate Registry',
     },
 
+    // ── COMPLIANCE & LEGAL ───────────────────────────────────────────────
+    // Maritime regulatory framework alignment and data governance declarations.
+    compliance: {
+      // Applicable regulatory / standards frameworks
+      standards:          'IMO MSC-FAL.1/Circ.3 · ISO 27001:2022 · ISO 9001:2015 · NIST CSF · OWASP · MLC 2006',
+      // Data classification for certificates issued via this portal
+      dataClassification: 'RESTRICTED — Maritime Personnel & Vessel Security Records',
+      // Data retention period (displayed in legal notices)
+      dataRetentionYears: 5,
+      // GDPR / privacy contact
+      privacyContact:     'dpo@synergyship.com',
+      // Legal jurisdiction
+      jurisdiction:       'Republic of Singapore (MPA-registered flag state authority)',
+      // Applicable law
+      governingLaw:       'Singapore Merchant Shipping Act · ISM Code · ISPS Code',
+      // Certificate disclaimer shown on public verification pages
+      publicDisclaimer:   'Certificate records are issued and maintained by Synergy Marine Group. '
+                          + 'Verification results are provided for information only and do not constitute '
+                          + 'a legal opinion. Fraudulent use or alteration of certificates may be subject '
+                          + 'to criminal prosecution under applicable maritime law.',
+      // Admin data notice
+      adminDataNotice:    'All administrative actions on this panel are logged and audited. '
+                          + 'Unauthorised access is prohibited. By continuing you acknowledge '
+                          + 'your activity may be monitored.',
+      // Cookie / tracking notice (public portals)
+      cookieNotice:       'This portal does not use marketing cookies. '
+                          + 'Essential session data is stored only for verification functionality.',
+      // VAPT-specific notice
+      vaptDisclaimer:     'VAPT assessment records contain sensitive cybersecurity findings. '
+                          + 'Access is restricted to authorised maritime compliance personnel.',
+    },
+
+    // ── SESSION & TIMEOUT ────────────────────────────────────────────────
+    session: {
+      // Admin session max duration (ms) — must match JWT expiry in server
+      maxDurationMs:      8 * 60 * 60 * 1000,  // 8 hours
+      // Show session-expiry warning this many ms before logout
+      warningBeforeMs:    5 * 60 * 1000,        // 5 minutes
+      // Idle timeout — auto-logout after this many ms without activity
+      idleTimeoutMs:      30 * 60 * 1000,       // 30 minutes
+      // Idle warning this many ms before idle logout
+      idleWarningBeforeMs: 2 * 60 * 1000,       // 2 minutes
+      // Public portal: cache last-verified cert ID for this long (ms)
+      publicCacheMs:      10 * 60 * 1000,       // 10 minutes
+    },
+
+    // ── AVAILABILITY & RESILIENCE ────────────────────────────────────────
+    resilience: {
+      // Public verify API: number of automatic retries on transient failure
+      apiRetryCount:      3,
+      // Initial retry delay (ms) — doubles with each attempt (exponential backoff)
+      apiRetryDelayMs:    800,
+      // Timeout for a single API request (ms)
+      apiTimeoutMs:       12000,
+      // Health-check poll interval when offline banner is shown (ms)
+      offlinePollMs:      8000,
+    },
+
+    // ── MAINTENANCE MODE ─────────────────────────────────────────────────
+    // Set `enabled: true` to display a maintenance banner without taking the app offline.
+    // For full downtime: also set the MAINTENANCE_MODE env variable server-side.
+    maintenance: {
+      enabled:            false,
+      message:            'Scheduled maintenance in progress. The verification portal '
+                          + 'may be intermittently unavailable. Expected resolution: ',
+      eta:                '',   // e.g. "2026-03-22 04:00 UTC" — leave blank to omit
+      contactEmail:       'trainingawareness@synergyship.com',
+    },
+
+    // ── HEALTH & OBSERVABILITY ───────────────────────────────────────────
+    health: {
+      // Path served by the Node server for load-balancer / uptime checks
+      endpoint:           '/health',
+      // Public status page (external, optional)
+      statusPage:         '',
+    },
+
+    // ── SUPPORT & HELP ───────────────────────────────────────────────────
+    support: {
+      cstHelpEmail:       'trainingawareness@synergyship.com',
+      vaptHelpEmail:      'vapt@synergyship.com',
+      portalHelpText:     'If you experience issues verifying a certificate, contact the '
+                          + 'Synergy Cyber Security Team with the certificate number and the '
+                          + 'vessel IMO number for manual verification assistance.',
+      // Common error recovery hints shown to end users
+      hints: {
+        notFound:         'Double-check the certificate number on your training document. '
+                          + 'Certificate IDs follow the format CST-XXXXXXX-MM-YY.',
+        vaptNotFound:     'VAPT certificate IDs follow the format VAP-XXXXXXX-MMYY. '
+                          + 'Contact vapt@synergyship.com if the certificate was issued within the last 48 hours.',
+        networkError:     'A network error occurred. The request will retry automatically. '
+                          + 'If the problem persists, check your internet connection or contact support.',
+        serverError:      'The verification service is temporarily unavailable. '
+                          + 'Please try again in a few minutes.',
+      },
+    },
+
     // ── EMAIL TEMPLATES ──────────────────────────────────────────────────
     // Functions so they interpolate live cert data at call-time.
     emailTemplates: {
@@ -232,13 +329,10 @@
           + 'Compliance Quarter: ' + (c.complianceQuarter || '\u2014') + '\n'
           + 'Training Mode     : ' + (c.trainingMode      || '\u2014') + '\n'
           + 'Valid For         : ' + (c.validFor          || '\u2014') + '\n\n'
-          + 'Verify online at:\n' + verifyUrl + '\n\n'
-          + '─────────────────────────────────────────────\n'
-          + '🔒 PDF DOCUMENT PASSWORD\n'
-          + 'Any PDF attachments are protected with a personal password.\n'
-          + 'Your password is your registered email address:\n'
-          + '   ' + (c.recipientEmail || 'your registered email address') + '\n'
-          + '─────────────────────────────────────────────\n\n'
+          + 'Your certificate image is attached to this email for your records.\n\n'
+          + 'To verify the authenticity of this certificate at any time, visit the link below\n'
+          + 'or enter Certificate No. ' + c.id + ' at the verification portal:\n\n'
+          + verifyUrl + '\n\n'
           + 'This training was organized by the ' + cstTeam + ' and conducted\n'
           + 'under supervision of ISO Lead Auditor and Security trainers.\n\n'
           + 'Regards,\n'
@@ -264,13 +358,10 @@
           + 'Valid Until      : ' + c.validUntil                                  + '\n'
           + 'Status           : ' + c.status                                      + '\n'
           + 'Frameworks       : ' + (c.frameworks || A.frameworks)                + '\n\n'
-          + 'Verification Link: ' + certUrl + '\n\n'
-          + '─────────────────────────────────────────────\n'
-          + '🔒 PDF DOCUMENT PASSWORD\n'
-          + 'Any PDF attachments are protected with a personal password.\n'
-          + 'Your password is your registered email address:\n'
-          + '   ' + (c.recipientEmail || 'your registered email address') + '\n'
-          + '─────────────────────────────────────────────\n\n'
+          + 'Your certificate image is attached to this email for your records.\n\n'
+          + 'To verify the authenticity of this certificate at any time, visit the link below\n'
+          + 'or enter Certificate No. ' + c.id + ' at the VAPT verification portal:\n\n'
+          + certUrl + '\n\n'
           + 'For questions or re-assessment, contact us at ' + A.vaptEmail + '.\n\n'
           + (c.verifiedBy    || A.cisoName)  + '\n'
           + (c.verifierTitle || cisoDisplay) + '\n'

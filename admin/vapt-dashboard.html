@@ -1461,26 +1461,48 @@
 </head>
 <body>
 
+<!-- ACCESSIBILITY: Skip navigation -->
+<a href="#main-content" style="position:absolute;left:-9999px;top:0;z-index:9999;padding:10px 20px;background:var(--teal);color:var(--navy);font-weight:700;font-size:.82rem;border-radius:0 0 8px 0;text-decoration:none;letter-spacing:.06em;text-transform:uppercase">Skip to main content</a>
+
+<!-- SESSION EXPIRY WARNING -->
+<div id="sessionWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9990;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,179,71,0.14);border-bottom:2px solid rgba(255,179,71,0.4);color:var(--warn);box-shadow:0 2px 16px rgba(0,0,0,.3)">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  Your session will expire in <span id="sessionCountdown">5 minutes</span>.
+  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,179,71,0.2);border:1px solid rgba(255,179,71,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
+  <button onclick="document.getElementById('sessionWarningBanner').style.display='none'" style="margin-left:8px;padding:4px 10px;border-radius:6px;background:none;border:1px solid rgba(255,255,255,0.1);color:var(--text-sec);cursor:pointer;font-size:.72rem;font-family:'DM Sans',sans-serif">Dismiss</button>
+</div>
+
+<!-- IDLE WARNING -->
+<div id="idleWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9991;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,107,138,0.14);border-bottom:2px solid rgba(255,107,138,0.4);color:var(--invalid);box-shadow:0 2px 16px rgba(0,0,0,.3)">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+  Inactivity detected — you will be logged out in <span id="idleCountdown">2 minutes</span>.
+  <button onclick="resetIdle()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
+</div>
+
 <!-- ══ LOGIN ══ -->
-<div id="loginWrap">
-  <div class="login-bg-grid"></div>
-  <div class="login-card">
+<div id="loginWrap" role="main">
+  <div class="login-bg-grid" aria-hidden="true"></div>
+  <div class="login-card" role="form" aria-labelledby="vaptLoginTitle">
     <div class="login-icon" style="background:none;border:none;display:flex;align-items:center;justify-content:center">
-      <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy" style="width:56px;height:56px" />
+      <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Marine Group" style="width:56px;height:56px" />
     </div>
-    <div class="login-title">Admin Access</div>
+    <div class="login-title" id="vaptLoginTitle">Admin Access</div>
     <div class="login-sub" id="loginSub"></div>
-    <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
+    <div style="margin-bottom:18px;padding:10px 14px;background:rgba(100,255,218,0.05);border:1px solid rgba(100,255,218,0.15);border-radius:9px;font-size:.68rem;color:var(--text-sec);line-height:1.7" role="note" id="adminDataNotice">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      VAPT records are classified RESTRICTED. All administrative actions are logged and audited.
+    </div>
+    <div class="login-err" id="loginErr" role="alert">Invalid credentials. Please try again.</div>
     <div class="fgroup" style="margin-bottom:14px">
-      <label class="flabel">Username</label>
-      <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" />
+      <label class="flabel" for="lUser">Username</label>
+      <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" aria-required="true" />
     </div>
     <div class="fgroup" style="margin-bottom:26px">
-      <label class="flabel">Password</label>
-      <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+      <label class="flabel" for="lPass">Password</label>
+      <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" aria-required="true" />
     </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:.82rem" onclick="doLogin()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:.82rem" onclick="doLogin()" aria-label="Login to VAPT Admin Panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
       <span id="lBtnTxt">Login to Admin Panel</span>
     </button>
   </div>
@@ -1569,8 +1591,8 @@
     </div>
   </aside>
 
-  <main class="main">
-    <div class="topbar" style="gap:16px">
+  <main class="main" id="main-content">
+    <div class="topbar" style="gap:16px" role="banner">
       <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar" aria-expanded="false" id="hamburgerBtn">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
@@ -1908,20 +1930,6 @@
                   <div class="prev-wrap"><img id="prevImg" src="" alt="Preview" /><button class="rm-img" onclick="clearImg(event)">✕</button></div>
                   <div class="upload-hint" style="margin-top:6px" id="prevName"></div>
                 </div>
-              </div>
-            </div>
-            <!-- ── PDF ATTACHMENTS ── -->
-            <div class="fgroup">
-              <label class="flabel" style="display:flex;align-items:center;gap:6px">
-                Reference Documents <span style="color:var(--teal);font-size:.58rem">(PDFs shown on public portal per cert)</span>
-              </label>
-              <div id="attachList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-              <div style="position:relative;border:2px dashed var(--border);border-radius:10px;padding:14px 16px;text-align:center;cursor:pointer;background:var(--navy-mid);transition:border-color .2s" id="pdfDropZone"
-                ondragover="pdfDragOver(event)" ondragleave="pdfDragLeave()" ondrop="pdfDrop(event)">
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple id="pdfFileInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="pdfFileSelect(this)" />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.4" style="margin:0 auto 6px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <div style="font-size:.75rem;color:var(--text-sec)">Click or drag PDFs or images to attach reference documents</div>
-                <div style="font-size:.62rem;color:var(--text-sec);margin-top:3px;opacity:.6">PDF, JPG, PNG, WEBP · Multiple files · Max 10MB each</div>
               </div>
             </div>
             <div style="display:flex;gap:10px;margin-top:6px">
@@ -2300,16 +2308,19 @@
       if (!r.ok) throw new Error();
       TOKEN = d.token;
       sessionStorage.setItem('adminToken', TOKEN);
+      try { localStorage.setItem('smg-admin-token', TOKEN); } catch(e) {}
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('appWrap').style.display = 'flex';
       if (window.syncButtons) window.syncButtons();
       scheduleTokenExpiryWarning();
+      if (window._startSessionTimers) window._startSessionTimers(Date.now());
       initApp();
     } catch { document.getElementById('loginErr').style.display = 'block'; }
     document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
   }
   function doLogout() {
     sessionStorage.removeItem('adminToken'); TOKEN = '';
+    try { localStorage.removeItem('smg-admin-token'); } catch(e) {}
     if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
     document.getElementById('loginWrap').style.display = 'flex';
     document.getElementById('appWrap').style.display = 'none';
@@ -3063,62 +3074,9 @@
   }
 
   // ── VIEW ──
-  // ── VIEW ATTACHMENTS HELPER ──
+  // ── VIEW ATTACHMENTS HELPER (disabled — reference docs feature removed) ──
   function buildViewAttachments(atts) {
-    if (!atts || !atts.length) return '';
-    var rows = '';
-    for (var i = 0; i < atts.length; i++) {
-      var a = atts[i];
-      var url  = a.url  || '';
-      var name = a.name || ('Document ' + (i + 1));
-      var uL   = url.toLowerCase(), nL = name.toLowerCase();
-      var isPdf = uL.endsWith('.pdf') || nL.endsWith('.pdf');
-      var isImg = /\.(jpg|jpeg|png|webp|gif)$/.test(uL) || /\.(jpg|jpeg|png|webp|gif)$/.test(nL);
-      var ext  = name.split('.').pop().toUpperCase() || 'FILE';
-      var safeUrl  = url.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      var safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      var iconColor = isPdf ? 'var(--gold)' : 'var(--teal)';
-      var iconPath  = isPdf
-        ? 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
-        : 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z';
-      if (isPdf) {
-        rows +=
-          '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--navy-mid);margin-bottom:6px">' +
-            '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px">' +
-              '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
-              '<span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
-              '<span style="font-size:.56rem;font-weight:700;color:var(--gold);letter-spacing:.06em;background:var(--gold-dim);border:1px solid var(--border-gold);border-radius:4px;padding:2px 6px;flex-shrink:0">' + ext + '</span>' +
-              '<button onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeUrl + '\',\'_blank\')" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:6px;padding:4px 10px;font-size:.62rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:600;letter-spacing:.06em;flex-shrink:0;margin-left:2px">👁 View</button>' +
-              '<a href="' + safeUrl + '" download="' + safeName + '" onclick="event.stopPropagation()" title="Download" style="display:inline-flex;align-items:center;justify-content:center;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);color:var(--teal);border-radius:6px;padding:4px 8px;margin-left:4px;text-decoration:none;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>' +
-            '</div>' +
-          '</div>';
-      } else if (isImg) {
-        rows +=
-          '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--navy-mid);margin-bottom:6px">' +
-            '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px">' +
-              '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
-              '<span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
-              '<span style="font-size:.56rem;font-weight:700;color:var(--teal);letter-spacing:.06em;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);border-radius:4px;padding:2px 6px;flex-shrink:0">' + ext + '</span>' +
-              '<button onclick="openLB(\'' + safeUrl + '\')" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);color:var(--teal);border-radius:6px;padding:4px 10px;font-size:.62rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;font-weight:600;letter-spacing:.06em;flex-shrink:0;margin-left:2px">🔍 Zoom</button>' +
-            '</div>' +
-            '<img src="' + url + '" style="width:100%;max-height:200px;object-fit:contain;background:var(--navy);display:block;border-top:1px solid var(--border);cursor:zoom-in" onclick="openLB(\'' + safeUrl + '\')" />' +
-          '</div>';
-      } else {
-        rows +=
-          '<a href="' + url + '" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--navy-mid);color:var(--gold);font-size:.76rem;text-decoration:none;margin-bottom:6px">' +
-            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' +
-            '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
-            '<span style="font-size:.56rem;font-weight:700;color:var(--text-sec);letter-spacing:.06em;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;padding:2px 6px;flex-shrink:0">' + ext + '</span>' +
-          '</a>';
-      }
-    }
-    return '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">' +
-      '<div style="font-size:.6rem;letter-spacing:.16em;color:var(--text-sec);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">' +
-        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>' +
-        'Reference Documents (' + atts.length + ')' +
-      '</div>' +
-      rows +
-    '</div>';
+    return ''; // Reference Documents feature removed
   }
 
   // Open VAPT certificate directly in a new tab (avoids CSP frame-ancestors block)
@@ -3453,7 +3411,7 @@
           const vaptEmail = window.APP_CONFIG ? window.APP_CONFIG.contact.vaptEmail : 'vapt@synergyship.com';
           const verBy = c.verifiedBy || (window.APP_CONFIG ? window.APP_CONFIG.vapt.verifiedBy : 'Gaurav Singh');
           const verTitle = c.verifierTitle || (window.APP_CONFIG ? window.APP_CONFIG.vapt.verifierTitle : 'CISO — Synergy Group');
-          return `Subject: Your VAPT Certificate \u2014 ${c.id} \u2014 ${window.APP_CONFIG?(window.APP_CONFIG.brand.companyShort||window.APP_CONFIG.brand.name):'Synergy'}\n\nDear ${c.recipientName||'Vessel Master / Company Representative'},\n\nPlease find below your Vulnerability Assessment & Penetration Testing (VAPT) certificate details from ${team} Cyber Security Division.\n\nCertificate ID   : ${c.id}\nVessel           : ${c.recipientName||c.vesselName||'\u2014'}\nIMO Number       : ${c.vesselIMO||'\u2014'}\nAssessment Date  : ${fmt(c.assessmentDate)}\nValid Until      : ${fmt(c.validUntil)}\nStatus           : ${c.status||'VALID'}\nFrameworks       : ${c.frameworks||'OWASP / IMO Framework / ISO 27001:2013'}\n\nVerification Link: ${certUrl}\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\uD83D\uDD12 PDF DOCUMENT PASSWORD\nAny PDF attachments are protected with a personal password.\nYour password is your registered email address:\n   ${c.recipientEmail||'your registered email address'}\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nFor questions or re-assessment, contact us at ${vaptEmail}.\n\n${verBy}\n${verTitle}\n${team} \u00b7 Cyber Security Division`;
+          return `Subject: Your VAPT Certificate \u2014 ${c.id} \u2014 ${window.APP_CONFIG?(window.APP_CONFIG.brand.companyShort||window.APP_CONFIG.brand.name):'Synergy'}\n\nDear ${c.recipientName||'Vessel Master / Company Representative'},\n\nPlease find below your Vulnerability Assessment & Penetration Testing (VAPT) certificate details from ${team} Cyber Security Division.\n\nCertificate ID   : ${c.id}\nVessel           : ${c.recipientName||c.vesselName||'\u2014'}\nIMO Number       : ${c.vesselIMO||'\u2014'}\nAssessment Date  : ${fmt(c.assessmentDate)}\nValid Until      : ${fmt(c.validUntil)}\nStatus           : ${c.status||'VALID'}\nFrameworks       : ${c.frameworks||'OWASP / IMO Framework / ISO 27001:2013'}\n\nYour certificate image is attached to this email for your records.\n\nTo verify the authenticity of this certificate at any time, visit the link below\nor enter Certificate No. ${c.id} at the VAPT verification portal:\n\n${certUrl}\n\nFor questions or re-assessment, contact us at ${vaptEmail}.\n\n${verBy}\n${verTitle}\n${team} \u00b7 Cyber Security Division`;
         })();
 
     const previewEl = document.getElementById('issueEmailPreview');
@@ -3461,20 +3419,15 @@
 
     // Split body around the cert URL
     const bodyBeforeUrl = plainText.split(certUrl)[0] || '';
-    const bodyAfterUrl  = plainText.split(certUrl)[1] || '';
-
-    // Parse out PDF block from afterUrl using the em-dash separator used by config template
-    const pdfSep   = '─────────────────────────────────────────────';
-    const altSep   = '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500';
-    const sep = bodyAfterUrl.includes(pdfSep) ? pdfSep : altSep;
-    const pdfStart = bodyAfterUrl.indexOf(sep);
-    const pdfEnd   = bodyAfterUrl.indexOf(sep, pdfStart + sep.length);
-    const afterUrl_pre  = pdfStart !== -1 ? bodyAfterUrl.slice(0, pdfStart) : bodyAfterUrl;
-    const pdfContent    = (pdfStart !== -1 && pdfEnd !== -1) ? bodyAfterUrl.slice(pdfStart + sep.length, pdfEnd) : null;
-    const afterUrl_post = (pdfEnd !== -1) ? bodyAfterUrl.slice(pdfEnd + sep.length) : '';
+    const bodyAfterUrl  = (plainText.split(certUrl)[1] || '').trim();
 
     previewEl.innerHTML = `
       <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text);line-height:1.9;font-family:'DM Sans',sans-serif">${esc(bodyBeforeUrl)}</div>
+
+      <!-- Cert image note -->
+      <div style="margin:10px 0;padding:10px 14px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:9px;font-size:.72rem;color:var(--teal);display:flex;align-items:center;gap:7px">
+        <span>📎</span><span>Certificate image is attached to this email.</span>
+      </div>
 
       <!-- CTA Block -->
       <div style="margin:14px 0 10px;padding:14px 16px;background:rgba(100,255,218,.05);border:1px solid rgba(100,255,218,.2);border-radius:10px">
@@ -3496,19 +3449,7 @@
         </div>
       </div>
 
-      <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text);line-height:1.9">${esc(afterUrl_pre)}</div>
-
-      ${pdfContent ? `
-      <div style="margin:10px 0;padding:12px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:9px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-          <span style="font-size:.75rem">&#128274;</span>
-          <span style="font-size:.65rem;font-weight:700;color:var(--teal);letter-spacing:.06em;text-transform:uppercase">PDF Document Password</span>
-        </div>
-        <div style="white-space:pre-wrap;font-size:.72rem;color:var(--text-sec);line-height:1.8">${esc(pdfContent)}</div>
-      </div>
-      ` : ''}
-
-      <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text-sec);line-height:1.9;border-top:1px solid var(--border);padding-top:10px;margin-top:6px">${esc(afterUrl_post)}</div>
+      <div style="white-space:pre-wrap;font-size:.75rem;color:var(--text-sec);line-height:1.9;border-top:1px solid var(--border);padding-top:10px;margin-top:6px">${esc(bodyAfterUrl)}</div>
     `;
     previewEl._plainText = plainText;
     _issueEmailCache[c.id]=plainText;
@@ -3737,78 +3678,17 @@
   function onDragLeave(){document.getElementById('dropZone').classList.remove('drag-over');}
   function onDrop(e){e.preventDefault();document.getElementById('dropZone').classList.remove('drag-over');if(e.dataTransfer.files[0])setImg(e.dataTransfer.files[0]);}
 
-  // ── PDF ATTACHMENTS ──
-  let pendingPdfs = []; // {file, name} — queued to upload on save
-  let savedAttachments = []; // {name, url} — already saved on server
+  // ── PDF ATTACHMENTS (disabled — reference docs feature removed) ──
+  let pendingPdfs = [];
+  let savedAttachments = [];
+  function renderAttachList() { /* disabled */ }
+  function pdfFileSelect() { /* disabled */ }
+  function pdfDragOver(e) { e.preventDefault(); }
+  function pdfDragLeave() {}
+  function pdfDrop(e) { e.preventDefault(); }
+  function removePendingPdf() {}
+  async function removeServerAttachment() {}
 
-  function renderAttachList() {
-    const el = document.getElementById('attachList'); if (!el) return;
-    const all = [
-      ...savedAttachments.map((a, i) => ({ ...a, kind: 'saved', idx: i })),
-      ...pendingPdfs.map((p, i) => ({ name: p.name, kind: 'pending', idx: i }))
-    ];
-    if (!all.length) { el.innerHTML = ''; return; }
-    el.innerHTML = all.map(a => {
-      const ext = (a.name || '').split('.').pop().toLowerCase();
-      const typeColor = ext === 'pdf' ? 'var(--gold)' : 'var(--teal)';
-      const typeLabel = ext.toUpperCase() || 'FILE';
-      const isPdf = ext === 'pdf';
-      const isImg = ['jpg','jpeg','png','webp','gif'].includes(ext);
-      const safeUrl = (a.url || '').replace(/'/g, "\\'");
-      const safeName = (a.name || '').replace(/'/g, "\\'");
-      const viewBtn = a.kind === 'saved' && a.url
-        ? isPdf
-          ? `<button onclick="event.preventDefault();event.stopPropagation();window.open('${safeUrl}','_blank')" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:5px;padding:3px 8px;font-size:.58rem;cursor:pointer;font-weight:600;flex-shrink:0">👁 View</button>` + `<a href="${safeUrl}" download="${safeName}" onclick="event.stopPropagation()" title="Download" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.3);color:var(--teal);border-radius:5px;padding:3px 8px;font-size:.58rem;text-decoration:none;flex-shrink:0;margin-left:4px;display:inline-flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>`
-          : isImg
-            ? `<button onclick="openLB('${safeUrl}')" style="background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.2);color:var(--teal);border-radius:5px;padding:3px 8px;font-size:.58rem;cursor:pointer;font-weight:600;flex-shrink:0">🔍 Zoom</button>`
-            : `<a href="${safeUrl}" target="_blank" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text-sec);border-radius:5px;padding:3px 8px;font-size:.58rem;text-decoration:none;font-weight:600;flex-shrink:0">↗ Open</a>`
-        : '';
-      return `
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--navy-mid)">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${typeColor}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <span style="flex:1;font-size:.75rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.name || ''}">${a.name || 'Unnamed file'}</span>
-        <span style="font-size:.58rem;font-weight:600;color:${typeColor};letter-spacing:.06em;flex-shrink:0">${typeLabel}</span>
-        <span style="font-size:.6rem;color:${a.kind==='pending'?'var(--warn)':'var(--teal)'};flex-shrink:0">${a.kind==='pending'?'⏳ Pending':'✓ Saved'}</span>
-        ${viewBtn}
-        <button onclick="${a.kind==='saved'?`removeServerAttachment(${a.idx})`:`removePendingPdf(${a.idx})`}" style="background:none;border:none;color:var(--invalid);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px;flex-shrink:0" title="Remove">✕</button>
-      </div>`;
-    }).join('');
-  }
-
-  function pdfFileSelect(input) {
-    if (!input.files) return;
-    const allowed = ['.pdf','.jpg','.jpeg','.png','.webp'];
-    for (const f of input.files) {
-      const ext = '.' + f.name.split('.').pop().toLowerCase();
-      if (!allowed.includes(ext)) { toast(`${f.name}: unsupported file type (PDF, JPG, PNG, WEBP only)`, 'err'); continue; }
-      if (f.size > 10 * 1024 * 1024) { toast(`${f.name} exceeds 10MB limit`, 'err'); continue; }
-      pendingPdfs.push({ file: f, name: f.name });
-    }
-    input.value = '';
-    renderAttachList();
-  }
-  function pdfDragOver(e) { e.preventDefault(); document.getElementById('pdfDropZone').style.borderColor='var(--border-gold)'; }
-  function pdfDragLeave() { document.getElementById('pdfDropZone').style.borderColor=''; }
-  function pdfDrop(e) {
-    e.preventDefault(); pdfDragLeave();
-    const allowed = ['.pdf','.jpg','.jpeg','.png','.webp'];
-    for (const f of e.dataTransfer.files) {
-      const ext = '.' + f.name.split('.').pop().toLowerCase();
-      if (!allowed.includes(ext)) { toast(`${f.name}: unsupported file type (PDF, JPG, PNG, WEBP only)`, 'err'); continue; }
-      if (f.size > 10 * 1024 * 1024) { toast(`${f.name} exceeds 10MB limit`, 'err'); continue; }
-      pendingPdfs.push({ file: f, name: f.name });
-    }
-    renderAttachList();
-  }
-  function removePendingPdf(idx) { pendingPdfs.splice(idx, 1); renderAttachList(); }
-  async function removeServerAttachment(idx) {
-    if (!editingId) return;
-    try {
-      const r = await fetch(`${API}/vapt/certs/${editingId}/attachments/${idx}`, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
-      if (r.ok) { const d = await r.json(); savedAttachments = d.attachments || []; renderAttachList(); toast('Attachment removed.', 'ok'); }
-      else toast('Could not remove attachment. Please try again.', 'err');
-    } catch { toast('Connection error. Please check your network.', 'err'); }
-  }
   function setImg(f){
     imgFile=f;
     const reader=new FileReader();
@@ -4202,6 +4082,84 @@ function applyConfig() {
   }
   // Also call applyConfig when config.js (deferred) finishes loading
   document.addEventListener('appconfigready', applyConfig);
+</script>
+
+<script>
+// ── SESSION EXPIRY & IDLE TIMEOUT — VAPT DASHBOARD ───────────────────────────
+(function () {
+  'use strict';
+  function getCfg() { return (window.APP_CONFIG && window.APP_CONFIG.session) || {}; }
+  var _sessionStart = null;
+  var _sessionTimer = null, _idleTimer = null, _idleWarnTimer = null, _sessionWarnTimer = null;
+  var _idleCI = null, _sessionCI = null;
+
+  function fmtMs(ms) {
+    var s = Math.max(0, Math.ceil(ms / 1000)), m = Math.floor(s / 60), sec = s % 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  function showSessionWarn(msLeft) {
+    var b = document.getElementById('sessionWarningBanner'), el = document.getElementById('sessionCountdown');
+    if (!b) return; b.style.display = 'block';
+    clearInterval(_sessionCI); var rem = msLeft;
+    if (el) el.textContent = fmtMs(rem);
+    _sessionCI = setInterval(function () { rem -= 1000; if (el) el.textContent = fmtMs(rem); if (rem <= 0) clearInterval(_sessionCI); }, 1000);
+  }
+  function hideSessionWarn() { var b = document.getElementById('sessionWarningBanner'); if (b) b.style.display = 'none'; clearInterval(_sessionCI); }
+
+  function showIdleWarn(msLeft) {
+    var b = document.getElementById('idleWarningBanner'), el = document.getElementById('idleCountdown');
+    if (!b) return; b.style.display = 'block';
+    clearInterval(_idleCI); var rem = msLeft;
+    if (el) el.textContent = fmtMs(rem);
+    _idleCI = setInterval(function () { rem -= 1000; if (el) el.textContent = fmtMs(rem); if (rem <= 0) clearInterval(_idleCI); }, 1000);
+  }
+  function hideIdleWarn() { var b = document.getElementById('idleWarningBanner'); if (b) b.style.display = 'none'; clearInterval(_idleCI); }
+
+  window.resetIdle = function () { hideIdleWarn(); startIdleTimeout(); };
+
+  window.refreshSession = function () {
+    var tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('adminToken') || '';
+    if (!tok) return;
+    fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + tok } })
+      .then(function (r) { if (r.ok) { hideSessionWarn(); if (_sessionStart) _sessionStart = Date.now(); scheduleSessionTimers(); } else { if (typeof doLogout === 'function') doLogout(); } })
+      .catch(function () { hideSessionWarn(); });
+  };
+
+  function scheduleSessionTimers() {
+    clearTimeout(_sessionTimer); clearTimeout(_sessionWarnTimer);
+    var cfg = getCfg(), maxMs = cfg.maxDurationMs || 8*60*60*1000, warnBefore = cfg.warningBeforeMs || 5*60*1000;
+    var remaining = Math.max(0, maxMs - (_sessionStart ? Date.now() - _sessionStart : 0));
+    var warnAt = Math.max(0, remaining - warnBefore);
+    _sessionWarnTimer = setTimeout(function () { showSessionWarn(warnBefore); }, warnAt);
+    _sessionTimer     = setTimeout(function () { clearInterval(_sessionCI); if (typeof doLogout === 'function') doLogout(); }, remaining);
+  }
+
+  function startIdleTimeout() {
+    clearTimeout(_idleTimer); clearTimeout(_idleWarnTimer);
+    var cfg = getCfg(), idleMs = cfg.idleTimeoutMs || 30*60*1000, warnBefore = cfg.idleWarningBeforeMs || 2*60*1000;
+    _idleWarnTimer = setTimeout(function () { showIdleWarn(warnBefore); }, idleMs - warnBefore);
+    _idleTimer     = setTimeout(function () { clearInterval(_idleCI); if (typeof doLogout === 'function') doLogout(); }, idleMs);
+  }
+
+  var _actThrottle = null;
+  function onActivity() {
+    if (_actThrottle) return;
+    _actThrottle = setTimeout(function () { _actThrottle = null; }, 10000);
+    hideIdleWarn(); startIdleTimeout();
+  }
+  ['mousemove','keydown','pointerdown','scroll','touchstart'].forEach(function(ev){ document.addEventListener(ev, onActivity, {passive:true}); });
+
+  window._startSessionTimers = function (startMs) { _sessionStart = startMs || Date.now(); scheduleSessionTimers(); startIdleTimeout(); };
+
+  // Auto-start if already logged in (token in storage)
+  var tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('adminToken') || '';
+  if (tok) {
+    try { var parts = tok.split('.'); if (parts.length === 3) { var p = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/'))); if (p && p.iat) _sessionStart = p.iat; } } catch(e) {}
+    if (!_sessionStart) _sessionStart = Date.now();
+    scheduleSessionTimers(); startIdleTimeout();
+  }
+})();
 </script>
 </body>
 </html>

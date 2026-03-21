@@ -85,3 +85,13 @@
 {"t":"2026-03-17T05:24:19.246Z","certId":"CST-9463293-02-26","event":"cert_viewed","src":"token_link"}
 {"t":"2026-03-17T05:24:29.717Z","certId":"CST-9511832-02-2026","event":"cert_viewed","src":"token_link"}
 {"t":"2026-03-17T05:24:48.047Z","certId":"CST-9511832-02-2026","event":"document_downloaded","file":"cst_attach_54758e5a2a50e7d14b614510.pdf"}
+{"t":"2026-03-21T11:47:29.818Z","certId":"CST-9700225-01-26","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-21T11:52:27.327Z","certId":"CST-9700225-01-26","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-21T11:52:48.018Z","certId":"CST-9700225-01-26","event":"cert_viewed","src":"id_lookup"}
+{"t":"2026-03-21T11:53:09.149Z","certId":"CST-9700225-01-26","event":"cert_viewed","src":"id_lookup"}
+{"t":"2026-03-21T12:31:12.121Z","certId":"CST-9511832-02-2026","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-21T12:31:24.914Z","certId":"CST-9511832-02-2026","event":"document_downloaded","file":"cst_attach_54758e5a2a50e7d14b614510.pdf"}
+{"t":"2026-03-21T18:06:43.863Z","certId":"CST-9361249-02-26","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-21T18:07:02.647Z","certId":"VAP-9491666-0226","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-21T18:07:10.846Z","certId":"VAP-9689536-0326","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-21T18:07:18.349Z","certId":"VAP-9878967-0426","event":"cert_viewed","src":"token_link"}

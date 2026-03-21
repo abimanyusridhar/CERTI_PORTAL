@@ -74,16 +74,11 @@
     .search-hint{font-size:.7rem;color:var(--text-sec);letter-spacing:.1em;margin-top:12px;text-align:center}
     .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,22,40,.3);border-top-color:var(--navy);border-radius:50%;animation:spin .6s linear infinite}
     /* STATS */
-    .stats-bar{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(17,34,64,0.6);backdrop-filter:blur(12px);padding:20px 0;margin-bottom:60px}
-    .stat-item{text-align:center;padding:8px 36px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center}
-    .stat-item:last-child{border-right:none}
     .stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--teal);line-height:1;transition:transform .3s}
     .stat-num.updating{transform:scale(1.08)}
     .stat-label{font-size:.57rem;letter-spacing:.2em;color:var(--text-sec);text-transform:uppercase;margin-top:5px}
     @media(max-width:600px){
-      .stat-item{padding:12px 20px;border-right:none;border-bottom:1px solid var(--border);width:50%}
-      .stat-item:nth-child(odd){border-right:1px solid var(--border)}
-    }
+        }
     /* RESULT */
     #result{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 30px 100px}
     .scanning{text-align:center;padding:60px 30px;color:var(--text-sec);font-size:.88rem}
@@ -373,8 +368,6 @@
   html.light .search-hint { color: #5A7090 !important; }
 
   /* Stats bar */
-  html.light .stats-bar { background: rgba(255,255,255,0.9) !important; border-color: rgba(30,60,120,0.10) !important; }
-  html.light .stat-item { border-right-color: rgba(30,60,120,0.10) !important; }
   html.light .stat-label { color: #5A7090 !important; }
 
   /* Cards & panels */
@@ -651,16 +644,6 @@
   }
 
   /* Stats bar — consistent vertical rhythm */
-  .stats-bar {
-    padding: 24px 0 !important;
-    gap: 0 !important;
-  }
-  .stat-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
 
   /* Sidebar cards — consistent shadows & hover */
   .sidebar-card {
@@ -740,19 +723,6 @@
     justify-content: center !important;
     gap: 8px !important;
     margin-top: 14px !important;
-  }
-
-  /* Stats bar fixed consistent width */
-  .stat-item:not(:last-child) {
-    border-right: 1px solid var(--border) !important;
-  }
-  @media (max-width: 600px) {
-    .stat-item:not(:nth-child(2n)) {
-      border-right: 1px solid var(--border) !important;
-    }
-    .stat-item:nth-child(2n) {
-      border-right: none !important;
-    }
   }
 
   /* Cred sidebar sticky offset match nav */
@@ -971,9 +941,22 @@
 </head>
 <body>
 
+<!-- ACCESSIBILITY: skip to main content -->
+<a class="skip-nav" href="#main-content" style="position:absolute;left:-9999px;top:0;z-index:9999;padding:10px 20px;background:var(--teal);color:var(--navy);font-weight:700;font-size:.82rem;border-radius:0 0 8px 0;text-decoration:none;letter-spacing:.06em;text-transform:uppercase">Skip to main content</a>
 
+<!-- OFFLINE BANNER -->
+<div id="offlineBanner" role="alert" aria-live="assertive" style="display:none;position:sticky;top:70px;z-index:49;padding:9px 36px;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,107,138,0.12);border-bottom:1px solid rgba(255,107,138,0.3);color:var(--invalid)">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+  Connection issue detected — verification service may be unavailable. Retrying automatically…
+</div>
 
-<div class="bg-scene">
+<!-- MAINTENANCE BANNER -->
+<div id="maintenanceBanner" role="status" aria-live="polite" style="display:none;position:sticky;top:70px;z-index:49;padding:9px 36px;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,179,71,0.10);border-bottom:1px solid rgba(255,179,71,0.3);color:var(--warn)">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span id="maintenanceBannerMsg"></span>
+</div>
+
+<div class="bg-scene" aria-hidden="true">
   <div class="bg-grid"></div>
   <div class="bg-orb-1"></div>
   <div class="bg-orb-2"></div>
@@ -994,68 +977,86 @@
   </div>
 </nav>
 
-<section class="hero">
-  <div class="hero-eyebrow">
+<main id="main-content">
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero-eyebrow" aria-hidden="true">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    VAPT Certificate Authority
+    IMO MSC-FAL.1/Circ.3 · Vessel Cyber Risk Registry
   </div>
-  <h1 class="hero-title">Verify <em>VAPT</em><br>Assessment Status</h1>
-  <p class="hero-sub" id="heroSub">Enter a Vulnerability &amp; Penetration Testing (VAPT) certificate number to get real-time verification of vessel cybersecurity assessment status for maritime compliance and vetting inspectors.</p>
-  <div class="search-container">
+  <h1 class="hero-title" id="heroTitle">Verify <em>VAPT</em><br>Assessment Status</h1>
+  <p class="hero-sub" id="heroSub">Enter a Vulnerability &amp; Penetration Testing (VAPT) certificate number to get real-time verification of vessel cybersecurity assessment status for maritime compliance, PSC, and vetting inspectors.</p>
+  <div class="search-container" role="search" aria-label="VAPT certificate verification">
     <div class="search-wrap" id="searchWrap">
-      <div class="search-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="VAPT certificate number input" />
-      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify VAPT certificate">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <div class="search-icon-wrap" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+      <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="VAPT certificate number" aria-describedby="searchHint" aria-required="true" />
+      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify VAPT certificate authenticity">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
     </div>
-    <div class="search-hint" id="searchHint">Enter your VAPT certificate number as provided in your assessment report</div>
+    <div class="search-hint" id="searchHint" aria-live="polite">Enter your VAPT certificate number as provided in your assessment report</div>
   </div>
 </section>
 
-<div class="stats-bar">
-  <div class="stat-item"><div class="stat-num" id="statTotal" aria-label="Assessments issued: loading">—</div><div class="stat-label">Assessments Issued</div></div>
-  <div class="stat-item"><div class="stat-num" id="statValid" style="color:var(--teal)" aria-label="Currently valid assessments: loading">—</div><div class="stat-label">Currently Valid</div></div>
-  <div class="stat-item"><div class="stat-num" id="statExpired" style="color:var(--warn)" aria-label="Expired assessments: loading">—</div><div class="stat-label">Expired</div></div>
-  <div class="stat-item"><div class="stat-num" id="statLastIssued" style="color:var(--gold);font-size:1.1rem;letter-spacing:.04em" aria-label="Most recently issued certificate date: loading">—</div><div class="stat-label">Last Issued</div></div>
-  <div class="stat-item"><div class="stat-num" style="color:var(--gold)" aria-label="IMO MSC-FAL.1/Circ.3 aligned">IMO</div><div class="stat-label">MSC-FAL.1/Circ.3</div></div>
-</div>
 
-<div id="result" aria-live="polite" aria-atomic="true"></div>
+
+<div id="result" role="region" aria-live="polite" aria-atomic="true" aria-label="Verification result"></div>
 
 <!-- DESCRIPTION BLOCK -->
 <div class="desc-block" id="descBlock">
   <div class="desc-section full-col">
     <div class="desc-section-title">About VAPT Assessment Certificate</div>
-    <p class="desc-text">The <strong style="color:var(--text-bright)">Vulnerability Assessment &amp; Penetration Testing (VAPT)</strong> certificate is issued by the <strong style="color:var(--teal)" id="descVaptTeam"></strong> following a comprehensive on-vessel cyber risk assessment. It confirms that the vessel has undergone a structured evaluation across IT/OT systems, access controls, software configuration, and cyber resilience practices.</p>
-    <p class="desc-text" style="margin-top:12px">Assessments are aligned with the IMO Maritime Cyber Risk Management guidelines (MSC-FAL.1/Circ.3), ISO 27001:2013, OWASP, and applicable flag state requirements. The certificate is valid for one year from the date of assessment, and is recognized by vetting inspectors, PSC officers, and charterers as evidence of active cyber risk management.</p>
+    <p class="desc-text">The <strong style="color:var(--text-bright)">Vulnerability Assessment &amp; Penetration Testing (VAPT)</strong> certificate is issued by the <strong style="color:var(--teal)" id="descVaptTeam"></strong> following a comprehensive on-vessel cyber risk assessment. It confirms that the vessel has undergone a structured evaluation across IT/OT systems, access controls, software configuration, and cyber resilience practices in compliance with IMO mandated cybersecurity requirements.</p>
+    <p class="desc-text" style="margin-top:12px">Assessments are fully aligned with IMO Maritime Cyber Risk Management guidelines (MSC-FAL.1/Circ.3), the ISM Code (SOLAS Chapter IX), ISO 27001:2022, and OWASP standards. The certificate is valid for one year from the date of assessment and is recognized by SIRE / CDI vetting inspectors, Port State Control (PSC) officers, Flag State authorities, and charterers as documented evidence of proactive vessel cyber risk management. Verify any certificate instantly by entering its VAPT certificate number above.</p>
+    <p class="desc-text" style="margin-top:12px;padding:10px 14px;background:rgba(100,255,218,0.04);border:1px solid rgba(100,255,218,0.12);border-radius:10px;font-size:.78rem;color:var(--text-sec)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      VAPT assessment records contain sensitive cybersecurity findings and are classified as <strong>RESTRICTED</strong>. Access is limited to authorised maritime compliance and vetting personnel only.
+    </p>
   </div>
   <div class="desc-section">
     <div class="desc-section-title">Assessment Scope</div>
     <div class="comp-list">
-      <div class="comp-item"><div class="comp-lbl">Access Control</div><div class="comp-desc">USB / Data / Login / Domain / Email / Asset controls reviewed and hardened.</div></div>
-      <div class="comp-item"><div class="comp-lbl">IT/OT Risk Analysis</div><div class="comp-desc">Full cyber risk analysis of operational technology and shipboard IT systems.</div></div>
-      <div class="comp-item"><div class="comp-lbl">Software Version Control</div><div class="comp-desc">Verification of patch status and version currency for IT and OT platforms.</div></div>
-      <div class="comp-item"><div class="comp-lbl">Backups &amp; Recovery</div><div class="comp-desc">Disaster recovery planning, backup schedules, and restoration drills assessed.</div></div>
-      <div class="comp-item"><div class="comp-lbl">Awareness &amp; Drills</div><div class="comp-desc">Crew cybersecurity awareness, IT drills, and internal audit compliance.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Access Control Review</div><div class="comp-desc">USB / removable media, data transfer, login credentials, domain accounts, email access, and vessel asset controls reviewed, tested, and hardened against breach scenarios.</div></div>
+      <div class="comp-item"><div class="comp-lbl">IT/OT Risk Analysis</div><div class="comp-desc">Full cyber risk analysis of operational technology (ECDIS, AIS, GMDSS, engine control) and shipboard IT systems per IMO and BIMCO guidelines.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Software Version Control</div><div class="comp-desc">Verification of patch status, firmware currency, and version management for all IT and OT platforms aboard, including critical navigation and safety systems.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Backups &amp; Disaster Recovery</div><div class="comp-desc">Disaster recovery planning, backup schedules, restoration drills, and business continuity protocols assessed against industry best practice.</div></div>
+      <div class="comp-item"><div class="comp-lbl">Crew Awareness &amp; Drills</div><div class="comp-desc">Shipboard crew cybersecurity awareness, IT emergency drills, phishing simulation results, and internal audit compliance verified.</div></div>
     </div>
   </div>
   <div class="desc-section">
-    <div class="desc-section-title">Skills &amp; Standards Verified</div>
+    <div class="desc-section-title">Standards &amp; Frameworks Verified</div>
     <div class="skills-wrap">
-      <span class="skill-tag">IMO Cyber Risk Guidelines</span><span class="skill-tag">ISO 27001:2013</span><span class="skill-tag">OWASP Framework</span><span class="skill-tag">OT Security</span><span class="skill-tag">IT Security</span><span class="skill-tag">Access Control</span><span class="skill-tag">Incident Response</span><span class="skill-tag">Backup &amp; Recovery</span><span class="skill-tag">ISM / ISPS Compliance</span>
+      <span class="skill-tag">IMO MSC-FAL.1/Circ.3</span><span class="skill-tag">ISM Code (SOLAS IX)</span><span class="skill-tag">ISO 27001:2022</span><span class="skill-tag">OWASP Framework</span><span class="skill-tag">BIMCO Cyber Guidelines</span><span class="skill-tag">SIRE / CDI Vetting</span><span class="skill-tag">PSC Inspection Readiness</span><span class="skill-tag">OT / ECDIS Security</span><span class="skill-tag">IT Network Hardening</span><span class="skill-tag">Incident Response &amp; CAMS</span>
     </div>
   </div>
 </div>
+</main>
 
-<footer>
+<footer role="contentinfo">
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-    <span id="footerCredit"></span> &middot; <span id="footerEmail" style="color:var(--text-sec)"></span>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    <span id="footerCredit"></span> &middot; <a id="footerEmail" href="#" style="color:var(--text-sec);text-decoration:none" aria-label="Contact VAPT team"></a>
   </div>
-  <span style="opacity:.4">Verification data is encrypted in transit. For disputes, contact the CISO office directly.</span>
+  <div style="opacity:.45;font-size:.62rem;line-height:1.8">
+    Verification data is encrypted in transit (TLS 1.2+). VAPT assessment records are classified <strong>RESTRICTED</strong> and retained per IMO cybersecurity compliance obligations.
+    For disputes or re-assessment requests, contact the CISO office directly.
+  </div>
 </footer>
+
+<!-- VAPT COMPLIANCE BAR -->
+<div role="contentinfo" aria-label="Legal and compliance information" style="position:relative;z-index:1;padding:14px 36px;background:rgba(10,22,40,0.8);border-top:1px solid var(--border);font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-align:center;line-height:1.9">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px;opacity:.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+  <span id="vaptComplianceStandards">IMO MSC-FAL.1/Circ.3 · ISO 27001:2022 · OWASP · ISM Code · ISPS Code · BIMCO</span>
+  <span style="margin:0 10px;opacity:.4" aria-hidden="true">|</span>
+  <span style="display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;background:rgba(255,107,138,0.08);border:1px solid rgba(255,107,138,0.2);color:var(--invalid);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;vertical-align:middle">
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    RESTRICTED
+  </span>
+  <span style="margin:0 10px;opacity:.4" aria-hidden="true">|</span>
+  Jurisdiction: <span id="vaptComplianceJurisdiction">Singapore MPA</span>
+  <span style="margin:0 10px;opacity:.4" aria-hidden="true">|</span>
+  <a href="mailto:" id="vaptCompliancePrivacy" style="color:var(--text-sec);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s,color .2s">Privacy / DPO</a>
+</div>
 
 <div id="copyToast" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(17,34,64,.97);border:1px solid rgba(10,124,110,.3);color:var(--teal);font-size:.72rem;font-weight:600;letter-spacing:.1em;padding:10px 22px;border-radius:30px;z-index:9998;opacity:0;transition:opacity .25s;pointer-events:none;text-transform:uppercase" role="status" aria-live="polite"></div>
 
@@ -1122,32 +1123,6 @@
     };
     requestAnimationFrame(tick);
   }
-
-  function loadStats() {
-    fetch(API + '/vapt/stats')
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(d => {
-        if (!d || d.total === undefined) return;
-        animateNum(document.getElementById('statTotal'), d.total);
-        animateNum(document.getElementById('statValid'), d.valid);
-        animateNum(document.getElementById('statExpired'), d.expired || 0);
-        const tEl = document.getElementById('statTotal');
-        const vEl = document.getElementById('statValid');
-        const eEl = document.getElementById('statExpired');
-        const lEl = document.getElementById('statLastIssued');
-        if (tEl) tEl.setAttribute('aria-label', 'Assessments issued: ' + d.total);
-        if (vEl) vEl.setAttribute('aria-label', 'Currently valid: ' + d.valid);
-        if (eEl) eEl.setAttribute('aria-label', 'Expired or revoked: ' + ((d.expired || 0) + (d.revoked || 0)));
-        if (lEl && d.lastIssued) {
-          const dt = new Date(d.lastIssued);
-          lEl.textContent = dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-          lEl.setAttribute('aria-label', 'Most recently issued: ' + lEl.textContent);
-        } else if (lEl) { lEl.textContent = '—'; }
-      })
-      .catch(() => { /* silent — stats are non-critical */ });
-  }
-  loadStats();
-  setInterval(loadStats, 60000);
 
   function hideDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = 'none'; }
   function showDesc() { const d = document.getElementById('descBlock'); if (d) d.style.display = ''; }
@@ -1844,6 +1819,50 @@
   }
   // Also call applyConfig when config.js (deferred) finishes loading
   document.addEventListener('appconfigready', applyConfig);
+
+  // ── OFFLINE DETECTION ──────────────────────────────────────────────────────
+  (function () {
+    const banner  = document.getElementById('offlineBanner');
+    let pollTimer = null;
+    async function healthCheck() {
+      try { const r = await fetch('/api/health', { cache: 'no-store' }); if (r.ok) { if (banner) banner.style.display = 'none'; clearInterval(pollTimer); pollTimer = null; } } catch { }
+    }
+    window.addEventListener('offline', () => { if (banner) banner.style.display = 'block'; if (!pollTimer) pollTimer = setInterval(healthCheck, (window.APP_CONFIG&&window.APP_CONFIG.resilience&&window.APP_CONFIG.resilience.offlinePollMs)||8000); });
+    window.addEventListener('online',  () => healthCheck());
+    if (!navigator.onLine && banner) { banner.style.display = 'block'; pollTimer = setInterval(healthCheck, 8000); }
+  })();
+
+  // ── MAINTENANCE BANNER ────────────────────────────────────────────────────
+  (function () {
+    function checkMaintenance() {
+      const C = window.APP_CONFIG;
+      const mb = document.getElementById('maintenanceBanner');
+      const mg = document.getElementById('maintenanceBannerMsg');
+      if (C && C.maintenance && C.maintenance.enabled && mb && mg) {
+        let text = C.maintenance.message || 'Scheduled maintenance in progress.';
+        if (C.maintenance.eta) text += ' Expected: ' + C.maintenance.eta;
+        mg.textContent = text; mb.style.display = 'block';
+      }
+    }
+    checkMaintenance();
+    document.addEventListener('appconfigready', checkMaintenance);
+  })();
+
+  // ── VAPT COMPLIANCE FOOTER BINDING ────────────────────────────────────────
+  function applyVaptComplianceFooter() {
+    const C = window.APP_CONFIG;
+    if (!C) return;
+    var el;
+    if (C.compliance) {
+      if ((el=document.getElementById('vaptComplianceStandards')))   el.textContent = C.compliance.standards || el.textContent;
+      if ((el=document.getElementById('vaptComplianceJurisdiction'))) el.textContent = C.compliance.jurisdiction || 'Singapore MPA';
+      if ((el=document.getElementById('vaptCompliancePrivacy')))      { el.href = 'mailto:' + (C.compliance.privacyContact||''); el.textContent = 'Privacy / DPO (' + (C.compliance.privacyContact||'') + ')'; }
+    }
+    var fEmail = document.getElementById('footerEmail');
+    if (fEmail && C.contact && C.contact.vaptEmail) { fEmail.textContent = C.contact.vaptEmail; fEmail.href = 'mailto:' + C.contact.vaptEmail; }
+  }
+  applyVaptComplianceFooter();
+  document.addEventListener('appconfigready', applyVaptComplianceFooter);
 </script>
 </body>
 </html>
