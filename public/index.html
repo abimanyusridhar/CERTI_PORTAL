@@ -1022,54 +1022,7 @@
 </style>
   <!-- CENTRALIZED CONFIG — single source of truth for all brand/contact/route values -->
   <script src="/config.js" defer></script>
-  <script>
-    /* ── THEME TOGGLE — BULLETPROOFED ──────────────────────────────────
-       Runs synchronously in <head> — applies saved theme to <html>
-       BEFORE any CSS or body renders (zero flash / FOUC).
-       Fully independent of config.js and every other resource.
-    ─────────────────────────────────────────────────────────────────── */
-    (function () {
-      var LS_KEY = 'smg-theme';
-
-      // 1. Resolve theme: localStorage → OS preference → default dark
-      var saved = null;
-      try { saved = localStorage.getItem(LS_KEY); } catch (e) {}
-      var prefersDark = true;
-      try { prefersDark = !window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
-      var isDark = saved !== null ? (saved !== 'light') : prefersDark;
-      if (!isDark) {
-        document.documentElement.classList.add('light');
-      } else {
-        document.documentElement.classList.remove('light');
-      }
-
-      // 2. Sync every .theme-toggle button icon + label
-      function syncButtons() {
-        var isLight = document.documentElement.classList.contains('light');
-        var buttons = document.querySelectorAll('.theme-toggle');
-        for (var i = 0; i < buttons.length; i++) {
-          var iconEl  = buttons[i].querySelector('.tt-icon');
-          var labelEl = buttons[i].querySelector('.tt-label');
-          if (iconEl)  iconEl.textContent  = isLight ? '🌙' : '☀️';
-          if (labelEl) labelEl.textContent = isLight ? 'Dark' : 'Light';
-        }
-      }
-
-      // 3. Global toggle — called by onclick="toggleTheme()"
-      window.toggleTheme = function () {
-        var isLight = document.documentElement.classList.toggle('light');
-        try { localStorage.setItem(LS_KEY, isLight ? 'light' : 'dark'); } catch (e) {}
-        syncButtons();
-      };
-
-      // 4. Sync buttons once DOM exists (buttons not yet in DOM at <head> parse time)
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', syncButtons);
-      } else {
-        syncButtons();
-      }
-    })();
-  </script>
+  <script src="/assets/theme-toggle.js"></script>
 </head>
 <body>
 

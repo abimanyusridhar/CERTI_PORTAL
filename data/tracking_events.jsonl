@@ -95,3 +95,6 @@
 {"t":"2026-03-21T18:07:02.647Z","certId":"VAP-9491666-0226","event":"cert_viewed","src":"token_link"}
 {"t":"2026-03-21T18:07:10.846Z","certId":"VAP-9689536-0326","event":"cert_viewed","src":"token_link"}
 {"t":"2026-03-21T18:07:18.349Z","certId":"VAP-9878967-0426","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-27T06:51:26.498Z","certId":"CST-9999999-01-40","event":"cert_viewed","src":"id_lookup"}
+{"t":"2026-03-27T06:52:53.397Z","certId":"CST-9689536-02-26","event":"cert_viewed","src":"token_link"}
+{"t":"2026-03-27T06:56:44.388Z","certId":"CST-8907163-02-26","event":"cert_viewed","src":"token_link"}

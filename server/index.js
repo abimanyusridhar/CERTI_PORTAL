@@ -36,46 +36,19 @@ const https  = require('https');
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
-
-// ─── LOGGER ──────────────────────────────────────────────────────────────────
-const LOG_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase();
-const _logLvl   = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 }[LOG_LEVEL] ?? 1;
-function _ts() { return new Date().toISOString().slice(11, 23); }
-const log = {
-  info:  (...a) => _logLvl <= 1 && console.log( _ts(), '[info] ', ...a),
-  warn:  (...a) => _logLvl <= 2 && console.warn( _ts(), '[warn] ', ...a),
-  error: (...a) => _logLvl <= 3 && console.error(_ts(), '[error]', ...a),
-};
+const { log } = require('./logger');
+const { loadDotEnv, validateRuntimeConfig } = require('./config/env');
+const { createJsonStore } = require('./repositories/jsonStore');
+const { createSecurityService } = require('./services/security');
+const { createMetrics } = require('./ops/metrics');
+const { createHealthRoute } = require('./routes/health');
+const { createAuthRoutes } = require('./routes/auth');
 
 // ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
 const CFG = require('../config/app.config');
 
 // ─── ENV LOADER ──────────────────────────────────────────────────────────────
-(function loadDotEnv() {
-  const envPaths = [
-    path.join(__dirname, '.env'),
-    path.join(__dirname, '..', '.env'),
-  ];
-  for (const envFile of envPaths) {
-    if (!fs.existsSync(envFile)) continue;
-    const lines = fs.readFileSync(envFile, 'utf8').split(/\r?\n/);
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx < 1) continue;
-      const key = trimmed.slice(0, eqIdx).trim();
-      let val   = trimmed.slice(eqIdx + 1).trim();
-      if ((val.startsWith('"') && val.endsWith('"')) ||
-          (val.startsWith("'") && val.endsWith("'"))) {
-        val = val.slice(1, -1);
-      }
-      if (process.env[key] === undefined) process.env[key] = val;
-    }
-    log.info('Configuration loaded from', envFile);
-    break;
-  }
-})();
+loadDotEnv(log, __dirname);
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT           = parseInt(process.env.PORT || '3000', 10);
@@ -134,6 +107,9 @@ function loadOrCreateKeys() {
   return keys;
 }
 const KEYS = loadOrCreateKeys();
+const security = createSecurityService({ keys: KEYS, cfg: CFG });
+const metrics = createMetrics();
+let _reqSeq = 0;
 
 // ─── ADMIN CREDENTIALS ───────────────────────────────────────────────────────
 const ADMIN_USER = process.env.ADMIN_USER;
@@ -144,14 +120,20 @@ if (!ADMIN_USER || !ADMIN_PASS) {
   process.exit(1);
 }
 
+const _cfgCheck = validateRuntimeConfig({
+  port: PORT,
+  adminUser: ADMIN_USER,
+  adminPass: ADMIN_PASS,
+  cfg: CFG,
+});
+if (!_cfgCheck.ok) {
+  for (const e of _cfgCheck.errors) log.error('Config validation:', e);
+  process.exit(1);
+}
+
 // ─── PASSWORD HASHING ────────────────────────────────────────────────────────
 function hashPassword(password) {
-  return new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, KEYS.pwdSalt, 310000, 32, 'sha256', (err, key) => {
-      if (err) reject(err);
-      else resolve(key.toString('hex'));
-    });
-  });
+  return security.hashPassword(password);
 }
 
 let ADMIN_PASS_HASH = '';
@@ -178,77 +160,32 @@ async function initialiseRuntimePrerequisites() {
 const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000;
 
 function issueToken(username) {
-  const payload = {
-    sub: username,
-    iat: Date.now(),
-    exp: Date.now() + TOKEN_EXPIRY_MS,
-    jti: crypto.randomBytes(16).toString('hex'),
-  };
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const body   = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig    = crypto.createHmac('sha256', KEYS.jwtSecret)
-    .update(header + '.' + body).digest('base64url');
-  return `${header}.${body}.${sig}`;
+  return security.issueToken(username);
 }
 
 function verifyToken(token) {
-  if (!token || typeof token !== 'string') return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [header, body, sig] = parts;
-  const expected = crypto.createHmac('sha256', KEYS.jwtSecret)
-    .update(header + '.' + body).digest('base64url');
-  const sigBuf      = Buffer.from(sig);
-  const expectedBuf = Buffer.from(expected);
-  if (sigBuf.length !== expectedBuf.length) return null;
-  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (Date.now() > payload.exp) return null;
-    return payload;
-  } catch { return null; }
+  return security.verifyToken(token);
 }
 
 // ─── ENCRYPTED + SIGNED PUBLIC CERT URLs ─────────────────────────────────────
 function encryptCertToken(certId) {
-  const key    = Buffer.from(KEYS.urlEncKey, 'hex');
-  const iv     = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const enc    = Buffer.concat([cipher.update(certId, 'utf8'), cipher.final()]);
-  const tag    = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, enc]).toString('base64url');
+  return security.encryptCertToken(certId);
 }
 
 function decryptCertToken(token) {
-  try {
-    const raw = Buffer.from(token, 'base64url');
-    if (raw.length < 29) return null;
-    const iv       = raw.subarray(0, 12);
-    const tag      = raw.subarray(12, 28);
-    const enc      = raw.subarray(28);
-    const key      = Buffer.from(KEYS.urlEncKey, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(tag);
-    return decipher.update(enc).toString('utf8') + decipher.final('utf8');
-  } catch { return null; }
+  return security.decryptCertToken(token);
 }
 
 function signCertUrl(encToken) {
-  return crypto.createHmac('sha256', KEYS.urlMacKey)
-    .update('cert:' + encToken).digest('base64url').slice(0, 22);
+  return security.signCertUrl(encToken);
 }
 
 function verifyCertUrlSignature(encToken, sig) {
-  if (!sig) return false;
-  const expected = signCertUrl(encToken);
-  if (sig.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  return security.verifyCertUrlSignature(encToken, sig);
 }
 
 function buildCertUrl(certId, baseUrl) {
-  const token = encryptCertToken(certId);
-  const sig   = signCertUrl(token);
-  return `${baseUrl}${CFG.routes.cst}/cert/${token}?s=${sig}`;
+  return security.buildCertUrl(certId, baseUrl);
 }
 
 // ─── RATE LIMITER ─────────────────────────────────────────────────────────────
@@ -353,26 +290,19 @@ const SEED = {
 
 // ─── DATA STORE ──────────────────────────────────────────────────────────────
 let _certCache = null;
+const cstStore = createJsonStore({
+  filePath: DATA_FILE,
+  seedData: SEED,
+  onError: (err) => log.error('Failed to persist certificate data:', err.message),
+  debounceMs: 50,
+});
 function loadData() {
-  if (_certCache) return _certCache;
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      _certCache = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-      return _certCache;
-    }
-  } catch { }
-  _certCache = { ...SEED };
-  saveData(_certCache);
+  _certCache = cstStore.load();
   return _certCache;
 }
 function saveData(data) {
   _certCache = data;
-  // Debounced write — coalesces rapid successive saves into one disk write
-  clearTimeout(saveData._t);
-  saveData._t = setTimeout(() => {
-    fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
-      .catch(err => log.error('Failed to persist certificate data:', err.message));
-  }, 50);
+  cstStore.save(data);
 }
 
 // ─── VAPT SEED DATA ──────────────────────────────────────────────────────────
@@ -405,32 +335,24 @@ const VAPT_SEED = {
 
 // ─── VAPT DATA STORE ─────────────────────────────────────────────────────────
 let _vaptCache = null;
+const vaptStore = createJsonStore({
+  filePath: VAPT_DATA_FILE,
+  seedData: VAPT_SEED,
+  onError: (err) => log.error('Failed to persist VAPT certificate data:', err.message),
+  debounceMs: 50,
+});
 function loadVaptData() {
-  if (_vaptCache) return _vaptCache;
-  try {
-    if (fs.existsSync(VAPT_DATA_FILE)) {
-      _vaptCache = JSON.parse(fs.readFileSync(VAPT_DATA_FILE, 'utf8'));
-      return _vaptCache;
-    }
-  } catch { }
-  _vaptCache = { ...VAPT_SEED };
-  saveVaptData(_vaptCache);
+  _vaptCache = vaptStore.load();
   return _vaptCache;
 }
 function saveVaptData(data) {
   _vaptCache = data;
-  clearTimeout(saveVaptData._t);
-  saveVaptData._t = setTimeout(() => {
-    fs.promises.writeFile(VAPT_DATA_FILE, JSON.stringify(data, null, 2), 'utf8')
-      .catch(err => log.error('Failed to persist VAPT certificate data:', err.message));
-  }, 50);
+  vaptStore.save(data);
 }
 
 // ─── VAPT CERT URL BUILDER ───────────────────────────────────────────────────
 function buildVaptCertUrl(certId, baseUrl) {
-  const token = encryptCertToken(certId);
-  const sig   = signCertUrl(token);
-  return `${baseUrl}${CFG.routes.vpt}/cert/${token}?s=${sig}`;
+  return security.buildVaptCertUrl(certId, baseUrl);
 }
 
 // ─── EMAIL DISPATCH (AWS SES — pure Node.js, zero npm deps) ────────────────────
@@ -1191,6 +1113,29 @@ function parseMultipart(req) {
 
 // ─── SERVER STARTUP TIME (for /api/health) ───────────────────────────────────
 const SERVER_START_TIME = Date.now();
+const healthRoute = createHealthRoute({
+  sendJSON,
+  corsHeadersForOrigin: getCorsHeaders,
+  getCstCerts: loadData,
+  getVaptCerts: loadVaptData,
+  cfg: CFG,
+  sesEnabled: SES_ENABLED,
+  serverStartTime: SERVER_START_TIME,
+  serverReadyRef: () => serverReady,
+  shuttingDownRef: () => isShuttingDown,
+  metricsSnapshot: () => metrics.snapshot(),
+});
+const authRoutes = createAuthRoutes({
+  sendJSON,
+  getBody,
+  authCheck,
+  checkRateLimit,
+  hashPassword,
+  issueToken,
+  getAdminUser: () => ADMIN_USER,
+  getAdminPassHash: () => ADMIN_PASS_HASH,
+  serverReadyRef: () => serverReady,
+});
 
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
 async function handleAPI(req, res, parsed) {
@@ -1204,6 +1149,10 @@ async function handleAPI(req, res, parsed) {
     res.writeHead(204, { ...corsH, ...SECURITY_HEADERS });
     return res.end();
   }
+
+  if (healthRoute(req, res, route, method, origin)) return;
+  if (await authRoutes.handleLogin(req, res, method, route, ip, corsH)) return;
+  if (authRoutes.handleVerify(req, res, method, route, corsH)) return;
 
   // ── GET /api/health ── (public — liveness / monitoring probe)
   // Returns uptime, config version, SES status, cert counts, and maintenance state.
@@ -2398,6 +2347,19 @@ async function handleRequest(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  req._reqId = (++_reqSeq).toString(36) + Date.now().toString(36).slice(-4);
+  metrics.begin(req);
+  res.on('finish', () => {
+    metrics.end(req, res.statusCode || 0);
+    const p = (() => { try { return new URL(req.url, 'http://localhost').pathname; } catch { return req.url || ''; } })();
+    if ((res.statusCode || 0) >= 500) {
+      log.reqError(req, req.method, p, res.statusCode);
+    } else if ((res.statusCode || 0) >= 400) {
+      log.reqWarn(req, req.method, p, res.statusCode);
+    } else {
+      log.reqInfo(req, req.method, p, res.statusCode);
+    }
+  });
   Promise.resolve(handleRequest(req, res)).catch((err) => {
     log.error('Unhandled request error:', err && err.message ? err.message : err);
     if (res.headersSent) return res.end();
@@ -2447,20 +2409,8 @@ startServer();
 
 // ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────
 function flushPendingSaves() {
-  // If a debounced save is pending, flush it synchronously before exit
-  [
-    { timer: saveData._t,     file: DATA_FILE,      cache: () => _certCache },
-    { timer: saveVaptData._t, file: VAPT_DATA_FILE,  cache: () => _vaptCache },
-  ].forEach(({ timer, file, cache }) => {
-    if (timer) {
-      clearTimeout(timer);
-      const d = cache();
-      if (d) {
-        try { fs.writeFileSync(file, JSON.stringify(d, null, 2), 'utf8'); }
-        catch (e) { log.error('Data flush on shutdown failed:', e.message); }
-      }
-    }
-  });
+  try { cstStore.flush(); } catch (e) { log.error('Data flush on shutdown failed:', e.message); }
+  try { vaptStore.flush(); } catch (e) { log.error('Data flush on shutdown failed:', e.message); }
 }
 
 function gracefulShutdown(signal) {
