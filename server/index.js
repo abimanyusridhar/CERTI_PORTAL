@@ -156,14 +156,23 @@ function hashPassword(password) {
 
 let ADMIN_PASS_HASH = '';
 let serverReady = false;
-hashPassword(ADMIN_PASS).then(hash => {
-  ADMIN_PASS_HASH = hash;
+let isShuttingDown = false;
+let _shutdownTimer = null;
+
+async function initialiseRuntimePrerequisites() {
+  // Prepare auth hash before accepting requests.
+  ADMIN_PASS_HASH = await hashPassword(ADMIN_PASS);
+
+  // Warm caches and ensure writable runtime directories exist.
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  fs.mkdirSync(path.dirname(VAPT_DATA_FILE), { recursive: true });
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  loadData();
+  loadVaptData();
+
   serverReady = true;
-  log.info('Authentication ready.');
-}).catch(err => {
-  log.error('Failed to initialise authentication:', err.message);
-  process.exit(1);
-});
+  log.info('Runtime initialisation complete.');
+}
 
 // ─── JWT-STYLE ADMIN TOKENS ──────────────────────────────────────────────────
 const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000;
@@ -2173,7 +2182,18 @@ async function handleAPI(req, res, parsed) {
 }
 
 // ─── SINGLE UNIFIED SERVER ────────────────────────────────────────────────────
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
+  if (isShuttingDown) {
+    const origin = req.headers.origin || '';
+    const corsH = getCorsHeaders(origin);
+    return sendJSON(
+      res,
+      503,
+      { error: 'Server is shutting down, please retry shortly.' },
+      { ...corsH, 'Retry-After': '5' }
+    );
+  }
+
   const parsed = new URL(req.url, 'http://localhost');
   const p      = parsed.pathname;
 
@@ -2375,6 +2395,15 @@ const server = http.createServer(async (req, res) => {
   </div>
 </body>
 </html>`);
+}
+
+const server = http.createServer((req, res) => {
+  Promise.resolve(handleRequest(req, res)).catch((err) => {
+    log.error('Unhandled request error:', err && err.message ? err.message : err);
+    if (res.headersSent) return res.end();
+    res.writeHead(500, { ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ error: 'Internal server error' }));
+  });
 });
 
 // ─── START ───────────────────────────────────────────────────────────────────
@@ -2387,24 +2416,34 @@ server.on('error', err => {
   process.exit(1);
 });
 
-server.listen(PORT, () => {
-  const W = 58;
-  const line  = s  => console.log('║  ' + s.padEnd(W - 4) + '║');
-  const blank = () => console.log('║' + ' '.repeat(W - 2) + '║');
-  console.log('\n╔' + '═'.repeat(W - 2) + '╗');
-  line(CFG.brand.companyFull + ' — Certificate Portal');
-  console.log('╠' + '═'.repeat(W - 2) + '╣');
-  blank();
-  line('  CST Portal  →  ' + BASE_ORIGIN + CFG.routes.cst);
-  line('  CST Admin   →  ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/');
-  line('  VAPT Portal →  ' + BASE_ORIGIN + CFG.routes.vpt);
-  line('  VAPT Admin  →  ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/');
-  line('  Health      →  ' + BASE_ORIGIN + '/api/health');
-  blank();
-  line('  Email dispatch: ' + (SES_ENABLED ? 'Active (' + SES_REGION + ')' : 'Not configured'));
-  blank();
-  console.log('╚' + '═'.repeat(W - 2) + '╝\n');
-});
+async function startServer() {
+  try {
+    await initialiseRuntimePrerequisites();
+  } catch (err) {
+    log.error('Failed to initialise runtime:', err.message || err);
+    process.exit(1);
+  }
+
+  server.listen(PORT, () => {
+    const W = 58;
+    const line  = s  => console.log('║  ' + s.padEnd(W - 4) + '║');
+    const blank = () => console.log('║' + ' '.repeat(W - 2) + '║');
+    console.log('\n╔' + '═'.repeat(W - 2) + '╗');
+    line(CFG.brand.companyFull + ' — Certificate Portal');
+    console.log('╠' + '═'.repeat(W - 2) + '╣');
+    blank();
+    line('  CST Portal  →  ' + BASE_ORIGIN + CFG.routes.cst);
+    line('  CST Admin   →  ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/');
+    line('  VAPT Portal →  ' + BASE_ORIGIN + CFG.routes.vpt);
+    line('  VAPT Admin  →  ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/');
+    line('  Health      →  ' + BASE_ORIGIN + '/api/health');
+    blank();
+    line('  Email dispatch: ' + (SES_ENABLED ? 'Active (' + SES_REGION + ')' : 'Not configured'));
+    blank();
+    console.log('╚' + '═'.repeat(W - 2) + '╝\n');
+  });
+}
+startServer();
 
 // ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────
 function flushPendingSaves() {
@@ -2425,15 +2464,22 @@ function flushPendingSaves() {
 }
 
 function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   log.info(`${signal} received — shutting down gracefully…`);
   clearInterval(_rlCleanup);
   flushPendingSaves();
   server.close(err => {
     if (err) { log.error('Server close error:', err.message); process.exit(1); }
+    if (_shutdownTimer) clearTimeout(_shutdownTimer);
     log.info('Server stopped cleanly.');
     process.exit(0);
   });
-  setTimeout(() => { log.error('Forced exit — shutdown exceeded 10 s.'); process.exit(1); }, 10_000).unref();
+  _shutdownTimer = setTimeout(() => {
+    log.error('Forced exit — shutdown exceeded 10 s.');
+    process.exit(1);
+  }, 10_000);
+  _shutdownTimer.unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));

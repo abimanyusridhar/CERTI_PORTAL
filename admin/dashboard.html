@@ -3088,6 +3088,115 @@
   html.light #viewEngagementSection [style*="letter-spacing:.16em"] {
     color: var(--text-sec) !important;
   }
+
+  /* ── ADMIN UI POLISH LAYER ───────────────────────────────────────── */
+  :root { --ui-accent: var(--gold, #D4A843); }
+  * { -webkit-tap-highlight-color: transparent; }
+
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .nav-item,
+  .stat-card,
+  .analytics-card,
+  .table-card,
+  .section-card,
+  .send-stat,
+  .issue-cert-row,
+  .mini-search,
+  .fcontrol,
+  .upload-zone,
+  .modal {
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease !important;
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  }
+  .btn-primary:hover,
+  .btn-ghost:hover {
+    transform: translateY(-1px);
+  }
+  .btn-primary:active,
+  .btn-ghost:active {
+    transform: translateY(0);
+  }
+
+  .nav-item:hover {
+    transform: translateX(1px);
+  }
+  .stat-card:hover,
+  .analytics-card:hover,
+  .table-card:hover,
+  .section-card:hover {
+    box-shadow: 0 10px 26px rgba(0,0,0,0.18) !important;
+  }
+
+  .mini-search:focus-within,
+  .fcontrol:focus,
+  .filter-select:focus,
+  .inline-status-sel:focus {
+    border-color: rgba(212,168,67,.45) !important;
+    box-shadow: 0 0 0 3px rgba(212,168,67,.14) !important;
+  }
+
+  .tbl-scroll-wrap {
+    scrollbar-gutter: stable both-edges;
+  }
+  .tbl-scroll-wrap::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+  }
+
+  .overlay {
+    backdrop-filter: blur(12px);
+  }
+  .modal {
+    box-shadow: 0 38px 90px rgba(0,0,0,.62), 0 0 0 1px rgba(212,168,67,.05);
+  }
+
+  .upload-zone:hover,
+  .upload-zone.drag-over {
+    transform: translateY(-1px);
+  }
+
+  .empty-state {
+    border: 1px dashed rgba(212,168,67,.18);
+    border-radius: 14px;
+    background: rgba(255,255,255,.01);
+  }
+
+  .ocr-status,
+  #toast {
+    box-shadow: 0 10px 28px rgba(0,0,0,.28);
+  }
+
+  @media (max-width: 900px) {
+    .topbar {
+      padding: 12px 14px !important;
+      gap: 8px !important;
+      flex-wrap: wrap !important;
+    }
+    .top-actions {
+      width: 100%;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tbl-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
 </style>
   <script>
     /* ── THEME TOGGLE — BULLETPROOFED ──────────────────────────────────
