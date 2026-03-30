@@ -219,7 +219,9 @@
     const scopeList = (c.scopeItems || '').split(',').map(s => s.trim()).filter(Boolean);
 
     // Admin-attached docs only, no defaults
-    const atts = Array.isArray(c.attachments) ? c.attachments : [];
+    // Reference documents are disabled as of now.
+    // Force an empty list so no PDF/password-gate buttons render.
+    const atts = [];
     const docsBlock = buildDocsBlock(atts, c.recipientEmail || '');
 
     document.getElementById('result').innerHTML = `

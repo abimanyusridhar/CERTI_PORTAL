@@ -1478,7 +1478,7 @@ async function handleAPI(req, res, parsed) {
         cert = { ...fields };
         const imgPath = saveCertImageFile(files, 'cert');
         if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = extractAttachments(fields, files, 'cst_attach');
+        cert.attachments = [];
       } else {
         cert = JSON.parse(await getBody(req));
         if (!Array.isArray(cert.attachments)) cert.attachments = [];
@@ -1488,6 +1488,8 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
     cert.id = certId;
     deriveQuarterFields(cert);
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    cert.attachments = [];
     const data = loadData();
     if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
     cert.emailStatus = cert.emailStatus || 'NOT_SENT';
@@ -1537,14 +1539,16 @@ async function handleAPI(req, res, parsed) {
         updates = { ...fields };
         const imgPath = saveCertImageFile(files, 'cert', data[certId].certificateImage);
         if (imgPath) updates.certificateImage = imgPath;
-        updates.attachments = extractAttachments(fields, files, 'cst_attach',
-          Array.isArray(data[certId].attachments) ? data[certId].attachments : []);
+        // Reference documents (PDF attachments) are removed/disabled as of now.
+        updates.attachments = [];
       } else {
         updates = JSON.parse(await getBody(req));
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
       }
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    updated.attachments = [];
     // Enforce: EXPIRED or REVOKED → validUntil must be today (so radar & filters are always accurate)
     if (updated.status === 'EXPIRED' || updated.status === 'REVOKED') {
       updated.validUntil = new Date().toISOString().slice(0, 10);
@@ -1808,6 +1812,8 @@ async function handleAPI(req, res, parsed) {
   // Returns { ok: true, downloadToken } only when email matches the stored recipientEmail
   // (case-insensitive, timing-safe). Never reveals the email.
   if (route.match(/^\/verify-email\/[^/]+$/) && method === 'POST') {
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    return sendJSON(res, 404, { error: 'Not found' }, corsH);
     const rl = checkRateLimit(ip, 'verify');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
     const certId = sanitiseCertId(route.replace('/verify-email/', ''));
@@ -1835,6 +1841,8 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/vapt/verify-email/:certId ── (public — gate check for VAPT PDF access)
   if (route.match(/^\/vapt\/verify-email\/[^/]+$/) && method === 'POST') {
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    return sendJSON(res, 404, { error: 'Not found' }, corsH);
     const rl = checkRateLimit(ip, 'verify');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
     const certId = sanitiseCertId(route.replace('/vapt/verify-email/', ''));
@@ -1941,7 +1949,8 @@ async function handleAPI(req, res, parsed) {
         cert = { ...fields };
         const imgPath = saveCertImageFile(files, 'vapt');
         if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = extractAttachments(fields, files, 'vpt_attach');
+        // Reference documents (PDF attachments) are removed/disabled as of now.
+        cert.attachments = [];
       } else {
         cert = JSON.parse(await getBody(req));
         if (!Array.isArray(cert.attachments)) cert.attachments = [];
@@ -1950,6 +1959,8 @@ async function handleAPI(req, res, parsed) {
     const certId = sanitiseCertId(cert.id);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
     cert.id = certId;
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    cert.attachments = [];
     const data = loadVaptData();
     if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
     cert.emailStatus   = cert.emailStatus   || 'NOT_SENT';
@@ -2064,14 +2075,16 @@ async function handleAPI(req, res, parsed) {
         updates = { ...fields };
         const imgPath = saveCertImageFile(files, 'vapt', data[certId].certificateImage);
         if (imgPath) updates.certificateImage = imgPath;
-        updates.attachments = extractAttachments(fields, files, 'vpt_attach',
-          Array.isArray(data[certId].attachments) ? data[certId].attachments : []);
+        // Reference documents (PDF attachments) are removed/disabled as of now.
+        updates.attachments = [];
       } else {
         updates = JSON.parse(await getBody(req));
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
       }
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    updated.attachments = [];
     // Enforce: EXPIRED or REVOKED → validUntil must be today (so radar & filters are always accurate)
     if (updated.status === 'EXPIRED' || updated.status === 'REVOKED') {
       updated.validUntil = new Date().toISOString().slice(0, 10);
@@ -2265,6 +2278,13 @@ async function handleRequest(req, res) {
     const ext   = path.extname(fpath).toLowerCase();
     const mime  = MIME[ext] || 'application/octet-stream';
     const isPdf = ext === '.pdf';
+
+    // Reference documents (PDF attachments) are removed/disabled as of now.
+    // Block any direct PDF download from /uploads.
+    if (isPdf) {
+      res.writeHead(404, SECURITY_HEADERS);
+      return res.end('Not found');
+    }
 
     // ── Track document download: only real downloads, not image thumbnail loads ──
     // Rules:

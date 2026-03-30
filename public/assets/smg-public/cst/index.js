@@ -207,7 +207,9 @@
     </div>` : '';
 
     // Admin-uploaded attachments — Relevant Documents with confidential PDF notice
-    const atts = Array.isArray(cert.attachments) ? cert.attachments : [];
+    // Reference documents are disabled as of now.
+    // Force an empty list so no PDF/password-gate buttons render.
+    const atts = [];
     const recipEmail = cert.recipientEmail || '';
     // Masked email: first 2 chars + **** + last char @ domain
     const maskedEmail = recipEmail ? (function(e) {

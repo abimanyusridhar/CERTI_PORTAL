@@ -199,7 +199,7 @@ test('server critical API flows', async () => {
     assert.equal(updateRes.status, 200);
     assert.equal(updateRes.json.notes, 'updated-by-test');
 
-    // ── Confidential PDF gating (email gate -> downloadToken -> /uploads enforcement) ──
+    // ── Reference documents (PDF attachments) are disabled ──
     const dummyPdf = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF\n',
       'utf8'
@@ -221,9 +221,7 @@ test('server critical API flows', async () => {
     });
     assert.equal(attachRes.status, 200);
     assert.ok(attachRes.json && Array.isArray(attachRes.json.attachments));
-    const cstPdfAtt = attachRes.json.attachments.find(a => a && a.url && a.url.toLowerCase().endsWith('.pdf'));
-    assert.ok(cstPdfAtt && cstPdfAtt.url, 'CST PDF attachment should exist');
-    const cstPdfName = path.basename(cstPdfAtt.url);
+    assert.equal(attachRes.json.attachments.length, 0, 'CST attachments should be empty');
 
     const cstGate = await requestJson({
       method: 'POST',
@@ -231,18 +229,10 @@ test('server critical API flows', async () => {
       urlPath: `/api/verify-email/${certId}`,
       body: { email: 'recipient@example.com' },
     });
-    assert.equal(cstGate.status, 200);
-    assert.ok(cstGate.json && cstGate.json.downloadToken, 'downloadToken should be issued for CST');
+    assert.equal(cstGate.status, 404);
 
-    const cstDenied = await requestBinary({ port, urlPath: `/uploads/${cstPdfName}` });
-    assert.equal(cstDenied.status, 403);
-
-    const cstAllowed = await requestBinary({
-      port,
-      urlPath: `/uploads/${cstPdfName}?t=${encodeURIComponent(cstGate.json.downloadToken)}`,
-    });
-    assert.equal(cstAllowed.status, 200);
-    assert.ok(cstAllowed.data.toString('utf8').includes('%PDF'), 'Should return PDF bytes');
+    const cstDenied = await requestBinary({ port, urlPath: `/uploads/nonexistent.pdf` });
+    assert.equal(cstDenied.status, 404);
 
     const vaptId = `VAP-PDF-TEST-${String(Date.now() % 900000 + 100000)}`;
     const vaptCreate = await requestJson({
@@ -276,9 +266,8 @@ test('server critical API flows', async () => {
       ],
     });
     assert.equal(vaptAttachRes.status, 200);
-    const vaptPdfAtt = vaptAttachRes.json.attachments.find(a => a && a.url && a.url.toLowerCase().endsWith('.pdf'));
-    assert.ok(vaptPdfAtt && vaptPdfAtt.url, 'VAPT PDF attachment should exist');
-    const vaptPdfName = path.basename(vaptPdfAtt.url);
+    assert.ok(vaptAttachRes.json && Array.isArray(vaptAttachRes.json.attachments));
+    assert.equal(vaptAttachRes.json.attachments.length, 0, 'VAPT attachments should be empty');
 
     const vaptGate = await requestJson({
       method: 'POST',
@@ -286,18 +275,10 @@ test('server critical API flows', async () => {
       urlPath: `/api/vapt/verify-email/${vaptId}`,
       body: { email: 'vapt-recipient@example.com' },
     });
-    assert.equal(vaptGate.status, 200);
-    assert.ok(vaptGate.json && vaptGate.json.downloadToken, 'downloadToken should be issued for VAPT');
+    assert.equal(vaptGate.status, 404);
 
-    const vaptDenied = await requestBinary({ port, urlPath: `/uploads/${vaptPdfName}` });
-    assert.equal(vaptDenied.status, 403);
-
-    const vaptAllowed = await requestBinary({
-      port,
-      urlPath: `/uploads/${vaptPdfName}?t=${encodeURIComponent(vaptGate.json.downloadToken)}`,
-    });
-    assert.equal(vaptAllowed.status, 200);
-    assert.ok(vaptAllowed.data.toString('utf8').includes('%PDF'), 'Should return PDF bytes');
+    const vaptDenied = await requestBinary({ port, urlPath: `/uploads/nonexistent.pdf` });
+    assert.equal(vaptDenied.status, 404);
 
     // CSV import
     const importRes = await requestJson({
