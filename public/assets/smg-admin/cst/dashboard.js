@@ -34,8 +34,6 @@
         if (!r.ok) throw new Error();
         TOKEN = d.token;
         sessionStorage.setItem('adminToken', TOKEN);
-        // Also store for cross-tab session timer recovery
-        try { localStorage.setItem('smg-admin-token', TOKEN); } catch(e) {}
         document.getElementById('loginWrap').style.display = 'none';
         document.getElementById('appWrap').style.display = 'flex';
         if (window.syncButtons) window.syncButtons();
@@ -50,7 +48,6 @@
     }
     function doLogout() {
       sessionStorage.removeItem('adminToken'); TOKEN = '';
-      try { localStorage.removeItem('smg-admin-token'); } catch(e) {}
       if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
       document.getElementById('loginWrap').style.display = 'flex';
       document.getElementById('appWrap').style.display = 'none';
@@ -1203,6 +1200,8 @@
       if (!selectedIssueCertId) { toast('Select a certificate first.', 'warn'); return; }
       const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
       if (!recipEmail) { toast('Enter a recipient email address first.', 'warn'); return; }
+      const issueCert = CERTS.find(x => x.id === selectedIssueCertId);
+      const force = issueCert && (issueCert.emailStatus || '').toUpperCase() === 'SENT';
 
       const btn = document.getElementById('sendSesBtn');
       btn.disabled = true;
@@ -1215,7 +1214,7 @@
         const r = await fetch(API + '/certs/' + encodeURIComponent(selectedIssueCertId) + '/send-email', {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recipientEmail: recipEmail, baseUrl: window.location.origin })
+          body: JSON.stringify({ recipientEmail: recipEmail, baseUrl: window.location.origin, force })
         });
         const d = await r.json();
 
@@ -1249,7 +1248,9 @@
           return;
         } else {
           let errMsg;
-          if (r.status === 503 || d.sesEnabled === false) {
+          if (r.status === 409) {
+            errMsg = d.error || 'Email has already been sent for this certificate.';
+          } else if (r.status === 503 || d.sesEnabled === false) {
             errMsg = 'Email dispatch (AWS SES) is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.';
           } else {
             errMsg = d.error || d.sesError || ('Server error — HTTP ' + r.status);
@@ -2108,20 +2109,41 @@
       document.getElementById('csvImportTxt').textContent = 'Importing\u2026';
       const log = document.getElementById('csvResultLog');
       log.style.display = 'block'; log.innerHTML = '';
+      const CHUNK_SIZE = 500; // server contract: max 500 per batch
       let added = 0, skipped = 0, failed = 0;
-      for (const cert of records) {
-        if (!cert.id) { log.innerHTML += `<div style="color:var(--warn)">⚠ Skipped row \u2014 could not generate ID</div>`; skipped++; continue; }
-        if (CERTS.find(x => x.id === cert.id)) { log.innerHTML += `<div style="color:var(--warn)">⚠ Skipped ${cert.id} \u2014 already exists</div>`; skipped++; continue; }
+      const total = records.length;
+      for (let off = 0; off < records.length; off += CHUNK_SIZE) {
+        const chunk = records.slice(off, off + CHUNK_SIZE);
         try {
-          const fd = new FormData();
-          Object.entries(cert).forEach(([k, v]) => { if (v !== null && v !== undefined) fd.append(k, v); });
-          const r = await fetch(API + '/certs', { method: 'POST', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
-          if (r.ok) { const saved = await r.json(); CERTS.push(saved); log.innerHTML += `<div style="color:var(--teal)">✓ Created ${cert.id} \u2014 ${cert.recipientName}</div>`; added++; }
-          else { const e = await r.json(); log.innerHTML += `<div style="color:var(--invalid)">✗ Failed ${cert.id}: ${e.error||'Unknown error'}</div>`; failed++; }
-        } catch { log.innerHTML += `<div style="color:var(--invalid)">✗ Failed to import ${cert.id} — connection error.</div>`; failed++; }
+          const r = await fetch(API + '/import-csv', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify(chunk),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (r.ok) {
+            added += d.added || 0;
+            skipped += d.skipped || 0;
+            failed += d.failed || 0;
+            if (Array.isArray(d.results)) {
+              d.results.forEach(res => {
+                if (res.status === 'created') log.innerHTML += `<div style="color:var(--teal)">✓ Created ${res.id} \u2014 ${res.vessel || ''}</div>`;
+                else if (res.status === 'skipped') log.innerHTML += `<div style="color:var(--warn)">⚠ Skipped ${res.id} \u2014 ${res.reason || 'already exists'}</div>`;
+                else log.innerHTML += `<div style="color:var(--invalid)">✗ Failed ${res.id}: ${res.reason || 'Unknown error'}</div>`;
+              });
+            }
+          } else {
+            const msg = d.error || 'Unknown error';
+            failed += chunk.length;
+            log.innerHTML += `<div style="color:var(--invalid)">✗ Import batch failed: ${msg}</div>`;
+          }
+        } catch {
+          failed += chunk.length;
+          log.innerHTML += `<div style="color:var(--invalid)">✗ Import batch interrupted \u2014 connection error.</div>`;
+        }
         log.scrollTop = log.scrollHeight;
       }
-      log.innerHTML += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--gold)">Done \u2014 ✓ ${added} created \u00b7 ⚠ ${skipped} skipped \u00b7 ✗ ${failed} failed</div>`;
+      log.innerHTML += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--gold)">Done \u2014 ✓ ${added} created \u00b7 ⚠ ${skipped} skipped \u00b7 ✗ ${failed} failed (from ${total} record(s))</div>`;
       document.getElementById('csvImportTxt').textContent = 'Import All Records';
       btn.disabled = false;
       await refreshStats();
@@ -2397,7 +2419,7 @@ function applyConfig() {
 
   // Called by "Extend Session" button — re-verify token with server
   window.refreshSession = function () {
-    const tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('smg-admin-token') || '';
+    const tok = sessionStorage.getItem('adminToken') || '';
     if (!tok) return;
     fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + tok } })
       .then(function (r) {
@@ -2466,7 +2488,7 @@ function applyConfig() {
   };
 
   // If already logged in (page reload), start timers with token issue time if available
-  var _tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('smg-admin-token') || '';
+  var _tok = sessionStorage.getItem('adminToken') || '';
   if (_tok) {
     // Parse JWT payload to get iat (issued-at)
     try {

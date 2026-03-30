@@ -156,6 +156,7 @@
     // Reset email gate for new cert lookup
     _currentCertId = cert.id || '';
     _emailGateVerified = false;
+    _downloadToken = null;
     const valid   = isCertValid(cert);
     const expired = !valid && isCertExpired(cert);
     const pending = !valid && !expired && isCertPending(cert);
@@ -510,7 +511,7 @@
   }
 
   /* ── EMAIL GATE (CST) ───────────────────────────────────────────── */
-  let _pendingPdfUrl = null, _pendingPdfName = null, _currentCertId = '', _emailGateVerified = false;
+  let _pendingPdfUrl = null, _pendingPdfName = null, _currentCertId = '', _emailGateVerified = false, _downloadToken = null;
 
   function openPdfModal(url, name) {
     requestPdfAccess(url, name);
@@ -542,6 +543,8 @@
         body: JSON.stringify({ email: entered })
       });
       if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        _downloadToken = d && d.downloadToken ? d.downloadToken : null;
         _emailGateVerified = true;
         if (btn) { btn.textContent = '✓ Verified — Opening…'; }
         setTimeout(() => {
@@ -578,6 +581,11 @@
   }
 
   function _doPdfOpen(url, name) {
+    // Append the short-lived server token so `/uploads/:file` can validate access.
+    if (_downloadToken && url && url.indexOf('?t=') === -1) {
+      const sep = url.includes('?') ? '&' : '?';
+      url = url + sep + 't=' + encodeURIComponent(_downloadToken);
+    }
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 

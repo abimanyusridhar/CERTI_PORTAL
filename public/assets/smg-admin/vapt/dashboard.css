@@ -285,6 +285,12 @@
     .modal-sm{max-width:420px}
     @keyframes pop{from{opacity:0;transform:scale(.94) translateY(-14px)}to{opacity:1;transform:scale(1) translateY(0)}}
     .modal-hdr{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+
+    /* Header close button alignment (visual consistency across modals) */
+    .modal-hdr>button{
+      display:flex;align-items:center;justify-content:center;
+      width:32px;height:32px;padding:0;border-radius:10px;margin-left:auto
+    }
     .modal-title{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--text-bright)}
     .modal-body{padding:20px 24px;max-height:60vh;overflow-y:auto}
     .modal-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}

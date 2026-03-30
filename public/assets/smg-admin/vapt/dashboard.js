@@ -19,7 +19,6 @@
       if (!r.ok) throw new Error();
       TOKEN = d.token;
       sessionStorage.setItem('adminToken', TOKEN);
-      try { localStorage.setItem('smg-admin-token', TOKEN); } catch(e) {}
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('appWrap').style.display = 'flex';
       if (window.syncButtons) window.syncButtons();
@@ -31,7 +30,6 @@
   }
   function doLogout() {
     sessionStorage.removeItem('adminToken'); TOKEN = '';
-    try { localStorage.removeItem('smg-admin-token'); } catch(e) {}
     if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
     document.getElementById('loginWrap').style.display = 'flex';
     document.getElementById('appWrap').style.display = 'none';
@@ -1231,6 +1229,8 @@
     if (!selectedIssueCertId) { toast('Select a certificate first.', 'warn'); return; }
     const recipEmail = (document.getElementById('issueRecipEmail').value || '').trim();
     if (!recipEmail) { toast('Enter a recipient email address first.', 'warn'); return; }
+    const issueCert = CERTS.find(x => x.id === selectedIssueCertId);
+    const force = issueCert && (issueCert.emailStatus || '').toUpperCase() === 'SENT';
 
     const btn = document.getElementById('sendSesBtn');
     btn.disabled = true;
@@ -1243,7 +1243,7 @@
       const r = await fetch(`${API}/vapt/certs/${encodeURIComponent(selectedIssueCertId)}/send-email`, {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientEmail: recipEmail, baseUrl: window.location.origin })
+        body: JSON.stringify({ recipientEmail: recipEmail, baseUrl: window.location.origin, force })
       });
       const d = await r.json();
 
@@ -1277,7 +1277,9 @@
         return;
       } else {
         let errMsg;
-        if (r.status === 503 || d.sesEnabled === false) {
+        if (r.status === 409) {
+          errMsg = d.error || 'Email has already been sent for this certificate.';
+        } else if (r.status === 503 || d.sesEnabled === false) {
           errMsg = 'Email dispatch (AWS SES) is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.';
         } else {
           errMsg = d.error || d.sesError || ('Server error — HTTP ' + r.status);
@@ -1829,7 +1831,7 @@ function applyConfig() {
   window.resetIdle = function () { hideIdleWarn(); startIdleTimeout(); };
 
   window.refreshSession = function () {
-    var tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('adminToken') || '';
+    var tok = sessionStorage.getItem('adminToken') || '';
     if (!tok) return;
     fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + tok } })
       .then(function (r) { if (r.ok) { hideSessionWarn(); if (_sessionStart) _sessionStart = Date.now(); scheduleSessionTimers(); } else { if (typeof doLogout === 'function') doLogout(); } })
@@ -1863,7 +1865,7 @@ function applyConfig() {
   window._startSessionTimers = function (startMs) { _sessionStart = startMs || Date.now(); scheduleSessionTimers(); startIdleTimeout(); };
 
   // Auto-start if already logged in (token in storage)
-  var tok = localStorage.getItem('smg-admin-token') || sessionStorage.getItem('adminToken') || '';
+  var tok = sessionStorage.getItem('adminToken') || '';
   if (tok) {
     try { var parts = tok.split('.'); if (parts.length === 3) { var p = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/'))); if (p && p.iat) _sessionStart = p.iat; } } catch(e) {}
     if (!_sessionStart) _sessionStart = Date.now();

@@ -1862,6 +1862,18 @@
       gap: 12px;
     }
 
+    /* Header close button alignment (visual consistency across modals) */
+    .modal-hdr > button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 10px;
+      margin-left: auto;
+    }
+
     .modal-title {
       font-family: 'Playfair Display', serif;
       font-size: 1.05rem;

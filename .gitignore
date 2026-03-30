@@ -1,12 +1,55 @@
 
+# --- Environment files (never commit real credentials) ---
 .env
+.env.*
+!.env.example
+
+# --- IDE / editor settings ---
+.idea/
+.vscode/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Logs / temp / caches ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+tmp/
+.cache/
+.nyc_output/
+
+# --- Common build output (if you generate any locally) ---
+node_modules/
+dist/
+build/
+coverage/
+.next/
+out/
+
+# --- App data that contains secrets / user tracking ---
 data/.keys.json
 data/certificates.json
 data/vapt_certificates.json
+data/*/.keys.json
+data/*/certificates.json
+data/*/vapt_certificates.json
+data/*/tracking_events.jsonl
+data/*/email_log.jsonl
+data/*/vapt_email_log.jsonl
 data/email_log.jsonl
 data/vapt_email_log.jsonl
+data/tracking_events.jsonl
+
+# --- User uploads (generated at runtime) ---
 uploads/
-node_modules/
-.DS_Store
-Thumbs.db
+uploads/*/
+
+# --- Sample file(s) you don't want committed ---
 SAMPLE_CSV_DATA.csv

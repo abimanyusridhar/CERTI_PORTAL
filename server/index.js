@@ -45,18 +45,62 @@ const { createHealthRoute } = require('./routes/health');
 const { createAuthRoutes } = require('./routes/auth');
 
 // ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
-const CFG = require('../config/app.config');
+let CFG = require('../config/app.config');
 
 // ─── ENV LOADER ──────────────────────────────────────────────────────────────
 loadDotEnv(log, __dirname);
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT           = parseInt(process.env.PORT || '3000', 10);
-const DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
-const VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
-const TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
-const UPLOADS_DIR      = path.join(__dirname, '..', 'uploads');
-const KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
+let DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
+let VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
+let TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
+let UPLOADS_DIR      = path.join(__dirname, '..', 'uploads');
+let KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
+let TENANT_CFG_FILE  = null;
+
+// ─── TENANT ISOLATION (SaaS Phase 1) ────────────────────────────────────────
+// When TENANT_ID is set, all tenant data (CST/VAPT JSON, tracking JSONL,
+// crypto keys, and uploads) are persisted under:
+//   data/<TENANT_ID>/...
+//   uploads/<TENANT_ID>/...
+function sanitiseTenantId(raw) {
+  if (!raw && raw !== '') return null;
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (!v) return null;
+  // Allow stable filesystem-friendly IDs: letters, digits, _ and -
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$/.test(v)) return null;
+  return v;
+}
+const TENANT_ID_RAW = process.env.TENANT_ID;
+const TENANT_ID = sanitiseTenantId(TENANT_ID_RAW);
+if (typeof TENANT_ID_RAW === 'string' && TENANT_ID_RAW.trim() !== '' && !TENANT_ID) {
+  log.error('Invalid TENANT_ID. Use 1-48 chars: letters/digits/_/- only, starting with alphanumeric.');
+  process.exit(1);
+}
+if (TENANT_ID) {
+  const TENANT_DATA_DIR = path.join(__dirname, '..', 'data', TENANT_ID);
+  DATA_FILE      = path.join(TENANT_DATA_DIR, 'certificates.json');
+  VAPT_DATA_FILE = path.join(TENANT_DATA_DIR, 'vapt_certificates.json');
+  TRACK_FILE     = path.join(TENANT_DATA_DIR, 'tracking_events.jsonl');
+  UPLOADS_DIR    = path.join(__dirname, '..', 'uploads', TENANT_ID);
+  KEYS_FILE      = path.join(TENANT_DATA_DIR, '.keys.json');
+  log.info('Tenant isolation enabled:', TENANT_ID);
+
+  // Optional: tenant-specific branding + email templates + route labels
+  // File location:
+  //   config/tenants/<TENANT_ID>/app.config.js
+  TENANT_CFG_FILE = path.join(__dirname, '..', 'config', 'tenants', TENANT_ID, 'app.config.js');
+  if (fs.existsSync(TENANT_CFG_FILE)) {
+    try {
+      CFG = require(TENANT_CFG_FILE);
+      log.info('Tenant config loaded:', TENANT_CFG_FILE);
+    } catch (e) {
+      log.error('Failed to load tenant config, falling back to default:', e && e.message ? e.message : e);
+    }
+  }
+}
 
 // ─── DEPLOYMENT CONFIG ───────────────────────────────────────────────────────
 const BASE_ORIGIN = (process.env.BASE_ORIGIN || `http://localhost:${PORT}`).replace(/\/+$/, '');
@@ -184,6 +228,47 @@ function verifyCertUrlSignature(encToken, sig) {
   return security.verifyCertUrlSignature(encToken, sig);
 }
 
+// ─── SERVER-ISSUED DOWNLOAD TOKENS (PDF Gating) ──────────────────────────
+// Used to gate access to confidential PDF attachments after a successful
+// email verification. The token is short-lived and tied to `certId` + kind.
+const DOWNLOAD_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function issueDownloadToken(certId, kind /* 'cst' | 'vapt' */) {
+  const payload = {
+    sub: certId,
+    kind,
+    iat: Date.now(),
+    exp: Date.now() + DOWNLOAD_TOKEN_TTL_MS,
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', KEYS.urlMacKey).update(payloadB64).digest('base64url');
+  return `${payloadB64}.${sig}`;
+}
+
+function verifyDownloadToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+
+  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(payloadB64).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length) return null;
+  if (!crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    if (!payload || payload.sub == null || !payload.kind) return null;
+    if (payload.kind !== 'cst' && payload.kind !== 'vapt') return null;
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return null;
+    if (Date.now() > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 function buildCertUrl(certId, baseUrl) {
   return security.buildCertUrl(certId, baseUrl);
 }
@@ -193,6 +278,7 @@ const rateLimits = new Map();
 const RATE_LIMITS = {
   verify:  { max: 30,  window: 60_000  },
   login:   { max: 5,   window: 300_000 },
+  track:   { max: 200, window: 60_000  },
   default: { max: 120, window: 60_000  },
 };
 // FIX: cap Map size to prevent memory exhaustion from unique-IP floods
@@ -1301,6 +1387,8 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/track-event ── (public — cert viewed / document downloaded from browser)
   if (route === '/track-event' && method === 'POST') {
+    const rl = checkRateLimit(ip, 'track');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
     let body;
     try { body = JSON.parse(await getBody(req, 3000)); } catch { return sendJSON(res, 400, {}, corsH); }
     const { certId: rawId, event, file, kind } = body || {};
@@ -1498,6 +1586,7 @@ async function handleAPI(req, res, parsed) {
 
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
+    const force = Boolean(body && body.force === true);
 
     // Allow the dashboard to supply an updated recipientEmail in the request body
     const overrideEmail = (body && typeof body.recipientEmail === 'string' && body.recipientEmail.trim())
@@ -1508,6 +1597,14 @@ async function handleAPI(req, res, parsed) {
       data[certId] = cert;
       // Persist the email update immediately so it survives even if send fails
       saveData(data);
+    }
+
+    if ((cert.emailStatus || '').toUpperCase() === 'SENT' && !force) {
+      return sendJSON(res, 409, {
+        error: 'Email has already been sent for this certificate.',
+        emailStatus: 'SENT',
+        emailSentAt: cert.emailSentAt || null,
+      }, corsH);
     }
 
     if (!cert.recipientEmail)
@@ -1707,8 +1804,9 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── POST /api/verify-email/:certId ── (public — gate check for CST PDF access)
-  // Accepts { email } in JSON body. Returns { ok: true } only when email matches
-  // the stored recipientEmail (case-insensitive, timing-safe). Never reveals the email.
+  // Accepts { email } in JSON body.
+  // Returns { ok: true, downloadToken } only when email matches the stored recipientEmail
+  // (case-insensitive, timing-safe). Never reveals the email.
   if (route.match(/^\/verify-email\/[^/]+$/) && method === 'POST') {
     const rl = checkRateLimit(ip, 'verify');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
@@ -1732,7 +1830,7 @@ async function handleAPI(req, res, parsed) {
       await new Promise(r => setTimeout(r, 150 + Math.random() * 100)); // delay brute-force
       return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
     }
-    return sendJSON(res, 200, { ok: true }, corsH);
+    return sendJSON(res, 200, { ok: true, downloadToken: issueDownloadToken(certId, 'cst') }, corsH);
   }
 
   // ── POST /api/vapt/verify-email/:certId ── (public — gate check for VAPT PDF access)
@@ -1757,7 +1855,7 @@ async function handleAPI(req, res, parsed) {
       await new Promise(r => setTimeout(r, 150 + Math.random() * 100));
       return sendJSON(res, 403, { error: 'Email does not match' }, corsH);
     }
-    return sendJSON(res, 200, { ok: true }, corsH);
+    return sendJSON(res, 200, { ok: true, downloadToken: issueDownloadToken(certId, 'vapt') }, corsH);
   }
 
   // ── GET /api/vapt/verify-by-id/:certId ── (public)
@@ -2018,6 +2116,14 @@ async function handleAPI(req, res, parsed) {
       saveVaptData(data);
     }
 
+    if ((cert.emailStatus || '').toUpperCase() === 'SENT' && !force) {
+      return sendJSON(res, 409, {
+        error: 'Email has already been sent for this certificate.',
+        emailStatus: 'SENT',
+        emailSentAt: cert.emailSentAt || null,
+      }, corsH);
+    }
+
     if (!cert.recipientEmail) return sendJSON(res, 400, { error: 'No recipient email on this certificate. Add an email address first.' }, corsH);
     if ((cert.issuerEmail || '').trim().toLowerCase() === (cert.recipientEmail || '').trim().toLowerCase())
       return sendJSON(res, 400, { error: 'Issuer and recipient email cannot be the same' }, corsH);
@@ -2196,6 +2302,30 @@ async function handleRequest(req, res) {
       } catch { /* non-fatal */ }
     }
 
+    // Confidential PDF attachments are gated by a short-lived, server-issued token.
+    // Admin panel requests are temporarily allowed via referer allowance to avoid
+    // forcing token plumbing in legacy dashboard flows.
+    if (isPdf && !isAdminReferer) {
+      const downloadToken = parsed.searchParams.get('t') || '';
+      const payload = verifyDownloadToken(downloadToken);
+      if (!payload) {
+        res.writeHead(403, SECURITY_HEADERS);
+        return res.end('Forbidden');
+      }
+
+      const fileUrl = '/uploads/' + fname;
+      const data = payload.kind === 'vapt' ? loadVaptData() : loadData();
+      const cert = data && payload.sub ? data[payload.sub] : null;
+      const owns = cert && (
+        cert.certificateImage === fileUrl ||
+        (Array.isArray(cert.attachments) && cert.attachments.some(a => a.url === fileUrl))
+      );
+      if (!owns) {
+        res.writeHead(403, SECURITY_HEADERS);
+        return res.end('Forbidden');
+      }
+    }
+
     try {
       const content = fs.readFileSync(fpath);
       res.writeHead(200, {
@@ -2215,7 +2345,10 @@ async function handleRequest(req, res) {
 
   // ── Config (browser-side app.config.js) ──────────────────────────────────
   if (p === '/config.js') {
-    return sendFile(res, path.join(__dirname, '..', 'config', 'app.config.js'), req);
+    const cfgPath = (TENANT_CFG_FILE && fs.existsSync(TENANT_CFG_FILE))
+      ? TENANT_CFG_FILE
+      : path.join(__dirname, '..', 'config', 'app.config.js');
+    return sendFile(res, cfgPath, req);
   }
 
   // ── API (shared) ──────────────────────────────────────────────────────────
