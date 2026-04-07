@@ -53,3 +53,9 @@ uploads/*/
 
 # --- Sample file(s) you don't want committed ---
 SAMPLE_CSV_DATA.csv
+
+# --- Documentation files (generated/temporary markdown) ---
+*.md
+!README.md
+!(/)docs/
+!(/)docs/**/*.md

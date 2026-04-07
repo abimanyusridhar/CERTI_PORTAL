@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug: renderTbl Test</title>
+  <link rel="stylesheet" href="/assets/shared-styles.css" />
+  <link rel="stylesheet" href="/assets/responsive-refinements.css" />
+  <link rel="stylesheet" href="/assets/smg-admin/cst/dashboard.css" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .debug-panel { background: #f0f0f0; padding: 15px; margin-bottom: 20px; border: 1px solid #ccc; }
+    .btn { padding: 8px 12px; background: #333; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    .btn:hover { background: #555; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    #testTable { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>renderTbl Debugging Test</h1>
+  
+  <div class="debug-panel">
+    <h2>Test Information</h2>
+    <p><strong>Purpose:</strong> Test if renderTbl function can render tables correctly with sample data</p>
+    <p><strong>Status:</strong> <span id="status">Loading...</span></p>
+    <p><strong>Logger Output:</strong></p>
+    <textarea id="debug-log" style="width:100%; height:150px; font-family:monospace; padding:10px; border:1px solid #ccc;">Initializing test...
+</textarea>
+  </div>
+
+  <div class="debug-panel">
+    <h2>Test Actions</h2>
+    <button class="btn" onclick="testRenderTbl()">Test renderTbl() Function</button>
+    <button class="btn" onclick="testShowPage()">Test showPage() Function</button>
+    <button class="btn" onclick="clearLog()">Clear Log</button>
+  </div>
+
+  <!-- Sample table container -->
+  <div class="page" id="page-certs" style="display:block; padding: 0;">
+    <div class="table-card">
+      <div class="tbl-hdr">
+        <div class="tbl-title">All Certificates (Test)</div>
+        <div id="allCertCount" style="margin-left:auto"><strong>0</strong> records</div>
+      </div>
+      <div id="allTbl"></div>
+    </div>
+  </div>
+
+  <script>
+    // Override console.log to capture debug output
+    const logs = [];
+    const originalLog = console.log;
+    console.log = function(...args) {
+      logs.push(args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '));
+      updateLog();
+      originalLog.apply(console, args);
+    };
+
+    function updateLog() {
+      document.getElementById('debug-log').value = logs.join('\n');
+      document.getElementById('debug-log').scrollTop = document.getElementById('debug-log').scrollHeight;
+    }
+
+    function clearLog() {
+      logs.length = 0;
+      updateLog();
+    }
+
+    // Sample CERTS data
+    const sampleCERTS = [
+      {
+        id: "CST-9623740-Q1-26",
+        recipientName: "MV - NORD KUDU",
+        vesselName: "NORD KUDU",
+        vesselIMO: "9623740",
+        chiefEngineer: "BARREGA WILLIE",
+        trainingMode: "ONLINE",
+        complianceQuarter: "Q1",
+        status: "VALID",
+        validUntil: "2026-06-30",
+        emailStatus: "SENT",
+        certificateImage: "/images/sample.png"
+      },
+      {
+        id: "CST-9876543-Q2-26",
+        recipientName: "MT - ARCTIC HORIZON",
+        vesselName: "ARCTIC HORIZON",
+        vesselIMO: "9876543",
+        chiefEngineer: "SMITH JOHN",
+        trainingMode: "HYBRID",
+        complianceQuarter: "Q2",
+        status: "PENDING",
+        validUntil: "2026-09-30",
+        emailStatus: "NOT_SENT",
+        certificateImage: null
+      }
+    ];
+
+    function testRenderTbl() {
+      console.log('=== Starting testRenderTbl() ===');
+      console.log('Setting CERTS = sampleCERTS');
+      
+      // Make CERTS available globally
+      window.CERTS = sampleCERTS;
+      
+      console.log(`CERTS loaded: ${window.CERTS.length} records`);
+      console.log(`First cert: ${JSON.stringify(window.CERTS[0])}`);
+      
+      // Now try to call renderTbl
+      try {
+        console.log('Calling renderTbl("allTbl", "")...');
+        renderTbl('allTbl', '', '', '', '', '');
+        console.log('✓ renderTbl() completed successfully');
+        document.getElementById('status').textContent = 'renderTbl SUCCESS';
+        document.getElementById('status').style.color = 'green';
+      } catch(e) {
+        console.error('✗ renderTbl() failed with error:', e.message);
+        console.error('Stack:', e.stack);
+        document.getElementById('status').textContent = 'renderTbl FAILED: ' + e.message;
+        document.getElementById('status').style.color = 'red';
+      }
+    }
+
+    function testShowPage() {
+      console.log('=== Starting testShowPage() ===');
+      try {
+        console.log('Calling showPage("certs", null)...');
+        showPage('certs', null);
+        console.log('✓ showPage() completed successfully');
+        document.getElementById('status').textContent = 'showPage SUCCESS';
+        document.getElementById('status').style.color = 'green';
+      } catch(e) {
+        console.error('✗ showPage() failed with error:', e.message);
+        document.getElementById('status').textContent = 'showPage FAILED: ' + e.message;
+        document.getElementById('status').style.color = 'red';
+      }
+    }
+
+    // Placeholder implementations if functions don't exist
+    function renderTbl(id, q, statusFilter, quarterFilter, modeFilter, emailFilter) {
+      throw new Error('renderTbl function not found - dashboard.js not loaded');
+    }
+
+    function showPage(name, el) {
+      throw new Error('showPage function not found - dashboard.js not loaded');
+    }
+
+    console.log('Test page loaded');
+    console.log('Load dashboard.js to test actual functions...');
+    document.getElementById('status').textContent = 'Ready - click test buttons';
+    document.getElementById('status').style.color = 'blue';
+  </script>
+
+  <!-- Load the actual dashboard.js to enable real testing -->
+  <script src="/assets/smg-admin/cst/dashboard.js" defer></script>
+</body>
+</html>

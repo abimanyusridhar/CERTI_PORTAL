@@ -536,7 +536,17 @@
     }
     function renderTbl(id, q, statusFilter, quarterFilter, modeFilter, emailFilter) {
       const el = document.getElementById(id);
-      let list = CERTS;
+      if (!el) {
+        console.warn('[WARNING] renderTbl: Element not found with id=' + id);
+        return;
+      }
+      
+      // Force visibility and proper display
+      el.style.display = 'block';
+      el.style.visibility = 'visible';
+      el.style.minHeight = 'auto';
+      
+      let list = CERTS || [];
       if (q) { const ql = q.toLowerCase(); list = list.filter(c => c.id.toLowerCase().includes(ql) || (c.recipientName || '').toLowerCase().includes(ql) || (c.vesselIMO || '').includes(ql) || (c.vesselName || '').toLowerCase().includes(ql) || (c.chiefEngineer || '').toLowerCase().includes(ql)); }
       if (statusFilter) {
         if (statusFilter === 'EXPIRED') {
@@ -562,7 +572,7 @@
       if (cb) cb.style.display = (q || statusFilter || quarterFilter || modeFilter || emailFilter) ? '' : 'none';
       if (!list.length) { el.innerHTML = `<div class="empty-state"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto;opacity:.3"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>No certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:6px">Try adjusting your search or clearing filters</p></div>`; return; }
       const isDash = id === 'dashTbl';
-      el.innerHTML = `<div class="tbl-scroll-wrap"><table><colgroup>
+      const tableHTML = `<div class="tbl-scroll-wrap" style="display:block!important;visibility:visible!important;height:auto!important;min-height:200px!important;overflow:visible!important"><table style="display:table!important;visibility:visible!important;width:100%!important;border-collapse:collapse!important"><colgroup>
     <col style="width:160px"><!-- Cert ID -->
     <col style="width:185px"><!-- Vessel/Recipient -->
     <col style="width:88px"> <!-- IMO -->
@@ -575,9 +585,9 @@
     <col style="width:140px"><!-- Engagement -->
     ${!isDash ? '<col style="width:72px">' : ''}<!-- Image -->
     <col style="min-width:180px"><!-- Actions (fill rest) -->
-  </colgroup><thead><tr>
+  </colgroup><thead style="display:table-header-group!important;visibility:visible!important"><tr style="display:table-row!important;visibility:visible!important">
     <th>Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
-  </tr></thead><tbody>`+ (isDash ? list.slice(0, 10) : list).map(c => {
+  </tr></thead><tbody style="display:table-row-group!important;visibility:visible!important">`+ (isDash ? list.slice(0, 10) : list).map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isV = c.status === 'VALID' && (!vu || vu >= now);
         const pillCls = c.status === 'PENDING' ? 'pending' : c.status === 'VALID' ? (isV ? 'valid' : 'expired') : c.status.toLowerCase();
@@ -625,24 +635,24 @@
         const modeBadge = modeVal
           ? `<span style="font-size:.6rem;font-weight:600;color:${modeColors[modeVal]||'var(--text-sec)'};">${modeVal}</span>`
           : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
-        return `<tr>
-      <td><span class="cid" title="${c.id}">${c.id}</span></td>
-      <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName || '—'}</div>${c.vesselName && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>` : ''}</td>
-      <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO || '—'}</span></td>
-      <td style="font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.chiefEngineer || '—'}</td>
-      <td>${qBadge}</td>
-      <td>${modeBadge}</td>
-      <td><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${c.id}" onchange="quickStatusChange('${c.id}',this.value,this)" title="Change status">
+        return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${c.id}">${c.id}</span></td>
+      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName || '—'}</div>${c.vesselName && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>` : ''}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO || '—'}</span></td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.chiefEngineer || '—'}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${qBadge}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${modeBadge}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${c.id}" onchange="quickStatusChange('${c.id}',this.value,this)" title="Change status">
         <option value="VALID" ${c.status==='VALID'?'selected':''}>✓ VALID</option>
         <option value="PENDING" ${c.status==='PENDING'?'selected':''}>⏳ PENDING</option>
         <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
         <option value="REVOKED" ${c.status==='REVOKED'?'selected':''}>🚫 REVOKED</option>
       </select></td>
-      <td style="color:${vlColor};font-size:.76rem;white-space:nowrap">${vl}</td>
-      <td><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
-      <td class="eng-cell">${engCell}</td>
-      ${!isDash ? `<td>${imgEl}</td>` : ''}
-      <td><div class="act-grp">
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;color:${vlColor};font-size:.76rem;white-space:nowrap">${vl}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
+      <td class="eng-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${engCell}</td>
+      ${!isDash ? `<td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${imgEl}</td>` : ''}
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div class="act-grp">
         <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
         <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
         <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
@@ -650,7 +660,26 @@
         <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Delete</button>
       </div></td>
     </tr>`;
-      }).join('') + '</tbody></table></div>';
+      }).join('') + `</tbody></table></div>`;
+      
+      // Set the complete HTML with all inline visibility styles
+      el.innerHTML = tableHTML;
+      
+      // Ensure table wrapper and table are visible
+      setTimeout(() => {
+        const tblWrapper = el.querySelector('.tbl-scroll-wrap');
+        const tbl = el.querySelector('table');
+        if (tblWrapper) {
+          tblWrapper.style.display = 'block';
+          tblWrapper.style.visibility = 'visible';
+          tblWrapper.style.minHeight = '200px';
+        }
+        if (tbl) {
+          tbl.style.display = 'table';
+          tbl.style.visibility = 'visible';
+        }
+      }, 0);
+      
       el.querySelectorAll('img.thumb[data-haserr]').forEach(img => {
         img.addEventListener('error', function() {
           this.style.display = 'none';
@@ -664,18 +693,43 @@
     // MODULE: Pages
     // ════════════════════════════════════════════════════
     function showPage(name, el) {
-      ['dashboard', 'certs', 'add', 'issue', 'csv', 'validity'].forEach(p => {
-        document.getElementById('page-' + p).style.display = p === name ? '' : 'none';
-      });
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      if (el) el.classList.add('active');
-      const titles = { dashboard: ['Dashboard', 'Admin › Overview'], certs: ['All Certificates', 'Admin › Certificates'], add: [editingId ? 'Edit Certificate' : 'Add Certificate', 'Admin › ' + (editingId ? 'Edit' : 'Add')], issue: ['Issue Credentials', 'Admin › Issue'], csv: ['Import CSV', 'Admin › CSV Import'], validity: ['Internal Validity', 'Admin › Internal Validity'] };
-      const [t, b] = titles[name] || ['', ''];
-      document.getElementById('pageTitle').textContent = t;
-      document.getElementById('pageBread').textContent = b;
-      if (name === 'certs') renderTbl('allTbl', '');
-      if (name === 'issue') { renderIssueList(''); refreshStats(); }
-      if (name === 'validity') renderValidityPage();
+      try {
+        ['dashboard', 'certs', 'add', 'issue', 'csv', 'validity'].forEach(p => {
+          const pageEl = document.getElementById('page-' + p);
+          if (pageEl) {
+            if (p === name) {
+              pageEl.style.display = '';
+              pageEl.style.visibility = 'visible';
+              pageEl.style.opacity = '1';
+            } else {
+              pageEl.style.display = 'none';
+              pageEl.style.visibility = 'hidden';
+            }
+          }
+        });
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        if (el) el.classList.add('active');
+        const titles = { dashboard: ['Dashboard', 'Admin › Overview'], certs: ['All Certificates', 'Admin › Certificates'], add: [editingId ? 'Edit Certificate' : 'Add Certificate', 'Admin › ' + (editingId ? 'Edit' : 'Add')], issue: ['Issue Credentials', 'Admin › Issue'], csv: ['Import CSV', 'Admin › CSV Import'], validity: ['Internal Validity', 'Admin › Internal Validity'] };
+        const [t, b] = titles[name] || ['', ''];
+        const titleEl = document.getElementById('pageTitle');
+        const breadEl = document.getElementById('pageBread');
+        if (titleEl) titleEl.textContent = t;
+        if (breadEl) breadEl.textContent = b;
+        if (name === 'certs') {
+          const alltblEl = document.getElementById('allTbl');
+          if (!alltblEl) console.warn('[WARNING] page-certs: #allTbl element not found');
+          // Ensure the table container is visible
+          if (alltblEl) {
+            alltblEl.style.display = 'block';
+            alltblEl.style.visibility = 'visible';
+          }
+          renderTbl('allTbl', '');
+        }
+        if (name === 'issue') { renderIssueList(''); refreshStats(); }
+        if (name === 'validity') renderValidityPage();
+      } catch (err) {
+        console.error('[ERROR] showPage() error:', err);
+      }
     }
     function startAdd() {
       issuanceMode = false; editingId = null; resetForm();
