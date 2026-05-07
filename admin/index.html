@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Portal Hub — Synergy Marine Group</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none';" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared-styles.css" />
+  <script src="/config.js" defer></script>
+  <script src="/assets/pubsub.js" defer></script>
+  <script src="/assets/theme-toggle.js" defer></script>
+  <style>
+    body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
+
+    .hub-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .hub-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(100,255,218,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.025) 1px,transparent 1px); background-size: 40px 40px; }
+    .hub-orb-1 { position: absolute; top: -120px; left: -120px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(212,168,67,.06) 0%, transparent 65%); border-radius: 50%; }
+    .hub-orb-2 { position: absolute; bottom: -80px; right: -80px; width: 480px; height: 480px; background: radial-gradient(circle, rgba(100,255,218,.04) 0%, transparent 65%); border-radius: 50%; }
+
+    .hub-wrap { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; padding: 40px 24px 60px; }
+
+    /* ── Top Bar ── */
+    .hub-topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; padding: 12px 18px; background: rgba(17,34,64,.7); border: 1px solid var(--border); border-radius: 14px; backdrop-filter: blur(8px); }
+    .hub-topbar-logos { display: flex; align-items: center; gap: 10px; }
+    .hub-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: contain; border: 1px solid var(--border-gold); background: rgba(212,168,67,.06); padding: 3px; }
+    .hub-brand-text { flex: 1; }
+    .hub-brand-name { font-family: 'Playfair Display', serif; font-size: .95rem; color: var(--text-bright); font-weight: 700; }
+    .hub-brand-sub { font-size: .62rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; margin-top: 1px; }
+    .hub-topbar-actions { display: flex; align-items: center; gap: 10px; }
+    .hub-health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background .4s; }
+    .hub-health-label { font-size: .6rem; color: var(--text-sec); letter-spacing: .08em; }
+
+    /* ── Hero ── */
+    .hub-hero { text-align: center; margin-bottom: 36px; }
+    .hub-hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: .65rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); background: rgba(212,168,67,.07); border: 1px solid rgba(212,168,67,.22); border-radius: 20px; padding: 5px 14px; margin-bottom: 16px; }
+    .hub-hero-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--text-bright); font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+    .hub-hero-sub { font-size: .82rem; color: var(--text-sec); max-width: 520px; margin: 0 auto; line-height: 1.75; }
+
+    /* ── Stats Row ── */
+    .hub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+    .hub-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: center; transition: border-color .2s; }
+    .hub-stat:hover { border-color: var(--border-gold); }
+    .hub-stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text-bright); }
+    .hub-stat-lbl { font-size: .62rem; color: var(--text-sec); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+
+    /* ── Module Cards ── */
+    .hub-modules { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 28px; }
+    .hub-module { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: all .22s; cursor: default; }
+    .hub-module:hover { border-color: var(--border-gold); box-shadow: 0 8px 40px rgba(0,0,0,.3); transform: translateY(-2px); }
+    .hub-module-hdr { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+    .hub-module-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; padding: 4px 11px; border-radius: 20px; margin-bottom: 10px; }
+    .badge-cst { background: rgba(212,168,67,.08); color: var(--gold); border: 1px solid rgba(212,168,67,.25); }
+    .badge-vapt { background: rgba(100,255,218,.07); color: var(--teal); border: 1px solid rgba(100,255,218,.22); }
+    .hub-module-title { font-size: 1rem; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+    .hub-module-desc { font-size: .75rem; color: var(--text-sec); line-height: 1.65; }
+    .hub-module-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 20px; background: rgba(255,255,255,.014); border-bottom: 1px solid var(--border); }
+    .hub-mstat { text-align: center; }
+    .hub-mstat-num { font-family: 'JetBrains Mono', monospace; font-size: .95rem; font-weight: 700; color: var(--text-bright); }
+    .hub-mstat-lbl { font-size: .55rem; color: var(--text-sec); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+    .hub-module-foot { padding: 12px 20px; display: flex; gap: 8px; }
+    .hub-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-decoration: none; transition: all .18s; white-space: nowrap; cursor: pointer; border: none; }
+    .hub-btn-primary { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--border-gold); }
+    .hub-btn-primary:hover { background: rgba(212,168,67,.18); border-color: var(--gold); }
+    .hub-btn-teal { background: rgba(100,255,218,.06); color: var(--teal); border: 1px solid rgba(100,255,218,.22); }
+    .hub-btn-teal:hover { background: rgba(100,255,218,.14); border-color: rgba(100,255,218,.5); }
+    .hub-btn-ghost { background: none; color: var(--text-sec); border: 1px solid var(--border); }
+    .hub-btn-ghost:hover { color: var(--text-bright); border-color: rgba(255,255,255,.18); }
+
+    /* ── Public Portals ── */
+    .hub-portals { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 28px; }
+    .hub-portals-title { font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); margin-bottom: 14px; }
+    .hub-portals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hub-portal-link { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; text-decoration: none; transition: all .2s; }
+    .hub-portal-link:hover { border-color: var(--border-gold); background: rgba(212,168,67,.03); }
+    .hub-portal-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-cst { background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.2); }
+    .icon-vapt { background: rgba(100,255,218,.06); border: 1px solid rgba(100,255,218,.2); }
+    .hub-portal-name { font-size: .78rem; font-weight: 600; color: var(--text-bright); }
+    .hub-portal-url { font-size: .62rem; color: var(--text-sec); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+    /* ── Footer ── */
+    .hub-footer { text-align: center; padding-top: 24px; border-top: 1px solid var(--border); font-size: .65rem; color: var(--text-sec); line-height: 2; }
+
+    /* ── Skeleton shimmer ── */
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .skel { background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; display: inline-block; }
+
+    @media (max-width: 680px) {
+      .hub-modules { grid-template-columns: 1fr; }
+      .hub-stats { grid-template-columns: repeat(2, 1fr); }
+      .hub-portals-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hub-bg" aria-hidden="true">
+  <div class="hub-grid"></div>
+  <div class="hub-orb-1"></div>
+  <div class="hub-orb-2"></div>
+</div>
+
+<div class="hub-wrap">
+
+  <!-- Top Bar -->
+  <div class="hub-topbar">
+    <div class="hub-topbar-logos">
+      <img src="/images/SYN.png" class="hub-logo" alt="Synergy Marine Group" />
+      <img src="/images/AFT.png" class="hub-logo" alt="AFT" />
+    </div>
+    <div class="hub-brand-text">
+      <div class="hub-brand-name" id="hubBrandName">Synergy Marine Group</div>
+      <div class="hub-brand-sub">Admin Portal Hub · Cyber Security Division</div>
+    </div>
+    <div class="hub-topbar-actions">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="hub-health-dot" id="serverDot"></div>
+        <span class="hub-health-label" id="serverLabel">Server</span>
+      </div>
+      <div style="width:1px;height:16px;background:var(--border)"></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="hub-health-dot" id="mailDot"></div>
+        <span class="hub-health-label" id="mailLabel">Mail</span>
+      </div>
+      <div style="width:1px;height:16px;background:var(--border)"></div>
+      <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hub-hero">
+    <div class="hub-hero-eyebrow">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Admin Portal Hub
+    </div>
+    <h1 class="hub-hero-title">Certificate Registry<br><em style="color:var(--gold);font-style:normal">Command Centre</em></h1>
+    <p class="hub-hero-sub">Unified entry point for all certificate management operations. Select a module below to access the admin dashboard.</p>
+  </div>
+
+  <!-- Live Stats Row -->
+  <div class="hub-stats" id="hubStats">
+    <div class="hub-stat"><div class="hub-stat-num" id="statTotalCst"><span class="skel" style="width:32px;height:20px"></span></div><div class="hub-stat-lbl">CST Certs</div></div>
+    <div class="hub-stat"><div class="hub-stat-num" id="statTotalVapt"><span class="skel" style="width:32px;height:20px"></span></div><div class="hub-stat-lbl">VAPT Certs</div></div>
+    <div class="hub-stat"><div class="hub-stat-num" id="statActiveCst"><span class="skel" style="width:28px;height:20px"></span></div><div class="hub-stat-lbl">CST Valid</div></div>
+    <div class="hub-stat"><div class="hub-stat-num" id="statActiveVapt"><span class="skel" style="width:28px;height:20px"></span></div><div class="hub-stat-lbl">VAPT Valid</div></div>
+  </div>
+
+  <!-- Module Cards -->
+  <div class="hub-modules">
+
+    <!-- CST Module -->
+    <div class="hub-module">
+      <div class="hub-module-hdr">
+        <div class="hub-module-badge badge-cst">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          CST Training
+        </div>
+        <div class="hub-module-title">Cyber Security Training</div>
+        <div class="hub-module-desc">Manage CST compliance certificates. Add, edit, verify and dispatch credentials for maritime vessel training compliance.</div>
+      </div>
+      <div class="hub-module-stats">
+        <div class="hub-mstat"><div class="hub-mstat-num" id="cstTotal">—</div><div class="hub-mstat-lbl">Total</div></div>
+        <div class="hub-mstat"><div class="hub-mstat-num" id="cstValid" style="color:var(--teal)">—</div><div class="hub-mstat-lbl">Valid</div></div>
+        <div class="hub-mstat"><div class="hub-mstat-num" id="cstExpired" style="color:var(--warn)">—</div><div class="hub-mstat-lbl">Expired</div></div>
+      </div>
+      <div class="hub-module-foot">
+        <a id="cstAdminLink" href="/CST/misecure/" class="hub-btn hub-btn-primary">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Open CST Admin
+        </a>
+        <a id="cstPortalLink" href="/CST" target="_blank" class="hub-btn hub-btn-ghost">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          Public Portal
+        </a>
+      </div>
+    </div>
+
+    <!-- VAPT Module -->
+    <div class="hub-module">
+      <div class="hub-module-hdr">
+        <div class="hub-module-badge badge-vapt">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          VAPT Assessment
+        </div>
+        <div class="hub-module-title">Vulnerability &amp; Penetration Testing</div>
+        <div class="hub-module-desc">Manage VAPT cybersecurity assessment certificates. Track risk levels, expiry radar, and dispatch credentials to vessel operators.</div>
+      </div>
+      <div class="hub-module-stats">
+        <div class="hub-mstat"><div class="hub-mstat-num" id="vaptTotal">—</div><div class="hub-mstat-lbl">Total</div></div>
+        <div class="hub-mstat"><div class="hub-mstat-num" id="vaptValid" style="color:var(--teal)">—</div><div class="hub-mstat-lbl">Valid</div></div>
+        <div class="hub-mstat"><div class="hub-mstat-num" id="vaptExpired" style="color:var(--warn)">—</div><div class="hub-mstat-lbl">Expired</div></div>
+      </div>
+      <div class="hub-module-foot">
+        <a id="vaptAdminLink" href="/VPT/misecure/" class="hub-btn hub-btn-teal">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Open VAPT Admin
+        </a>
+        <a id="vaptPortalLink" href="/VPT" target="_blank" class="hub-btn hub-btn-ghost">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          Public Portal
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Public Portals -->
+  <div class="hub-portals">
+    <div class="hub-portals-title">Public Verification Portals</div>
+    <div class="hub-portals-grid">
+      <a id="pubCstLink" href="/CST" target="_blank" class="hub-portal-link">
+        <div class="hub-portal-icon icon-cst">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <div>
+          <div class="hub-portal-name">CST Certificate Verification</div>
+          <div class="hub-portal-url" id="pubCstUrl">/CST</div>
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="margin-left:auto;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      </a>
+      <a id="pubVaptLink" href="/VPT" target="_blank" class="hub-portal-link">
+        <div class="hub-portal-icon icon-vapt">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+        <div>
+          <div class="hub-portal-name">VAPT Certificate Verification</div>
+          <div class="hub-portal-url" id="pubVaptUrl">/VPT</div>
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="margin-left:auto;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="hub-footer">
+    <div id="hubFooterText">Synergy Marine Group · Cyber Security &amp; Compliance Division</div>
+    <div style="margin-top:4px;opacity:.5">Admin Portal Hub · All administrative access is logged and audited · Data Classification: RESTRICTED</div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var API = '/api';
+  var TOKEN = sessionStorage.getItem('adminToken') || '';
+
+  function applyConfig() {
+    var C = window.APP_CONFIG;
+    if (!C) return;
+    var bn = document.getElementById('hubBrandName');
+    if (bn) bn.textContent = C.brand.name;
+    var cstAdminLink = document.getElementById('cstAdminLink');
+    if (cstAdminLink) cstAdminLink.href = (C.routes.cstAdmin || '/CST/misecure') + '/';
+    var vaptAdminLink = document.getElementById('vaptAdminLink');
+    if (vaptAdminLink) vaptAdminLink.href = (C.routes.vaptAdmin || '/VPT/misecure') + '/';
+    var cstPortalLink = document.getElementById('cstPortalLink');
+    if (cstPortalLink) cstPortalLink.href = C.routes.cst || '/CST';
+    var vaptPortalLink = document.getElementById('vaptPortalLink');
+    if (vaptPortalLink) vaptPortalLink.href = C.routes.vpt || '/VPT';
+    var pubCstLink = document.getElementById('pubCstLink');
+    if (pubCstLink) { pubCstLink.href = C.routes.cst || '/CST'; }
+    var pubVaptLink = document.getElementById('pubVaptLink');
+    if (pubVaptLink) { pubVaptLink.href = C.routes.vpt || '/VPT'; }
+    var pubCstUrl = document.getElementById('pubCstUrl');
+    if (pubCstUrl) pubCstUrl.textContent = C.routes.cst || '/CST';
+    var pubVaptUrl = document.getElementById('pubVaptUrl');
+    if (pubVaptUrl) pubVaptUrl.textContent = C.routes.vpt || '/VPT';
+    var ft = document.getElementById('hubFooterText');
+    if (ft) ft.innerHTML = C.brand.name + ' &middot; Cyber Security &amp; Compliance Division';
+  }
+
+  document.addEventListener('appconfigready', applyConfig);
+  if (window.APP_CONFIG) applyConfig();
+
+  // Health check
+  function checkHealth() {
+    fetch('/health', { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined })
+      .then(function (r) {
+        var dot = document.getElementById('serverDot');
+        var lbl = document.getElementById('serverLabel');
+        if (dot) dot.style.background = r.ok ? 'var(--teal)' : 'var(--warn)';
+        if (lbl) lbl.textContent = r.ok ? 'Online' : 'Degraded';
+      })
+      .catch(function () {
+        var dot = document.getElementById('serverDot');
+        var lbl = document.getElementById('serverLabel');
+        if (dot) dot.style.background = 'var(--invalid)';
+        if (lbl) lbl.textContent = 'Offline';
+      });
+
+    var sesStatus = (window.APP_CONFIG && window.APP_CONFIG.routes)
+      ? '/api/ses-status' : '/api/ses-status';
+    fetch(sesStatus, { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var dot = document.getElementById('mailDot');
+        var lbl = document.getElementById('mailLabel');
+        var ok = d && d.configured;
+        if (dot) dot.style.background = ok ? 'var(--teal)' : 'var(--warn)';
+        if (lbl) lbl.textContent = ok ? 'Mail Ready' : 'Mail Unconfigured';
+      })
+      .catch(function () {
+        var dot = document.getElementById('mailDot');
+        if (dot) dot.style.background = 'var(--border)';
+      });
+  }
+
+  // Load stats — uses admin token if available, else shows placeholders
+  function loadStats() {
+    if (!TOKEN) { setStatsFallback(); return; }
+    try {
+      var parts = TOKEN.split('.');
+      if (parts.length !== 3) { setStatsFallback(); return; }
+      var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+      if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp) {
+        sessionStorage.removeItem('adminToken');
+        TOKEN = '';
+        setStatsFallback();
+        return;
+      }
+    } catch (e) { setStatsFallback(); return; }
+
+    var headers = { Authorization: 'Bearer ' + TOKEN };
+    var now = new Date();
+
+    function countValid(list) {
+      return list.filter(function (c) {
+        var st = (c.status || 'VALID').toUpperCase();
+        var vu = c.validUntil ? new Date(c.validUntil) : null;
+        return st === 'VALID' && (!vu || vu >= now);
+      }).length;
+    }
+    function countExpired(list) {
+      return list.filter(function (c) {
+        var st = (c.status || 'VALID').toUpperCase();
+        var vu = c.validUntil ? new Date(c.validUntil) : null;
+        return st === 'EXPIRED' || (st !== 'PENDING' && st !== 'REVOKED' && vu && vu < now);
+      }).length;
+    }
+
+    Promise.all([
+      fetch(API + '/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      fetch(API + '/vapt/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
+    ]).then(function (results) {
+      var cst = results[0], vapt = results[1];
+
+      setText('statTotalCst', cst.length);
+      setText('statTotalVapt', vapt.length);
+      setText('statActiveCst', countValid(cst));
+      setText('statActiveVapt', countValid(vapt));
+
+      setText('cstTotal', cst.length);
+      setText('cstValid', countValid(cst));
+      setText('cstExpired', countExpired(cst));
+
+      setText('vaptTotal', vapt.length);
+      setText('vaptValid', countValid(vapt));
+      setText('vaptExpired', countExpired(vapt));
+    });
+  }
+
+  function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function setStatsFallback() {
+    ['statTotalCst','statTotalVapt','statActiveCst','statActiveVapt',
+     'cstTotal','cstValid','cstExpired','vaptTotal','vaptValid','vaptExpired'].forEach(function (id) {
+      setText(id, '—');
+    });
+  }
+
+  checkHealth();
+  loadStats();
+  setInterval(checkHealth, 30000);
+})();
+</script>
+</body>
+</html>

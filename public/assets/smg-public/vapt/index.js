@@ -526,13 +526,7 @@
   // ── CERT ID COPY ──────────────────────────────────────────────────────
   function copyId(el) {
     const text = el.dataset.certid || el.textContent.trim();
-    navigator.clipboard.writeText(text).then(() => showToast('✓ Certificate ID copied')).catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); showToast('✓ Certificate ID copied'); } catch (_) {}
-      document.body.removeChild(ta);
-    });
+    navigator.clipboard.writeText(text).then(() => showToast('✓ Certificate ID copied')).catch(() => {});
   }
 
   // ── LIGHTBOX — with focus trap + ARIA ─────────────────────────────────

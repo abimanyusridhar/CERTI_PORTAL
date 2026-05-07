@@ -1,5 +1,18 @@
 
     // ════════════════════════════════════════════════════
+    // MODULE: Security — HTML escape (XSS prevention)
+    // ════════════════════════════════════════════════════
+    function escHtml(s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+    }
+
+    // ════════════════════════════════════════════════════
     // MODULE: State
     // ════════════════════════════════════════════════════
     const API = '/api';  // Relative — works on any hostname/port (single server)
@@ -31,22 +44,32 @@
       try {
         const r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
         const d = await r.json();
-        if (!r.ok) throw new Error();
+        if (!r.ok) {
+          const errEl = document.getElementById('loginErr');
+          errEl.textContent = r.status === 429
+            ? 'Too many attempts. Please wait a few minutes and try again.'
+            : 'Invalid credentials. Please try again.';
+          errEl.style.display = 'block';
+          return;
+        }
         TOKEN = d.token;
         sessionStorage.setItem('adminToken', TOKEN);
         document.getElementById('loginWrap').style.display = 'none';
         document.getElementById('appWrap').style.display = 'flex';
         if (window.syncButtons) window.syncButtons();
+        if (window.PSP) PSP.setPrincipal({ username: u, certType: 'CST' });
         scheduleTokenExpiryWarning();
         // Start session expiry + idle timeout monitoring
         if (window._startSessionTimers) window._startSessionTimers(Date.now());
         initApp();
       } catch {
+        document.getElementById('loginErr').textContent = 'Login failed. Check your connection and try again.';
         document.getElementById('loginErr').style.display = 'block';
       }
       document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
     }
     function doLogout() {
+      if (window.PSP) { PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'CST' }); PSP.setPrincipal(null); }
       sessionStorage.removeItem('adminToken'); TOKEN = '';
       if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
       document.getElementById('loginWrap').style.display = 'flex';
@@ -147,6 +170,7 @@
           ivBadge.style.color = alertCount > 0 ? 'var(--invalid)' : 'var(--warn)';
           ivBadge.style.borderColor = alertCount > 0 ? 'rgba(255,107,138,.3)' : 'rgba(255,179,71,.25)';
         }
+        if (window.PSP) PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'CST' });
       } catch { }
     }
 
@@ -572,7 +596,7 @@
       if (cb) cb.style.display = (q || statusFilter || quarterFilter || modeFilter || emailFilter) ? '' : 'none';
       if (!list.length) { el.innerHTML = `<div class="empty-state"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto;opacity:.3"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>No certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:6px">Try adjusting your search or clearing filters</p></div>`; return; }
       const isDash = id === 'dashTbl';
-      const tableHTML = `<div class="tbl-scroll-wrap" style="display:block!important;visibility:visible!important;height:auto!important;min-height:200px!important;overflow:visible!important"><table style="display:table!important;visibility:visible!important;width:100%!important;border-collapse:collapse!important"><colgroup>
+      const tableHTML = `<div class="tbl-scroll-wrap" style="display:block!important;visibility:visible!important;height:auto!important;min-height:200px!important;overflow-x:auto!important"><table style="display:table!important;visibility:visible!important;min-width:1200px;width:100%!important;border-collapse:collapse!important"><colgroup>
     <col style="width:160px"><!-- Cert ID -->
     <col style="width:185px"><!-- Vessel/Recipient -->
     <col style="width:88px"> <!-- IMO -->
@@ -590,7 +614,7 @@
   </tr></thead><tbody style="display:table-row-group!important;visibility:visible!important">`+ (isDash ? list.slice(0, 10) : list).map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isV = c.status === 'VALID' && (!vu || vu >= now);
-        const pillCls = c.status === 'PENDING' ? 'pending' : c.status === 'VALID' ? (isV ? 'valid' : 'expired') : c.status.toLowerCase();
+        const pillCls = c.status === 'PENDING' ? 'pending' : c.status === 'VALID' ? (isV ? 'valid' : 'expired') : (c.status || 'unknown').toLowerCase();
         const dl = daysUntil(c.validUntil);
         let vl = fmt(c.validUntil);
         let vlColor = 'var(--text-sec)';
@@ -635,35 +659,46 @@
         const modeBadge = modeVal
           ? `<span style="font-size:.6rem;font-weight:600;color:${modeColors[modeVal]||'var(--text-sec)'};">${modeVal}</span>`
           : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
+        const safeId   = escHtml(c.id);
+        const safeName = escHtml(c.recipientName);
+        const safeVessel = escHtml(c.vesselName);
+        const safeIMO  = escHtml(c.vesselIMO);
+        const safeCE   = escHtml(c.chiefEngineer);
+        const safeEmail = escHtml(c.recipientEmail);
         return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">
-      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${c.id}">${c.id}</span></td>
-      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName || '—'}</div>${c.vesselName && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>` : ''}</td>
-      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO || '—'}</span></td>
-      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.chiefEngineer || '—'}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${safeId}">${safeId}</span></td>
+      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''}</td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO || '—'}</span></td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeCE || '—'}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${qBadge}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${modeBadge}</td>
-      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${c.id}" onchange="quickStatusChange('${c.id}',this.value,this)" title="Change status">
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${safeId}" onchange="quickStatusChange('${safeId}',this.value,this)" title="Change status">
         <option value="VALID" ${c.status==='VALID'?'selected':''}>✓ VALID</option>
         <option value="PENDING" ${c.status==='PENDING'?'selected':''}>⏳ PENDING</option>
         <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
         <option value="REVOKED" ${c.status==='REVOKED'?'selected':''}>🚫 REVOKED</option>
       </select></td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;color:${vlColor};font-size:.76rem;white-space:nowrap">${vl}</td>
-      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="pill ${emailCls}" title="${c.recipientEmail || 'no email'}">${emailLabel}</span></td>
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="pill ${emailCls}" title="${safeEmail || 'no email'}">${emailLabel}</span></td>
       <td class="eng-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${engCell}</td>
       ${!isDash ? `<td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${imgEl}</td>` : ''}
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div class="act-grp">
-        <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
-        <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
-        <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
-        ${canSend ? `<button class="btn btn-issue btn-sm" onclick="quickSend('${c.id}')">✉</button>` : ''}
-        <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Delete</button>
+        <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${safeId}',this)">View</button>
+        <button class="btn btn-teal btn-sm" onclick="editCert('${safeId}')">Edit</button>
+        <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${safeId}',this)" style="font-size:.58rem">🔒</button>
+        ${canSend ? `<button class="btn btn-issue btn-sm" onclick="quickSend('${safeId}')">✉</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="askDelete('${safeId}')">Delete</button>
       </div></td>
     </tr>`;
       }).join('') + `</tbody></table></div>`;
-      
-      // Set the complete HTML with all inline visibility styles
-      el.innerHTML = tableHTML;
+
+      try {
+        el.innerHTML = tableHTML;
+      } catch (htmlErr) {
+        console.error('[renderTbl] innerHTML error:', htmlErr);
+        el.innerHTML = '<div class="empty-state"><h3>Table render error</h3><p style="font-size:.8rem;color:var(--text-sec)">Check browser console for details.</p></div>';
+        return;
+      }
       
       // Ensure table wrapper and table are visible
       setTimeout(() => {
@@ -838,24 +873,14 @@
       navigator.clipboard.writeText(url).then(() => {
         const orig = btn.textContent; btn.textContent = '✓ Copied!';
         setTimeout(() => { btn.textContent = orig; }, 2000);
-      }).catch(() => {
-        const ta = document.createElement('textarea'); ta.value = url;
-        ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-        const orig = btn.textContent; btn.textContent = '✓ Copied!';
-        setTimeout(() => { btn.textContent = orig; }, 2000);
-      });
+      }).catch(() => {});
     }
     // Copy AES-256-GCM encrypted + HMAC-signed URL
     async function copyEncUrl(certId, btn) {
       const orig = btn.textContent;
       btn.textContent = '⏳'; btn.disabled = true;
       const url = await getCertEncryptedUrl(certId);
-      await navigator.clipboard.writeText(url).catch(() => {
-        const ta = document.createElement('textarea'); ta.value = url;
-        ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-      });
+      await navigator.clipboard.writeText(url).catch(() => {});
       btn.textContent = '✓'; setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1800);
     }
     // Token expiry check — warn admin 30 min before expiry
@@ -864,7 +889,7 @@
         const parts = TOKEN.split('.');
         if (parts.length !== 3) return;
         const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-        const msLeft = payload.exp - Date.now();
+        const msLeft = payload.exp * 1000 - Date.now();
         if (msLeft <= 0) { doLogout(); return; }
         // Auto-logout at expiry
         setTimeout(doLogout, msLeft);
@@ -1179,14 +1204,7 @@
         const orig = btn ? btn.textContent : 'Copy Body';
         if (btn) btn.textContent = '✓ Copied!';
         setTimeout(() => { if (btn) btn.textContent = orig; }, 2000);
-      }).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = body; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-        const btn = document.getElementById('copyBtnTxt');
-        if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.textContent = 'Copy Body'; }, 2000); }
-      });
+      }).catch(() => {});
     }
 
     // ── Email service status check (runs once on load) ──────────────────
@@ -1733,11 +1751,7 @@
     function copyViewUrl(btn) {
       const url = btn.dataset.url || document.getElementById('viewPublicUrl').textContent;
       if (!url || url === 'Generating secure link…') { return; }
-      navigator.clipboard.writeText(url).catch(() => {
-        const ta = document.createElement('textarea'); ta.value = url;
-        ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-      });
+      navigator.clipboard.writeText(url).catch(() => {});
       const orig = btn.textContent; btn.textContent = '✓ Copied!';
       setTimeout(() => { btn.textContent = orig; }, 2000);
     }
@@ -2289,7 +2303,7 @@
         const parts = TOKEN.split('.');
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-          if (Date.now() > payload.exp) {
+          if (Date.now() > payload.exp * 1000) {
             sessionStorage.removeItem('adminToken'); TOKEN = '';
           }
         } else { sessionStorage.removeItem('adminToken'); TOKEN = ''; }

@@ -157,7 +157,7 @@ function createErrorResponse(statusCode, errorCode, message, details = {}) {
 }
 
 function createSecurityService({ keys, cfg }) {
-  const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000;
+  const TOKEN_EXPIRY_S = 8 * 60 * 60; // 8 hours in seconds (standard JWT uses seconds)
 
   function hashPassword(password) {
     return new Promise((resolve, reject) => {
@@ -169,10 +169,11 @@ function createSecurityService({ keys, cfg }) {
   }
 
   function issueToken(username) {
+    const nowS = Math.floor(Date.now() / 1000); // Unix seconds (standard JWT)
     const payload = {
       sub: username,
-      iat: Date.now(),
-      exp: Date.now() + TOKEN_EXPIRY_MS,
+      iat: nowS,
+      exp: nowS + TOKEN_EXPIRY_S,
       jti: crypto.randomBytes(16).toString('hex'),
     };
     const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -193,7 +194,8 @@ function createSecurityService({ keys, cfg }) {
     if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
     try {
       const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-      if (Date.now() > payload.exp) return null;
+      // exp is Unix seconds; multiply by 1000 to compare with Date.now() (ms)
+      if (!payload.exp || Date.now() > payload.exp * 1000) return null;
       return payload;
     } catch {
       return null;

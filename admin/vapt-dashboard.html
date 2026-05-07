@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/shared-styles.css" />
   <!-- CENTRALIZED CONFIG -->
   <script src="/config.js" defer></script>
+  <script src="/assets/pubsub.js" defer></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- SHARED & RESPONSIVE STYLES -->
@@ -88,7 +89,7 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         VPT Public Portal
       </a>
-      <a id="sbLinkCSTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkCSTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         Switch to CST
       </a>
@@ -367,10 +368,10 @@
             <div class="mini-search">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
               <input id="allQ" type="text" placeholder="Search vessel, IMO, cert no, recipient…"
-                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value)" />
+                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value)" />
             </div>
             <select id="allStatusSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allEmailSel').value)">
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value)">
               <option value="">All Status</option>
               <option value="VALID">✅ Valid</option>
               <option value="PENDING">⏳ Pending</option>
@@ -378,10 +379,18 @@
               <option value="REVOKED">🚫 Revoked</option>
             </select>
             <select id="allEmailSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,this.value)">
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,this.value,document.getElementById('allRiskSel').value)">
               <option value="">All Email</option>
               <option value="SENT">✉ Sent</option>
               <option value="NOT_SENT">✉ Not Sent</option>
+            </select>
+            <select id="allRiskSel" class="filter-select"
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,this.value)">
+              <option value="">All Risk</option>
+              <option value="CRITICAL">🔴 Critical</option>
+              <option value="HIGH">🟠 High</option>
+              <option value="MEDIUM">🟡 Medium</option>
+              <option value="LOW">🟢 Low</option>
             </select>
             <span class="filter-count-badge" id="allCertCount"><strong>0</strong> records</span>
           </div>
@@ -851,5 +860,23 @@
 </div>
 
 <script src="/assets/smg-admin/vapt/dashboard.js"></script>
+<script>
+(function () {
+  var tok = sessionStorage.getItem('adminToken');
+  if (!tok) return;
+  try {
+    var parts = tok.split('.');
+    if (parts.length !== 3) return;
+    var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
+      sessionStorage.removeItem('adminToken'); return;
+    }
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'flex';
+    TOKEN = tok;
+    initApp();
+  } catch (e) { sessionStorage.removeItem('adminToken'); }
+})();
+</script>
 </body>
 </html>

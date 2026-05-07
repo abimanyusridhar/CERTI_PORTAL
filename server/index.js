@@ -39,7 +39,7 @@ const crypto = require('crypto');
 const { log } = require('./logger');
 const { loadDotEnv, validateRuntimeConfig } = require('./config/env');
 const { createJsonStore } = require('./repositories/jsonStore');
-const { createSecurityService } = require('./services/security');
+const { createSecurityService, validation } = require('./services/security');
 const { createMetrics } = require('./ops/metrics');
 const { createHealthRoute } = require('./routes/health');
 const { createAuthRoutes } = require('./routes/auth');
@@ -115,11 +115,12 @@ if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE_ORIGIN)) {
 }
 
 function _originVariants(origin) {
-  if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) return [origin];
-  const alt = origin.startsWith('https://')
-    ? origin.replace('https://', 'http://')
-    : origin.replace('http://', 'https://');
-  return [origin, alt];
+  if (!origin) return [];
+  // Localhost: allow both http and https for dev convenience
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) return [origin];
+  // Production: HTTPS only — never allow HTTP downgrade
+  if (origin.startsWith('https://')) return [origin];
+  return []; // Reject plain-HTTP production origins
 }
 
 const ALLOWED_ORIGINS = [
@@ -274,15 +275,30 @@ function buildCertUrl(certId, baseUrl) {
 }
 
 // ─── RATE LIMITER ─────────────────────────────────────────────────────────────
-const rateLimits = new Map();
+const rateLimits   = new Map();
+const loginLockouts = new Map(); // ip → { failCount, lockedUntil }
 const RATE_LIMITS = {
   verify:  { max: 30,  window: 60_000  },
   login:   { max: 5,   window: 300_000 },
   track:   { max: 200, window: 60_000  },
   default: { max: 120, window: 60_000  },
 };
-// FIX: cap Map size to prevent memory exhaustion from unique-IP floods
 const RATE_LIMIT_MAX_ENTRIES = 50_000;
+// Progressive lockout: each tier applies when failCount reaches threshold
+const LOGIN_LOCKOUT_TIERS = [
+  { afterFails: 10, lockMs: 60 * 60_000 },  // 10+ → 1 hour
+  { afterFails:  5, lockMs: 15 * 60_000 },  // 5+  → 15 min
+  { afterFails:  3, lockMs:  5 * 60_000 },  // 3+  → 5 min
+];
+
+function _rlEvictOne(now) {
+  // Prefer evicting an already-expired entry; otherwise evict a random one
+  for (const [k, v] of rateLimits) {
+    if (now > v.resetAt) { rateLimits.delete(k); return; }
+  }
+  const keys = [...rateLimits.keys()];
+  rateLimits.delete(keys[Math.floor(Math.random() * keys.length)]);
+}
 
 function checkRateLimit(ip, bucket) {
   const { max, window } = RATE_LIMITS[bucket] || RATE_LIMITS.default;
@@ -290,11 +306,7 @@ function checkRateLimit(ip, bucket) {
   const now   = Date.now();
   const entry = rateLimits.get(key);
   if (!entry || now > entry.resetAt) {
-    // If Map is full, evict one stale entry before inserting
-    if (!entry && rateLimits.size >= RATE_LIMIT_MAX_ENTRIES) {
-      const firstKey = rateLimits.keys().next().value;
-      if (firstKey) rateLimits.delete(firstKey);
-    }
+    if (!entry && rateLimits.size >= RATE_LIMIT_MAX_ENTRIES) _rlEvictOne(now);
     rateLimits.set(key, { count: 1, resetAt: now + window });
     return { ok: true, remaining: max - 1 };
   }
@@ -303,20 +315,42 @@ function checkRateLimit(ip, bucket) {
   return { ok: true, remaining: max - entry.count };
 }
 
+function checkLoginLockout(ip) {
+  const rec = loginLockouts.get(ip);
+  if (!rec || Date.now() >= rec.lockedUntil) return { locked: false };
+  return { locked: true, retryAfter: Math.ceil((rec.lockedUntil - Date.now()) / 1000) };
+}
+
+function recordLoginFailure(ip) {
+  const rec = loginLockouts.get(ip) || { failCount: 0, lockedUntil: 0 };
+  rec.failCount++;
+  const tier = LOGIN_LOCKOUT_TIERS.find(t => rec.failCount >= t.afterFails);
+  if (tier) rec.lockedUntil = Date.now() + tier.lockMs;
+  loginLockouts.set(ip, rec);
+}
+
+function clearLoginFailures(ip) {
+  loginLockouts.delete(ip);
+}
+
 const _rlCleanup = setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of rateLimits) if (now > v.resetAt) rateLimits.delete(k);
+  for (const [k, v] of rateLimits)    if (now > v.resetAt)    rateLimits.delete(k);
+  for (const [k, v] of loginLockouts) if (now > v.lockedUntil) loginLockouts.delete(k);
 }, 60_000);
 
 // ─── SECURITY HEADERS ────────────────────────────────────────────────────────
 const _isHttps = BASE_ORIGIN.startsWith('https://');
 const SECURITY_HEADERS = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options':        'DENY',
-  'X-XSS-Protection':       '1; mode=block',
-  'Referrer-Policy':        'strict-origin-when-cross-origin',
-  'Permissions-Policy':     'camera=(), microphone=(), geolocation=()',
-  ...(_isHttps ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
+  'X-Content-Type-Options':           'nosniff',
+  'X-Frame-Options':                  'DENY',
+  'X-XSS-Protection':                 '0',       // Disabled — modern browsers use CSP; legacy header causes issues
+  'Referrer-Policy':                  'strict-origin-when-cross-origin',
+  'Permissions-Policy':               'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'Cross-Origin-Opener-Policy':       'same-origin',
+  'Cross-Origin-Resource-Policy':     'same-origin',
+  'Cross-Origin-Embedder-Policy':     'require-corp',
+  ...(_isHttps ? { 'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload' } : {}),
   'Content-Security-Policy':
     "default-src 'self'; " +
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
@@ -325,7 +359,16 @@ const SECURITY_HEADERS = {
     "img-src 'self' data: blob:; " +
     "connect-src 'self'; " +
     "frame-src 'self' blob:; " +
-    "frame-ancestors 'none';",
+    "frame-ancestors 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self';",
+};
+
+// API-specific headers: no caching, no content-type sniffing on responses
+const API_HEADERS = {
+  ...SECURITY_HEADERS,
+  'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+  'Pragma':        'no-cache',
 };
 
 // ─── SEED DATA ───────────────────────────────────────────────────────────────
@@ -1012,6 +1055,29 @@ function sanitiseCertId(raw) {
   return decoded.toUpperCase();
 }
 
+function sanitiseCertBody(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const LIMITS = {
+    recipientName: 200, vesselName: 200, vesselIMO: 20,
+    chiefEngineer: 200, trainingTitle: 300, organizer: 200,
+    notes: 1000, recipientEmail: 255, issuerEmail: 255,
+    complianceQuarter: 10, trainingMode: 20, status: 20,
+    certificateNumber: 60, assessmentDate: 30, validUntil: 30,
+    complianceDate: 30, verifiedBy: 200, verifierTitle: 200,
+    assessingOrg: 200, riskLevel: 50,
+  };
+  const CTRL = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+  const out = { ...obj };
+  for (const [field, maxLen] of Object.entries(LIMITS)) {
+    if (out[field] != null) {
+      out[field] = String(out[field]).replace(CTRL, '').trim().slice(0, maxLen);
+    }
+  }
+  if (out.recipientEmail && !validation.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
+  if (out.issuerEmail    && !validation.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
+  return out;
+}
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getClientIp(req) {
   return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -1022,7 +1088,7 @@ function sendJSON(res, status, data, extraHeaders = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
-    ...SECURITY_HEADERS,
+    ...API_HEADERS,
     ...extraHeaders,
   });
   res.end(body);
@@ -1216,6 +1282,9 @@ const authRoutes = createAuthRoutes({
   getBody,
   authCheck,
   checkRateLimit,
+  checkLoginLockout,
+  recordLoginFailure,
+  clearLoginFailures,
   hashPassword,
   issueToken,
   getAdminUser: () => ADMIN_USER,
@@ -1267,6 +1336,10 @@ async function handleAPI(req, res, parsed) {
   if (route === '/auth/login' && method === 'POST') {
     if (!serverReady)
       return sendJSON(res, 503, { error: 'Server is starting up, please try again in a moment.' }, corsH);
+    const lockout = checkLoginLockout(ip);
+    if (lockout.locked)
+      return sendJSON(res, 429, { error: 'Too many failed login attempts. Try again later.' },
+        { 'Retry-After': String(lockout.retryAfter), ...corsH });
     const rl = checkRateLimit(ip, 'login');
     if (!rl.ok)
       return sendJSON(res, 429, { error: 'Too many login attempts. Try again later.' },
@@ -1282,9 +1355,11 @@ async function handleAPI(req, res, parsed) {
       Buffer.from(passwordHash), Buffer.from(ADMIN_PASS_HASH)
     );
     if (!usernameMatch || !passwordMatch) {
+      recordLoginFailure(ip);
       await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
       return sendJSON(res, 401, { error: 'Invalid credentials' }, corsH);
     }
+    clearLoginFailures(ip);
     return sendJSON(res, 200, { token: issueToken(username) }, corsH);
   }
 
@@ -1487,6 +1562,7 @@ async function handleAPI(req, res, parsed) {
     const certId = sanitiseCertId(cert.id);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
     cert.id = certId;
+    cert = sanitiseCertBody(cert);
     deriveQuarterFields(cert);
     // Reference documents (PDF attachments) are removed/disabled as of now.
     cert.attachments = [];
@@ -1546,6 +1622,7 @@ async function handleAPI(req, res, parsed) {
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
       }
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
+    updates = sanitiseCertBody(updates);
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
     // Reference documents (PDF attachments) are removed/disabled as of now.
     updated.attachments = [];
@@ -1645,8 +1722,9 @@ async function handleAPI(req, res, parsed) {
       }, corsH);
     }
 
+    log.error('CST send-email failed:', result.error);
     return sendJSON(res, 500, {
-      error: result.error || 'Email could not be delivered. Please verify the recipient address and try again.',
+      error: 'Email could not be delivered. Please verify the recipient address and try again.',
       sesEnabled: true,
     }, corsH);
   }
@@ -1959,6 +2037,7 @@ async function handleAPI(req, res, parsed) {
     const certId = sanitiseCertId(cert.id);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
     cert.id = certId;
+    cert = sanitiseCertBody(cert);
     // Reference documents (PDF attachments) are removed/disabled as of now.
     cert.attachments = [];
     const data = loadVaptData();
@@ -2026,6 +2105,7 @@ async function handleAPI(req, res, parsed) {
       }
       // Normalise
       cert.id = certId;
+      cert = sanitiseCertBody(cert);
       ['vesselName','recipientName','vesselIMO'].forEach(k => {
         if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
       });
@@ -2082,6 +2162,7 @@ async function handleAPI(req, res, parsed) {
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
       }
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
+    updates = sanitiseCertBody(updates);
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
     // Reference documents (PDF attachments) are removed/disabled as of now.
     updated.attachments = [];
@@ -2118,6 +2199,8 @@ async function handleAPI(req, res, parsed) {
 
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
+
+    const force = body && body.force === true;
 
     // Allow the dashboard to supply an updated recipientEmail in the request body
     const overrideEmail = (body && typeof body.recipientEmail === 'string' && body.recipientEmail.trim())
@@ -2170,8 +2253,9 @@ async function handleAPI(req, res, parsed) {
       }, corsH);
     }
 
+    log.error('VAPT send-email failed:', result.error);
     return sendJSON(res, 500, {
-      error: result.error || 'Email could not be delivered. Please verify the recipient address and try again.',
+      error: 'Email could not be delivered. Please verify the recipient address and try again.',
       sesEnabled: true,
     }, corsH);
   }

@@ -1,4 +1,15 @@
 
+  // ── Security: HTML escape (XSS prevention) ──
+  function escHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+  }
+
   const API = '/api';
   let TOKEN = sessionStorage.getItem('adminToken') || '';
   let CERTS = [];
@@ -16,19 +27,32 @@
     try {
       const r = await fetch(API + '/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u,password:p}) });
       const d = await r.json();
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        const errEl = document.getElementById('loginErr');
+        errEl.textContent = r.status === 429
+          ? 'Too many attempts. Please wait a few minutes and try again.'
+          : 'Invalid credentials. Please try again.';
+        errEl.style.display = 'block';
+        document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
+        return;
+      }
       TOKEN = d.token;
       sessionStorage.setItem('adminToken', TOKEN);
       document.getElementById('loginWrap').style.display = 'none';
       document.getElementById('appWrap').style.display = 'flex';
       if (window.syncButtons) window.syncButtons();
+      if (window.PSP) PSP.setPrincipal({ username: u, certType: 'VAPT' });
       scheduleTokenExpiryWarning();
       if (window._startSessionTimers) window._startSessionTimers(Date.now());
       initApp();
-    } catch { document.getElementById('loginErr').style.display = 'block'; }
+    } catch {
+      document.getElementById('loginErr').textContent = 'Login failed. Check your connection and try again.';
+      document.getElementById('loginErr').style.display = 'block';
+    }
     document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
   }
   function doLogout() {
+    if (window.PSP) { PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'VAPT' }); PSP.setPrincipal(null); }
     sessionStorage.removeItem('adminToken'); TOKEN = '';
     if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
     document.getElementById('loginWrap').style.display = 'flex';
@@ -45,7 +69,7 @@
       const parts = TOKEN.split('.');
       if (parts.length !== 3) return;
       const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-      const msLeft = payload.exp - Date.now();
+      const msLeft = payload.exp * 1000 - Date.now();
       if (msLeft <= 0) { doLogout(); return; }
       setTimeout(doLogout, msLeft);
       const warnAt = msLeft - 30 * 60 * 1000;
@@ -170,6 +194,7 @@
       updateCharts({valid,expired,pending,revoked,emailSent,emailPending,nearExpiry:nearExpiry.filter(x=>x.daysLeft<=30),total,buckets:expBuckets});
       updateInsights({valid,expired,pending,emailSent,emailPending,nearExpiry:nearExpiry.filter(x=>x.daysLeft<=30),total,buckets:expBuckets});
       updateRealTimeBadge();
+      if (window.PSP) PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'VAPT' });
     } catch {}
   }
 
@@ -444,13 +469,13 @@
 
   // ── TABLE ──
   function clearAllFilters() {
-    ['allQ','allStatusSel','allEmailSel'].forEach(id => {
+    ['allQ','allStatusSel','allEmailSel','allRiskSel'].forEach(id => {
       const el=document.getElementById(id); if(el) el.value='';
     });
-    renderTbl('allTbl','','','');
+    renderTbl('allTbl','','','','');
     const cb=document.getElementById('allClearFilters'); if(cb) cb.style.display='none';
   }
-  function renderTbl(id, q, statusFilter, emailFilter) {
+  function renderTbl(id, q, statusFilter, emailFilter, riskFilter) {
     const el = document.getElementById(id);
     let list = CERTS;
     if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').includes(ql)||(c.vesselName||'').toLowerCase().includes(ql)); }
@@ -467,14 +492,15 @@
     } else if (filterStatus) list=list.filter(c=>c.status===filterStatus);
     if (emailFilter==='SENT') list=list.filter(c=>c.emailStatus==='SENT');
     else if (emailFilter==='NOT_SENT') list=list.filter(c=>c.emailStatus!=='SENT');
+    if (riskFilter) list=list.filter(c=>(c.riskLevel||'').toUpperCase()===riskFilter.toUpperCase());
     // Update count badge
     const countEl=document.getElementById('allCertCount');
     if(countEl) countEl.innerHTML=`<strong>${list.length}</strong> records`;
     const cb=document.getElementById('allClearFilters');
-    if(cb) cb.style.display=(q||statusFilter||emailFilter)?'':'none';
+    if(cb) cb.style.display=(q||statusFilter||emailFilter||riskFilter)?'':'none';
     if (!list.length) { el.innerHTML='<div class="empty-state"><h3>No VAPT certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:4px">Try adjusting your search or clearing filters.</p></div>'; return; }
     const isDash=id==='dashTbl';
-    el.innerHTML = `<table><colgroup>
+    el.innerHTML = `<div class="tbl-scroll-wrap" style="overflow-x:auto"><table style="min-width:1000px;width:100%;border-collapse:collapse"><colgroup>
       <col style="width:148px"><!-- Cert ID -->
       <col style="width:160px"><!-- Vessel -->
       <col style="width:80px"> <!-- IMO -->
@@ -516,30 +542,35 @@
         : (emailSentV
         ? `<span class="eng-badge" style="background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
         : `<span style="color:var(--text-sec);font-size:.6rem;font-style:italic;opacity:.6">No activity</span>`);
+      const safeId    = escHtml(c.id);
+      const safeName  = escHtml(c.recipientName || c.vesselName);
+      const safeVessel = escHtml(c.vesselName);
+      const safeIMO   = escHtml(c.vesselIMO);
+      const safeEmail = escHtml(c.recipientEmail);
       return `<tr>
-        <td><span class="cid" title="${c.id}">${c.id}</span></td>
-        <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||c.vesselName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${c.vesselName}</div>`:''}</td>
-        <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${c.vesselIMO||'—'}</span></td>
+        <td><span class="cid" title="${safeId}">${safeId}</span></td>
+        <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''}</td>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO||'—'}</span></td>
         <td style="font-size:.76rem;color:var(--text-sec)">${fmt(c.assessmentDate)}</td>
-        <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${c.id}" onchange="quickStatusChange('${c.id}',this.value,this)" title="Change status">
+        <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${safeId}" onchange="quickStatusChange('${safeId}',this.value,this)" title="Change status">
           <option value="VALID" ${c.status==='VALID'?'selected':''}>✓ VALID</option>
           <option value="PENDING" ${c.status==='PENDING'?'selected':''}>⏳ PENDING</option>
           <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
           <option value="REVOKED" ${c.status==='REVOKED'?'selected':''}>🚫 REVOKED</option>
         </select></td>
         <td style="color:${vlColor};font-size:.76rem">${vlStr}</td>
-        <td><span class="pill ${emailCls}" title="${c.recipientEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'—'}</span></td>
+        <td><span class="pill ${emailCls}" title="${safeEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'—'}</span></td>
         <td class="eng-cell">${engCell}</td>
         <td>${imgEl}</td>
         <td><div class="act-grp">
-          <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${c.id}',this)">View</button>
-          <button class="btn btn-teal btn-sm" onclick="editCert('${c.id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${c.id}',this)" style="font-size:.58rem">🔒</button>
-          ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${c.id}')">✉</button>`:''}
-          <button class="btn btn-danger btn-sm" onclick="askDelete('${c.id}')">Delete</button>
+          <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${safeId}',this)">View</button>
+          <button class="btn btn-teal btn-sm" onclick="editCert('${safeId}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${safeId}',this)" style="font-size:.58rem">🔒</button>
+          ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${safeId}')">✉</button>`:''}
+          <button class="btn btn-danger btn-sm" onclick="askDelete('${safeId}')">Delete</button>
         </div></td>
       </tr>`;
-    }).join('') + '</tbody></table>';
+    }).join('') + '</tbody></table></div>';
   }
 
   // ── PAGES ──
@@ -1748,7 +1779,7 @@
       const parts=TOKEN.split('.');
       if(parts.length===3){
         const payload=JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-        if(Date.now()>payload.exp){sessionStorage.removeItem('adminToken');TOKEN='';}
+        if(Date.now()>payload.exp*1000){sessionStorage.removeItem('adminToken');TOKEN='';}
       }else{sessionStorage.removeItem('adminToken');TOKEN='';}
     }catch{sessionStorage.removeItem('adminToken');TOKEN='';}
   }

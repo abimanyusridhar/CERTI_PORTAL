@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/assets/responsive-refinements.css" />
   <!-- CENTRALIZED CONFIG -->
   <script src="/config.js" defer></script>
+  <script src="/assets/pubsub.js" defer></script>
   <link
     href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
@@ -80,7 +81,7 @@
   </div>
 
   <!-- ══ APP ══ -->
-  <div id="appWrap" style="display:flex">
+  <div id="appWrap" style="display:none">
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navigation sidebar">
       <div class="sb-brand">
@@ -96,7 +97,7 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           CST Public Portal
         </a>
-        <a id="sbLinkVPTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+        <a id="sbLinkVPTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           Switch to VAPT
         </a>
@@ -1089,6 +1090,24 @@
     </div>
   </div>
   <script src="/assets/smg-admin/cst/dashboard.js"></script>
+<script>
+(function () {
+  var tok = sessionStorage.getItem('adminToken');
+  if (!tok) return;
+  try {
+    var parts = tok.split('.');
+    if (parts.length !== 3) return;
+    var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
+      sessionStorage.removeItem('adminToken'); return;
+    }
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'flex';
+    TOKEN = tok;
+    initApp();
+  } catch (e) { sessionStorage.removeItem('adminToken'); }
+})();
+</script>
 </body>
 
 </html>
