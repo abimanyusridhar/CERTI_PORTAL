@@ -5,11 +5,12 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
 
-function requestJson({ method = 'GET', port, urlPath, token, body }) {
+function requestJson({ method = 'GET', port, urlPath, token, headers = {}, body }) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
     const req = http.request({
@@ -20,6 +21,7 @@ function requestJson({ method = 'GET', port, urlPath, token, body }) {
       headers: {
         ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
       },
     }, (res) => {
       const chunks = [];
@@ -54,7 +56,7 @@ function requestBinary({ method = 'GET', port, urlPath, token, headers = {}, bod
       res.on('data', (d) => chunks.push(d));
       res.on('end', () => {
         const data = Buffer.concat(chunks);
-        resolve({ status: res.statusCode, data, text: data.toString('utf8') });
+        resolve({ status: res.statusCode, headers: res.headers, data, text: data.toString('utf8') });
       });
     });
     req.on('error', reject);
@@ -135,6 +137,7 @@ async function waitForHealth(port, timeoutMs = 12000) {
 
 test('server critical API flows', async () => {
   const port = 3421;
+  const tenantId = `tenant_test_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const child = spawn(process.execPath, [SERVER_ENTRY], {
     cwd: ROOT,
     env: {
@@ -143,6 +146,8 @@ test('server critical API flows', async () => {
       BASE_ORIGIN: `http://127.0.0.1:${port}`,
       ADMIN_USER: 'admin_test',
       ADMIN_PASS: 'admin_test_pw',
+      SUPER_ADMIN_PASS: 'super_admin_test_pw',
+      TENANT_ID: tenantId,
       LOG_LEVEL: 'silent',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -199,7 +204,7 @@ test('server critical API flows', async () => {
     assert.equal(updateRes.status, 200);
     assert.equal(updateRes.json.notes, 'updated-by-test');
 
-    // ── Reference documents (PDF attachments) are disabled ──
+    // ── Reference documents (PDF attachments) are accepted and email-gated ──
     const dummyPdf = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF\n',
       'utf8'
@@ -221,7 +226,7 @@ test('server critical API flows', async () => {
     });
     assert.equal(attachRes.status, 200);
     assert.ok(attachRes.json && Array.isArray(attachRes.json.attachments));
-    assert.equal(attachRes.json.attachments.length, 0, 'CST attachments should be empty');
+    assert.equal(attachRes.json.attachments.length, 1, 'CST attachment should be stored');
 
     const cstGate = await requestJson({
       method: 'POST',
@@ -229,7 +234,8 @@ test('server critical API flows', async () => {
       urlPath: `/api/verify-email/${certId}`,
       body: { email: 'recipient@example.com' },
     });
-    assert.equal(cstGate.status, 404);
+    assert.equal(cstGate.status, 200);
+    assert.ok(cstGate.json.downloadToken);
 
     const cstDenied = await requestBinary({ port, urlPath: `/uploads/nonexistent.pdf` });
     assert.equal(cstDenied.status, 404);
@@ -267,7 +273,7 @@ test('server critical API flows', async () => {
     });
     assert.equal(vaptAttachRes.status, 200);
     assert.ok(vaptAttachRes.json && Array.isArray(vaptAttachRes.json.attachments));
-    assert.equal(vaptAttachRes.json.attachments.length, 0, 'VAPT attachments should be empty');
+    assert.equal(vaptAttachRes.json.attachments.length, 1, 'VAPT attachment should be stored');
 
     const vaptGate = await requestJson({
       method: 'POST',
@@ -275,10 +281,175 @@ test('server critical API flows', async () => {
       urlPath: `/api/vapt/verify-email/${vaptId}`,
       body: { email: 'vapt-recipient@example.com' },
     });
-    assert.equal(vaptGate.status, 404);
+    assert.equal(vaptGate.status, 200);
+    assert.ok(vaptGate.json.downloadToken);
 
     const vaptDenied = await requestBinary({ port, urlPath: `/uploads/nonexistent.pdf` });
     assert.equal(vaptDenied.status, 404);
+
+    // Relevant document library flow: admin upload -> vessel request -> approval -> captain/supt access.
+    const uniqueSuffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const captainEmail = `captain-${uniqueSuffix}@example.com`;
+    const suptEmail = `supt-${uniqueSuffix}@example.com`;
+    const dummyDocx = Buffer.from('PK\x03\x04 fake docx payload for integration test', 'binary');
+    const trainingDoc = await requestMultipart({
+      port,
+      urlPath: '/api/docs/upload',
+      token,
+      fields: {
+        vesselIMO: '9999999',
+        vesselName: 'MV TEST',
+        docType: 'TRAINING_REPORT',
+        title: 'Q1 Training Record',
+        linkedCertId: certId,
+      },
+      files: [{
+        fieldName: 'file',
+        filename: 'training-record.pdf',
+        contentType: 'application/pdf',
+        data: dummyPdf,
+      }],
+    });
+    assert.equal(trainingDoc.status, 201);
+    assert.equal(trainingDoc.json.docType, 'TRAINING_REPORT');
+
+    const drillDoc = await requestMultipart({
+      port,
+      urlPath: '/api/docs/upload',
+      token,
+      fields: {
+        vesselIMO: '9999999',
+        vesselName: 'MV TEST',
+        docType: 'DRILL_REPORT',
+        title: 'Cyber Drill Record',
+        linkedCertId: certId,
+      },
+      files: [{
+        fieldName: 'file',
+        filename: 'drill-record.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        data: dummyDocx,
+      }],
+    });
+    assert.equal(drillDoc.status, 201);
+    assert.equal(drillDoc.json.docType, 'DRILL_REPORT');
+
+    const docReq = await requestJson({
+      method: 'POST',
+      port,
+      urlPath: '/api/docs/request-access',
+      body: {
+        captainName: 'Test Captain',
+        vesselName: 'MV TEST',
+        vesselIMO: '9999999',
+        emailId: captainEmail,
+      },
+    });
+    assert.equal(docReq.status, 201);
+    assert.ok(docReq.json.requestId);
+
+    const approveDocReq = await requestJson({
+      method: 'PUT',
+      port,
+      urlPath: `/api/docs/access-requests/${docReq.json.requestId}`,
+      token,
+      body: { status: 'APPROVED' },
+    });
+    assert.equal(approveDocReq.status, 200);
+    assert.ok(approveDocReq.json.accessToken);
+
+    const captainDocs = await requestJson({
+      port,
+      urlPath: '/api/docs/by-vessel/9999999',
+      headers: { Authorization: `DocAccess ${approveDocReq.json.accessToken}` },
+    });
+    assert.equal(captainDocs.status, 200);
+    assert.ok(captainDocs.json.some(d => d.id === trainingDoc.json.id && d.docType === 'TRAINING_REPORT'));
+    assert.ok(captainDocs.json.some(d => d.id === drillDoc.json.id && d.docType === 'DRILL_REPORT'));
+    assert.ok(captainDocs.json.some(d => d.id.startsWith('ATT_CST_') && d.docType === 'CERT_ATTACHMENT'));
+
+    const captainPdf = await requestBinary({
+      port,
+      urlPath: `/api/docs/download/${trainingDoc.json.id}?docToken=${encodeURIComponent(approveDocReq.json.accessToken)}`,
+    });
+    assert.equal(captainPdf.status, 200);
+    assert.equal(captainPdf.headers['content-type'], 'application/pdf');
+    assert.match(captainPdf.headers['content-disposition'], /^inline;/);
+
+    const captainWord = await requestBinary({
+      port,
+      urlPath: `/api/docs/download/${drillDoc.json.id}?docToken=${encodeURIComponent(approveDocReq.json.accessToken)}`,
+    });
+    assert.equal(captainWord.status, 200);
+    assert.equal(captainWord.headers['content-type'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    assert.match(captainWord.headers['content-disposition'], /^attachment;/);
+
+    const superLogin = await requestJson({
+      method: 'POST',
+      port,
+      urlPath: '/api/superadmin/login',
+      body: { password: 'super_admin_test_pw' },
+    });
+    assert.equal(superLogin.status, 200);
+    const superHeader = { Authorization: `SuperAdmin ${superLogin.json.token}` };
+
+    const group = await requestJson({
+      method: 'POST',
+      port,
+      urlPath: '/api/admin/groups',
+      headers: superHeader,
+      body: { name: 'Test Group', vesselIMOs: ['9999999'] },
+    });
+    assert.equal(group.status, 201);
+
+    const user = await requestJson({
+      method: 'POST',
+      port,
+      urlPath: '/api/admin/users',
+      headers: superHeader,
+      body: {
+        name: 'Test Superintendent',
+        email: suptEmail,
+        password: 'supt_test_pw',
+        groupIds: [group.json.id],
+      },
+    });
+    assert.equal(user.status, 201);
+
+    const userLogin = await requestJson({
+      method: 'POST',
+      port,
+      urlPath: '/api/auth/user/login',
+      body: { email: suptEmail, password: 'supt_test_pw' },
+    });
+    assert.equal(userLogin.status, 200);
+    const userSession = userLogin.json.sessionToken;
+
+    const suptVessels = await requestJson({
+      port,
+      urlPath: '/api/supt/vessels',
+      headers: { Authorization: `UserSession ${userSession}` },
+    });
+    assert.equal(suptVessels.status, 200);
+    const suptVessel = suptVessels.json.find(v => v.imo === '9999999');
+    assert.ok(suptVessel);
+    assert.ok(suptVessel.docCount >= 3);
+
+    const suptDocs = await requestJson({
+      port,
+      urlPath: '/api/docs/by-vessel/9999999',
+      headers: { Authorization: `UserSession ${userSession}` },
+    });
+    assert.equal(suptDocs.status, 200);
+    assert.ok(suptDocs.json.some(d => d.id === trainingDoc.json.id));
+    assert.ok(suptDocs.json.some(d => d.id === drillDoc.json.id));
+
+    const suptWord = await requestBinary({
+      port,
+      urlPath: `/api/docs/download/${drillDoc.json.id}?userSession=${encodeURIComponent(userSession)}`,
+    });
+    assert.equal(suptWord.status, 200);
+    assert.equal(suptWord.headers['content-type'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 
     // CSV import
     const importRes = await requestJson({
@@ -321,5 +492,8 @@ test('server critical API flows', async () => {
     assert.equal(vaptDeleteRes.status, 200);
   } finally {
     child.kill('SIGTERM');
+    for (const dir of [path.join(ROOT, 'data', tenantId), path.join(ROOT, 'uploads', tenantId)]) {
+      if (dir.startsWith(ROOT + path.sep)) fs.rmSync(dir, { recursive: true, force: true });
+    }
   }
 });

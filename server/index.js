@@ -57,6 +57,10 @@ let VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.jso
 let TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
 let UPLOADS_DIR      = path.join(__dirname, '..', 'uploads');
 let KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
+let DOCS_FILE        = path.join(__dirname, '..', 'data', 'documents.json');
+let DOC_ACCESS_FILE  = path.join(__dirname, '..', 'data', 'doc_access_requests.json');
+let USERS_FILE       = path.join(__dirname, '..', 'data', 'users.json');
+let GROUPS_FILE      = path.join(__dirname, '..', 'data', 'groups.json');
 let TENANT_CFG_FILE  = null;
 
 // ─── TENANT ISOLATION (SaaS Phase 1) ────────────────────────────────────────
@@ -84,8 +88,12 @@ if (TENANT_ID) {
   DATA_FILE      = path.join(TENANT_DATA_DIR, 'certificates.json');
   VAPT_DATA_FILE = path.join(TENANT_DATA_DIR, 'vapt_certificates.json');
   TRACK_FILE     = path.join(TENANT_DATA_DIR, 'tracking_events.jsonl');
-  UPLOADS_DIR    = path.join(__dirname, '..', 'uploads', TENANT_ID);
-  KEYS_FILE      = path.join(TENANT_DATA_DIR, '.keys.json');
+  UPLOADS_DIR       = path.join(__dirname, '..', 'uploads', TENANT_ID);
+  KEYS_FILE         = path.join(TENANT_DATA_DIR, '.keys.json');
+  DOCS_FILE         = path.join(TENANT_DATA_DIR, 'documents.json');
+  DOC_ACCESS_FILE   = path.join(TENANT_DATA_DIR, 'doc_access_requests.json');
+  USERS_FILE        = path.join(TENANT_DATA_DIR, 'users.json');
+  GROUPS_FILE       = path.join(TENANT_DATA_DIR, 'groups.json');
   log.info('Tenant isolation enabled:', TENANT_ID);
 
   // Optional: tenant-specific branding + email templates + route labels
@@ -194,8 +202,13 @@ async function initialiseRuntimePrerequisites() {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   fs.mkdirSync(path.dirname(VAPT_DATA_FILE), { recursive: true });
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  fs.mkdirSync(path.join(UPLOADS_DIR, 'documents'), { recursive: true });
   loadData();
   loadVaptData();
+  loadDocs();
+  loadDocAccess();
+  loadUsers();
+  loadGroups();
 
   serverReady = true;
   log.info('Runtime initialisation complete.');
@@ -482,6 +495,365 @@ function saveVaptData(data) {
 // ─── VAPT CERT URL BUILDER ───────────────────────────────────────────────────
 function buildVaptCertUrl(certId, baseUrl) {
   return security.buildVaptCertUrl(certId, baseUrl);
+}
+
+// ─── DOCUMENTS STORE ─────────────────────────────────────────────────────────
+let _docsCache = null;
+const docsStore = createJsonStore({
+  filePath: DOCS_FILE,
+  seedData: {},
+  onError: (err) => log.error('Failed to persist documents data:', err.message),
+  debounceMs: 50,
+});
+function loadDocs() { _docsCache = docsStore.load(); return _docsCache; }
+function saveDocs(data) { _docsCache = data; docsStore.save(data); }
+
+function normalizeVesselIMO(raw) {
+  return String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
+}
+
+function nextSequentialId(records, prefix, width = 4) {
+  const nums = Object.keys(records || {})
+    .map(k => {
+      const m = String(k).match(new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-(\\d+)$'));
+      return m ? parseInt(m[1], 10) : 0;
+    })
+    .filter(Boolean);
+  const next = nums.length ? Math.max(...nums) + 1 : 1;
+  return `${prefix}-${String(next).padStart(width, '0')}`;
+}
+
+function publicDocRecord(doc) {
+  return {
+    id: doc.id,
+    title: doc.title || doc.fileName || doc.id,
+    docType: doc.docType || 'OTHER',
+    fileName: doc.fileName || '',
+    fileSize: doc.fileSize || 0,
+    mimeType: doc.mimeType || 'application/octet-stream',
+    description: doc.description || '',
+    linkedCertId: doc.linkedCertId || null,
+    uploadedAt: doc.uploadedAt || doc.updatedAt || '',
+  };
+}
+
+function getStoredDocsForVessel(imo) {
+  const normalized = normalizeVesselIMO(imo);
+  return Object.values(loadDocs())
+    .filter(d => normalizeVesselIMO(d.vesselIMO) === normalized)
+    .map(publicDocRecord);
+}
+
+function attachmentMimeFromName(name) {
+  return MIME[path.extname(name || '').toLowerCase()] || 'application/octet-stream';
+}
+
+function collectCertAttachmentsForVessel(imo) {
+  const normalized = normalizeVesselIMO(imo);
+  const atts = [];
+  const add = (kind, certId, cert, attachment, index) => {
+    if (!attachment || !attachment.url || !attachment.name) return;
+    atts.push(publicDocRecord({
+      id: `ATT_${kind}_${certId}_${index}`,
+      title: attachment.name,
+      docType: 'CERT_ATTACHMENT',
+      fileName: attachment.name,
+      fileSize: attachment.size || 0,
+      mimeType: attachment.mimeType || attachment.contentType || attachmentMimeFromName(attachment.name),
+      description: `${kind === 'CST' ? 'CST' : 'VAPT'} Certificate ${certId}`,
+      linkedCertId: certId,
+      uploadedAt: cert.updatedAt || cert.createdAt || '',
+    }));
+  };
+
+  for (const [certId, cert] of Object.entries(loadData())) {
+    if (normalizeVesselIMO(cert.vesselIMO) === normalized && Array.isArray(cert.attachments)) {
+      cert.attachments.forEach((a, i) => add('CST', certId, cert, a, i));
+    }
+  }
+  for (const [certId, cert] of Object.entries(loadVaptData())) {
+    if (normalizeVesselIMO(cert.vesselIMO) === normalized && Array.isArray(cert.attachments)) {
+      cert.attachments.forEach((a, i) => add('VAPT', certId, cert, a, i));
+    }
+  }
+  return atts;
+}
+
+function allDocumentLibraryRecords() {
+  const docs = Object.values(loadDocs()).map(d => ({
+    ...publicDocRecord(d),
+    vesselIMO: normalizeVesselIMO(d.vesselIMO),
+    vesselName: d.vesselName || '',
+    filePath: d.filePath || '',
+    isLibraryUpload: true,
+  }));
+
+  const addCertAttachments = (kind, certs) => {
+    for (const [certId, cert] of Object.entries(certs)) {
+      if (!Array.isArray(cert.attachments)) continue;
+      cert.attachments.forEach((a, i) => {
+        if (!a || !a.url || !a.name) return;
+        docs.push({
+          ...publicDocRecord({
+            id: `ATT_${kind}_${certId}_${i}`,
+            title: a.name,
+            docType: 'CERT_ATTACHMENT',
+            fileName: a.name,
+            fileSize: a.size || 0,
+            mimeType: a.mimeType || a.contentType || attachmentMimeFromName(a.name),
+            description: `${kind === 'CST' ? 'CST' : 'VAPT'} Certificate ${certId}`,
+            linkedCertId: certId,
+            uploadedAt: cert.updatedAt || cert.createdAt || '',
+          }),
+          vesselIMO: normalizeVesselIMO(cert.vesselIMO),
+          vesselName: cert.vesselName || '',
+          isCertificateAttachment: true,
+        });
+      });
+    }
+  };
+  addCertAttachments('CST', loadData());
+  addCertAttachments('VAPT', loadVaptData());
+  return docs;
+}
+
+function resolveCertificateAttachment(attId) {
+  const m = String(attId || '').match(/^ATT_(CST|VAPT)_(.+)_(\d+)$/);
+  if (!m) return null;
+  const [, kind, certId, idxRaw] = m;
+  const idx = Number(idxRaw);
+  const data = kind === 'VAPT' ? loadVaptData() : loadData();
+  const cert = data[certId];
+  const attachment = cert && Array.isArray(cert.attachments) ? cert.attachments[idx] : null;
+  if (!attachment || !attachment.url) return null;
+  const rel = attachment.url.replace(/^\/uploads\//, '');
+  const fp = path.resolve(UPLOADS_DIR, rel);
+  if (!fp.startsWith(UPLOADS_DIR + path.sep) && fp !== UPLOADS_DIR) return null;
+  return {
+    id: attId,
+    vesselIMO: normalizeVesselIMO(cert.vesselIMO),
+    fileName: attachment.name || path.basename(fp),
+    mimeType: attachment.mimeType || attachment.contentType || attachmentMimeFromName(attachment.name || fp),
+    filePath: fp,
+  };
+}
+
+// ─── DOC ACCESS REQUESTS STORE ───────────────────────────────────────────────
+let _docAccessCache = null;
+const docAccessStore = createJsonStore({
+  filePath: DOC_ACCESS_FILE,
+  seedData: {},
+  onError: (err) => log.error('Failed to persist doc access data:', err.message),
+  debounceMs: 50,
+});
+function loadDocAccess() { _docAccessCache = docAccessStore.load(); return _docAccessCache; }
+function saveDocAccess(data) { _docAccessCache = data; docAccessStore.save(data); }
+
+// ─── USERS STORE ─────────────────────────────────────────────────────────────
+let _usersCache = null;
+const usersStore = createJsonStore({
+  filePath: USERS_FILE,
+  seedData: {},
+  onError: (err) => log.error('Failed to persist users data:', err.message),
+  debounceMs: 50,
+});
+function loadUsers()       { _usersCache = usersStore.load(); return _usersCache; }
+function saveUsers(data)   { _usersCache = data; usersStore.save(data); }
+
+// ─── GROUPS STORE ─────────────────────────────────────────────────────────────
+let _groupsCache = null;
+const groupsStore = createJsonStore({
+  filePath: GROUPS_FILE,
+  seedData: {},
+  onError: (err) => log.error('Failed to persist groups data:', err.message),
+  debounceMs: 50,
+});
+function loadGroups()      { _groupsCache = groupsStore.load(); return _groupsCache; }
+function saveGroups(data)  { _groupsCache = data; groupsStore.save(data); }
+
+// ─── USER PASSWORD HELPERS (per-user PBKDF2 with random salt) ────────────────
+async function hashUserPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, salt + KEYS.pwdSalt, 100000, 32, 'sha256', (err, derived) => {
+      if (err) reject(err);
+      else resolve(salt + ':' + derived.toString('hex'));
+    });
+  });
+}
+async function verifyUserPassword(password, stored) {
+  const [salt, hash] = (stored || '').split(':');
+  if (!salt || !hash) return false;
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, salt + KEYS.pwdSalt, 100000, 32, 'sha256', (err, derived) => {
+      if (err) reject(err);
+      else {
+        const a = Buffer.from(derived.toString('hex'));
+        const b = Buffer.from(hash);
+        resolve(a.length === b.length && crypto.timingSafeEqual(a, b));
+      }
+    });
+  });
+}
+
+// ─── SUPER ADMIN TOKEN ────────────────────────────────────────────────────────
+const SUPER_ADMIN_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
+function issueSuperAdminToken() {
+  const payload = { kind: 'superadmin', iat: Date.now(), exp: Date.now() + SUPER_ADMIN_TOKEN_TTL_MS };
+  const b64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig  = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  return b64 + '.' + sig;
+}
+function verifySuperAdminToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [b64, sig] = parts;
+  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  const sBuf = Buffer.from(sig), eBuf = Buffer.from(expected);
+  if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (!p || p.kind !== 'superadmin') return null;
+    if (Date.now() > p.exp) return null;
+    return p;
+  } catch { return null; }
+}
+function superAdminCheck(req) {
+  const auth = req.headers['authorization'] || '';
+  if (!auth.startsWith('SuperAdmin ')) return false;
+  return verifySuperAdminToken(auth.slice(11)) !== null;
+}
+
+// ─── USER SESSION TOKEN (24-hour, for superintendents on public pages) ────────
+const USER_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+function issueUserSessionToken(userId) {
+  const payload = { kind: 'usersession', sub: userId, iat: Date.now(), exp: Date.now() + USER_SESSION_TTL_MS };
+  const b64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig  = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  return b64 + '.' + sig;
+}
+function verifyUserSessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [b64, sig] = parts;
+  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  const sBuf = Buffer.from(sig), eBuf = Buffer.from(expected);
+  if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (!p || p.kind !== 'usersession' || !p.sub) return null;
+    if (Date.now() > p.exp) return null;
+    return p;
+  } catch { return null; }
+}
+// Returns the active user object if the request carries a valid UserSession token, else null
+function getUserFromSession(req) {
+  const auth  = req.headers['authorization'] || '';
+  const token = auth.startsWith('UserSession ') ? auth.slice(12) : '';
+  const payload = verifyUserSessionToken(token);
+  if (!payload) return null;
+  const users = loadUsers();
+  const user = users[payload.sub];
+  if (!user || !user.active) return null;
+  return user;
+}
+// Returns Set of vessel IMOs accessible by a user (from all their groups)
+function getUserVesselIMOs(user) {
+  const groups = loadGroups();
+  const imoSet = new Set();
+  (user.groupIds || []).forEach(gid => {
+    const g = groups[gid];
+    if (g) (g.vesselIMOs || []).forEach(i => imoSet.add(normalizeVesselIMO(i)));
+  });
+  return imoSet;
+}
+
+// ─── DOC ACCESS TOKEN (vessel-level, 30-day) ─────────────────────────────────
+const DOC_ACCESS_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000; // 1-year TTL — permanent grants auto-renew
+
+function issueDocAccessToken(vesselIMO, requestId) {
+  const payload = { sub: normalizeVesselIMO(vesselIMO), kind: 'docaccess', reqId: requestId, iat: Date.now(), exp: Date.now() + DOC_ACCESS_TOKEN_TTL_MS };
+  const b64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  return `${b64}.${sig}`;
+}
+
+function verifyDocAccessToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [b64, sig] = parts;
+  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  const sBuf = Buffer.from(sig), eBuf = Buffer.from(expected);
+  if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (!p || p.kind !== 'docaccess' || !p.sub) return null;
+    if (typeof p.exp !== 'number' || Date.now() > p.exp) return null;
+    return p;
+  } catch { return null; }
+}
+
+// Relaxed variant — verifies HMAC signature but ignores expiry.
+// Used only for permanent-grant auto-renewal in /api/docs/check-access.
+function verifyDocAccessTokenRelaxed(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [b64, sig] = parts;
+  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  const sBuf = Buffer.from(sig), eBuf = Buffer.from(expected);
+  if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (!p || p.kind !== 'docaccess' || !p.sub) return null;
+    return p; // No expiry check — for permanent-grant renewal only
+  } catch { return null; }
+}
+
+// Issue a short-lived claim token so the submitting browser can poll request status without auth.
+function issueDocClaimToken(reqId) {
+  const b64 = Buffer.from(JSON.stringify({ kind: 'docclaim', reqId, iat: Date.now() })).toString('base64url');
+  const sig  = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  return b64 + '.' + sig;
+}
+function verifyDocClaimToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [b64, sig] = parts;
+  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+  const sBuf = Buffer.from(sig), eBuf = Buffer.from(expected);
+  if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (!p || p.kind !== 'docclaim' || !p.reqId) return null;
+    return p;
+  } catch { return null; }
+}
+
+// Send document access approval email — no token in body, vessel just returns to the cert page.
+async function sendDocAccessEmail(docReq, certPageUrl) {
+  if (!SES_ENABLED) return { success: false, error: 'Email not configured' };
+  const captain    = docReq.captainName || 'Captain';
+  const vesselName = docReq.vesselName  || '';
+  const vesselIMO  = docReq.vesselIMO   || '';
+  const to         = docReq.emailId;
+  const from       = SES_FROM_CST;
+  const subject    = `Document Access Approved — ${vesselName || vesselIMO} — ${CFG.brand.companyShort || CFG.brand.name}`;
+  const body =
+    `Dear Captain ${captain},\n\n` +
+    `Your request to access compliance documents for vessel ${vesselName}${vesselIMO ? ' (IMO: ' + vesselIMO + ')' : ''} ` +
+    `has been approved by the ${CFG.brand.name} Cyber Security Team.\n\n` +
+    `Return to the certificate verification page — your documents will load automatically:\n\n` +
+    `${certPageUrl}\n\n` +
+    `No token or extra steps are required. Documents will be available on every future visit from this device.\n\n` +
+    `If you have any questions, contact us at ${CFG.contact.cstEmail}.\n\n` +
+    `Regards,\n${CFG.brand.cstTeam}\n${CFG.contact.cstEmail}`;
+  const raw = buildRawEmail({ from, to, subject, body, replyTo: from });
+  return sesSendRaw(raw, from, [to]);
 }
 
 // ─── EMAIL DISPATCH (AWS SES — pure Node.js, zero npm deps) ────────────────────
@@ -1015,14 +1387,14 @@ function vaptPublicFields(cert) {
 }
 
 // ─── ATTACHMENT HELPERS ──────────────────────────────────────────────────────
-const ALLOWED_ATTACHMENT_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+const ALLOWED_ATTACHMENT_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.doc', '.docx', '.xls', '.xlsx'];
 
 function saveAttachmentFile(fileObj, prefix) {
   const origExt = path.extname(fileObj.filename).toLowerCase();
   const ext     = ALLOWED_ATTACHMENT_EXTS.includes(origExt) ? origExt : '.pdf';
   const fname   = prefix + '_' + crypto.randomBytes(12).toString('hex') + ext;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
-  return { name: fileObj.filename || fname, url: '/uploads/' + fname };
+  return { name: fileObj.filename || fname, url: '/uploads/' + fname, size: fileObj.data.length };
 }
 
 function extractAttachments(fields, files, prefix, existingAttachments = []) {
@@ -1044,7 +1416,11 @@ const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
   '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
-  '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.pdf': 'application/pdf'
+  '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 };
 
 // ─── INPUT SANITISATION ───────────────────────────────────────────────────────
@@ -1103,9 +1479,11 @@ function sendFile(res, filePath, req) {
   const isHtml = ext === '.html' || ext === '';
   const cacheControl = isHtml
     ? 'no-cache, no-store, must-revalidate'
-    : (ext === '.js' || ext === '.css' || ext === '.woff2' || ext === '.woff')
-      ? 'public, max-age=86400'
-      : 'public, max-age=3600';
+    : (ext === '.js' || ext === '.css')
+      ? 'no-cache, must-revalidate'
+      : (ext === '.woff2' || ext === '.woff')
+        ? 'public, max-age=604800'
+        : 'public, max-age=3600';
   fs.stat(filePath, (statErr, stat) => {
     if (statErr || !stat.isFile()) {
       res.writeHead(404, SECURITY_HEADERS);
@@ -1218,7 +1596,7 @@ function parseMultipart(req) {
     let totalSize = 0;
     req.on('data', c => {
       totalSize += c.length;
-      if (totalSize > 10 * 1024 * 1024) { req.destroy(); return reject(new Error('File is too large to upload.')); }
+      if (totalSize > 20 * 1024 * 1024) { req.destroy(); return reject(new Error('File is too large to upload. Maximum size is 20 MB.')); }
       chunks.push(c);
     });
     req.on('end', () => {
@@ -1553,7 +1931,7 @@ async function handleAPI(req, res, parsed) {
         cert = { ...fields };
         const imgPath = saveCertImageFile(files, 'cert');
         if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = [];
+        cert.attachments = extractAttachments(fields, files, 'cert');
       } else {
         cert = JSON.parse(await getBody(req));
         if (!Array.isArray(cert.attachments)) cert.attachments = [];
@@ -1564,8 +1942,6 @@ async function handleAPI(req, res, parsed) {
     cert.id = certId;
     cert = sanitiseCertBody(cert);
     deriveQuarterFields(cert);
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    cert.attachments = [];
     const data = loadData();
     if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
     cert.emailStatus = cert.emailStatus || 'NOT_SENT';
@@ -1615,8 +1991,7 @@ async function handleAPI(req, res, parsed) {
         updates = { ...fields };
         const imgPath = saveCertImageFile(files, 'cert', data[certId].certificateImage);
         if (imgPath) updates.certificateImage = imgPath;
-        // Reference documents (PDF attachments) are removed/disabled as of now.
-        updates.attachments = [];
+        updates.attachments = extractAttachments(fields, files, 'cert', data[certId].attachments || []);
       } else {
         updates = JSON.parse(await getBody(req));
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
@@ -1624,8 +1999,6 @@ async function handleAPI(req, res, parsed) {
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
     updates = sanitiseCertBody(updates);
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    updated.attachments = [];
     // Enforce: EXPIRED or REVOKED → validUntil must be today (so radar & filters are always accurate)
     if (updated.status === 'EXPIRED' || updated.status === 'REVOKED') {
       updated.validUntil = new Date().toISOString().slice(0, 10);
@@ -1890,8 +2263,6 @@ async function handleAPI(req, res, parsed) {
   // Returns { ok: true, downloadToken } only when email matches the stored recipientEmail
   // (case-insensitive, timing-safe). Never reveals the email.
   if (route.match(/^\/verify-email\/[^/]+$/) && method === 'POST') {
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    return sendJSON(res, 404, { error: 'Not found' }, corsH);
     const rl = checkRateLimit(ip, 'verify');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
     const certId = sanitiseCertId(route.replace('/verify-email/', ''));
@@ -1919,8 +2290,6 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/vapt/verify-email/:certId ── (public — gate check for VAPT PDF access)
   if (route.match(/^\/vapt\/verify-email\/[^/]+$/) && method === 'POST') {
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    return sendJSON(res, 404, { error: 'Not found' }, corsH);
     const rl = checkRateLimit(ip, 'verify');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
     const certId = sanitiseCertId(route.replace('/vapt/verify-email/', ''));
@@ -2027,8 +2396,7 @@ async function handleAPI(req, res, parsed) {
         cert = { ...fields };
         const imgPath = saveCertImageFile(files, 'vapt');
         if (imgPath) cert.certificateImage = imgPath;
-        // Reference documents (PDF attachments) are removed/disabled as of now.
-        cert.attachments = [];
+        cert.attachments = extractAttachments(fields, files, 'vapt');
       } else {
         cert = JSON.parse(await getBody(req));
         if (!Array.isArray(cert.attachments)) cert.attachments = [];
@@ -2038,8 +2406,6 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid or missing certificate ID' }, corsH);
     cert.id = certId;
     cert = sanitiseCertBody(cert);
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    cert.attachments = [];
     const data = loadVaptData();
     if (data[cert.id]) return sendJSON(res, 409, { error: 'Certificate ID already exists' }, corsH);
     cert.emailStatus   = cert.emailStatus   || 'NOT_SENT';
@@ -2155,8 +2521,7 @@ async function handleAPI(req, res, parsed) {
         updates = { ...fields };
         const imgPath = saveCertImageFile(files, 'vapt', data[certId].certificateImage);
         if (imgPath) updates.certificateImage = imgPath;
-        // Reference documents (PDF attachments) are removed/disabled as of now.
-        updates.attachments = [];
+        updates.attachments = extractAttachments(fields, files, 'vapt', data[certId].attachments || []);
       } else {
         updates = JSON.parse(await getBody(req));
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
@@ -2164,8 +2529,6 @@ async function handleAPI(req, res, parsed) {
     } catch { return sendJSON(res, 400, { error: 'Invalid request body' }, corsH); }
     updates = sanitiseCertBody(updates);
     const updated = { ...data[certId], ...updates, updatedAt: new Date().toISOString() };
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    updated.attachments = [];
     // Enforce: EXPIRED or REVOKED → validUntil must be today (so radar & filters are always accurate)
     if (updated.status === 'EXPIRED' || updated.status === 'REVOKED') {
       updated.validUntil = new Date().toISOString().slice(0, 10);
@@ -2330,6 +2693,631 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, { success: true, attachments: atts }, corsH);
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  //  RELEVANT DOCUMENTS — vessel-level documents with access-token gating
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── GET /api/docs ── (admin — list all documents)
+  if (route === '/docs' && method === 'GET') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    return sendJSON(res, 200, allDocumentLibraryRecords(), corsH);
+  }
+
+  // ── POST /api/docs/upload ── (admin — upload a document for a vessel)
+  if (route === '/docs/upload' && method === 'POST') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    const ct = req.headers['content-type'] || '';
+    if (!ct.includes('multipart/form-data')) return sendJSON(res, 400, { error: 'multipart/form-data required' }, corsH);
+    let fields, files;
+    try { ({ fields, files } = await parseMultipart(req)); } catch (e) { return sendJSON(res, 400, { error: e.message || 'Upload failed' }, corsH); }
+    const vesselIMO  = normalizeVesselIMO(fields.vesselIMO);
+    const vesselName = (fields.vesselName || '').trim().slice(0, 120);
+    const docType    = ['TRAINING_REPORT','DRILL_REPORT','AUDIT_REPORT','OTHER'].includes((fields.docType||'').toUpperCase()) ? fields.docType.toUpperCase() : 'OTHER';
+    const title      = (fields.title || '').trim().slice(0, 200) || 'Untitled Document';
+    const description = (fields.description || '').trim().slice(0, 500);
+    const linkedCertId = (fields.linkedCertId || '').trim().slice(0, 60);
+    const fileObj = files.file;
+    if (!vesselIMO) return sendJSON(res, 400, { error: 'Vessel IMO is required' }, corsH);
+    if (!fileObj || !fileObj.data || !fileObj.data.length) return sendJSON(res, 400, { error: 'No file provided' }, corsH);
+    const ALLOWED_MIME = ['application/pdf','image/jpeg','image/png','image/gif','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (!ALLOWED_MIME.includes(fileObj.contentType)) return sendJSON(res, 400, { error: 'File type not allowed' }, corsH);
+    const safeOrig = path.basename(fileObj.filename || 'upload').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80);
+    const uid = crypto.randomBytes(8).toString('hex');
+    const fname = `DOC-${vesselIMO}-${uid}-${safeOrig}`;
+    const docsUploadDir = path.join(UPLOADS_DIR, 'documents');
+    fs.mkdirSync(docsUploadDir, { recursive: true });
+    const fpath = path.join(docsUploadDir, fname);
+    fs.writeFileSync(fpath, fileObj.data);
+    const docs = loadDocs();
+    const docId = nextSequentialId(docs, 'DOC');
+    const doc = {
+      id: docId, vesselIMO, vesselName, docType, title, description,
+      linkedCertId: linkedCertId || null,
+      fileName: safeOrig,
+      filePath: `/uploads/documents/${fname}`,
+      fileSize: fileObj.data.length,
+      mimeType: fileObj.contentType,
+      uploadedAt: new Date().toISOString(),
+    };
+    docs[docId] = doc;
+    saveDocs(docs);
+    return sendJSON(res, 201, doc, corsH);
+  }
+
+  // ── PUT /api/docs/:id ── (admin — update doc metadata)
+  if (route.match(/^\/docs\/DOC-\d+$/) && method === 'PUT') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const docId = route.replace('/docs/', '');
+    const docs = loadDocs();
+    if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    let updates;
+    try { updates = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const allowed = ['title','description','docType','vesselName','linkedCertId'];
+    for (const k of allowed) {
+      if (updates[k] !== undefined) docs[docId][k] = String(updates[k]).trim().slice(0, 500);
+    }
+    docs[docId].updatedAt = new Date().toISOString();
+    saveDocs(docs);
+    return sendJSON(res, 200, docs[docId], corsH);
+  }
+
+  // ── DELETE /api/docs/:id ── (admin — delete document + file)
+  if (route.match(/^\/docs\/DOC-\d+$/) && method === 'DELETE') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const docId = route.replace('/docs/', '');
+    const docs = loadDocs();
+    if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    const fp = docs[docId].filePath ? path.join(UPLOADS_DIR, 'documents', path.basename(docs[docId].filePath)) : null;
+    if (fp && fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch { /* ignore */ }
+    delete docs[docId];
+    saveDocs(docs);
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── GET /api/docs/by-vessel/:imo ── (vessel — list docs; accepts DocAccess token or UserSession)
+  if (route.match(/^\/docs\/by-vessel\/[A-Z0-9]{1,20}$/) && method === 'GET') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsH);
+    const imo = normalizeVesselIMO(route.replace('/docs/by-vessel/', ''));
+    const authHdr = req.headers['authorization'] || '';
+
+    // Path A: UserSession (superintendent)
+    const sessUser = getUserFromSession(req);
+    if (sessUser) {
+      const imoSet = getUserVesselIMOs(sessUser);
+      if (!imoSet.has(imo)) return sendJSON(res, 403, { error: 'Access denied. Vessel not in your group.' }, corsH);
+      return sendJSON(res, 200, [...getStoredDocsForVessel(imo), ...collectCertAttachmentsForVessel(imo)], corsH);
+    }
+
+    // Path B: DocAccess token (captain / vessel user)
+    const token = authHdr.startsWith('DocAccess ') ? authHdr.slice(10) : (parsed.searchParams.get('docToken') || '');
+    const payload = verifyDocAccessToken(token);
+    if (!payload || payload.sub !== imo) return sendJSON(res, 403, { error: 'Access denied. Valid document access token required.' }, corsH);
+    // Verify the grant hasn't been revoked
+    if (payload.reqId) {
+      const ac = loadDocAccess();
+      const gr = ac[payload.reqId];
+      if (!gr || !gr.permanentGrant || gr.status !== 'APPROVED') {
+        return sendJSON(res, 403, { error: 'Access revoked.' }, corsH);
+      }
+    }
+    return sendJSON(res, 200, [...getStoredDocsForVessel(imo), ...collectCertAttachmentsForVessel(imo)], corsH);
+  }
+
+  // ── GET /api/docs/download/:id ── (vessel — download; accepts DocAccess token, UserSession, or admin)
+  if (route.match(/^\/docs\/download\/(?:DOC-\d+|ATT_(?:CST|VAPT)_.+_\d+)$/) && method === 'GET') {
+    const rl = checkRateLimit(ip, 'default');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests.' }, corsH);
+    const docId = route.replace('/docs/download/', '');
+    const docs = loadDocs();
+    const certAttachment = resolveCertificateAttachment(docId);
+    const doc = docs[docId] || certAttachment;
+    if (!doc) return sendJSON(res, 404, { error: 'Document not found' }, corsH);
+    const authHdr = req.headers['authorization'] || '';
+
+    let accessGranted = false;
+    // Admin direct access
+    if (authCheck(req) || superAdminCheck(req)) { accessGranted = true; }
+    // Superintendent session (also via query param for <a> download links)
+    if (!accessGranted) {
+      const qSession = parsed.searchParams.get('userSession') || '';
+      const sessToken = authHdr.startsWith('UserSession ') ? authHdr.slice(12) : qSession;
+      const sessPay = verifyUserSessionToken(sessToken);
+      if (sessPay) {
+        const users = loadUsers();
+        const u = users[sessPay.sub];
+        if (u && u.active) {
+          const imoSet = getUserVesselIMOs(u);
+          if (imoSet.has(normalizeVesselIMO(doc.vesselIMO))) accessGranted = true;
+        }
+      }
+    }
+    // DocAccess token
+    if (!accessGranted) {
+      const token = authHdr.startsWith('DocAccess ') ? authHdr.slice(10) : (parsed.searchParams.get('docToken') || '');
+      const payload = verifyDocAccessToken(token);
+      if (payload && payload.sub === normalizeVesselIMO(doc.vesselIMO)) {
+        // Verify not revoked
+        let grantOk = true;
+        if (payload.reqId) {
+          const ac = loadDocAccess();
+          const gr = ac[payload.reqId];
+          if (!gr || !gr.permanentGrant || gr.status !== 'APPROVED') grantOk = false;
+        }
+        if (grantOk) accessGranted = true;
+      }
+    }
+    if (!accessGranted) return sendJSON(res, 403, { error: 'Access denied.' }, corsH);
+    const fp = certAttachment
+      ? certAttachment.filePath
+      : path.resolve(UPLOADS_DIR, 'documents', path.basename(doc.filePath || ''));
+    const allowedRoot = certAttachment ? UPLOADS_DIR : path.join(UPLOADS_DIR, 'documents');
+    if ((!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) || !fs.existsSync(fp)) return sendJSON(res, 404, { error: 'File not found' }, corsH);
+    const data = fs.readFileSync(fp);
+    const mime = doc.mimeType || 'application/octet-stream';
+    const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
+    const disposition = isViewable
+      ? `inline; filename="${doc.fileName.replace(/"/g, '_')}"`
+      : `attachment; filename="${doc.fileName.replace(/"/g, '_')}"`;
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Content-Disposition': disposition,
+      'Content-Length': data.length,
+      'Cache-Control': 'private, no-store',
+      ...SECURITY_HEADERS,
+    });
+    return res.end(data);
+  }
+
+  // ── POST /api/docs/request-access ── (public — vessel requests document access)
+  if (route === '/docs/request-access' && method === 'POST') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req, 5000)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const captainName = (body.captainName || body.vesselName || '').trim().slice(0, 120); // captain's name
+    const vesselName  = (body.vesselName  || '').trim().slice(0, 120);                    // vessel name from cert
+    const vesselIMO   = normalizeVesselIMO(body.vesselIMO);
+    const emailId     = (body.emailId     || '').trim().toLowerCase().slice(0, 200);
+    if (!emailId) return sendJSON(res, 400, { error: 'emailId is required' }, corsH);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailId)) return sendJSON(res, 400, { error: 'Invalid email address' }, corsH);
+    const access = loadDocAccess();
+    // If already permanently approved — return a fresh claim token so the browser can auto-retrieve access
+    const approved = Object.values(access).find(r => r.emailId === emailId && r.vesselIMO === vesselIMO && r.permanentGrant);
+    if (approved) {
+      const claimToken = issueDocClaimToken(approved.id);
+      return sendJSON(res, 200, { ok: true, requestId: approved.id, claimToken, alreadyApproved: true }, corsH);
+    }
+    // If already pending — return existing reqId + fresh claim token
+    const dup = Object.values(access).find(r => r.emailId === emailId && r.vesselIMO === vesselIMO && r.status === 'PENDING');
+    if (dup) {
+      const claimToken = issueDocClaimToken(dup.id);
+      return sendJSON(res, 200, { ok: true, requestId: dup.id, claimToken, alreadyPending: true }, corsH);
+    }
+    const reqId = nextSequentialId(access, 'REQ');
+    const req_ = { id: reqId, captainName, vesselName, vesselIMO, emailId, requestedAt: new Date().toISOString(), status: 'PENDING', permanentGrant: false, accessToken: null, tokenExpiry: null, approvedAt: null, notes: '' };
+    access[reqId] = req_;
+    saveDocAccess(access);
+    const claimToken = issueDocClaimToken(reqId);
+    return sendJSON(res, 201, { ok: true, requestId: reqId, claimToken, message: 'Access request submitted.' }, corsH);
+  }
+
+  // ── GET /api/docs/access-requests ── (admin — list all access requests)
+  if (route === '/docs/access-requests' && method === 'GET') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const access = loadDocAccess();
+    return sendJSON(res, 200, Object.values(access).sort((a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || '')), corsH);
+  }
+
+  // ── PUT /api/docs/access-requests/:id ── (admin — approve or deny)
+  if (route.match(/^\/docs\/access-requests\/REQ-\d+$/) && method === 'PUT') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const reqId = route.replace('/docs/access-requests/', '');
+    const access = loadDocAccess();
+    if (!access[reqId]) return sendJSON(res, 404, { error: 'Request not found' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const action = (body.status || '').toUpperCase();
+    if (!['APPROVED', 'DENIED'].includes(action)) return sendJSON(res, 400, { error: 'status must be APPROVED or DENIED' }, corsH);
+    access[reqId].status = action;
+    access[reqId].notes  = (body.notes || '').trim().slice(0, 300);
+    if (action === 'APPROVED') {
+      const token = issueDocAccessToken(access[reqId].vesselIMO, reqId);
+      access[reqId].accessToken    = token;
+      access[reqId].tokenExpiry    = new Date(Date.now() + DOC_ACCESS_TOKEN_TTL_MS).toISOString();
+      access[reqId].approvedAt     = new Date().toISOString();
+      access[reqId].permanentGrant = true; // One-time approval — auto-renews forever
+      saveDocAccess(access);
+      // Auto-send approval email — vessel just returns to the cert page, no token link needed
+      const certPageUrl = BASE_ORIGIN + (CFG.routes.cst || '/CST') + '/';
+      let emailSent = false;
+      try {
+        const mailResult = await sendDocAccessEmail(access[reqId], certPageUrl);
+        emailSent = mailResult.success;
+        if (!mailResult.success) log.warn('Doc access email failed:', mailResult.error);
+      } catch (e) { log.warn('Doc access email error:', e.message); }
+      access[reqId].emailSent   = emailSent;
+      access[reqId].emailSentAt = emailSent ? new Date().toISOString() : null;
+      saveDocAccess(access);
+      return sendJSON(res, 200, { ...access[reqId], emailSent }, corsH);
+    } else {
+      access[reqId].accessToken    = null;
+      access[reqId].tokenExpiry    = null;
+      access[reqId].permanentGrant = false;
+      saveDocAccess(access);
+      return sendJSON(res, 200, access[reqId], corsH);
+    }
+  }
+
+  // ── DELETE /api/docs/access-requests/:id ── (admin — remove request)
+  if (route.match(/^\/docs\/access-requests\/REQ-\d+$/) && method === 'DELETE') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const reqId = route.replace('/docs/access-requests/', '');
+    const access = loadDocAccess();
+    if (!access[reqId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+    delete access[reqId];
+    saveDocAccess(access);
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── GET /api/docs/check-access ── (public — verify token; auto-renews permanent grants)
+  if (route === '/docs/check-access' && method === 'GET') {
+    const token = parsed.searchParams.get('token') || '';
+    const imo   = (parsed.searchParams.get('imo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // Fast path — token still valid
+    const payload = verifyDocAccessToken(token);
+    if (payload && (!imo || payload.sub === imo)) {
+      // Verify the grant hasn't been revoked since this token was issued
+      if (payload.reqId) {
+        const ac = loadDocAccess();
+        const gr = ac[payload.reqId];
+        if (!gr || !gr.permanentGrant || gr.status !== 'APPROVED') {
+          return sendJSON(res, 200, { valid: false }, corsH);
+        }
+      }
+      return sendJSON(res, 200, { valid: true, vesselIMO: payload.sub, exp: payload.exp }, corsH);
+    }
+    // Slow path — token expired or missing; check for permanent grant and auto-renew
+    if (token) {
+      const relaxed = verifyDocAccessTokenRelaxed(token);
+      if (relaxed && relaxed.reqId && (!imo || relaxed.sub === imo)) {
+        const access = loadDocAccess();
+        const grant  = access[relaxed.reqId];
+        if (grant && grant.permanentGrant && grant.status === 'APPROVED' && grant.vesselIMO === relaxed.sub) {
+          const newToken = issueDocAccessToken(grant.vesselIMO, relaxed.reqId);
+          grant.accessToken    = newToken;
+          grant.tokenExpiry    = new Date(Date.now() + DOC_ACCESS_TOKEN_TTL_MS).toISOString();
+          grant.lastRenewedAt  = new Date().toISOString();
+          saveDocAccess(access);
+          return sendJSON(res, 200, { valid: true, vesselIMO: grant.vesselIMO, newToken, renewed: true }, corsH);
+        }
+      }
+    }
+    return sendJSON(res, 200, { valid: false }, corsH);
+  }
+
+  // ── GET /api/docs/temp-link/:id ── (admin — generates 24-hour signed URL; no auth needed to open it)
+  if (route.match(/^\/docs\/temp-link\/(?:DOC-\d+|ATT_(?:CST|VAPT)_.+_\d+)$/) && method === 'GET') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    const docId = route.replace('/docs/temp-link/', '');
+    const docs = loadDocs();
+    const certAttachment = resolveCertificateAttachment(docId);
+    const doc = docs[docId] || certAttachment;
+    if (!doc) return sendJSON(res, 404, { error: 'Document not found' }, corsH);
+    const payload = { id: docId, exp: Date.now() + 24 * 60 * 60 * 1000 };
+    const b64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    const sig = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+    const token = `${b64}.${sig}`;
+    const url = `${BASE_ORIGIN}/api/docs/open/${encodeURIComponent(token)}`;
+    return sendJSON(res, 200, { url, fileName: doc.fileName, title: doc.title || doc.fileName }, corsH);
+  }
+
+  // ── GET /api/docs/open/:token ── (public — serves document via signed temp link; no login required)
+  if (route.startsWith('/docs/open/') && method === 'GET') {
+    const rl = checkRateLimit(ip, 'default');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests.' }, corsH);
+    let rawToken;
+    try { rawToken = decodeURIComponent(route.replace('/docs/open/', '')); } catch { return sendJSON(res, 400, { error: 'Bad token encoding' }, corsH); }
+    const parts = rawToken.split('.');
+    if (parts.length !== 2) return sendJSON(res, 400, { error: 'Invalid token format' }, corsH);
+    const [b64, sig] = parts;
+    const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
+    const sigBuf = Buffer.from(sig, 'base64url');
+    const expBuf = Buffer.from(expected, 'base64url');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return sendJSON(res, 403, { error: 'Invalid or tampered link' }, corsH);
+    let payload;
+    try { payload = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8')); } catch { return sendJSON(res, 400, { error: 'Malformed token' }, corsH); }
+    if (!payload || !payload.id || !payload.exp || Date.now() > payload.exp) return sendJSON(res, 403, { error: 'Link has expired. Ask your admin to generate a new one.' }, corsH);
+    const docs = loadDocs();
+    const certAttachment = resolveCertificateAttachment(payload.id);
+    const doc = docs[payload.id] || certAttachment;
+    if (!doc) return sendJSON(res, 404, { error: 'Document not found' }, corsH);
+    const fp = certAttachment
+      ? certAttachment.filePath
+      : path.resolve(UPLOADS_DIR, 'documents', path.basename(doc.filePath || ''));
+    const allowedRoot = certAttachment ? UPLOADS_DIR : path.join(UPLOADS_DIR, 'documents');
+    if ((!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) || !fs.existsSync(fp)) return sendJSON(res, 404, { error: 'File not found on disk' }, corsH);
+    const data = fs.readFileSync(fp);
+    const mime = doc.mimeType || 'application/octet-stream';
+    const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
+    const disp = isViewable ? `inline; filename="${doc.fileName.replace(/"/g,'_')}"` : `attachment; filename="${doc.fileName.replace(/"/g,'_')}"`;
+    res.writeHead(200, { 'Content-Type': mime, 'Content-Disposition': disp, 'Content-Length': data.length, 'Cache-Control': 'private, max-age=3600', ...SECURITY_HEADERS });
+    return res.end(data);
+  }
+
+  // ── GET /api/docs/request-status ── (public — vessel polls approval via claim token; no auth needed)
+  if (route === '/docs/request-status' && method === 'GET') {
+    const rl = checkRateLimit(ip, 'verify');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests.' }, corsH);
+    const reqId      = (parsed.searchParams.get('reqId')      || '').trim();
+    const claimToken = (parsed.searchParams.get('claimToken') || '').trim();
+    const imo        = (parsed.searchParams.get('imo')        || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const claim = verifyDocClaimToken(claimToken);
+    if (!claim || claim.reqId !== reqId) return sendJSON(res, 403, { error: 'Invalid claim' }, corsH);
+    const access = loadDocAccess();
+    const req_   = access[reqId];
+    if (!req_ || (imo && req_.vesselIMO !== imo)) return sendJSON(res, 200, { status: 'NOT_FOUND' }, corsH);
+    if (req_.status === 'APPROVED' && req_.permanentGrant) {
+      const valid = req_.accessToken && verifyDocAccessToken(req_.accessToken);
+      const activeToken = valid ? req_.accessToken : (() => {
+        const t = issueDocAccessToken(req_.vesselIMO, reqId);
+        req_.accessToken   = t;
+        req_.tokenExpiry   = new Date(Date.now() + DOC_ACCESS_TOKEN_TTL_MS).toISOString();
+        req_.lastRenewedAt = new Date().toISOString();
+        saveDocAccess(access);
+        return t;
+      })();
+      return sendJSON(res, 200, { status: 'APPROVED', accessToken: activeToken, vesselIMO: req_.vesselIMO }, corsH);
+    }
+    return sendJSON(res, 200, { status: req_.status }, corsH);
+  }
+
+  // ── POST /api/superadmin/login ── (super admin login — separate from regular admin)
+  if (route === '/superadmin/login' && method === 'POST') {
+    const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS;
+    if (!SUPER_ADMIN_PASS) return sendJSON(res, 503, { error: 'Super admin not configured on this server.' }, corsH);
+    const rl = checkRateLimit(ip, 'login');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many attempts.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const entered = (body.password || '').trim();
+    const hEntered  = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
+    const hExpected = crypto.createHmac('sha256', KEYS.urlMacKey).update(SUPER_ADMIN_PASS).digest('hex');
+    const eA = Buffer.from(hEntered), eB = Buffer.from(hExpected);
+    const match = eA.length === eB.length && crypto.timingSafeEqual(eA, eB);
+    if (!match) { await new Promise(r => setTimeout(r, 200 + Math.random() * 200)); return sendJSON(res, 401, { error: 'Invalid credentials.' }, corsH); }
+    return sendJSON(res, 200, { token: issueSuperAdminToken() }, corsH);
+  }
+
+  // ── GET /api/superadmin/verify ── (check super admin token)
+  if (route === '/superadmin/verify' && method === 'GET') {
+    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Invalid or expired super admin token.' }, corsH);
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── POST /api/auth/user/login ── (superintendent public login)
+  if (route === '/auth/user/login' && method === 'POST') {
+    const rl = checkRateLimit(ip, 'login');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many attempts.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const email    = (body.email    || '').trim().toLowerCase();
+    const password = (body.password || '').trim();
+    if (!email || !password) return sendJSON(res, 400, { error: 'Email and password are required.' }, corsH);
+    const users = loadUsers();
+    const user = Object.values(users).find(u => u.email.toLowerCase() === email && u.active);
+    if (!user) {
+      await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
+      return sendJSON(res, 401, { error: 'Invalid credentials.' }, corsH);
+    }
+    const ok = await verifyUserPassword(password, user.passwordHash);
+    if (!ok) {
+      await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
+      return sendJSON(res, 401, { error: 'Invalid credentials.' }, corsH);
+    }
+    const sessionToken = issueUserSessionToken(user.id);
+    const groups = loadGroups();
+    const userGroups = (user.groupIds || []).map(gid => groups[gid]).filter(Boolean).map(g => ({
+      id: g.id, name: g.name, vesselIMOs: g.vesselIMOs || [],
+    }));
+    return sendJSON(res, 200, {
+      sessionToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, groups: userGroups },
+    }, corsH);
+  }
+
+  // ── GET /api/auth/user/me ── (verify session + return user info)
+  if (route === '/auth/user/me' && method === 'GET') {
+    const sessUser = getUserFromSession(req);
+    if (!sessUser) return sendJSON(res, 401, { error: 'Session expired or invalid.' }, corsH);
+    const groups = loadGroups();
+    const userGroups = (sessUser.groupIds || []).map(gid => groups[gid]).filter(Boolean).map(g => ({
+      id: g.id, name: g.name, vesselIMOs: g.vesselIMOs || [],
+    }));
+    const vessels = getUserVesselIMOs(sessUser);
+    return sendJSON(res, 200, {
+      user: { id: sessUser.id, name: sessUser.name, email: sessUser.email, role: sessUser.role, groups: userGroups },
+      vessels: Array.from(vessels),
+    }, corsH);
+  }
+
+  // ── GET /api/admin/users ── (admin read-only, super admin full)
+  if (route === '/admin/users' && method === 'GET') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const users = loadUsers();
+    const safe = Object.values(users).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, groupIds: u.groupIds, active: u.active, createdAt: u.createdAt }));
+    return sendJSON(res, 200, safe, corsH);
+  }
+
+  // ── POST /api/admin/users ── (super admin — create superintendent)
+  if (route === '/admin/users' && method === 'POST') {
+    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const name     = (body.name     || '').trim().slice(0, 120);
+    const email    = (body.email    || '').trim().toLowerCase().slice(0, 200);
+    const password = (body.password || '').trim();
+    const role     = (body.role     || 'superintendent').trim();
+    const groupIds = Array.isArray(body.groupIds) ? body.groupIds.filter(g => typeof g === 'string') : [];
+    if (!name || !email || !password) return sendJSON(res, 400, { error: 'name, email, password are required.' }, corsH);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJSON(res, 400, { error: 'Invalid email.' }, corsH);
+    if (password.length < 8) return sendJSON(res, 400, { error: 'Password must be at least 8 characters.' }, corsH);
+    const users = loadUsers();
+    if (Object.values(users).some(u => u.email.toLowerCase() === email)) return sendJSON(res, 409, { error: 'Email already registered.' }, corsH);
+    const id = nextSequentialId(users, 'USR');
+    const passwordHash = await hashUserPassword(password);
+    users[id] = { id, name, email, passwordHash, role, groupIds, active: true, createdAt: new Date().toISOString() };
+    saveUsers(users);
+    const { passwordHash: _ph, ...safeUser } = users[id];
+    return sendJSON(res, 201, safeUser, corsH);
+  }
+
+  // ── PUT /api/admin/users/:id ── (super admin — update user)
+  if (route.match(/^\/admin\/users\/USR-\d+$/) && method === 'PUT') {
+    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    const userId = route.replace('/admin/users/', '');
+    const users = loadUsers();
+    if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    if (body.name     !== undefined) users[userId].name     = String(body.name).trim().slice(0, 120);
+    if (body.email    !== undefined) {
+      const newEmail = String(body.email).trim().toLowerCase();
+      if (Object.values(users).some(u => u.id !== userId && u.email.toLowerCase() === newEmail)) return sendJSON(res, 409, { error: 'Email already in use.' }, corsH);
+      users[userId].email = newEmail;
+    }
+    if (body.groupIds !== undefined) users[userId].groupIds = Array.isArray(body.groupIds) ? body.groupIds : [];
+    if (body.active   !== undefined) users[userId].active   = Boolean(body.active);
+    if (body.password) {
+      if (body.password.length < 8) return sendJSON(res, 400, { error: 'Password must be at least 8 characters.' }, corsH);
+      users[userId].passwordHash = await hashUserPassword(body.password);
+    }
+    users[userId].updatedAt = new Date().toISOString();
+    saveUsers(users);
+    const { passwordHash: _ph, ...safeUser } = users[userId];
+    return sendJSON(res, 200, safeUser, corsH);
+  }
+
+  // ── DELETE /api/admin/users/:id ── (super admin — remove user)
+  if (route.match(/^\/admin\/users\/USR-\d+$/) && method === 'DELETE') {
+    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    const userId = route.replace('/admin/users/', '');
+    const users = loadUsers();
+    if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
+    delete users[userId];
+    saveUsers(users);
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── GET /api/supt/vessels ── (superintendent — list all accessible vessels with cert counts)
+  if (route === '/supt/vessels' && method === 'GET') {
+    const sessUser = getUserFromSession(req);
+    if (!sessUser) return sendJSON(res, 401, { error: 'Session expired or invalid.' }, corsH);
+    const imoSet   = getUserVesselIMOs(sessUser);
+    const cstAll   = loadData();
+    const vaptAll  = loadVaptData();
+    const docsAll  = loadDocs();
+    const vessels  = Array.from(imoSet).map(imo => {
+      const cstCerts  = Object.values(cstAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo);
+      const vaptCerts = Object.values(vaptAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo);
+      const docs      = Object.values(docsAll).filter(d => normalizeVesselIMO(d.vesselIMO) === imo);
+      const certDocs  = collectCertAttachmentsForVessel(imo);
+      const vesselName = (cstCerts[0] || vaptCerts[0] || {}).vesselName || imo;
+      const now = Date.now();
+      const cstValid  = cstCerts.filter(c  => c.status === 'VALID' && (!c.validUntil  || new Date(c.validUntil).getTime()  > now)).length;
+      const vaptValid = vaptCerts.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil).getTime() > now)).length;
+      return { imo, vesselName, cstCount: cstCerts.length, vaptCount: vaptCerts.length, docCount: docs.length + certDocs.length, cstValid, vaptValid };
+    }).sort((a, b) => a.vesselName.localeCompare(b.vesselName));
+    return sendJSON(res, 200, vessels, corsH);
+  }
+
+  // ── GET /api/supt/vessel/:imo/certs ── (superintendent — CST+VAPT cert records for one vessel)
+  if (route.match(/^\/supt\/vessel\/[A-Z0-9]{1,20}\/certs$/) && method === 'GET') {
+    const sessUser = getUserFromSession(req);
+    if (!sessUser) return sendJSON(res, 401, { error: 'Session expired or invalid.' }, corsH);
+    const imo = route.replace('/supt/vessel/', '').replace('/certs', '').toUpperCase();
+    const imoSet = getUserVesselIMOs(sessUser);
+    if (!imoSet.has(imo)) return sendJSON(res, 403, { error: 'Vessel not in your group.' }, corsH);
+    const cstAll  = loadData();
+    const vaptAll = loadVaptData();
+    const cstCerts = Object.values(cstAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo).map(c => ({
+      id: c.id, certId: c.certId, vesselName: c.vesselName, vesselIMO: c.vesselIMO,
+      recipientName: c.recipientName, chiefEngineer: c.chiefEngineer,
+      rank: c.rank, courseType: c.courseType, trainingMode: c.trainingMode,
+      trainingProvider: c.trainingProvider, complianceQuarter: c.complianceQuarter,
+      complianceDate: c.complianceDate, issuedDate: c.issuedDate || c.issuedAt,
+      validUntil: c.validUntil, status: c.status,
+    }));
+    const vaptCerts = Object.values(vaptAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo).map(c => ({
+      id: c.id, certId: c.certId, vesselName: c.vesselName, vesselIMO: c.vesselIMO,
+      assessmentType: c.assessmentType, riskLevel: c.riskLevel,
+      complianceQuarter: c.complianceQuarter, trainingMode: c.trainingMode,
+      issuedDate: c.issuedDate || c.issuedAt, validUntil: c.validUntil, status: c.status,
+    }));
+    return sendJSON(res, 200, { cst: cstCerts, vapt: vaptCerts }, corsH);
+  }
+
+  // ── GET /api/vessels/names ── (admin or superadmin — IMO→name map from both CST+VAPT cert data)
+  if (route === '/vessels/names' && method === 'GET') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const cstCerts  = loadData();
+    const vaptCerts = loadVaptData();
+    const nameMap = {};
+    Object.values(cstCerts).forEach(c  => { if (c.vesselIMO && c.vesselName) nameMap[c.vesselIMO.toUpperCase()]  = c.vesselName; });
+    Object.values(vaptCerts).forEach(c => { if (c.vesselIMO && c.vesselName) nameMap[c.vesselIMO.toUpperCase()] = c.vesselName; });
+    return sendJSON(res, 200, nameMap, corsH);
+  }
+
+  // ── GET /api/admin/groups ── (admin — list groups)
+  if (route === '/admin/groups' && method === 'GET') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const groups = loadGroups();
+    return sendJSON(res, 200, Object.values(groups), corsH);
+  }
+
+  // ── POST /api/admin/groups ── (admin — create group)
+  if (route === '/admin/groups' && method === 'POST') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const name       = (body.name || '').trim().slice(0, 120);
+    const vesselIMOs = Array.isArray(body.vesselIMOs) ? body.vesselIMOs.map(i => String(i).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20)).filter(Boolean) : [];
+    const notes      = (body.notes || '').trim().slice(0, 500);
+    if (!name) return sendJSON(res, 400, { error: 'Group name is required.' }, corsH);
+    const groups = loadGroups();
+    const id = nextSequentialId(groups, 'GRP');
+    groups[id] = { id, name, vesselIMOs, notes, createdAt: new Date().toISOString() };
+    saveGroups(groups);
+    return sendJSON(res, 201, groups[id], corsH);
+  }
+
+  // ── PUT /api/admin/groups/:id ── (admin — update group)
+  if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'PUT') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const groupId = route.replace('/admin/groups/', '');
+    const groups = loadGroups();
+    if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    if (body.name       !== undefined) groups[groupId].name       = String(body.name).trim().slice(0, 120);
+    if (body.vesselIMOs !== undefined) groups[groupId].vesselIMOs = Array.isArray(body.vesselIMOs) ? body.vesselIMOs.map(i => String(i).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20)).filter(Boolean) : [];
+    if (body.notes      !== undefined) groups[groupId].notes      = String(body.notes).trim().slice(0, 500);
+    groups[groupId].updatedAt = new Date().toISOString();
+    saveGroups(groups);
+    return sendJSON(res, 200, groups[groupId], corsH);
+  }
+
+  // ── DELETE /api/admin/groups/:id ── (super admin — remove group)
+  if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'DELETE') {
+    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    const groupId = route.replace('/admin/groups/', '');
+    const groups = loadGroups();
+    if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
+    delete groups[groupId];
+    saveGroups(groups);
+    return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
   sendJSON(res, 404, { error: 'Not found.' }, corsH);
 }
 
@@ -2351,24 +3339,32 @@ async function handleRequest(req, res) {
 
   // ── Uploads (shared) ─────────────────────────────────────────────────────
   if (p.startsWith('/uploads/')) {
-    const fname = path.basename(p);
-    const fpath = path.resolve(UPLOADS_DIR, fname);
+    // Extract relative path while protecting against traversal attacks
+    const relPath = p.slice('/uploads/'.length);
+    
+    // Reject path traversal attempts
+    if (relPath.includes('..') || relPath.startsWith('/')) {
+      res.writeHead(403, SECURITY_HEADERS);
+      return res.end('Forbidden');
+    }
+    
+    // Resolve the full path
+    const fpath = path.resolve(UPLOADS_DIR, relPath);
 
+    // Verify the resolved path is within UPLOADS_DIR (another traversal check)
     if (!fpath.startsWith(UPLOADS_DIR + path.sep) && fpath !== UPLOADS_DIR) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');
+    }
+    if (!fs.existsSync(fpath)) {
+      res.writeHead(404, SECURITY_HEADERS);
+      return res.end('Not found');
     }
 
     const ext   = path.extname(fpath).toLowerCase();
     const mime  = MIME[ext] || 'application/octet-stream';
     const isPdf = ext === '.pdf';
-
-    // Reference documents (PDF attachments) are removed/disabled as of now.
-    // Block any direct PDF download from /uploads.
-    if (isPdf) {
-      res.writeHead(404, SECURITY_HEADERS);
-      return res.end('Not found');
-    }
+    const fname = path.basename(fpath);
 
     // ── Track document download: only real downloads, not image thumbnail loads ──
     // Rules:
@@ -2382,7 +3378,7 @@ async function handleRequest(req, res) {
     const isAdminReferer = referer.includes('/misecure') || referer.includes('admin');
     if (!isImageExt && !isAdminReferer) {
       try {
-        const fileUrl = '/uploads/' + fname;
+        const fileUrl = '/uploads/' + relPath;
         // Check CST certs first
         const cstData = loadData();
         for (const [certId, cert] of Object.entries(cstData)) {
@@ -2417,7 +3413,7 @@ async function handleRequest(req, res) {
         return res.end('Forbidden');
       }
 
-      const fileUrl = '/uploads/' + fname;
+      const fileUrl = '/uploads/' + relPath;
       const data = payload.kind === 'vapt' ? loadVaptData() : loadData();
       const cert = data && payload.sub ? data[payload.sub] : null;
       const owns = cert && (
@@ -2478,9 +3474,18 @@ async function handleRequest(req, res) {
     return sendFile(res, path.join(adminDir, 'dashboard.html'), req);
   }
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
-    const relative = p.slice((CFG.routes.cstAdmin + '/').length);
-    let filePath = path.resolve(adminDir, relative || 'dashboard.html');
-    if (!path.extname(filePath)) filePath = path.join(adminDir, 'dashboard.html');
+    const relative = p.slice((CFG.routes.cstAdmin + '/').length).replace(/\/$/, '');
+    // Known named admin pages — extensionless sub-paths resolved here.
+    const PAGE_MAP = { documents: 'documents.html', hub: 'index.html', access: 'access.html', users: 'users.html', groups: 'groups.html', portal: 'portal.html', superadmin: 'super-admin.html' };
+    let filePath;
+    if (!relative) {
+      filePath = path.join(adminDir, 'dashboard.html');
+    } else if (PAGE_MAP[relative]) {
+      filePath = path.join(adminDir, PAGE_MAP[relative]);
+    } else {
+      filePath = path.resolve(adminDir, relative);
+      if (!path.extname(filePath)) filePath = path.join(adminDir, 'dashboard.html');
+    }
     if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
@@ -2624,22 +3629,36 @@ async function startServer() {
   }
 
   server.listen(PORT, () => {
-    const W = 58;
-    const line  = s  => console.log('║  ' + s.padEnd(W - 4) + '║');
-    const blank = () => console.log('║' + ' '.repeat(W - 2) + '║');
-    console.log('\n╔' + '═'.repeat(W - 2) + '╗');
-    line(CFG.brand.companyFull + ' — Certificate Portal');
-    console.log('╠' + '═'.repeat(W - 2) + '╣');
-    blank();
-    line('  CST Portal  →  ' + BASE_ORIGIN + CFG.routes.cst);
-    line('  CST Admin   →  ' + BASE_ORIGIN + CFG.routes.cstAdmin + '/');
-    line('  VAPT Portal →  ' + BASE_ORIGIN + CFG.routes.vpt);
-    line('  VAPT Admin  →  ' + BASE_ORIGIN + CFG.routes.vptAdmin + '/');
-    line('  Health      →  ' + BASE_ORIGIN + '/api/health');
-    blank();
-    line('  Email dispatch: ' + (SES_ENABLED ? 'Active (' + SES_REGION + ')' : 'Not configured'));
-    blank();
-    console.log('╚' + '═'.repeat(W - 2) + '╝\n');
+    const D = '─'.repeat(64);
+    const cstA = BASE_ORIGIN + CFG.routes.cstAdmin;
+    const vptA = BASE_ORIGIN + CFG.routes.vptAdmin;
+    const u = (label, url) => console.log('    ' + label.padEnd(18) + url);
+    console.log('\n' + D);
+    console.log('  ' + CFG.brand.companyFull + ' — Certificate Portal  (port ' + PORT + ')');
+    console.log(D);
+    console.log('');
+    console.log('  PUBLIC PORTALS');
+    u('CST Portal',   BASE_ORIGIN + CFG.routes.cst);
+    u('VAPT Portal',  BASE_ORIGIN + CFG.routes.vpt);
+    console.log('');
+    console.log('  CST ADMIN');
+    u('Dashboard',    cstA + '/');
+    u('Documents',    cstA + '/documents/');
+    u('Access Ctrl',  cstA + '/access/');
+    console.log('');
+    console.log('  VAPT ADMIN');
+    u('Dashboard',    vptA + '/');
+    console.log('');
+    console.log('  SUPER ADMIN');
+    u('Users',        cstA + '/users/');
+    u('Groups',       cstA + '/groups/');
+    u('Supt Portal',  cstA + '/portal/');
+    console.log('');
+    console.log('  HEALTH / STATUS');
+    u('Health',       BASE_ORIGIN + '/api/health');
+    u('Email',        SES_ENABLED ? 'Active (' + SES_REGION + ')' : 'Not configured');
+    console.log('');
+    console.log(D + '\n');
   });
 }
 startServer();
