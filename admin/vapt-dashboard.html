@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en" class="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -131,6 +131,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
         CST Training Admin
       </div>
+      <a id="navLinkDocuments" href="/CST/misecure/documents/" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Document Library
+      </a>
     </nav>
     <div class="sb-foot">
       <!-- Server & email service status indicators -->
@@ -368,10 +372,10 @@
             <div class="mini-search">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
               <input id="allQ" type="text" placeholder="Search vessel, IMO, cert no, recipient…"
-                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value)" />
+                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value,document.getElementById('allQuarterSel').value)" />
             </div>
             <select id="allStatusSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value)">
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value,document.getElementById('allQuarterSel').value)">
               <option value="">All Status</option>
               <option value="VALID">✅ Valid</option>
               <option value="PENDING">⏳ Pending</option>
@@ -379,23 +383,36 @@
               <option value="REVOKED">🚫 Revoked</option>
             </select>
             <select id="allEmailSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,this.value,document.getElementById('allRiskSel').value)">
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,this.value,document.getElementById('allRiskSel').value,document.getElementById('allQuarterSel').value)">
               <option value="">All Email</option>
               <option value="SENT">✉ Sent</option>
               <option value="NOT_SENT">✉ Not Sent</option>
             </select>
             <select id="allRiskSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,this.value)">
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,this.value,document.getElementById('allQuarterSel').value)">
               <option value="">All Risk</option>
               <option value="CRITICAL">🔴 Critical</option>
               <option value="HIGH">🟠 High</option>
               <option value="MEDIUM">🟡 Medium</option>
               <option value="LOW">🟢 Low</option>
             </select>
+            <select id="allQuarterSel" class="filter-select"
+              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value,this.value)">
+              <option value="">All Quarters</option>
+              <option value="1">Q1 Jan–Mar</option>
+              <option value="2">Q2 Apr–Jun</option>
+              <option value="3">Q3 Jul–Sep</option>
+              <option value="4">Q4 Oct–Dec</option>
+            </select>
             <span class="filter-count-badge" id="allCertCount"><strong>0</strong> records</span>
           </div>
           <button class="btn btn-ghost btn-sm" id="allClearFilters" onclick="clearAllFilters()" style="display:none;white-space:nowrap">✕ Clear</button>
           <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add New</button>
+        </div>
+        <div id="certSelBar" style="display:none;align-items:center;gap:12px;padding:9px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.2);border-radius:8px;margin:0 15px 10px">
+          <span id="certSelCount" style="font-size:.72rem;font-weight:600;color:var(--teal)">0 vessels selected</span>
+          <button class="btn btn-primary btn-sm" onclick="openBulkAssign()">👥 Assign to Group</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearSelections()" style="font-size:.72rem">✕ Clear</button>
         </div>
         <div id="allTbl"></div>
       </div>
@@ -504,7 +521,23 @@
                 </div>
               </div>
             </div>
-            <div style="display:flex;gap:10px;margin-top:6px">
+            <!-- INLINE DOCUMENT ATTACHMENTS -->
+            <div style="margin-top:18px;padding:14px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:11px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-sec);font-weight:600;display:flex;align-items:center;gap:7px">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  Vessel Documents
+                </div>
+                <button type="button" onclick="document.getElementById('vaptAttachInput').click()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);color:var(--teal);font-size:.66rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.04em">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  Attach File
+                </button>
+                <input type="file" id="vaptAttachInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple onchange="pdfFileSelect(this)" />
+              </div>
+              <div id="attachList"></div>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-top:14px">
               <button class="btn btn-primary" id="saveBtn" style="flex:1;justify-content:center;padding:12px" onclick="saveCert()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 <span id="saveTxt">Save Certificate</span>
@@ -856,6 +889,21 @@
       <button onclick="closePdfViewer()" style="background:none;border:none;color:var(--text-sec);font-size:1.3rem;cursor:pointer;padding:0 6px;line-height:1;font-family:'DM Sans',sans-serif;margin-left:4px;flex-shrink:0">✕</button>
     </div>
     <iframe id="pdfViewerFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="PDF Viewer"></iframe>
+  </div>
+</div>
+
+<!-- ══ ASSIGN TO GROUP MODAL ══ -->
+<div id="assignGroupMod" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;align-items:center;justify-content:center" onclick="if(event.target===this)closeAssignGroup()">
+  <div style="background:var(--surface);border:1px solid rgba(100,255,218,.25);border-radius:16px;padding:26px 28px 22px;width:100%;max-width:440px;box-shadow:0 24px 80px rgba(0,0,0,.6)">
+    <div style="font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--text-bright);font-weight:700;margin-bottom:6px">Assign Vessel to Group</div>
+    <div style="font-size:.73rem;color:var(--text-sec);margin-bottom:18px" id="assignGroupVesselLabel">—</div>
+    <div id="assignGroupList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--navy)">
+      <div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" onclick="closeAssignGroup()">Cancel</button>
+      <button class="btn btn-primary" id="btnConfirmAssign" onclick="confirmAssignGroup()">Assign to Group</button>
+    </div>
   </div>
 </div>
 

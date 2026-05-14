@@ -1,0 +1,689 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super Admin — Group Management</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none';" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared-styles.css" />
+  <script src="/config.js" defer></script>
+  <script src="/assets/pubsub.js" defer></script>
+  <style>
+    :root { --acc: #64FFDA; --acc-dim: rgba(100,255,218,.07); }
+    body { min-height: 100vh; background: var(--navy); font-family: 'DM Sans', sans-serif; }
+
+    #loginWrap { display: none; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .login-bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(100,255,218,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.02) 1px,transparent 1px); background-size: 40px 40px; pointer-events: none; }
+    .login-card { position: relative; z-index: 1; background: var(--surface); border: 1px solid rgba(212,168,67,.4); border-radius: 18px; padding: 36px 32px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .login-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.25); border-radius: 20px; padding: 4px 12px; margin-bottom: 14px; }
+    .login-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: var(--text-bright); font-weight: 700; text-align: center; margin-bottom: 6px; }
+    .login-sub { font-size: .72rem; color: var(--text-sec); text-align: center; margin-bottom: 22px; }
+    .login-err { display: none; background: rgba(255,107,138,.08); border: 1px solid rgba(255,107,138,.3); color: var(--invalid); border-radius: 8px; padding: 9px 13px; font-size: .73rem; text-align: center; margin-bottom: 14px; }
+    .login-err.show { display: block; }
+    .fgroup { margin-bottom: 14px; }
+    .flabel { font-size: .65rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px; }
+    .fcontrol { width: 100%; background: var(--navy); border: 1px solid var(--border); border-radius: 9px; padding: 10px 14px; font-size: .82rem; color: var(--text-bright); font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
+    .fcontrol:focus { outline: none; border-color: var(--gold); }
+
+    #appWrap { display: none; min-height: 100vh; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; z-index: 100; overflow-y: auto; }
+    .sb-brand { padding: 0 18px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .sb-badge { font-size: .56rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); background: rgba(212,168,67,.1); border: 1px solid rgba(212,168,67,.25); border-radius: 20px; padding: 3px 10px; display: inline-block; margin-top: 4px; }
+    .sb-name { font-size: .8rem; font-weight: 700; color: var(--text-bright); }
+    .sb-sub { font-size: .6rem; color: var(--text-sec); letter-spacing: .06em; text-transform: uppercase; }
+    .sb-nav { padding: 0 10px; flex: 1; }
+    .nav-sec { font-size: .58rem; color: var(--text-sec); letter-spacing: .14em; text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; margin-top: 14px; }
+    .nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 9px; font-size: .74rem; color: var(--text-sec); cursor: pointer; transition: all .18s; border: 1px solid transparent; margin-bottom: 2px; text-decoration: none; }
+    .nav-item:hover, .nav-item.active { background: var(--acc-dim); color: var(--acc); border-color: rgba(100,255,218,.2); }
+    .sb-footer { padding: 14px 18px; border-top: 1px solid var(--border); }
+    .sb-logout { font-size: .65rem; color: var(--text-sec); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .18s; }
+    .sb-logout:hover { color: var(--invalid); }
+
+    .main-content { margin-left: 220px; padding: 28px 32px; min-height: 100vh; }
+    .page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    .page-hdr-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.3); flex-shrink: 0; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--text-bright); font-weight: 700; }
+    .page-sub { font-size: .73rem; color: var(--text-sec); margin-top: 2px; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; transition: border-color .2s; }
+    .stat-card:hover { border-color: rgba(212,168,67,.3); }
+    .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--text-bright); }
+    .stat-num.gold { color: var(--gold); }
+    .stat-num.teal { color: #64FFDA; }
+    .stat-lbl { font-size: .6rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; margin-top: 3px; }
+
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .search-wrap { position: relative; flex: 1; min-width: 220px; }
+    .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+    .filter-search { width: 100%; background: var(--navy); border: 1px solid var(--border); border-radius: 9px; padding: 9px 14px 9px 36px; font-size: .8rem; color: var(--text-bright); font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
+    .filter-search:focus { outline: none; border-color: var(--gold); }
+    .btn-primary { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; background: rgba(212,168,67,.1); border: 1px solid rgba(212,168,67,.3); color: var(--gold); font-size: .75rem; font-weight: 700; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all .18s; }
+    .btn-primary:hover { background: rgba(212,168,67,.18); }
+    .btn-sm { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 7px; background: var(--acc-dim); border: 1px solid rgba(100,255,218,.2); color: var(--acc); font-size: .68rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all .15s; }
+    .btn-sm:hover { background: rgba(100,255,218,.12); }
+    .btn-sm.danger { background: rgba(255,107,138,.07); border-color: rgba(255,107,138,.2); color: var(--invalid); }
+    .btn-sm.danger:hover { background: rgba(255,107,138,.15); }
+
+    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    .group-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color .2s; }
+    .group-card:hover { border-color: rgba(212,168,67,.3); }
+    .group-card-head { padding: 14px 18px; background: rgba(212,168,67,.04); border-bottom: 1px solid rgba(212,168,67,.1); display: flex; align-items: center; gap: 10px; }
+    .group-name { font-size: .88rem; font-weight: 700; color: var(--text-bright); }
+    .vessel-count { font-size: .64rem; color: var(--gold); background: rgba(212,168,67,.1); border: 1px solid rgba(212,168,67,.2); border-radius: 20px; padding: 2px 9px; margin-left: auto; }
+    .group-card-body { padding: 14px 18px; }
+    .imo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .imo-chip { padding: 3px 9px; border-radius: 20px; font-size: .64rem; font-family: 'JetBrains Mono', monospace; background: rgba(100,255,218,.07); border: 1px solid rgba(100,255,218,.2); color: #64FFDA; }
+    .group-notes { font-size: .73rem; color: var(--text-sec); line-height: 1.5; margin-bottom: 12px; }
+    .group-meta { font-size: .64rem; color: var(--text-sec); margin-bottom: 12px; }
+    .group-actions { display: flex; gap: 8px; }
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-sec); font-size: .8rem; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid rgba(212,168,67,.3); border-radius: 16px; padding: 28px 28px 24px; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--text-bright); font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .btn-cancel { background: none; border: 1px solid var(--border); color: var(--text-sec); padding: 9px 18px; border-radius: 9px; font-size: .75rem; cursor: pointer; font-family: 'DM Sans',sans-serif; }
+    .btn-save { background: rgba(212,168,67,.12); border: 1px solid rgba(212,168,67,.35); color: var(--gold); padding: 9px 20px; border-radius: 9px; font-size: .75rem; font-weight: 700; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all .18s; }
+    .btn-save:hover { background: rgba(212,168,67,.2); }
+    .mfgroup { margin-bottom: 14px; }
+    .mflabel { font-size: .64rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px; }
+    .mfcontrol { width: 100%; background: var(--navy); border: 1px solid var(--border); border-radius: 9px; padding: 9px 13px; font-size: .8rem; color: var(--text-bright); font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
+    .mfcontrol:focus { outline: none; border-color: var(--gold); }
+    textarea.mfcontrol { resize: vertical; min-height: 70px; font-family: 'DM Sans',sans-serif; }
+    .modal-err { display: none; color: var(--invalid); font-size: .73rem; margin-bottom: 12px; padding: 8px 12px; background: rgba(255,107,138,.07); border: 1px solid rgba(255,107,138,.2); border-radius: 7px; }
+    .modal-err.show { display: block; }
+    .imo-input-row { display: flex; gap: 8px; }
+    .imo-tag-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 8px; background: rgba(100,255,218,.03); border: 1px solid var(--border); border-radius: 9px; margin-top: 8px; }
+    .imo-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: .66rem; font-family: 'JetBrains Mono', monospace; background: rgba(100,255,218,.1); border: 1px solid rgba(100,255,218,.25); color: #64FFDA; }
+    .imo-tag button { background: none; border: none; color: inherit; cursor: pointer; font-size: .8rem; line-height: 1; padding: 0; margin-left: 2px; opacity: .7; }
+    .imo-tag button:hover { opacity: 1; }
+    .imo-hint { font-size: .65rem; color: var(--text-sec); margin-top: 4px; }
+    .vessel-suggest { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid rgba(100,255,218,.3); border-radius: 9px; z-index: 300; max-height: 200px; overflow-y: auto; display: none; margin-top: 3px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    .vessel-suggest.open { display: block; }
+    .vessel-suggest-item { padding: 9px 13px; font-size: .78rem; cursor: pointer; border-bottom: 1px solid rgba(100,255,218,.06); display: flex; align-items: center; justify-content: space-between; transition: background .15s; }
+    .vessel-suggest-item:last-child { border-bottom: none; }
+    .vessel-suggest-item:hover { background: rgba(100,255,218,.06); }
+    .vessel-suggest-item .vs-name { color: var(--text-bright); font-weight: 600; }
+    .vessel-suggest-item .vs-imo { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--text-sec); }
+    .imo-input-wrap { position: relative; flex: 1; }
+
+    #toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-msg { padding: 10px 18px; border-radius: 10px; font-size: .78rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.4); pointer-events: auto; animation: fadeInUp .25s ease; }
+    .toast-msg.ok  { background: rgba(100,255,218,.12); border: 1px solid rgba(100,255,218,.3); color: #64FFDA; }
+    .toast-msg.err { background: rgba(255,107,138,.12); border: 1px solid rgba(255,107,138,.3); color: var(--invalid); }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="login-bg-grid"></div>
+
+<!-- LOGIN -->
+<div id="loginWrap">
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:6px">
+      <span class="login-badge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Super Admin
+      </span>
+    </div>
+    <div class="login-title">Group Management</div>
+    <div class="login-sub">Assign vessels to superintendent groups</div>
+    <div class="login-err" id="loginErr">Invalid super admin credentials.</div>
+    <div class="fgroup">
+      <label class="flabel" for="lPass">Super Admin Password</label>
+      <input id="lPass" type="password" class="fcontrol" placeholder="Enter super admin password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button onclick="doLogin()" style="width:100%;padding:11px;border-radius:9px;background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.35);color:var(--gold);font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .18s;margin-top:4px">
+      <span id="lBtnTxt">Login</span>
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appWrap" style="display:none">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-name" id="sbBrandName">Synergy Marine</div>
+      <div class="sb-sub">Admin Portal</div>
+      <span class="sb-badge">Super Admin</span>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-sec">Super Admin</div>
+      <a href="#" id="navLinkUsers" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Users
+      </a>
+      <a href="#" id="navLinkGroups" class="nav-item active" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        Groups
+      </a>
+      <div class="nav-sec" style="margin-top:18px">Regular Admin</div>
+      <a href="#" id="navLinkAccess" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        Access Control
+      </a>
+      <a href="#" id="navLinkDocs" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Documents
+      </a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-logout" onclick="doLogout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-hdr">
+      <div class="page-hdr-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      </div>
+      <div>
+        <div class="page-title">Group Management</div>
+        <div class="page-sub">Create vessel groups · Assign IMOs · Grant superintendent access</div>
+      </div>
+      <button class="btn-primary" onclick="openCreateModal()" style="margin-left:auto">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        New Group
+      </button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num gold" id="statGroups">—</div><div class="stat-lbl">Total Groups</div></div>
+      <div class="stat-card"><div class="stat-num teal" id="statVessels">—</div><div class="stat-lbl">Total Vessels</div></div>
+      <div class="stat-card"><div class="stat-num" id="statUsers">—</div><div class="stat-lbl">Superintendent Users</div></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+        <input type="search" id="groupSearch" class="filter-search" placeholder="Search group name or IMO…" oninput="renderGroups()" />
+      </div>
+      <button class="btn-sm" onclick="loadData()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Refresh
+      </button>
+    </div>
+
+    <div id="groupsGrid" class="groups-grid"></div>
+    <div id="groupsEmpty" class="empty-state" style="display:none">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.5" style="margin-bottom:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      <div>No groups yet. Create a group and assign vessel IMOs to get started.</div>
+    </div>
+  </main>
+</div>
+
+<!-- CREATE / EDIT MODAL -->
+<div class="modal-overlay" id="groupModal">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      <span id="modalTitle">New Group</span>
+    </div>
+    <div class="modal-err" id="modalErr"></div>
+    <div class="mfgroup">
+      <label class="mflabel" for="mName">Group Name</label>
+      <input id="mName" type="text" class="mfcontrol" placeholder="e.g. Fleet Alpha — North Sea" />
+    </div>
+    <div class="mfgroup">
+      <label class="mflabel">Vessels</label>
+      <div class="imo-input-row">
+        <div class="imo-input-wrap">
+          <input id="mImoInput" type="text" class="mfcontrol" placeholder="Search vessel name or type IMO…"
+            oninput="onVesselSearch(this.value)"
+            onkeydown="if(event.key==='Escape'){closeSuggest();}else if(event.key==='Enter'||event.key===','){event.preventDefault();addImoFromInput();}"
+            autocomplete="off" />
+          <div id="vesselSuggest" class="vessel-suggest"></div>
+        </div>
+        <button type="button" class="btn-sm" onclick="addImoFromInput()" style="flex-shrink:0;padding:9px 14px">Add</button>
+      </div>
+      <div class="imo-hint">Search by vessel name or enter a raw IMO number</div>
+      <div class="imo-tag-list" id="imoTagList"></div>
+    </div>
+    <div class="mfgroup">
+      <label class="mflabel" for="mNotes">Notes (optional)</label>
+      <textarea id="mNotes" class="mfcontrol" placeholder="e.g. North Sea tanker fleet managed by John Smith…"></textarea>
+    </div>
+    <div class="mfgroup">
+      <label class="mflabel">Assigned Members</label>
+      <div id="memberSelectList" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--navy)">
+        <div style="padding:12px;font-size:.75rem;color:var(--text-sec)">Loading users…</div>
+      </div>
+      <div style="font-size:.64rem;color:var(--text-sec);margin-top:5px">Select which superintendents can access this group's vessels</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="saveGroupBtn" onclick="saveGroup()">Save Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEMBERS MODAL -->
+<div class="modal-overlay" id="membersModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      <span id="membersModalTitle">Manage Members</span>
+    </div>
+    <div style="font-size:.73rem;color:var(--text-sec);margin:-10px 0 16px">Select which superintendents can access this group's vessels.</div>
+    <div class="modal-err" id="membersModalErr"></div>
+    <div id="membersModalList" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--navy)">
+      <div style="padding:12px;font-size:.75rem;color:var(--text-sec)">Loading…</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeMembersModal()">Cancel</button>
+      <button class="btn-save" id="saveMembersBtn" onclick="saveMembersModal()">Save Members</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+  const API = '/api';
+  let TOKEN = sessionStorage.getItem('superAdminToken') || '';
+  let allGroups = [];
+  let allUsers  = [];
+  let editingId = null;
+  let currentIMOs = [];
+
+  // ── AUTH ──────────────────────────────────────────────────────────────────
+  async function doLogin() {
+    const p   = document.getElementById('lPass').value;
+    const err = document.getElementById('loginErr');
+    const btn = document.getElementById('lBtnTxt');
+    err.classList.remove('show');
+    btn.textContent = 'Verifying…';
+    try {
+      const r = await fetch(API + '/superadmin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p }) });
+      const d = await r.json();
+      if (!r.ok || !d.token) { err.classList.add('show'); err.textContent = d.error || 'Invalid credentials.'; btn.textContent = 'Login'; return; }
+      TOKEN = d.token;
+      sessionStorage.setItem('superAdminToken', TOKEN);
+      showApp();
+    } catch { err.classList.add('show'); err.textContent = 'Network error.'; btn.textContent = 'Login'; }
+  }
+  window.doLogin = doLogin;
+
+  function doLogout() { sessionStorage.removeItem('superAdminToken'); TOKEN = ''; document.getElementById('appWrap').style.display = 'none'; document.getElementById('loginWrap').style.display = 'flex'; }
+  window.doLogout = doLogout;
+
+  async function showApp() {
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'flex';
+    applyNavConfig();
+    await loadData();
+  }
+
+  const authHdr = () => ({ Authorization: 'SuperAdmin ' + TOKEN });
+  function checkUnauth(r) { if (r.status === 401) { doLogout(); return true; } return false; }
+
+  // ── NAV ──────────────────────────────────────────────────────────────────
+  function applyNavConfig() {
+    const C = window.APP_CONFIG;
+    if (!C) return;
+    const base = C.routes && C.routes.cstAdmin ? C.routes.cstAdmin : '/CST/misecure';
+    if (document.getElementById('sbBrandName') && C.brand && C.brand.companyShort) document.getElementById('sbBrandName').textContent = C.brand.companyShort;
+    document.getElementById('navLinkUsers').href   = base + '/users/';
+    document.getElementById('navLinkGroups').href  = base + '/groups/';
+    document.getElementById('navLinkAccess').href  = base + '/access/';
+    document.getElementById('navLinkDocs').href    = base + '/documents/';
+  }
+  document.addEventListener('appconfigready', applyNavConfig);
+
+  // ── DATA ──────────────────────────────────────────────────────────────────
+  let vesselNames = {}; // IMO → vessel name cache
+  async function loadData() {
+    try {
+      const [rG, rU, rV] = await Promise.all([
+        fetch(API + '/admin/groups',   { headers: authHdr() }),
+        fetch(API + '/admin/users',    { headers: authHdr() }),
+        fetch(API + '/vessels/names',  { headers: authHdr() }),
+      ]);
+      if (checkUnauth(rG)) return;
+      if (!rG.ok || !rU.ok) { toast('Failed to load data', true); return; }
+      allGroups   = await rG.json();
+      allUsers    = await rU.json();
+      vesselNames = rV.ok ? await rV.json() : {};
+      updateStats();
+      renderGroups();
+    } catch { toast('Network error', true); }
+  }
+  window.loadData = loadData;
+
+  function updateStats() {
+    const totalVessels = new Set(allGroups.flatMap(g => g.vesselIMOs || [])).size;
+    document.getElementById('statGroups').textContent  = allGroups.length;
+    document.getElementById('statVessels').textContent = totalVessels;
+    document.getElementById('statUsers').textContent   = allUsers.filter(u => u.active).length;
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
+  function renderGroups() {
+    const q = (document.getElementById('groupSearch').value || '').toLowerCase();
+    const list = allGroups.filter(g => !q || g.name.toLowerCase().includes(q) || (g.vesselIMOs||[]).some(i => i.toLowerCase().includes(q)));
+    const grid  = document.getElementById('groupsGrid');
+    const empty = document.getElementById('groupsEmpty');
+    if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const escH  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    const memberUsers = (gid) => allUsers.filter(u => (u.groupIds||[]).includes(gid));
+    grid.innerHTML = list.map(g => {
+      const imos   = (g.vesselIMOs||[]).map(i => {
+        const name = vesselNames[i.toUpperCase()];
+        return `<span class="imo-chip" title="${escH(i)}">${name ? escH(name) : escH(i)}<span style="opacity:.55;font-size:.58rem;margin-left:4px">${name ? escH(i) : ''}</span></span>`;
+      }).join('');
+      const members = memberUsers(g.id);
+      const mText = members.length ? members.map(u => escH(u.name)).join(', ') : '<span style="color:var(--text-sec);font-size:.68rem">No members</span>';
+      return `<div class="group-card">
+        <div class="group-card-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span class="group-name">${escH(g.name)}</span>
+          <span class="vessel-count">${(g.vesselIMOs||[]).length} vessel${(g.vesselIMOs||[]).length!==1?'s':''}</span>
+        </div>
+        <div class="group-card-body">
+          <div class="imo-chips">${imos||'<span style="color:var(--text-sec);font-size:.7rem">No vessels assigned</span>'}</div>
+          ${g.notes ? `<div class="group-notes">${escH(g.notes)}</div>` : ''}
+          <div class="group-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <strong style="color:var(--text-bright)">Members:</strong> ${mText}
+            ${!members.length ? `<button class="btn-sm" onclick="openMembersModal('${escH(g.id)}')" style="font-size:.62rem;padding:3px 9px;background:rgba(212,168,67,.07);border-color:rgba(212,168,67,.2);color:var(--gold)">+ Assign</button>` : ''}
+          </div>
+          <div class="group-meta" style="margin-bottom:12px">Created ${fmtDt(g.createdAt)}</div>
+          <div class="group-actions">
+            <button class="btn-sm" onclick="openEditModal('${escH(g.id)}')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Edit
+            </button>
+            <button class="btn-sm" onclick="openMembersModal('${escH(g.id)}')" style="background:rgba(212,168,67,.07);border-color:rgba(212,168,67,.2);color:var(--gold)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              Members
+            </button>
+            <button class="btn-sm danger" onclick="deleteGroup('${escH(g.id)}','${escH(g.name)}')">Delete</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  window.renderGroups = renderGroups;
+
+  // ── IMO TAG MANAGEMENT ────────────────────────────────────────────────────
+  function renderImoTags() {
+    const el = document.getElementById('imoTagList');
+    el.innerHTML = currentIMOs.map((imo, idx) => {
+      const name = vesselNames[imo.toUpperCase()];
+      const label = name ? `${name} <span style="opacity:.6;font-size:.6rem">${imo}</span>` : imo;
+      return `<span class="imo-tag">${label}<button onclick="removeImo(${idx})" title="Remove">×</button></span>`;
+    }).join('');
+  }
+
+  function addImoRaw(imo) {
+    const raw = imo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!raw) return;
+    if (!currentIMOs.includes(raw)) { currentIMOs.push(raw); renderImoTags(); }
+    document.getElementById('mImoInput').value = '';
+    closeSuggest();
+  }
+
+  function addImoFromInput() {
+    const val = document.getElementById('mImoInput').value.trim();
+    if (!val) return;
+    // If it looks like a raw IMO (all alphanumeric), add directly
+    const raw = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (raw) addImoRaw(raw);
+  }
+  window.addImoFromInput = addImoFromInput;
+
+  function removeImo(idx) { currentIMOs.splice(idx, 1); renderImoTags(); }
+  window.removeImo = removeImo;
+
+  // ── VESSEL NAME SEARCH ────────────────────────────────────────────────────
+  function onVesselSearch(q) {
+    const suggest = document.getElementById('vesselSuggest');
+    if (!q || !q.trim()) { closeSuggest(); return; }
+    const lower = q.toLowerCase();
+    const entries = Object.entries(vesselNames);
+    const matches = entries.filter(([imo, name]) =>
+      name.toLowerCase().includes(lower) || imo.toLowerCase().includes(lower)
+    ).slice(0, 12);
+    if (!matches.length) { closeSuggest(); return; }
+    suggest.innerHTML = matches.map(([imo, name]) =>
+      `<div class="vessel-suggest-item" onclick="addImoRaw('${imo}')">
+        <span class="vs-name">${escHtml(name)}</span>
+        <span class="vs-imo">${imo}</span>
+      </div>`
+    ).join('');
+    suggest.classList.add('open');
+  }
+  window.onVesselSearch = onVesselSearch;
+
+  function closeSuggest() {
+    const s = document.getElementById('vesselSuggest');
+    if (s) { s.classList.remove('open'); s.innerHTML = ''; }
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#vesselSuggest') && !e.target.closest('#mImoInput')) closeSuggest();
+  });
+
+  const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  // ── MEMBER LIST ────────────────────────────────────────────────────────────
+  function buildMemberList(selectedIds) {
+    const el = document.getElementById('memberSelectList');
+    const supts = allUsers.filter(u => u.active || (selectedIds||[]).includes(u.id));
+    if (!supts.length) {
+      el.innerHTML = '<div style="padding:12px;font-size:.75rem;color:var(--text-sec)">No superintendent accounts yet. Create users first.</div>';
+      return;
+    }
+    el.innerHTML = supts.map(u => {
+      const checked = (selectedIds||[]).includes(u.id) ? 'checked' : '';
+      const inactive = !u.active ? ' <span style="font-size:.6rem;color:var(--invalid);margin-left:4px">(inactive)</span>' : '';
+      return `<label style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(100,255,218,.06);cursor:pointer;font-size:.78rem;color:var(--text-sec)">
+        <input type="checkbox" value="${escHtml(u.id)}" ${checked} style="accent-color:#64FFDA;flex-shrink:0" />
+        <span style="min-width:0">
+          <strong style="color:var(--text-bright)">${escHtml(u.name)}</strong>${inactive}
+          <span style="color:var(--text-sec);font-size:.65rem;margin-left:7px;display:block">${escHtml(u.email)}</span>
+        </span>
+      </label>`;
+    }).join('');
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────────────────
+  function openCreateModal() {
+    editingId = null;
+    currentIMOs = [];
+    document.getElementById('modalTitle').textContent = 'New Group';
+    document.getElementById('mName').value   = '';
+    document.getElementById('mNotes').value  = '';
+    document.getElementById('mImoInput').value = '';
+    document.getElementById('modalErr').classList.remove('show');
+    renderImoTags();
+    buildMemberList([]);
+    document.getElementById('groupModal').classList.add('open');
+  }
+  window.openCreateModal = openCreateModal;
+
+  function openEditModal(id) {
+    const g = allGroups.find(x => x.id === id);
+    if (!g) return;
+    editingId = id;
+    currentIMOs = [...(g.vesselIMOs || [])];
+    document.getElementById('modalTitle').textContent = 'Edit Group';
+    document.getElementById('mName').value   = g.name;
+    document.getElementById('mNotes').value  = g.notes || '';
+    document.getElementById('mImoInput').value = '';
+    document.getElementById('modalErr').classList.remove('show');
+    renderImoTags();
+    // Pre-select users already assigned to this group
+    const currentMemberIds = allUsers.filter(u => (u.groupIds||[]).includes(id)).map(u => u.id);
+    buildMemberList(currentMemberIds);
+    document.getElementById('groupModal').classList.add('open');
+  }
+  window.openEditModal = openEditModal;
+
+  function closeModal() { document.getElementById('groupModal').classList.remove('open'); }
+  window.closeModal = closeModal;
+
+  async function saveGroup() {
+    const name  = document.getElementById('mName').value.trim();
+    const notes = document.getElementById('mNotes').value.trim();
+    const err   = document.getElementById('modalErr');
+    err.classList.remove('show');
+    if (!name) { err.textContent = 'Group name is required.'; err.classList.add('show'); return; }
+    const body = { name, vesselIMOs: currentIMOs, notes };
+    const btn = document.getElementById('saveGroupBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const url    = editingId ? API + '/admin/groups/' + editingId : API + '/admin/groups';
+      const method = editingId ? 'PUT' : 'POST';
+      const r = await fetch(url, { method, headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) { err.textContent = d.error || 'Save failed.'; err.classList.add('show'); return; }
+      const savedGroupId = d.id || editingId;
+
+      // ── Save member assignments ──
+      const selectedMemberIds = Array.from(
+        document.querySelectorAll('#memberSelectList input[type=checkbox]:checked')
+      ).map(c => c.value);
+
+      const memberUpdates = allUsers.map(u => {
+        const inGroup    = (u.groupIds || []).includes(savedGroupId);
+        const shouldBe   = selectedMemberIds.includes(u.id);
+        if (inGroup === shouldBe) return null;
+        const newGroupIds = shouldBe
+          ? [...new Set([...(u.groupIds || []), savedGroupId])]
+          : (u.groupIds || []).filter(gid => gid !== savedGroupId);
+        return fetch(API + '/admin/users/' + u.id, {
+          method: 'PUT',
+          headers: { ...authHdr(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupIds: newGroupIds }),
+        });
+      }).filter(Boolean);
+
+      if (memberUpdates.length) await Promise.all(memberUpdates);
+
+      closeModal();
+      toast(editingId ? 'Group updated.' : 'Group created.');
+      await loadData();
+    } catch (e) { err.textContent = 'Network error: ' + e.message; err.classList.add('show'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Save Group'; } }
+  }
+  window.saveGroup = saveGroup;
+
+  async function deleteGroup(id, name) {
+    if (!confirm('Delete group "' + name + '"? Superintendents assigned to this group will lose access. This cannot be undone.')) return;
+    try {
+      const r = await fetch(API + '/admin/groups/' + id, { method: 'DELETE', headers: authHdr() });
+      if (!r.ok) { toast('Delete failed', true); return; }
+      toast('Group deleted.');
+      await loadData();
+    } catch { toast('Network error', true); }
+  }
+  window.deleteGroup = deleteGroup;
+
+  // ── MEMBERS MODAL ────────────────────────────────────────────────────────
+  let _membersGroupId = '';
+
+  function openMembersModal(groupId) {
+    const g = allGroups.find(x => x.id === groupId);
+    if (!g) return;
+    _membersGroupId = groupId;
+    document.getElementById('membersModalTitle').textContent = 'Members — ' + g.name;
+    document.getElementById('membersModalErr').classList.remove('show');
+    const currentMemberIds = allUsers.filter(u => (u.groupIds||[]).includes(groupId)).map(u => u.id);
+    const el = document.getElementById('membersModalList');
+    const supts = allUsers.filter(u => u.active || currentMemberIds.includes(u.id));
+    if (!supts.length) {
+      el.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No superintendent accounts yet. Create users first.</div>';
+    } else {
+      el.innerHTML = supts.map(u => {
+        const checked = currentMemberIds.includes(u.id) ? 'checked' : '';
+        const inactive = !u.active ? ' <span style="font-size:.6rem;color:var(--invalid);margin-left:4px">(inactive)</span>' : '';
+        return `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(100,255,218,.06);cursor:pointer">
+          <input type="checkbox" value="${escHtml(u.id)}" ${checked} style="accent-color:#64FFDA;flex-shrink:0;width:15px;height:15px" />
+          <span style="min-width:0">
+            <strong style="font-size:.82rem;color:var(--text-bright)">${escHtml(u.name)}</strong>${inactive}
+            <div style="font-size:.68rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace">${escHtml(u.email)}</div>
+          </span>
+        </label>`;
+      }).join('');
+    }
+    document.getElementById('membersModal').classList.add('open');
+  }
+  window.openMembersModal = openMembersModal;
+
+  function closeMembersModal() {
+    document.getElementById('membersModal').classList.remove('open');
+    _membersGroupId = '';
+  }
+  window.closeMembersModal = closeMembersModal;
+
+  async function saveMembersModal() {
+    if (!_membersGroupId) return;
+    const err = document.getElementById('membersModalErr');
+    err.classList.remove('show');
+    const btn = document.getElementById('saveMembersBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const selectedIds = Array.from(
+        document.querySelectorAll('#membersModalList input[type=checkbox]:checked')
+      ).map(c => c.value);
+      const updates = allUsers.map(u => {
+        const inGroup  = (u.groupIds || []).includes(_membersGroupId);
+        const shouldBe = selectedIds.includes(u.id);
+        if (inGroup === shouldBe) return null;
+        const newGroupIds = shouldBe
+          ? [...new Set([...(u.groupIds || []), _membersGroupId])]
+          : (u.groupIds || []).filter(gid => gid !== _membersGroupId);
+        return fetch(API + '/admin/users/' + u.id, {
+          method: 'PUT',
+          headers: { ...authHdr(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupIds: newGroupIds }),
+        });
+      }).filter(Boolean);
+      if (updates.length) {
+        const results = await Promise.all(updates);
+        const failed = results.filter(r => !r.ok).length;
+        if (failed) { err.textContent = failed + ' user update(s) failed.'; err.classList.add('show'); return; }
+      }
+      closeMembersModal();
+      toast('Members updated.');
+      await loadData();
+    } catch (e) { err.textContent = 'Network error: ' + e.message; err.classList.add('show'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Save Members'; } }
+  }
+  window.saveMembersModal = saveMembersModal;
+
+  // ── TOAST ─────────────────────────────────────────────────────────────────
+  function toast(msg, isErr) {
+    const el = document.createElement('div');
+    el.className = 'toast-msg ' + (isErr ? 'err' : 'ok');
+    el.textContent = msg;
+    document.getElementById('toast').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  if (TOKEN) {
+    fetch(API + '/superadmin/verify', { headers: authHdr() }).then(r => {
+      if (r.ok) showApp();
+      else { TOKEN = ''; sessionStorage.removeItem('superAdminToken'); }
+    }).catch(() => {});
+  } else {
+    document.getElementById('loginWrap').style.display = 'flex';
+  }
+})();
+</script>
+</body>
+</html>

@@ -18,6 +18,9 @@
   let filterStatus = '';
   let csvParsedRows = [];
   let selectedIssueCertId = null;
+  // Attachment state — var so onclick handlers in dynamic HTML can access them
+  var pendingPdfs = [];
+  var savedAttachments = [];
 
   // ── AUTH ──
   async function doLogin() {
@@ -80,6 +83,7 @@
   async function initApp() {
     scheduleTokenExpiryWarning();
     await refreshStats();
+    await loadGroupsMap();
     renderTbl('dashTbl', '');
     updateRealTimeBadge();
     checkSesStatus();
@@ -469,13 +473,13 @@
 
   // ── TABLE ──
   function clearAllFilters() {
-    ['allQ','allStatusSel','allEmailSel','allRiskSel'].forEach(id => {
+    ['allQ','allStatusSel','allEmailSel','allRiskSel','allQuarterSel'].forEach(id => {
       const el=document.getElementById(id); if(el) el.value='';
     });
-    renderTbl('allTbl','','','','');
+    renderTbl('allTbl','','','','','');
     const cb=document.getElementById('allClearFilters'); if(cb) cb.style.display='none';
   }
-  function renderTbl(id, q, statusFilter, emailFilter, riskFilter) {
+  function renderTbl(id, q, statusFilter, emailFilter, riskFilter, quarterFilter) {
     const el = document.getElementById(id);
     let list = CERTS;
     if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').includes(ql)||(c.vesselName||'').toLowerCase().includes(ql)); }
@@ -493,16 +497,27 @@
     if (emailFilter==='SENT') list=list.filter(c=>c.emailStatus==='SENT');
     else if (emailFilter==='NOT_SENT') list=list.filter(c=>c.emailStatus!=='SENT');
     if (riskFilter) list=list.filter(c=>(c.riskLevel||'').toUpperCase()===riskFilter.toUpperCase());
+    if (quarterFilter) {
+      const qNum = parseInt(quarterFilter, 10);
+      list = list.filter(c => {
+        const d = c.assessmentDate || c.issuedAt;
+        if (!d) return false;
+        const month = new Date(d).getMonth() + 1;
+        const cq = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+        return cq === qNum;
+      });
+    }
     // Update count badge
     const countEl=document.getElementById('allCertCount');
     if(countEl) countEl.innerHTML=`<strong>${list.length}</strong> records`;
     const cb=document.getElementById('allClearFilters');
-    if(cb) cb.style.display=(q||statusFilter||emailFilter||riskFilter)?'':'none';
+    if(cb) cb.style.display=(q||statusFilter||emailFilter||riskFilter||quarterFilter)?'':'none';
     if (!list.length) { el.innerHTML='<div class="empty-state"><h3>No VAPT certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:4px">Try adjusting your search or clearing filters.</p></div>'; return; }
     const isDash=id==='dashTbl';
     el.innerHTML = `<div class="tbl-scroll-wrap" style="overflow-x:auto"><table style="min-width:1000px;width:100%;border-collapse:collapse"><colgroup>
+      <col style="width:36px"><!-- Select -->
       <col style="width:148px"><!-- Cert ID -->
-      <col style="width:160px"><!-- Vessel -->
+      <col style="width:175px"><!-- Vessel -->
       <col style="width:80px"> <!-- IMO -->
       <col style="width:110px"><!-- Assessment Date -->
       <col style="width:110px"><!-- Status -->
@@ -512,7 +527,7 @@
       <col style="width:68px"> <!-- Image -->
       <col>                    <!-- Actions -->
     </colgroup><thead><tr>
-      <th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
+      <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" onchange="toggleSelectAll(this,'${id}')" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
     </tr></thead><tbody>` + (isDash?list.slice(0,10):list).map(c => {
       const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
       const isV=c.status==='VALID'&&(!vu||vu>=now);
@@ -547,9 +562,12 @@
       const safeVessel = escHtml(c.vesselName);
       const safeIMO   = escHtml(c.vesselIMO);
       const safeEmail = escHtml(c.recipientEmail);
-      return `<tr>
+      const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
+      const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
+      const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" onchange="toggleRowSelect(this)" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
+      return `<tr>${selCell}
         <td><span class="cid" title="${safeId}">${safeId}</span></td>
-        <td class="name-cell"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''}</td>
+        <td class="name-cell" style="cursor:pointer" title="View in public portal" onclick="viewCertNewTab('${safeId}',null)"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''} ${groupBadge}</td>
         <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO||'—'}</span></td>
         <td style="font-size:.76rem;color:var(--text-sec)">${fmt(c.assessmentDate)}</td>
         <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${safeId}" onchange="quickStatusChange('${safeId}',this.value,this)" title="Change status">
@@ -567,6 +585,7 @@
           <button class="btn btn-teal btn-sm" onclick="editCert('${safeId}')">Edit</button>
           <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${safeId}',this)" style="font-size:.58rem">🔒</button>
           ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${safeId}')">✉</button>`:''}
+          <button class="btn btn-ghost btn-sm" title="Assign vessel to group" onclick="openAssignGroup('${safeIMO}','${safeVessel}')">👥</button>
           <button class="btn btn-danger btn-sm" onclick="askDelete('${safeId}')">Delete</button>
         </div></td>
       </tr>`;
@@ -591,6 +610,7 @@
     document.getElementById('pageTitle').textContent=t;
     document.getElementById('pageBread').textContent=b;
     if (name==='certs') renderTbl('allTbl','','','');
+    else if (typeof clearSelections === 'function') clearSelections();
     if (name==='issue') { renderIssueList(''); refreshStats(); renderSentLog(); }
   }
 
@@ -799,7 +819,7 @@
       const url=editingId?`${API}/vapt/certs/${editingId}`:`${API}/vapt/certs`;
       const method=editingId?'PUT':'POST';
       const r=await fetch(url,{method,headers:{Authorization:'Bearer '+TOKEN},body:fd});
-      if (!r.ok) { const d=await r.json(); throw new Error(d.error||'Save failed'); }
+      if (!r.ok) { let msg='Could not save certificate.'; try{const d=await r.json();msg=d.error||msg;}catch{} throw new Error(msg); }
       const saved = await r.json();
       // Update local state
       savedAttachments = Array.isArray(saved.attachments) ? saved.attachments : [];
@@ -1061,6 +1081,15 @@
         renderTbl('allTbl', '');
       } else { toast('Could not activate certificate. Please try again.', 'err'); }
     } catch { toast('Something went wrong. Please try again.', 'err'); }
+  }
+
+  function openDocLibraryForVessel() {
+    const imo = (document.getElementById('fIMO') || {}).value || '';
+    const vessel = (document.getElementById('fVesselName') || {}).value || '';
+    const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cstAdmin) || '/CST/misecure';
+    let url = base + '/documents/';
+    if (imo) url += '?imo=' + encodeURIComponent(imo.trim().toUpperCase()) + '&vessel=' + encodeURIComponent(vessel.trim());
+    window.open(url, '_blank');
   }
 
   // ── DELETE ──
@@ -1422,11 +1451,45 @@
   function onDragLeave(){document.getElementById('dropZone').classList.remove('drag-over');}
   function onDrop(e){e.preventDefault();document.getElementById('dropZone').classList.remove('drag-over');if(e.dataTransfer.files[0])setImg(e.dataTransfer.files[0]);}
 
-  // ── PDF ATTACHMENTS (disabled — reference docs feature removed) ──
-  let pendingPdfs = [];
-  let savedAttachments = [];
-  function renderAttachList() { /* disabled */ }
-  function pdfFileSelect() { /* disabled */ }
+  // ── PDF / DOCUMENT ATTACHMENTS ──
+  function _he(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function renderAttachList() {
+    const el = document.getElementById('attachList');
+    if (!el) return;
+    const all = [
+      ...savedAttachments.map((a, i) => ({ ...a, saved: true, idx: i })),
+      ...pendingPdfs.map((p, i) => ({ name: p.name, pending: true, idx: i }))
+    ];
+    if (!all.length) {
+      el.innerHTML = '<div style="font-size:.72rem;color:var(--text-sec);padding:6px 2px">No documents attached. Click "+ Attach" to add PDF, Word or Excel files.</div>';
+      return;
+    }
+    el.innerHTML = all.map(a => {
+      const fn = (a.name || '').toLowerCase();
+      const icon = fn.endsWith('.pdf') ? '📋' : (fn.endsWith('.xls') || fn.endsWith('.xlsx')) ? '📊' : (fn.endsWith('.doc') || fn.endsWith('.docx')) ? '📝' : '📄';
+      const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,179,71,.09);color:var(--gold);border:1px solid rgba(255,179,71,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
+      const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
+      const rmBtn = a.saved
+        ? `<button type="button" onclick="removeSavedAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
+        : `<button type="button" onclick="removePendingAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:.88rem;flex-shrink:0">${icon}</span>
+        <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_he(a.name || 'Document')}${badge}</span>
+        <div style="display:flex;gap:5px;flex-shrink:0">${openBtn}${rmBtn}</div>
+      </div>`;
+    }).join('');
+  }
+  function pdfFileSelect(input) {
+    if (!input || !input.files || !input.files.length) return;
+    Array.from(input.files).forEach(f => {
+      if (f.size > 20 * 1024 * 1024) { toast('File "' + f.name + '" exceeds 20 MB.', 'err'); return; }
+      pendingPdfs.push({ file: f, name: f.name });
+    });
+    input.value = '';
+    renderAttachList();
+  }
+  function removeSavedAttach(idx) { savedAttachments.splice(idx, 1); renderAttachList(); }
+  function removePendingAttach(idx) { pendingPdfs.splice(idx, 1); renderAttachList(); }
   function pdfDragOver(e) { e.preventDefault(); }
   function pdfDragLeave() {}
   function pdfDrop(e) { e.preventDefault(); }
@@ -1903,3 +1966,179 @@ function applyConfig() {
     scheduleSessionTimers(); startIdleTimeout();
   }
 })();
+
+// ════════════════════════════════════════════════════
+// MODULE: Assign Vessel to Group
+// ════════════════════════════════════════════════════
+let _assignGroupIMO = '', _assignGroupName = '', _allGroupsForAssign = [], _bulkAssignIMOs = [];
+let _selectedRows = new Set();
+let _imoGroupMap = {};
+
+async function loadGroupsMap() {
+  try {
+    const r = await fetch(API + '/admin/groups', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) return;
+    const groups = await r.json();
+    _imoGroupMap = {};
+    groups.forEach(g => { (g.vesselIMOs || []).forEach(imo => { _imoGroupMap[imo.toUpperCase()] = g.name; }); });
+  } catch { }
+}
+
+async function openAssignGroup(vesselIMO, vesselName) {
+  if (!vesselIMO) return;
+  _bulkAssignIMOs = [];
+  _assignGroupIMO = vesselIMO;
+  _assignGroupName = vesselName;
+  const label = document.getElementById('assignGroupVesselLabel');
+  if (label) label.textContent = (vesselName ? vesselName + ' · ' : '') + 'IMO ' + vesselIMO;
+  const mod = document.getElementById('assignGroupMod');
+  if (mod) mod.style.display = 'flex';
+  const listEl = document.getElementById('assignGroupList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>';
+  try {
+    const r = await fetch(API + '/admin/groups', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) throw new Error('Could not load groups (' + r.status + ')');
+    _allGroupsForAssign = await r.json();
+    if (!_allGroupsForAssign.length) {
+      listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No groups found. Create groups first in the Groups page.</div>';
+      return;
+    }
+    listEl.innerHTML = _allGroupsForAssign.map(g => {
+      const already = (g.vesselIMOs || []).some(i => i.toUpperCase() === vesselIMO.toUpperCase());
+      return `<label style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(100,255,218,.06);cursor:${already?'default':'pointer'};font-size:.78rem;color:var(--text-sec)">
+        <input type="radio" name="assignGroupRadio" value="${escHtml(g.id)}" ${already ? 'disabled' : ''}
+          style="accent-color:#64FFDA;flex-shrink:0" />
+        <span>
+          <strong style="color:var(--text-bright)">${escHtml(g.name)}</strong>
+          <span style="color:var(--text-sec);font-size:.65rem;margin-left:7px">${(g.vesselIMOs || []).length} vessel${(g.vesselIMOs || []).length !== 1 ? 's' : ''}</span>
+          ${already ? '<span style="font-size:.6rem;color:var(--teal);margin-left:7px">✓ Already assigned</span>' : ''}
+        </span>
+      </label>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:14px;font-size:.73rem;color:var(--invalid)">${escHtml(e.message)}</div>`;
+  }
+}
+
+function closeAssignGroup() {
+  const mod = document.getElementById('assignGroupMod');
+  if (mod) mod.style.display = 'none';
+  _assignGroupIMO = ''; _assignGroupName = ''; _bulkAssignIMOs = [];
+}
+
+async function confirmAssignGroup() {
+  const sel = document.querySelector('#assignGroupList input[name="assignGroupRadio"]:checked');
+  if (!sel) { toast('Please select a group.', 'err'); return; }
+  const groupId = sel.value;
+  const group = _allGroupsForAssign.find(g => g.id === groupId);
+  if (!group) return;
+  const imosToAssign = _bulkAssignIMOs.length > 0 ? _bulkAssignIMOs : (_assignGroupIMO ? [_assignGroupIMO] : []);
+  if (!imosToAssign.length) { toast('No vessel selected.', 'err'); return; }
+  const existing = (group.vesselIMOs || []).map(i => i.toUpperCase());
+  const newIMOs = imosToAssign.filter(imo => !existing.includes(imo.toUpperCase()));
+  if (!newIMOs.length) { toast('All selected vessels are already in this group.', 'warn'); return; }
+  const updated = [...(group.vesselIMOs || []), ...newIMOs];
+  const btn = document.getElementById('btnConfirmAssign');
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+  try {
+    const r = await fetch(API + '/admin/groups/' + encodeURIComponent(groupId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN },
+      body: JSON.stringify({ vesselIMOs: updated }),
+    });
+    if (!r.ok) throw new Error('Server returned ' + r.status);
+    const n = newIMOs.length;
+    const wasBulk = _bulkAssignIMOs.length > 0;
+    toast(n + ' vessel' + (n !== 1 ? 's' : '') + ' assigned to group "' + group.name + '"', 'ok');
+    closeAssignGroup();
+    if (wasBulk) clearSelections();
+    await loadGroupsMap();
+    const dashPage  = document.getElementById('page-dashboard');
+    const certsPage = document.getElementById('page-certs');
+    if (dashPage  && dashPage.style.display  !== 'none') renderTbl('dashTbl', '');
+    if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value||'', document.getElementById('allStatusSel')?.value||'', document.getElementById('allEmailSel')?.value||'');
+  } catch (e) {
+    toast('Assign failed: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Assign to Group'; }
+  }
+}
+
+// ── Row selection (multi-select / bulk assign) ──
+function toggleRowSelect(cb) {
+  const imo = cb.dataset.imo;
+  if (!imo) return;
+  if (cb.checked) _selectedRows.add(imo);
+  else _selectedRows.delete(imo);
+  updateSelToolbar();
+}
+
+function toggleSelectAll(cb, tblId) {
+  const scope = tblId ? document.getElementById(tblId) : document;
+  (scope || document).querySelectorAll('input.row-sel-cb').forEach(c => {
+    c.checked = cb.checked;
+    if (cb.checked) _selectedRows.add(c.dataset.imo);
+    else _selectedRows.delete(c.dataset.imo);
+  });
+  updateSelToolbar();
+}
+
+function updateSelToolbar() {
+  const bar = document.getElementById('certSelBar');
+  const countEl = document.getElementById('certSelCount');
+  const n = _selectedRows.size;
+  if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
+  if (countEl) countEl.textContent = n + ' vessel' + (n !== 1 ? 's' : '') + ' selected';
+}
+
+function clearSelections() {
+  _selectedRows.clear();
+  document.querySelectorAll('#allTbl input.row-sel-cb').forEach(c => c.checked = false);
+  const allCb = document.getElementById('selAllCb');
+  if (allCb) allCb.checked = false;
+  updateSelToolbar();
+}
+
+async function openBulkAssign() {
+  if (!_selectedRows.size) { toast('Select at least one vessel first.', 'warn'); return; }
+  const imoList = [..._selectedRows];
+  _bulkAssignIMOs = imoList;
+  _assignGroupIMO = '';
+  const label = document.getElementById('assignGroupVesselLabel');
+  if (label) {
+    label.innerHTML = imoList.length === 1
+      ? 'IMO ' + escHtml(imoList[0])
+      : '<strong>' + imoList.length + ' vessels selected</strong>: ' + imoList.map(escHtml).join(', ');
+  }
+  const mod = document.getElementById('assignGroupMod');
+  if (mod) mod.style.display = 'flex';
+  const listEl = document.getElementById('assignGroupList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>';
+  try {
+    const r = await fetch(API + '/admin/groups', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) throw new Error('Could not load groups (' + r.status + ')');
+    _allGroupsForAssign = await r.json();
+    if (!_allGroupsForAssign.length) {
+      listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No groups found. Create groups first in the Groups page.</div>';
+      return;
+    }
+    listEl.innerHTML = _allGroupsForAssign.map(g => {
+      const assignedCount = imoList.filter(imo => (g.vesselIMOs || []).some(i => i.toUpperCase() === imo.toUpperCase())).length;
+      const allAlready = assignedCount === imoList.length;
+      return `<label style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(100,255,218,.06);cursor:${allAlready?'default':'pointer'};font-size:.78rem;color:var(--text-sec)">
+        <input type="radio" name="assignGroupRadio" value="${escHtml(g.id)}" ${allAlready ? 'disabled' : ''}
+          style="accent-color:#64FFDA;flex-shrink:0" />
+        <span>
+          <strong style="color:var(--text-bright)">${escHtml(g.name)}</strong>
+          <span style="color:var(--text-sec);font-size:.65rem;margin-left:7px">${(g.vesselIMOs||[]).length} vessel${(g.vesselIMOs||[]).length!==1?'s':''}</span>
+          ${assignedCount > 0 && !allAlready ? `<span style="font-size:.6rem;color:var(--warn);margin-left:7px">${assignedCount} already assigned</span>` : ''}
+          ${allAlready ? '<span style="font-size:.6rem;color:var(--teal);margin-left:7px">✓ All already assigned</span>' : ''}
+        </span>
+      </label>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:14px;font-size:.73rem;color:var(--invalid)">${escHtml(e.message)}</div>`;
+  }
+}

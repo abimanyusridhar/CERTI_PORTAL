@@ -1,0 +1,50 @@
+{
+  "REQ-0002": {
+    "id": "REQ-0002",
+    "captainName": "SRIDHAR KUMAR",
+    "vesselName": "NORD KUDU",
+    "vesselIMO": "9623740",
+    "emailId": "sridhar.hs@midevops.io",
+    "requestedAt": "2026-05-13T09:12:02.902Z",
+    "status": "APPROVED",
+    "permanentGrant": true,
+    "accessToken": "eyJzdWIiOiI5NjIzNzQwIiwia2luZCI6ImRvY2FjY2VzcyIsInJlcUlkIjoiUkVRLTAwMDIiLCJpYXQiOjE3Nzg2NjM1OTkzMzcsImV4cCI6MTgxMDE5OTU5OTMzN30.Bv25TE75_vfkS8tYVgf2ikk8U5rrEjkxHinccWHiiPU",
+    "tokenExpiry": "2027-05-13T09:13:19.337Z",
+    "approvedAt": "2026-05-13T09:13:19.337Z",
+    "notes": "",
+    "emailSent": true,
+    "emailSentAt": "2026-05-13T09:13:19.542Z"
+  },
+  "REQ-0003": {
+    "id": "REQ-0003",
+    "captainName": "SRIDHAR KUMAR",
+    "vesselName": "JAGUAR",
+    "vesselIMO": "9464948",
+    "emailId": "sridhar.hs@midevops.io",
+    "requestedAt": "2026-05-13T10:51:58.172Z",
+    "status": "APPROVED",
+    "permanentGrant": true,
+    "accessToken": "eyJzdWIiOiI5NDY0OTQ4Iiwia2luZCI6ImRvY2FjY2VzcyIsInJlcUlkIjoiUkVRLTAwMDMiLCJpYXQiOjE3Nzg2Njk1MjcxNzQsImV4cCI6MTgxMDIwNTUyNzE3NH0.66MV8sk7jvdiVo-7vBSC7T32qf1zeWDPWoyVIt-NBGg",
+    "tokenExpiry": "2027-05-13T10:52:07.174Z",
+    "approvedAt": "2026-05-13T10:52:07.174Z",
+    "notes": "",
+    "emailSent": true,
+    "emailSentAt": "2026-05-13T10:52:07.463Z"
+  },
+  "REQ-0004": {
+    "id": "REQ-0004",
+    "captainName": "VIJAY KUMAR",
+    "vesselName": "",
+    "vesselIMO": "9464948",
+    "emailId": "vijay@midevops.io",
+    "requestedAt": "2026-05-14T09:27:35.378Z",
+    "status": "APPROVED",
+    "permanentGrant": true,
+    "accessToken": "eyJzdWIiOiI5NDY0OTQ4Iiwia2luZCI6ImRvY2FjY2VzcyIsInJlcUlkIjoiUkVRLTAwMDQiLCJpYXQiOjE3Nzg3NTA4NjUzNjYsImV4cCI6MTgxMDI4Njg2NTM2Nn0.VkQ_OZv97ijo32XD83whht0KAwq_kuF7I1KD-K42EeQ",
+    "tokenExpiry": "2027-05-14T09:27:45.366Z",
+    "approvedAt": "2026-05-14T09:27:45.366Z",
+    "notes": "",
+    "emailSent": false,
+    "emailSentAt": null
+  }
+}

@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Document Library &amp; Access Management</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none';" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared-styles.css" />
+  <link rel="stylesheet" href="/assets/responsive-refinements.css" />
+  <script src="/config.js" defer></script>
+  <script src="/assets/pubsub.js" defer></script>
+  <script src="/assets/shared-utils.js" defer></script>
+  <script src="/assets/theme-toggle.js" defer></script>
+  <style>
+    :root { --doc-accent: #B5860A; --doc-accent-dim: rgba(181,134,10,.07); --req-accent: #0097A7; --req-accent-dim: rgba(0,151,167,.06); }
+    body { min-height: 100vh; background: #F5F7FA; font-family: 'DM Sans', sans-serif; color: #1A202C; }
+
+    /* ── LOGIN ── */
+    #loginWrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; background: #F0F4FA; }
+    .login-bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(0,0,0,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.025) 1px,transparent 1px); background-size: 40px 40px; pointer-events: none; }
+    .login-card { position: relative; z-index: 1; background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 18px; padding: 36px 32px; width: 100%; max-width: 380px; box-shadow: 0 8px 40px rgba(0,0,0,.1); }
+    .login-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: #111827; font-weight: 700; text-align: center; margin-bottom: 6px; }
+    .login-sub { font-size: .72rem; color: #6B7280; text-align: center; margin-bottom: 22px; letter-spacing: .04em; }
+    .login-icon { display: flex; justify-content: center; margin-bottom: 16px; }
+    .login-err { display: none; background: rgba(220,38,38,.06); border: 1px solid rgba(220,38,38,.25); color: #DC2626; border-radius: 8px; padding: 9px 13px; font-size: .73rem; text-align: center; margin-bottom: 14px; }
+    .login-err.show { display: block; }
+    .fgroup { margin-bottom: 14px; }
+    .flabel { font-size: .65rem; color: #6B7280; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px; }
+    .fcontrol { width: 100%; background: #F9FAFB; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; padding: 10px 14px; font-size: .82rem; color: #111827; font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
+    .fcontrol:focus { outline: none; border-color: #B5860A; }
+
+    /* ── APP LAYOUT ── */
+    #appWrap { display: none; min-height: 100vh; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: #fff; border-right: 1px solid rgba(0,0,0,.08); padding: 20px 0; display: flex; flex-direction: column; z-index: 100; overflow-y: auto; box-shadow: 2px 0 12px rgba(0,0,0,.04); }
+    .sb-brand { padding: 0 18px 18px; border-bottom: 1px solid rgba(0,0,0,.07); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .sb-name { font-size: .78rem; font-weight: 700; color: #111827; }
+    .sb-sub { font-size: .6rem; color: #6B7280; letter-spacing: .06em; text-transform: uppercase; }
+    .sb-nav { padding: 0 10px; flex: 1; }
+    .nav-sec { font-size: .58rem; color: #9CA3AF; letter-spacing: .14em; text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; margin-top: 14px; }
+    .nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 9px; font-size: .74rem; color: #4A5568; cursor: pointer; transition: all .15s; border: 1px solid transparent; margin-bottom: 2px; text-decoration: none; }
+    .nav-item:hover, .nav-item.active { background: var(--doc-accent-dim); color: #7A5208; border-color: rgba(181,134,10,.22); }
+    .nav-item.req-tab:hover, .nav-item.req-tab.active { background: var(--req-accent-dim); color: #0097A7; border-color: rgba(0,151,167,.2); }
+    .sb-footer { padding: 14px 18px; border-top: 1px solid rgba(0,0,0,.07); }
+    .sb-logout { font-size: .65rem; color: #6B7280; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s; }
+    .sb-logout:hover { color: #DC2626; }
+    .badge-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; background: rgba(0,151,167,.1); border: 1px solid rgba(0,151,167,.25); color: #0097A7; font-size: .6rem; font-weight: 700; border-radius: 9px; margin-left: auto; }
+    .badge-count.gold { background: rgba(181,134,10,.09); border-color: rgba(181,134,10,.25); color: #92600B; }
+
+    /* ── MAIN ── */
+    .main-content { margin-left: 220px; padding: 28px 32px; min-height: 100vh; background: #F5F7FA; }
+    .page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid rgba(0,0,0,.08); }
+    .page-hdr-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--doc-accent-dim); border: 1px solid rgba(181,134,10,.25); flex-shrink: 0; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #111827; font-weight: 700; }
+    .page-sub { font-size: .73rem; color: #6B7280; margin-top: 2px; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; gap: 6px; margin-bottom: 22px; }
+    .tab-btn { padding: 8px 18px; border-radius: 9px; font-size: .73rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,.1); background: #fff; color: #4A5568; transition: all .15s; font-family: 'DM Sans',sans-serif; letter-spacing: .05em; }
+    .tab-btn.active-docs { background: var(--doc-accent-dim); color: #7A5208; border-color: rgba(181,134,10,.35); }
+    .tab-btn.active-req { background: var(--req-accent-dim); color: #0097A7; border-color: rgba(0,151,167,.3); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── UPLOAD CARD ── */
+    .upload-card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; padding: 22px 24px; margin-bottom: 22px; box-shadow: 0 1px 6px rgba(0,0,0,.04); }
+    .section-title { font-size: .7rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #6B7280; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .f-group { display: flex; flex-direction: column; gap: 5px; }
+    .f-label { font-size: .63rem; color: #6B7280; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+    .f-inp { background: #F9FAFB; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; padding: 9px 13px; font-size: .82rem; color: #111827; font-family: 'DM Sans',sans-serif; transition: border-color .2s; width: 100%; box-sizing: border-box; }
+    .f-inp:focus { outline: none; border-color: #B5860A; }
+    .f-inp::placeholder { color: #9CA3AF; }
+    select.f-inp { cursor: pointer; }
+    .file-drop { border: 2px dashed rgba(0,0,0,.14); border-radius: 11px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all .2s; position: relative; background: #FAFAFA; }
+    .file-drop:hover, .file-drop.drag-over { border-color: #B5860A; background: rgba(181,134,10,.04); }
+    .file-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .file-drop-icon { color: #9CA3AF; margin-bottom: 8px; }
+    .file-drop-text { font-size: .78rem; color: #6B7280; }
+    .file-drop-text strong { color: #B5860A; }
+    .file-selected { font-size: .74rem; color: #0097A7; margin-top: 6px; }
+    .btn-upload { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 9px; font-size: .76rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; font-family: 'DM Sans',sans-serif; background: rgba(181,134,10,.1); color: #7A5208; border: 1.5px solid rgba(181,134,10,.4); transition: all .15s; margin-top: 12px; }
+    .btn-upload:hover { background: rgba(181,134,10,.18); border-color: #B5860A; }
+    .btn-upload:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── DOCS CARDS ── */
+    .docs-wrap { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; overflow: hidden; }
+    .docs-table-hdr { padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,.07); display: flex; align-items: center; justify-content: space-between; background: #fff; }
+    .doc-card-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 14px; padding: 16px; }
+    .doc-card { background: #F8FAFC; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .18s, border-color .18s; }
+    .doc-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.08); border-color: rgba(181,134,10,.25); }
+    .doc-card-top { display: flex; align-items: flex-start; gap: 12px; }
+    .doc-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .doc-icon.pdf { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #DC2626; }
+    .doc-icon.img { background: rgba(99,102,241,.07); border: 1px solid rgba(99,102,241,.2); color: #6366F1; }
+    .doc-icon.xls { background: rgba(34,197,94,.07); border: 1px solid rgba(34,197,94,.2); color: #16A34A; }
+    .doc-icon.doc { background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.2); color: #2563EB; }
+    .doc-icon.other { background: rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,.1); color: #6B7280; }
+    .doc-card-info { flex: 1; min-width: 0; }
+    .doc-card-title { font-size: .84rem; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+    .doc-card-vessel { font-size: .72rem; color: #4A5568; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .doc-card-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+    .doc-card-actions { display: flex; gap: 6px; align-items: center; border-top: 1px solid rgba(0,0,0,.06); padding-top: 10px; }
+    .doc-type-badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 6px; font-size: .58rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+    .badge-training { background: rgba(181,134,10,.09); color: #92600B; border: 1px solid rgba(181,134,10,.25); }
+    .badge-drill { background: rgba(0,151,167,.07); color: #0097A7; border: 1px solid rgba(0,151,167,.2); }
+    .badge-audit { background: rgba(99,102,241,.07); color: #6366F1; border: 1px solid rgba(99,102,241,.2); }
+    .badge-other { background: rgba(0,0,0,.04); color: #6B7280; border: 1px solid rgba(0,0,0,.1); }
+    .imo-chip { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: #0097A7; background: rgba(0,151,167,.07); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,151,167,.2); }
+    .btn-sm { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 7px; font-size: .65rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,.12); background: none; color: #4A5568; transition: all .15s; font-family: 'DM Sans',sans-serif; }
+    .btn-sm:hover { background: rgba(0,0,0,.04); color: #111827; border-color: rgba(0,0,0,.2); }
+    .btn-sm.danger:hover { border-color: rgba(220,38,38,.35); color: #DC2626; background: rgba(220,38,38,.04); }
+    .btn-sm.primary { border-color: rgba(181,134,10,.3); color: #92600B; background: rgba(181,134,10,.07); }
+    .btn-sm.primary:hover { background: rgba(181,134,10,.14); border-color: #B5860A; }
+    .btn-sm.teal { border-color: rgba(0,151,167,.3); color: #0097A7; background: rgba(0,151,167,.06); }
+    .btn-sm.teal:hover { background: rgba(0,151,167,.12); border-color: #0097A7; }
+    .btn-open { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: .68rem; font-weight: 700; cursor: pointer; border: 1.5px solid rgba(181,134,10,.4); background: linear-gradient(135deg,rgba(181,134,10,.1),rgba(181,134,10,.04)); color: #7A5208; transition: all .15s; font-family: 'DM Sans',sans-serif; letter-spacing: .04em; }
+    .btn-open:hover { background: linear-gradient(135deg,rgba(181,134,10,.18),rgba(181,134,10,.1)); border-color: #B5860A; box-shadow: 0 2px 8px rgba(181,134,10,.15); }
+    .btn-open:disabled { opacity: .5; cursor: not-allowed; }
+    .empty-state { padding: 48px 20px; text-align: center; color: #9CA3AF; font-size: .8rem; }
+    .empty-state svg { opacity: .25; margin-bottom: 14px; }
+
+    /* ── ACCESS REQUESTS ── */
+    .req-card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; overflow: hidden; margin-bottom: 10px; transition: border-color .15s, box-shadow .15s; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+    .req-card:hover { border-color: rgba(0,151,167,.25); box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+    .req-card-body { padding: 16px 20px; }
+    .req-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+    .req-vessel { font-size: .9rem; font-weight: 700; color: #111827; }
+    .req-email { font-size: .73rem; color: #4A5568; margin-top: 2px; }
+    .req-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+    .req-meta-item { font-size: .65rem; color: #6B7280; display: flex; align-items: center; gap: 4px; }
+    .req-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px; font-size: .62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; flex-shrink: 0; }
+    .status-pending { background: rgba(234,179,8,.08); color: #854D0E; border: 1px solid rgba(234,179,8,.3); }
+    .status-approved { background: rgba(34,197,94,.07); color: #15803D; border: 1px solid rgba(34,197,94,.25); }
+    .status-denied { background: rgba(220,38,38,.06); color: #DC2626; border: 1px solid rgba(220,38,38,.2); }
+    .token-box { background: #F0F9FF; border: 1px solid rgba(0,151,167,.2); border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+    .token-val { font-family: 'JetBrains Mono', monospace; font-size: .6rem; color: #0097A7; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .token-expiry { font-size: .6rem; color: #6B7280; flex-shrink: 0; }
+
+    /* ── TOAST ── */
+    #toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-item { padding: 10px 18px; border-radius: 10px; font-size: .74rem; font-weight: 600; pointer-events: auto; animation: toastIn .2s ease; }
+    .toast-ok { background: #ECFDF5; border: 1px solid rgba(34,197,94,.3); color: #15803D; }
+    .toast-err { background: #FEF2F2; border: 1px solid rgba(220,38,38,.25); color: #DC2626; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── SESSION BANNERS ── */
+    #sessionWarningBanner, #idleWarningBanner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9990; padding: 10px 28px; font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-align: center; }
+    #sessionWarningBanner { background: #FFFBEB; border-bottom: 2px solid rgba(234,179,8,.4); color: #854D0E; }
+    #idleWarningBanner { background: #FEF2F2; border-bottom: 2px solid rgba(220,38,38,.3); color: #DC2626; }
+
+    /* ── FILTER BAR ── */
+    .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .filter-inp { background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; padding: 8px 13px; font-size: .78rem; color: #111827; font-family: 'DM Sans',sans-serif; width: 220px; }
+    .filter-inp:focus { outline: none; border-color: #B5860A; }
+
+    /* ── CONFIRM MODAL ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9000; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal-box { background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 16px; padding: 28px 26px; max-width: 400px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+    .modal-title { font-size: .9rem; font-weight: 700; color: #111827; margin-bottom: 8px; }
+    .modal-body { font-size: .78rem; color: #4A5568; line-height: 1.65; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    @media (max-width: 768px) {
+      .sidebar { position: static; width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 12px 0; }
+      .main-content { margin-left: 0; padding: 20px 16px; }
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SESSION BANNERS -->
+<div id="sessionWarningBanner" role="alert" aria-live="assertive">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  Your session will expire in <span id="sessionCountdown">5 minutes</span>.
+  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,179,71,0.2);border:1px solid rgba(255,179,71,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
+</div>
+<div id="idleWarningBanner" role="alert" aria-live="assertive">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+  Inactivity detected — you will be logged out in <span id="idleCountdown">2 minutes</span>.
+  <button onclick="resetIdle()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
+</div>
+
+<!-- LOGIN -->
+<div id="loginWrap">
+  <div class="login-bg-grid" aria-hidden="true"></div>
+  <div class="login-card">
+    <div class="login-icon">
+      <img src="/images/SYN.png" alt="Synergy" style="width:52px;height:52px;border-radius:50%;border:1px solid var(--border-gold)" />
+    </div>
+    <div class="login-title">Admin Access</div>
+    <div class="login-sub">Document Library &amp; Access Management</div>
+    <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
+    <div class="fgroup">
+      <label class="flabel" for="lUser">Username</label>
+      <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" />
+    </div>
+    <div class="fgroup" style="margin-bottom:24px">
+      <label class="flabel" for="lPass">Password</label>
+      <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      <span id="lBtnTxt">Login</span>
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appWrap">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <img src="/images/SYN.png" alt="Synergy" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border-gold)" />
+      <div>
+        <div class="sb-name">Documents</div>
+        <div class="sb-sub">Admin Panel</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-sec">Manage</div>
+      <div class="nav-item active" id="navDocs" onclick="switchTab('docs')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Document Library
+        <span class="badge-count gold" id="badgeDocs">0</span>
+      </div>
+      <div class="nav-item req-tab" id="navReqs" onclick="switchTab('reqs')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        Access Requests
+        <span class="badge-count" id="badgeReqs">0</span>
+      </div>
+      <div class="nav-sec">Navigate</div>
+      <a href="/CST/misecure/" id="navLinkCst" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        CST Admin
+      </a>
+      <a href="/VPT/misecure/" id="navLinkVapt" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        VAPT Admin
+      </a>
+      <a href="/CST/misecure/access/" id="navLinkAccess" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        Access Control
+      </a>
+      <div class="nav-sec" style="margin-top:16px">Super Admin</div>
+      <a href="/CST/misecure/users/" id="navLinkUsers" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Users
+      </a>
+      <a href="/CST/misecure/groups/" id="navLinkGroups" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        Groups
+      </a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-logout" onclick="doLogout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-hdr">
+      <div class="page-hdr-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      </div>
+      <div>
+        <div class="page-title">Relevant Documents</div>
+        <div class="page-sub">Upload training reports, drill reports &amp; audit files · Manage vessel access</div>
+      </div>
+      <div style="margin-left:auto;font-size:.64rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace" id="sessionInfo"></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active-docs" id="tabBtnDocs" onclick="switchTab('docs')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Document Library
+      </button>
+      <button class="tab-btn" id="tabBtnReqs" onclick="switchTab('reqs')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        Access Requests
+        <span id="tabBadgePending" style="display:none;margin-left:6px;background:rgba(100,255,218,.14);border:1px solid rgba(100,255,218,.3);color:var(--teal);border-radius:9px;padding:1px 7px;font-size:.6rem;font-weight:700"></span>
+      </button>
+    </div>
+
+    <!-- ── DOCS TAB ── -->
+    <div class="tab-pane active" id="paneDoc">
+
+      <!-- Upload Form -->
+      <div class="upload-card">
+        <div class="section-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Upload New Document
+        </div>
+        <div class="form-row">
+          <div class="f-group">
+            <label class="f-label">Vessel IMO *</label>
+            <input type="text" class="f-inp" id="uImo" placeholder="e.g. 9623740" maxlength="20" />
+          </div>
+          <div class="f-group">
+            <label class="f-label">Vessel Name *</label>
+            <input type="text" class="f-inp" id="uVessel" placeholder="e.g. NORD KUDU" maxlength="120" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="f-group">
+            <label class="f-label">Document Type</label>
+            <select class="f-inp" id="uType">
+              <option value="TRAINING_REPORT">Training Report</option>
+              <option value="DRILL_REPORT">Drill Report</option>
+              <option value="AUDIT_REPORT">Audit Report</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Linked Certificate ID (optional)</label>
+            <input type="text" class="f-inp" id="uCertId" placeholder="e.g. CST-9623740-01-26" maxlength="60" />
+          </div>
+        </div>
+        <div class="f-group" style="margin-bottom:14px">
+          <label class="f-label">Document Title *</label>
+          <input type="text" class="f-inp" id="uTitle" placeholder="e.g. Q1 2026 Cyber Security Training Report" maxlength="200" />
+        </div>
+        <div class="f-group" style="margin-bottom:14px">
+          <label class="f-label">Description (optional)</label>
+          <input type="text" class="f-inp" id="uDesc" placeholder="Brief description of the document" maxlength="500" />
+        </div>
+        <div class="file-drop" id="fileDrop">
+          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" onchange="onFileSelect(this)" />
+          <div class="file-drop-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <div class="file-drop-text">Drag &amp; drop or <strong>click to browse</strong></div>
+          <div class="file-drop-text" style="font-size:.65rem;margin-top:4px;opacity:.7">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG — max 10 MB</div>
+          <div class="file-selected" id="fileSelected"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn-upload" id="btnUpload" onclick="uploadDoc()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            Upload Document
+          </button>
+          <div id="uploadMsg" style="font-size:.74rem;color:var(--text-sec)"></div>
+        </div>
+      </div>
+
+      <!-- Docs list -->
+      <div class="filter-bar">
+        <input type="text" class="filter-inp" id="docSearch" placeholder="Search by vessel, title…" oninput="renderDocs()" />
+        <select class="filter-inp" id="docTypeFilter" style="width:180px" onchange="renderDocs()">
+          <option value="">All Types</option>
+          <option value="TRAINING_REPORT">Training Report</option>
+          <option value="DRILL_REPORT">Drill Report</option>
+          <option value="AUDIT_REPORT">Audit Report</option>
+          <option value="CERT_ATTACHMENT">Certificate Attachment</option>
+          <option value="OTHER">Other</option>
+        </select>
+        <button class="btn-sm primary" onclick="loadAllData()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div class="docs-wrap">
+        <div class="docs-table-hdr">
+          <span class="section-title" style="margin:0">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B5860A" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Uploaded Documents
+          </span>
+          <span id="docsCount" style="font-size:.65rem;color:#6B7280">0 documents</span>
+        </div>
+        <div id="docsTableBody"></div>
+      </div>
+    </div>
+
+    <!-- ── ACCESS REQUESTS TAB ── -->
+    <div class="tab-pane" id="paneReq">
+      <div class="filter-bar">
+        <input type="text" class="filter-inp" id="reqSearch" placeholder="Search by vessel, email…" oninput="renderRequests()" />
+        <select class="filter-inp" id="reqStatusFilter" style="width:160px" onchange="renderRequests()">
+          <option value="">All Status</option>
+          <option value="PENDING">Pending</option>
+          <option value="APPROVED">Approved</option>
+          <option value="DENIED">Denied</option>
+        </select>
+        <button class="btn-sm primary" onclick="loadAllData()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="reqListBody"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-title" id="confirmTitle"></div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-sm danger" id="confirmOk" style="background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.3);color:#DC2626">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+  const API = '/api';
+  let TOKEN = sessionStorage.getItem('adminToken') || '';
+  let allDocs = [], allRequests = [];
+  let _confirmCb = null;
+
+  // ── SESSION MANAGEMENT ──────────────────────────────────────────
+  const SESSION_MAX_MS   = 8 * 60 * 60 * 1000;
+  const SESSION_WARN_MS  = 5 * 60 * 1000;
+  const IDLE_WARN_MS     = 28 * 60 * 1000;
+  const IDLE_OUT_MS      = 30 * 60 * 1000;
+  let _sessionStart = Date.now();
+  let _lastActivity = Date.now();
+  let _sessionTimer, _idleTimer;
+
+  function resetIdle() {
+    _lastActivity = Date.now();
+    document.getElementById('idleWarningBanner').style.display = 'none';
+  }
+  function refreshSession() {
+    _sessionStart = Date.now();
+    document.getElementById('sessionWarningBanner').style.display = 'none';
+  }
+  window.resetIdle = resetIdle;
+  window.refreshSession = refreshSession;
+  ['click','keydown','mousemove','touchstart'].forEach(e => document.addEventListener(e, resetIdle, { passive: true }));
+
+  function tickSession() {
+    const remaining = SESSION_MAX_MS - (Date.now() - _sessionStart);
+    const idle      = Date.now() - _lastActivity;
+    const swb = document.getElementById('sessionWarningBanner');
+    const iwb = document.getElementById('idleWarningBanner');
+    const sc  = document.getElementById('sessionCountdown');
+    const ic  = document.getElementById('idleCountdown');
+    if (remaining <= 0 || idle >= IDLE_OUT_MS) { doLogout(); return; }
+    if (remaining <= SESSION_WARN_MS) {
+      swb.style.display = 'block';
+      const m = Math.ceil(remaining / 60000);
+      if (sc) sc.textContent = m + ' minute' + (m !== 1 ? 's' : '');
+    } else { swb.style.display = 'none'; }
+    if (idle >= IDLE_WARN_MS) {
+      iwb.style.display = 'block';
+      const m = Math.ceil((IDLE_OUT_MS - idle) / 60000);
+      if (ic) ic.textContent = m + ' minute' + (m !== 1 ? 's' : '');
+    } else { iwb.style.display = 'none'; }
+  }
+  setInterval(tickSession, 30000);
+
+  // ── AUTH ────────────────────────────────────────────────────────
+  async function doLogin() {
+    const u = document.getElementById('lUser').value.trim();
+    const p = document.getElementById('lPass').value;
+    const err = document.getElementById('loginErr');
+    const btn = document.getElementById('lBtnTxt');
+    err.classList.remove('show');
+    btn.textContent = 'Verifying…';
+    try {
+      const r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+      const d = await r.json();
+      if (!r.ok || !d.token) { err.classList.add('show'); btn.textContent = 'Login'; return; }
+      TOKEN = d.token;
+      sessionStorage.setItem('adminToken', TOKEN);
+      _sessionStart = Date.now();
+      showApp();
+    } catch { err.classList.add('show'); btn.textContent = 'Login'; }
+  }
+  window.doLogin = doLogin;
+
+  function doLogout() {
+    sessionStorage.removeItem('adminToken');
+    TOKEN = '';
+    document.getElementById('appWrap').style.display = 'none';
+    document.getElementById('loginWrap').style.display = 'flex';
+  }
+  window.doLogout = doLogout;
+
+  async function showApp() {
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'flex';
+    try {
+      const [, b64] = TOKEN.split('.');
+      const p = JSON.parse(atob(b64.replace(/-/g,'+').replace(/_/g,'/')));
+      const si = document.getElementById('sessionInfo');
+      if (si) si.textContent = (p.sub || p.username || 'admin') + ' · ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    } catch {}
+    await loadAllData();
+  }
+
+  async function checkExistingSession() {
+    if (!TOKEN) return;
+    try {
+      const r = await fetch(API + '/auth/verify', { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (r.ok) { showApp(); } else { TOKEN = ''; sessionStorage.removeItem('adminToken'); }
+    } catch { TOKEN = ''; sessionStorage.removeItem('adminToken'); }
+  }
+
+  // ── DATA LOADING ─────────────────────────────────────────────────
+  async function loadAllData() {
+    const loadingHtml = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:.78rem">Loading…</div>';
+    document.getElementById('docsTableBody').innerHTML = loadingHtml;
+    document.getElementById('reqListBody').innerHTML = loadingHtml;
+    try {
+      const [docsRes, reqsRes] = await Promise.all([
+        fetch(API + '/docs', { headers: { Authorization: 'Bearer ' + TOKEN } }),
+        fetch(API + '/docs/access-requests', { headers: { Authorization: 'Bearer ' + TOKEN } }),
+      ]);
+      if (docsRes.ok) allDocs = await docsRes.json();
+      if (reqsRes.ok) allRequests = await reqsRes.json();
+    } catch { toast('Failed to load data', true); }
+    renderDocs();
+    renderRequests();
+    updateBadges();
+  }
+  window.loadAllData = loadAllData;
+
+  function updateBadges() {
+    const pending = allRequests.filter(r => r.status === 'PENDING').length;
+    document.getElementById('badgeDocs').textContent = allDocs.length;
+    document.getElementById('badgeReqs').textContent = allRequests.length;
+    const tb = document.getElementById('tabBadgePending');
+    if (pending > 0) { tb.style.display = 'inline'; tb.textContent = pending + ' pending'; }
+    else { tb.style.display = 'none'; }
+  }
+
+  // ── TABS ─────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    ['docs','reqs'].forEach(t => {
+      document.getElementById('pane' + (t === 'docs' ? 'Doc' : 'Req')).classList.toggle('active', t === tab);
+      document.getElementById('nav' + (t === 'docs' ? 'Docs' : 'Reqs')).classList.toggle('active', t === tab);
+      document.getElementById('nav' + (t === 'docs' ? 'Docs' : 'Reqs')).classList.toggle('req-tab', t === 'reqs');
+    });
+    const dBtn = document.getElementById('tabBtnDocs');
+    const rBtn = document.getElementById('tabBtnReqs');
+    dBtn.className = 'tab-btn' + (tab === 'docs' ? ' active-docs' : '');
+    rBtn.className = 'tab-btn' + (tab === 'reqs' ? ' active-req' : '');
+  }
+  window.switchTab = switchTab;
+
+  // ── FILE SELECT ───────────────────────────────────────────────────
+  function onFileSelect(input) {
+    const f = input.files[0];
+    const sel = document.getElementById('fileSelected');
+    sel.textContent = f ? `${f.name} (${(f.size / 1024).toFixed(1)} KB)` : '';
+  }
+  window.onFileSelect = onFileSelect;
+
+  // Drag-and-drop
+  const drop = document.getElementById('fileDrop');
+  if (drop) {
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+    drop.addEventListener('drop', e => {
+      e.preventDefault();
+      drop.classList.remove('drag-over');
+      const fi = document.getElementById('fileInput');
+      fi.files = e.dataTransfer.files;
+      onFileSelect(fi);
+    });
+  }
+
+  // ── UPLOAD ───────────────────────────────────────────────────────
+  async function uploadDoc() {
+    const imo    = document.getElementById('uImo').value.trim();
+    const vessel = document.getElementById('uVessel').value.trim();
+    const type   = document.getElementById('uType').value;
+    const certId = document.getElementById('uCertId').value.trim();
+    const title  = document.getElementById('uTitle').value.trim();
+    const desc   = document.getElementById('uDesc').value.trim();
+    const fi     = document.getElementById('fileInput');
+    const msg    = document.getElementById('uploadMsg');
+    const btn    = document.getElementById('btnUpload');
+
+    if (!imo || !vessel || !title) { toast('Vessel IMO, Vessel Name and Title are required', true); return; }
+    if (!fi.files.length) { toast('Please select a file to upload', true); return; }
+
+    const fd = new FormData();
+    fd.append('vesselIMO', imo);
+    fd.append('vesselName', vessel);
+    fd.append('docType', type);
+    fd.append('title', title);
+    fd.append('description', desc);
+    fd.append('linkedCertId', certId);
+    fd.append('file', fi.files[0]);
+
+    btn.disabled = true;
+    msg.textContent = 'Uploading…';
+
+    try {
+      const r = await fetch(API + '/docs/upload', { method: 'POST', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
+      const d = await r.json();
+      if (!r.ok) { toast(d.error || 'Upload failed', true); msg.textContent = ''; btn.disabled = false; return; }
+      toast('Document uploaded successfully');
+      msg.textContent = '';
+      // Reset form
+      ['uImo','uVessel','uCertId','uTitle','uDesc'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('uType').value = 'TRAINING_REPORT';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('fileSelected').textContent = '';
+      await loadAllData();
+    } catch { toast('Network error', true); msg.textContent = ''; }
+    btn.disabled = false;
+  }
+  window.uploadDoc = uploadDoc;
+
+  // ── RENDER DOCS ───────────────────────────────────────────────────
+  function renderDocs() {
+    const q    = (document.getElementById('docSearch').value || '').toLowerCase();
+    const tf   = document.getElementById('docTypeFilter').value;
+    const body = document.getElementById('docsTableBody');
+    let filtered = allDocs.filter(d => {
+      const match = !q || (d.vesselName||'').toLowerCase().includes(q) || (d.vesselIMO||'').toLowerCase().includes(q) || (d.title||'').toLowerCase().includes(q);
+      const tMatch = !tf || d.docType === tf;
+      return match && tMatch;
+    });
+    document.getElementById('docsCount').textContent = filtered.length + ' document' + (filtered.length !== 1 ? 's' : '');
+    if (!filtered.length) {
+      const hasFilters = q || tf;
+      const emptyMsg = hasFilters ? 'No documents match the current filter.' : 'No documents uploaded yet. Use the form above to upload the first document.';
+      body.innerHTML = `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><p style="margin-top:10px">${emptyMsg}</p></div>`;
+      return;
+    }
+    const escH = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const typeBadge = t => {
+      const m = { TRAINING_REPORT: ['badge-training','Training Report'], DRILL_REPORT: ['badge-drill','Drill Report'], AUDIT_REPORT: ['badge-audit','Audit Report'], CERT_ATTACHMENT: ['badge-audit','Certificate Attachment'], OTHER: ['badge-other','Other'] };
+      const [cls, lbl] = m[t] || m.OTHER;
+      return `<span class="doc-type-badge ${cls}">${lbl}</span>`;
+    };
+    const fmtSize = b => b > 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB';
+    const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const docIcon = (mime, name) => {
+      const m = (mime||'').toLowerCase(); const n = (name||'').toLowerCase();
+      if (m === 'application/pdf' || n.endsWith('.pdf')) return ['pdf', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>`];
+      if (m.startsWith('image/')) return ['img', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`];
+      if (m.includes('excel') || m.includes('spreadsheet') || n.match(/\.xlsx?$/)) return ['xls', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`];
+      if (m.includes('word') || n.match(/\.docx?$/)) return ['doc', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`];
+      return ['other', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>`];
+    };
+    body.innerHTML = `<div class="doc-card-grid">${filtered.map(d => {
+      const safeId = escH(d.id);
+      const [iconCls, iconSvg] = docIcon(d.mimeType, d.fileName);
+      const canDelete = !d.isCertificateAttachment;
+      return `<div class="doc-card">
+        <div class="doc-card-top">
+          <div class="doc-icon ${iconCls}">${iconSvg}</div>
+          <div class="doc-card-info">
+            <div class="doc-card-title" title="${escH(d.title)}">${escH(d.title)}</div>
+            <div class="doc-card-vessel">
+              <span>${escH(d.vesselName||'—')}</span>
+              ${d.vesselIMO ? `<span class="imo-chip">${escH(d.vesselIMO)}</span>` : ''}
+            </div>
+            <div class="doc-card-meta">
+              ${typeBadge(d.docType)}
+              <span style="font-size:.62rem;color:#9CA3AF">${fmtSize(d.fileSize||0)}</span>
+              <span style="font-size:.62rem;color:#9CA3AF">${fmtDt(d.uploadedAt)}</span>
+              ${d.linkedCertId ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:#B5860A;background:rgba(181,134,10,.07);padding:1px 6px;border-radius:4px;border:1px solid rgba(181,134,10,.2)">${escH(d.linkedCertId)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        ${d.description ? `<div style="font-size:.72rem;color:#6B7280;line-height:1.55;padding:0 2px">${escH(d.description)}</div>` : ''}
+        <div class="doc-card-actions">
+          <button class="btn-open" id="btnOpen_${safeId}" onclick="openDocDirect('${safeId}',this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            Open
+          </button>
+          <button class="btn-sm teal" onclick="copyDocLink('${safeId}',this)" title="Copy shareable link for superintendents">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+            Share Link
+          </button>
+          ${canDelete ? `<button class="btn-sm danger" onclick="deleteDoc('${safeId}','${escH(d.title)}')" style="margin-left:auto">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            Delete
+          </button>` : `<span style="margin-left:auto;font-size:.62rem;color:#6B7280">Managed from certificate</span>`}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Open document directly in new tab via signed temp link (no re-auth needed for recipient)
+  async function openDocDirect(id, btn) {
+    const orig = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const r = await fetch(`/api/docs/temp-link/${id}`, { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (!r.ok) { toast('Could not generate link: ' + ((await r.json()).error || r.status), true); return; }
+      const { url } = await r.json();
+      window.open(url, '_blank');
+    } catch { toast('Open failed — check connection', true); }
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+  window.openDocDirect = openDocDirect;
+
+  // Copy a shareable link that works without authentication
+  async function copyDocLink(id, btn) {
+    const orig = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; }
+    try {
+      const r = await fetch(`/api/docs/temp-link/${id}`, { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (!r.ok) { toast('Could not generate link', true); return; }
+      const { url } = await r.json();
+      await navigator.clipboard.writeText(url);
+      toast('Shareable link copied — valid for 24 hours. Send to superintendent.');
+    } catch { toast('Copy failed', true); }
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+  window.copyDocLink = copyDocLink;
+
+  async function deleteDoc(id, title) {
+    openConfirm(`Delete "${title}"?`, 'This will permanently delete the document file. This action cannot be undone.', async () => {
+      try {
+        const r = await fetch(API + '/docs/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
+        if (!r.ok) { toast((await r.json()).error || 'Delete failed', true); return; }
+        toast('Document deleted');
+        await loadAllData();
+      } catch { toast('Network error', true); }
+    });
+  }
+  window.deleteDoc = deleteDoc;
+
+  // ── RENDER REQUESTS ───────────────────────────────────────────────
+  function renderRequests() {
+    const q    = (document.getElementById('reqSearch').value || '').toLowerCase();
+    const sf   = document.getElementById('reqStatusFilter').value;
+    const body = document.getElementById('reqListBody');
+    let filtered = allRequests.filter(r => {
+      const match = !q || (r.vesselName||'').toLowerCase().includes(q) || (r.emailId||'').toLowerCase().includes(q) || (r.vesselIMO||'').toLowerCase().includes(q);
+      const sMatch = !sf || r.status === sf;
+      return match && sMatch;
+    });
+
+    const escH = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+
+    if (!filtered.length) {
+      body.innerHTML = '<div class="empty-state" style="padding:50px 20px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg><p>No access requests found</p></div>';
+      return;
+    }
+
+    body.innerHTML = filtered.map(r => {
+      const statusCls = { PENDING: 'status-pending', APPROVED: 'status-approved', DENIED: 'status-denied' }[r.status] || 'status-pending';
+      const cstBase = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cst) || '/CST';
+      const tokenBlock = r.status === 'APPROVED' && r.accessToken ? `
+        <div class="token-box">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.58rem;color:var(--text-sec);margin-bottom:3px;letter-spacing:.06em;text-transform:uppercase">Access Token · expires ${fmtDt(r.tokenExpiry)}</div>
+            <div class="token-val">${escH(r.accessToken)}</div>
+          </div>
+          <button class="btn-sm" onclick="copyToken('${escH(r.accessToken)}')" style="flex-shrink:0" title="Copy token">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Copy Token
+          </button>
+          <button class="btn-sm" style="flex-shrink:0;border-color:rgba(100,255,218,.25);color:var(--teal);background:rgba(100,255,218,.06)" title="Copy shareable link for vessel" onclick="copyShareLink('${escH(r.accessToken)}','${escH(r.vesselIMO || '')}')">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+            Share Link
+          </button>
+        </div>` : '';
+
+      return `<div class="req-card">
+        <div class="req-card-body">
+          <div class="req-card-top">
+            <div>
+              ${r.captainName ? `<div style="font-size:.84rem;font-weight:700;color:#111827">${escH(r.captainName)}</div>` : ''}
+              <div class="req-vessel">${escH(r.vesselName)}</div>
+              <div class="req-email">${escH(r.emailId)}</div>
+              <div class="req-meta" style="margin-top:6px">
+                ${r.vesselIMO ? `<span class="req-meta-item"><span class="imo-chip">${escH(r.vesselIMO)}</span></span>` : ''}
+                <span class="req-meta-item">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  Requested ${fmtDt(r.requestedAt)}
+                </span>
+                ${r.approvedAt ? `<span class="req-meta-item"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Approved ${fmtDt(r.approvedAt)}</span>` : ''}
+                <span style="font-size:.62rem;color:var(--text-sec);opacity:.6">${escH(r.id)}</span>
+              </div>
+            </div>
+            <div class="req-actions">
+              <span class="status-badge ${statusCls}">${escH(r.status)}</span>
+              ${r.status === 'PENDING' ? `
+                <button class="btn-sm" style="background:rgba(100,255,218,.08);color:var(--teal);border-color:rgba(100,255,218,.25)" onclick="approveReq('${escH(r.id)}')">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  Approve
+                </button>
+                <button class="btn-sm danger" onclick="denyReq('${escH(r.id)}')">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  Deny
+                </button>` : ''}
+              ${r.status === 'APPROVED' ? `
+                <button class="btn-sm danger" onclick="denyReq('${escH(r.id)}')">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                  Revoke
+                </button>` : ''}
+              <button class="btn-sm danger" onclick="deleteReq('${escH(r.id)}')">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Delete
+              </button>
+            </div>
+          </div>
+          ${tokenBlock}
+          ${r.notes ? `<div style="margin-top:8px;font-size:.7rem;color:var(--text-sec);font-style:italic">${escH(r.notes)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function approveReq(id) {
+    try {
+      const r = await fetch(API + '/docs/access-requests/' + id, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'APPROVED' }),
+      });
+      const d = await r.json();
+      if (!r.ok) { toast(d.error || 'Failed', true); return; }
+      toast(d.emailSent ? `Access approved — email sent to ${d.emailId}` : 'Access approved — token generated (email unavailable)');
+      await loadAllData();
+    } catch { toast('Network error', true); }
+  }
+  window.approveReq = approveReq;
+
+  async function denyReq(id) {
+    try {
+      const r = await fetch(API + '/docs/access-requests/' + id, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DENIED' }),
+      });
+      const d = await r.json();
+      if (!r.ok) { toast(d.error || 'Failed', true); return; }
+      toast('Access denied/revoked');
+      await loadAllData();
+    } catch { toast('Network error', true); }
+  }
+  window.denyReq = denyReq;
+
+  async function deleteReq(id) {
+    openConfirm('Delete this request?', 'The access request record will be permanently removed.', async () => {
+      try {
+        const r = await fetch(API + '/docs/access-requests/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
+        if (!r.ok) { toast('Delete failed', true); return; }
+        toast('Request deleted');
+        await loadAllData();
+      } catch { toast('Network error', true); }
+    });
+  }
+  window.deleteReq = deleteReq;
+
+  function copyToken(token) {
+    navigator.clipboard.writeText(token).then(() => toast('Token copied to clipboard')).catch(() => toast('Copy failed', true));
+  }
+  window.copyToken = copyToken;
+
+  function copyShareLink(token, imo) {
+    const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cst) || '/CST';
+    const url  = window.location.origin + base + '/?docToken=' + encodeURIComponent(token) + (imo ? '&imo=' + encodeURIComponent(imo) : '');
+    navigator.clipboard.writeText(url).then(() => toast('Share link copied — send this to the vessel')).catch(() => toast('Copy failed', true));
+  }
+  window.copyShareLink = copyShareLink;
+
+  // ── APP-CONFIG NAV WIRING ────────────────────────────────────────
+  function applyNavConfig() {
+    const C = window.APP_CONFIG;
+    if (!C) return;
+    const cstEl   = document.getElementById('navLinkCst');
+    const vaptEl  = document.getElementById('navLinkVapt');
+    if (cstEl)  cstEl.href  = (C.routes.cstAdmin  || '/CST/misecure') + '/';
+    if (vaptEl) vaptEl.href = (C.routes.vaptAdmin  || '/VPT/misecure') + '/';
+    const accessEl = document.getElementById('navLinkAccess');
+    if (accessEl) accessEl.href = (C.routes.cstAdmin || '/CST/misecure') + '/access/';
+    const usersEl  = document.getElementById('navLinkUsers');
+    const groupsEl = document.getElementById('navLinkGroups');
+    if (usersEl)  usersEl.href  = (C.routes.cstAdmin || '/CST/misecure') + '/users/';
+    if (groupsEl) groupsEl.href = (C.routes.cstAdmin || '/CST/misecure') + '/groups/';
+  }
+  document.addEventListener('appconfigready', applyNavConfig);
+  if (window.APP_CONFIG) applyNavConfig();
+
+  // ── CONFIRM MODAL ────────────────────────────────────────────────
+  function openConfirm(title, body, cb) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmBody').textContent = body;
+    _confirmCb = cb;
+    document.getElementById('confirmModal').classList.add('show');
+  }
+  function closeConfirm() { document.getElementById('confirmModal').classList.remove('show'); _confirmCb = null; }
+  window.closeConfirm = closeConfirm;
+  document.getElementById('confirmOk').addEventListener('click', () => { if (_confirmCb) _confirmCb(); closeConfirm(); });
+  document.getElementById('confirmModal').addEventListener('click', e => { if (e.target === document.getElementById('confirmModal')) closeConfirm(); });
+
+  // ── TOAST ────────────────────────────────────────────────────────
+  function toast(msg, isErr) {
+    const el = document.createElement('div');
+    el.className = 'toast-item ' + (isErr ? 'toast-err' : 'toast-ok');
+    el.textContent = msg;
+    document.getElementById('toast').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────────
+  // Pre-fill upload form or switch tabs if opened with query params
+  (function initFromUrl() {
+    const sp = new URLSearchParams(window.location.search);
+    const imo    = sp.get('imo')    || '';
+    const vessel = sp.get('vessel') || '';
+    const tab    = sp.get('tab')    || '';
+    if (imo)    { const el = document.getElementById('uImo');    if (el) el.value = imo;    }
+    if (vessel) { const el = document.getElementById('uVessel'); if (el) el.value = vessel; }
+    if (tab === 'reqs') switchTab('reqs');
+  })();
+
+  checkExistingSession();
+})();
+</script>
+</body>
+</html>

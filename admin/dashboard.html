@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en" class="light">
 
 <head>
   <meta charset="UTF-8" />
@@ -143,6 +143,12 @@
           </svg>
           Internal Validity <span class="nav-badge" id="nbValidityAlert" style="background:rgba(255,179,71,.15);color:var(--warn);border:1px solid rgba(255,179,71,.3)">0</span>
         </div>
+        <a class="nav-item" id="nav-documents" href="/CST/misecure/documents/" style="text-decoration:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Document Library
+        </a>
         <div class="nav-sec" style="margin-top:18px">Quick Stats</div>
         <div class="side-mini">
           <div class="side-row"><span>Valid</span><span style="color:var(--teal)" id="svValid">—</span></div>
@@ -432,6 +438,11 @@
               </select>
             </div>
           </div>
+          <div id="certSelBar" style="display:none;align-items:center;gap:12px;padding:9px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.2);border-radius:8px;margin:0 18px 10px">
+            <span id="certSelCount" style="font-size:.72rem;font-weight:600;color:var(--teal)">0 vessels selected</span>
+            <button class="btn btn-primary btn-sm" onclick="openBulkAssign()">👥 Assign to Group</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearSelections()" style="font-size:.72rem">✕ Clear</button>
+          </div>
           <div id="allTbl"></div>
         </div>
       </div>
@@ -683,6 +694,22 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- INLINE DOCUMENT ATTACHMENTS -->
+            <div style="margin-top:18px;padding:14px 16px;background:rgba(212,168,67,.04);border:1px solid rgba(212,168,67,.18);border-radius:11px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-sec);font-weight:600;display:flex;align-items:center;gap:7px">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  Vessel Documents
+                </div>
+                <button type="button" onclick="document.getElementById('cstAttachInput').click()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.28);color:var(--gold);font-size:.66rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.04em">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  Attach File
+                </button>
+                <input type="file" id="cstAttachInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple onchange="pdfFileSelect(this)" />
+              </div>
+              <div id="attachList"></div>
             </div>
 
             <div style="display:flex;gap:10px;margin-top:22px">
@@ -1089,6 +1116,21 @@
       </div>
     </div>
   </div>
+  <!-- ══ ASSIGN TO GROUP MODAL ══ -->
+  <div id="assignGroupMod" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;align-items:center;justify-content:center" onclick="if(event.target===this)closeAssignGroup()">
+    <div style="background:var(--surface);border:1px solid rgba(100,255,218,.25);border-radius:16px;padding:26px 28px 22px;width:100%;max-width:440px;box-shadow:0 24px 80px rgba(0,0,0,.6)">
+      <div style="font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--text-bright);font-weight:700;margin-bottom:6px">Assign Vessel to Group</div>
+      <div style="font-size:.73rem;color:var(--text-sec);margin-bottom:18px" id="assignGroupVesselLabel">—</div>
+      <div id="assignGroupList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--navy)">
+        <div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+        <button class="btn btn-ghost" onclick="closeAssignGroup()">Cancel</button>
+        <button class="btn btn-primary" id="btnConfirmAssign" onclick="confirmAssignGroup()">Assign to Group</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/assets/smg-admin/cst/dashboard.js"></script>
 <script>
 (function () {

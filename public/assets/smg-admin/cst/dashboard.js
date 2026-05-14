@@ -33,6 +33,9 @@
     let issuanceMode = false;
     let selectedIssueCertId = null;
     let dupCheckTimer = null;
+    // Attachment state — var (not let) so onclick handlers in dynamic HTML can access them
+    var pendingPdfs = [];
+    var savedAttachments = [];
 
     // ════════════════════════════════════════════════════
     // MODULE: Auth
@@ -93,6 +96,7 @@
 
     async function initApp() {
       await refreshStats();
+      await loadGroupsMap();
       renderTbl('dashTbl', '');
       updateRealTimeBadge();
       checkSesStatus();  // Check email service status
@@ -597,8 +601,9 @@
       if (!list.length) { el.innerHTML = `<div class="empty-state"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto;opacity:.3"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3>No certificates match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:6px">Try adjusting your search or clearing filters</p></div>`; return; }
       const isDash = id === 'dashTbl';
       const tableHTML = `<div class="tbl-scroll-wrap" style="display:block!important;visibility:visible!important;height:auto!important;min-height:200px!important;overflow-x:auto!important"><table style="display:table!important;visibility:visible!important;min-width:1200px;width:100%!important;border-collapse:collapse!important"><colgroup>
+    <col style="width:36px"><!-- Select -->
     <col style="width:160px"><!-- Cert ID -->
-    <col style="width:185px"><!-- Vessel/Recipient -->
+    <col style="width:200px"><!-- Vessel/Recipient -->
     <col style="width:88px"> <!-- IMO -->
     <col style="width:145px"><!-- Chief Engineer -->
     <col style="width:68px"> <!-- Quarter -->
@@ -610,7 +615,7 @@
     ${!isDash ? '<col style="width:72px">' : ''}<!-- Image -->
     <col style="min-width:180px"><!-- Actions (fill rest) -->
   </colgroup><thead style="display:table-header-group!important;visibility:visible!important"><tr style="display:table-row!important;visibility:visible!important">
-    <th>Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
+    <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" onchange="toggleSelectAll(this,'${id}')" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
   </tr></thead><tbody style="display:table-row-group!important;visibility:visible!important">`+ (isDash ? list.slice(0, 10) : list).map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isV = c.status === 'VALID' && (!vu || vu >= now);
@@ -665,9 +670,12 @@
         const safeIMO  = escHtml(c.vesselIMO);
         const safeCE   = escHtml(c.chiefEngineer);
         const safeEmail = escHtml(c.recipientEmail);
-        return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">
+        const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
+        const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
+        const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle;display:table-cell!important;visibility:visible!important"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" onchange="toggleRowSelect(this)" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
+        return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">${selCell}
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${safeId}">${safeId}</span></td>
-      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''}</td>
+      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;cursor:pointer" title="View in public portal" onclick="viewCertNewTab('${safeId}',null)"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''} ${groupBadge}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO || '—'}</span></td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeCE || '—'}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${qBadge}</td>
@@ -687,6 +695,7 @@
         <button class="btn btn-teal btn-sm" onclick="editCert('${safeId}')">Edit</button>
         <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${safeId}',this)" style="font-size:.58rem">🔒</button>
         ${canSend ? `<button class="btn btn-issue btn-sm" onclick="quickSend('${safeId}')">✉</button>` : ''}
+        <button class="btn btn-ghost btn-sm" title="Assign vessel to group" onclick="openAssignGroup('${safeIMO}','${safeVessel||safeName}')">👥</button>
         <button class="btn btn-danger btn-sm" onclick="askDelete('${safeId}')">Delete</button>
       </div></td>
     </tr>`;
@@ -759,6 +768,8 @@
             alltblEl.style.visibility = 'visible';
           }
           renderTbl('allTbl', '');
+        } else {
+          if (typeof clearSelections === 'function') clearSelections();
         }
         if (name === 'issue') { renderIssueList(''); refreshStats(); }
         if (name === 'validity') renderValidityPage();
@@ -1822,7 +1833,7 @@
         const url = editingId ? API + '/certs/' + encodeURIComponent(editingId) : API + '/certs';
         const mth = editingId ? 'PUT' : 'POST';
         const r = await fetch(url, { method: mth, headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
-        if (!r.ok) { const e = await r.json(); toast(e.error || 'Could not save certificate. Please try again.', 'err'); return; }
+        if (!r.ok) { let msg = 'Could not save certificate. Please try again.'; try { const e = await r.json(); msg = e.error || msg; } catch {} toast(msg, 'err'); return; }
         const saved = await r.json();
         savedAttachments = Array.isArray(saved.attachments) ? saved.attachments : [];
         pendingPdfs = [];
@@ -1831,7 +1842,7 @@
         editingId = null; imgFile = null; resetForm();
         await refreshStats();
         showPage('certs', document.getElementById('nav-certs'));
-      } catch { toast('Something went wrong. Please try again.', 'err'); }
+      } catch (e) { toast(e.message || 'Something went wrong. Please try again.', 'err'); }
     }
 
     function resetForm() {
@@ -1855,6 +1866,15 @@
       document.getElementById('saveTxt').textContent = 'Save Certificate';
       livePreview();
       updateCompletionChecklistFull();
+    }
+
+    function openDocLibraryForVessel() {
+      const imo = (document.getElementById('fIMO') || {}).value || '';
+      const vessel = (document.getElementById('fVesselName') || {}).value || '';
+      const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cstAdmin) || '/CST/misecure';
+      let url = base + '/documents/';
+      if (imo) url += '?imo=' + encodeURIComponent(imo.trim().toUpperCase()) + '&vessel=' + encodeURIComponent(vessel.trim());
+      window.open(url, '_blank');
     }
 
     function askDelete(id) { deleteId = id; document.getElementById('delId').textContent = id; document.getElementById('delMod').style.display = 'flex'; }
@@ -1891,11 +1911,45 @@
     function onDragLeave() { document.getElementById('dropZone').classList.remove('drag-over'); }
     function onDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) onFileSelect({ files: [f] }); }
     function clearImg(e) { e.stopPropagation(); clearImgSilent(); }
-    // ── PDF ATTACHMENTS (removed – reference docs feature disabled) ──
-    let pendingPdfs = [];
-    let savedAttachments = [];
-    function renderAttachList() { /* disabled */ }
-    function pdfFileSelect() { /* disabled */ }
+    // ── PDF / DOCUMENT ATTACHMENTS ──
+    function _he(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function renderAttachList() {
+      const el = document.getElementById('attachList');
+      if (!el) return;
+      const all = [
+        ...savedAttachments.map((a, i) => ({ ...a, saved: true, idx: i })),
+        ...pendingPdfs.map((p, i) => ({ name: p.name, pending: true, idx: i }))
+      ];
+      if (!all.length) {
+        el.innerHTML = '<div style="font-size:.72rem;color:var(--text-sec);padding:6px 2px">No documents attached. Click "+ Attach" to add PDF, Word or Excel files.</div>';
+        return;
+      }
+      el.innerHTML = all.map(a => {
+        const fn = (a.name || '').toLowerCase();
+        const icon = fn.endsWith('.pdf') ? '📋' : (fn.endsWith('.xls') || fn.endsWith('.xlsx')) ? '📊' : (fn.endsWith('.doc') || fn.endsWith('.docx')) ? '📝' : '📄';
+        const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,179,71,.09);color:var(--gold);border:1px solid rgba(255,179,71,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
+        const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
+        const rmBtn = a.saved
+          ? `<button type="button" onclick="removeSavedAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
+          : `<button type="button" onclick="removePendingAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:.88rem;flex-shrink:0">${icon}</span>
+          <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_he(a.name || 'Document')}${badge}</span>
+          <div style="display:flex;gap:5px;flex-shrink:0">${openBtn}${rmBtn}</div>
+        </div>`;
+      }).join('');
+    }
+    function pdfFileSelect(input) {
+      if (!input || !input.files || !input.files.length) return;
+      Array.from(input.files).forEach(f => {
+        if (f.size > 20 * 1024 * 1024) { toast('File "' + f.name + '" exceeds 20 MB.', 'err'); return; }
+        pendingPdfs.push({ file: f, name: f.name });
+      });
+      input.value = '';
+      renderAttachList();
+    }
+    function removeSavedAttach(idx) { savedAttachments.splice(idx, 1); renderAttachList(); }
+    function removePendingAttach(idx) { pendingPdfs.splice(idx, 1); renderAttachList(); }
     function pdfDragOver(e) { e.preventDefault(); }
     function pdfDragLeave() {}
     function pdfDrop(e) { e.preventDefault(); }
@@ -2742,4 +2796,180 @@ function exportValidityCSV() {
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'internal-validity-' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
+}
+
+// ════════════════════════════════════════════════════
+// MODULE: Assign Vessel to Group
+// ════════════════════════════════════════════════════
+let _assignGroupIMO = '', _assignGroupName = '', _allGroupsForAssign = [], _bulkAssignIMOs = [];
+let _selectedRows = new Set();
+let _imoGroupMap = {};
+
+async function loadGroupsMap() {
+  try {
+    const r = await fetch(API + '/admin/groups', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) return;
+    const groups = await r.json();
+    _imoGroupMap = {};
+    groups.forEach(g => { (g.vesselIMOs || []).forEach(imo => { _imoGroupMap[imo.toUpperCase()] = g.name; }); });
+  } catch { }
+}
+
+async function openAssignGroup(vesselIMO, vesselName) {
+  if (!vesselIMO) return;
+  _bulkAssignIMOs = [];
+  _assignGroupIMO = vesselIMO;
+  _assignGroupName = vesselName;
+  const label = document.getElementById('assignGroupVesselLabel');
+  if (label) label.textContent = (vesselName ? vesselName + ' · ' : '') + 'IMO ' + vesselIMO;
+  const mod = document.getElementById('assignGroupMod');
+  if (mod) mod.style.display = 'flex';
+  const listEl = document.getElementById('assignGroupList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>';
+  try {
+    const r = await fetch(API + '/admin/groups', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) throw new Error('Could not load groups (' + r.status + ')');
+    _allGroupsForAssign = await r.json();
+    if (!_allGroupsForAssign.length) {
+      listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No groups found. Create groups first in the Groups page.</div>';
+      return;
+    }
+    listEl.innerHTML = _allGroupsForAssign.map(g => {
+      const already = (g.vesselIMOs || []).some(i => i.toUpperCase() === vesselIMO.toUpperCase());
+      return `<label style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(100,255,218,.06);cursor:${already?'default':'pointer'};font-size:.78rem;color:var(--text-sec)">
+        <input type="radio" name="assignGroupRadio" value="${escHtml(g.id)}" ${already ? 'disabled' : ''}
+          style="accent-color:#64FFDA;flex-shrink:0" />
+        <span>
+          <strong style="color:var(--text-bright)">${escHtml(g.name)}</strong>
+          <span style="color:var(--text-sec);font-size:.65rem;margin-left:7px">${(g.vesselIMOs || []).length} vessel${(g.vesselIMOs || []).length !== 1 ? 's' : ''}</span>
+          ${already ? '<span style="font-size:.6rem;color:var(--teal);margin-left:7px">✓ Already assigned</span>' : ''}
+        </span>
+      </label>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:14px;font-size:.73rem;color:var(--invalid)">${escHtml(e.message)}</div>`;
+  }
+}
+
+function closeAssignGroup() {
+  const mod = document.getElementById('assignGroupMod');
+  if (mod) mod.style.display = 'none';
+  _assignGroupIMO = ''; _assignGroupName = ''; _bulkAssignIMOs = [];
+}
+
+async function confirmAssignGroup() {
+  const sel = document.querySelector('#assignGroupList input[name="assignGroupRadio"]:checked');
+  if (!sel) { toast('Please select a group.', 'err'); return; }
+  const groupId = sel.value;
+  const group = _allGroupsForAssign.find(g => g.id === groupId);
+  if (!group) return;
+  const imosToAssign = _bulkAssignIMOs.length > 0 ? _bulkAssignIMOs : (_assignGroupIMO ? [_assignGroupIMO] : []);
+  if (!imosToAssign.length) { toast('No vessel selected.', 'err'); return; }
+  const existing = (group.vesselIMOs || []).map(i => i.toUpperCase());
+  const newIMOs = imosToAssign.filter(imo => !existing.includes(imo.toUpperCase()));
+  if (!newIMOs.length) { toast('All selected vessels are already in this group.', 'warn'); return; }
+  const updated = [...(group.vesselIMOs || []), ...newIMOs];
+  const btn = document.getElementById('btnConfirmAssign');
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+  try {
+    const r = await fetch(API + '/admin/groups/' + encodeURIComponent(groupId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN },
+      body: JSON.stringify({ vesselIMOs: updated }),
+    });
+    if (!r.ok) throw new Error('Server returned ' + r.status);
+    const n = newIMOs.length;
+    const wasBulk = _bulkAssignIMOs.length > 0;
+    toast(n + ' vessel' + (n !== 1 ? 's' : '') + ' assigned to group "' + group.name + '"', 'ok');
+    closeAssignGroup();
+    if (wasBulk) clearSelections();
+    await loadGroupsMap();
+    const dashPage  = document.getElementById('page-dashboard');
+    const certsPage = document.getElementById('page-certs');
+    if (dashPage  && dashPage.style.display  !== 'none') renderTbl('dashTbl', '');
+    if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value||'', document.getElementById('allStatusSel')?.value||'');
+  } catch (e) {
+    toast('Assign failed: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Assign to Group'; }
+  }
+}
+
+// ── Row selection (multi-select / bulk assign) ──
+function toggleRowSelect(cb) {
+  const imo = cb.dataset.imo;
+  if (!imo) return;
+  if (cb.checked) _selectedRows.add(imo);
+  else _selectedRows.delete(imo);
+  updateSelToolbar();
+}
+
+function toggleSelectAll(cb, tblId) {
+  const scope = tblId ? document.getElementById(tblId) : document;
+  (scope || document).querySelectorAll('input.row-sel-cb').forEach(c => {
+    c.checked = cb.checked;
+    if (cb.checked) _selectedRows.add(c.dataset.imo);
+    else _selectedRows.delete(c.dataset.imo);
+  });
+  updateSelToolbar();
+}
+
+function updateSelToolbar() {
+  const bar = document.getElementById('certSelBar');
+  const countEl = document.getElementById('certSelCount');
+  const n = _selectedRows.size;
+  if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
+  if (countEl) countEl.textContent = n + ' vessel' + (n !== 1 ? 's' : '') + ' selected';
+}
+
+function clearSelections() {
+  _selectedRows.clear();
+  document.querySelectorAll('#allTbl input.row-sel-cb').forEach(c => c.checked = false);
+  const allCb = document.getElementById('selAllCb');
+  if (allCb) allCb.checked = false;
+  updateSelToolbar();
+}
+
+async function openBulkAssign() {
+  if (!_selectedRows.size) { toast('Select at least one vessel first.', 'warn'); return; }
+  const imoList = [..._selectedRows];
+  _bulkAssignIMOs = imoList;
+  _assignGroupIMO = '';
+  const label = document.getElementById('assignGroupVesselLabel');
+  if (label) {
+    label.innerHTML = imoList.length === 1
+      ? 'IMO ' + escHtml(imoList[0])
+      : '<strong>' + imoList.length + ' vessels selected</strong>: ' + imoList.map(escHtml).join(', ');
+  }
+  const mod = document.getElementById('assignGroupMod');
+  if (mod) mod.style.display = 'flex';
+  const listEl = document.getElementById('assignGroupList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>';
+  try {
+    const r = await fetch(API + '/admin/groups', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) throw new Error('Could not load groups (' + r.status + ')');
+    _allGroupsForAssign = await r.json();
+    if (!_allGroupsForAssign.length) {
+      listEl.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No groups found. Create groups first in the Groups page.</div>';
+      return;
+    }
+    listEl.innerHTML = _allGroupsForAssign.map(g => {
+      const assignedCount = imoList.filter(imo => (g.vesselIMOs || []).some(i => i.toUpperCase() === imo.toUpperCase())).length;
+      const allAlready = assignedCount === imoList.length;
+      return `<label style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(100,255,218,.06);cursor:${allAlready?'default':'pointer'};font-size:.78rem;color:var(--text-sec)">
+        <input type="radio" name="assignGroupRadio" value="${escHtml(g.id)}" ${allAlready ? 'disabled' : ''}
+          style="accent-color:#64FFDA;flex-shrink:0" />
+        <span>
+          <strong style="color:var(--text-bright)">${escHtml(g.name)}</strong>
+          <span style="color:var(--text-sec);font-size:.65rem;margin-left:7px">${(g.vesselIMOs||[]).length} vessel${(g.vesselIMOs||[]).length!==1?'s':''}</span>
+          ${assignedCount > 0 && !allAlready ? `<span style="font-size:.6rem;color:var(--warn);margin-left:7px">${assignedCount} already assigned</span>` : ''}
+          ${allAlready ? '<span style="font-size:.6rem;color:var(--teal);margin-left:7px">✓ All already assigned</span>' : ''}
+        </span>
+      </label>`;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:14px;font-size:.73rem;color:var(--invalid)">${escHtml(e.message)}</div>`;
+  }
 }

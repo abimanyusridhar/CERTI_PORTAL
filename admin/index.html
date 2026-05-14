@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en" class="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -208,6 +208,52 @@
 
   </div>
 
+  <!-- Documents Module -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .22s;margin-bottom:28px" onmouseover="this.style.borderColor='rgba(212,168,67,.35)';this.style.boxShadow='0 8px 40px rgba(0,0,0,.3)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+    <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:inline-flex;align-items:center;gap:6px;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 11px;border-radius:20px;margin-bottom:10px;background:rgba(212,168,67,.07);color:var(--gold);border:1px solid rgba(212,168,67,.22)">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Relevant Documents
+      </div>
+      <div style="font-size:1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">Document Library &amp; Access Management</div>
+      <div style="font-size:.75rem;color:var(--text-sec);line-height:1.65">Upload and manage training reports, drill reports, and compliance documents for vessels. Control vessel staff access with a token-based approval system.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 20px;background:rgba(255,255,255,.014);border-bottom:1px solid var(--border)">
+      <div style="text-align:center"><div class="hub-mstat-num" id="docTotal">—</div><div class="hub-mstat-lbl">Documents</div></div>
+      <div style="text-align:center"><div class="hub-mstat-num" id="reqPending" style="color:var(--warn)">—</div><div class="hub-mstat-lbl">Pending Requests</div></div>
+      <div style="text-align:center"><div class="hub-mstat-num" id="reqApproved" style="color:var(--teal)">—</div><div class="hub-mstat-lbl">Approved Access</div></div>
+    </div>
+    <div style="padding:12px 20px;display:flex;gap:8px">
+      <a id="hubLinkDocs" href="/CST/misecure/documents/" class="hub-btn hub-btn-primary">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Open Document Library
+      </a>
+    </div>
+  </div>
+
+  <!-- Super Admin Module -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .22s;margin-bottom:28px" onmouseover="this.style.borderColor='rgba(100,255,218,.35)';this.style.boxShadow='0 8px 40px rgba(0,0,0,.3)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+    <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:inline-flex;align-items:center;gap:6px;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 11px;border-radius:20px;margin-bottom:10px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.22)">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Super Admin
+      </div>
+      <div style="font-size:1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">User &amp; Group Management</div>
+      <div style="font-size:.75rem;color:var(--text-sec);line-height:1.65">Manage superintendent accounts and vessel groups. Assign vessels to groups and grant superintendents direct document access to their assigned vessels.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 20px;background:rgba(255,255,255,.014);border-bottom:1px solid var(--border)">
+      <div style="text-align:center"><div class="hub-mstat-num" id="saUserCount">—</div><div class="hub-mstat-lbl">Users</div></div>
+      <div style="text-align:center"><div class="hub-mstat-num" id="saGroupCount" style="color:var(--teal)">—</div><div class="hub-mstat-lbl">Groups</div></div>
+      <div style="text-align:center"><div class="hub-mstat-num" id="saVesselCount" style="color:var(--gold)">—</div><div class="hub-mstat-lbl">Vessels Assigned</div></div>
+    </div>
+    <div style="padding:12px 20px;display:flex;gap:8px">
+      <a id="hubLinkSuperAdmin" href="/CST/misecure/superadmin/" class="hub-btn hub-btn-teal">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Open Super Admin
+      </a>
+    </div>
+  </div>
+
   <!-- Public Portals -->
   <div class="hub-portals">
     <div class="hub-portals-title">Public Verification Portals</div>
@@ -271,6 +317,10 @@
     if (pubVaptUrl) pubVaptUrl.textContent = C.routes.vpt || '/VPT';
     var ft = document.getElementById('hubFooterText');
     if (ft) ft.innerHTML = C.brand.name + ' &middot; Cyber Security &amp; Compliance Division';
+    var hubLinkSuperAdmin = document.getElementById('hubLinkSuperAdmin');
+    if (hubLinkSuperAdmin) hubLinkSuperAdmin.href = (C.routes.cstAdmin || '/CST/misecure') + '/superadmin/';
+    var hubLinkDocsEl = document.getElementById('hubLinkDocs');
+    if (hubLinkDocsEl) hubLinkDocsEl.href = (C.routes.cstAdmin || '/CST/misecure') + '/documents/';
   }
 
   document.addEventListener('appconfigready', applyConfig);
@@ -309,9 +359,14 @@
       });
   }
 
-  // Load stats — uses admin token if available, else shows placeholders
+  // Load stats — uses admin token if available, else redirects to admin login
   function loadStats() {
-    if (!TOKEN) { setStatsFallback(); return; }
+    if (!TOKEN) {
+      var C = window.APP_CONFIG;
+      var redir = (C && C.routes && C.routes.cstAdmin) ? C.routes.cstAdmin + '/' : '/CST/misecure/';
+      window.location.replace(redir);
+      return;
+    }
     try {
       var parts = TOKEN.split('.');
       if (parts.length !== 3) { setStatsFallback(); return; }
@@ -344,9 +399,11 @@
 
     Promise.all([
       fetch(API + '/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
-      fetch(API + '/vapt/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
+      fetch(API + '/vapt/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      fetch(API + '/docs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      fetch(API + '/docs/access-requests', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
     ]).then(function (results) {
-      var cst = results[0], vapt = results[1];
+      var cst = results[0], vapt = results[1], docs = results[2], reqs = results[3];
 
       setText('statTotalCst', cst.length);
       setText('statTotalVapt', vapt.length);
@@ -360,7 +417,29 @@
       setText('vaptTotal', vapt.length);
       setText('vaptValid', countValid(vapt));
       setText('vaptExpired', countExpired(vapt));
+
+      setText('docTotal', docs.length);
+      setText('reqPending', reqs.filter(function(r) { return r.status === 'PENDING'; }).length);
+      setText('reqApproved', reqs.filter(function(r) { return r.status === 'APPROVED'; }).length);
     });
+
+    // Super admin stats (best-effort — requires superAdminToken)
+    var saToken = sessionStorage.getItem('superAdminToken') || '';
+    if (saToken) {
+      Promise.all([
+        fetch(API + '/admin/users',  { headers: { Authorization: 'SuperAdmin ' + saToken } }).then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; }),
+        fetch(API + '/admin/groups', { headers: { Authorization: 'SuperAdmin ' + saToken } }).then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
+      ]).then(function(res) {
+        var users  = res[0], groups = res[1];
+        var uArr   = Object.values(users  || {});
+        var gArr   = Object.values(groups || {});
+        var vessels = new Set();
+        gArr.forEach(function(g) { (g.vesselIMOs || []).forEach(function(i) { vessels.add(i); }); });
+        setText('saUserCount',   uArr.length);
+        setText('saGroupCount',  gArr.length);
+        setText('saVesselCount', vessels.size);
+      });
+    }
   }
 
   function setText(id, val) {

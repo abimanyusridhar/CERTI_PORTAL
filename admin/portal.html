@@ -1,0 +1,808 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Superintendent Portal — Vessel Certificate Access</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; frame-ancestors 'none';" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared-styles.css" />
+  <script src="/config.js" defer></script>
+  <script src="/assets/theme-toggle.js" defer></script>
+  <style>
+    :root {
+      --sp-accent: #64FFDA;
+      --sp-accent-dim: rgba(100,255,218,.07);
+      --sp-gold: #D4A843;
+      --sp-gold-dim: rgba(212,168,67,.08);
+    }
+    body { min-height: 100vh; background: var(--navy); font-family: 'DM Sans', sans-serif; }
+
+    /* ── LOGIN ── */
+    #loginWrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .login-bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(100,255,218,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.02) 1px,transparent 1px); background-size: 40px 40px; pointer-events: none; }
+    .login-card { position: relative; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 40px 36px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .login-icon { display: flex; justify-content: center; margin-bottom: 18px; }
+    .login-icon svg { width: 44px; height: 44px; }
+    .login-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--text-bright); font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .login-sub { font-size: .72rem; color: var(--text-sec); text-align: center; margin-bottom: 26px; letter-spacing: .04em; }
+    .login-err { display: none; background: rgba(255,107,138,.08); border: 1px solid rgba(255,107,138,.3); color: var(--invalid); border-radius: 8px; padding: 9px 13px; font-size: .73rem; text-align: center; margin-bottom: 14px; }
+    .login-err.show { display: block; }
+    .fgroup { margin-bottom: 15px; }
+    .flabel { font-size: .63rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px; }
+    .fcontrol { width: 100%; background: var(--navy); border: 1px solid var(--border); border-radius: 9px; padding: 11px 14px; font-size: .84rem; color: var(--text-bright); font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
+    .fcontrol:focus { outline: none; border-color: var(--sp-accent); }
+    .btn-login { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--sp-accent), #3DE8C0); color: #0A1628; font-weight: 700; font-size: .85rem; border: none; border-radius: 10px; cursor: pointer; font-family: 'DM Sans',sans-serif; letter-spacing: .06em; transition: opacity .2s; margin-top: 4px; }
+    .btn-login:hover { opacity: .88; }
+    .btn-login:disabled { opacity: .5; cursor: default; }
+    .login-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; font-size: .67rem; color: var(--text-sec); }
+    .login-badge svg { opacity: .5; }
+
+    /* ── APP LAYOUT ── */
+    #appWrap { display: none; min-height: 100vh; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; overflow-y: auto; }
+    .sb-brand { padding: 20px 18px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sb-brand svg { flex-shrink: 0; }
+    .sb-name { font-size: .8rem; font-weight: 700; color: var(--text-bright); line-height: 1.25; }
+    .sb-sub { font-size: .6rem; color: var(--sp-accent); letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+    .sb-user-info { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+    .sb-user-name { font-size: .78rem; font-weight: 600; color: var(--text-bright); }
+    .sb-user-role { font-size: .62rem; color: var(--text-sec); letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+    .sb-nav-title { font-size: .58rem; color: var(--text-sec); letter-spacing: .14em; text-transform: uppercase; padding: 14px 18px 6px; }
+    .sb-vessel-list { flex: 1; overflow-y: auto; padding: 0 10px; }
+    .sb-vessel-item { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 9px; font-size: .74rem; color: var(--text-sec); cursor: pointer; transition: all .18s; border: 1px solid transparent; margin-bottom: 2px; }
+    .sb-vessel-item:hover, .sb-vessel-item.active { background: var(--sp-accent-dim); color: var(--sp-accent); border-color: rgba(100,255,218,.2); }
+    .sb-vessel-item svg { flex-shrink: 0; opacity: .6; }
+    .sb-vessel-item.active svg { opacity: 1; }
+    .sb-footer { padding: 14px 18px; border-top: 1px solid var(--border); margin-top: auto; }
+    .sb-back { font-size: .7rem; color: var(--text-sec); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .18s; margin-bottom: 10px; }
+    .sb-back:hover { color: var(--sp-accent); }
+    .sb-logout { font-size: .65rem; color: var(--text-sec); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .18s; }
+    .sb-logout:hover { color: var(--invalid); }
+
+    /* ── MAIN CONTENT ── */
+    .main-content { margin-left: 240px; padding: 28px 32px; min-height: 100vh; }
+    .page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    .page-hdr-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--sp-accent-dim); border: 1px solid rgba(100,255,218,.25); flex-shrink: 0; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--text-bright); font-weight: 700; }
+    .page-sub { font-size: .73rem; color: var(--text-sec); margin-top: 2px; }
+    .readonly-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; background: rgba(255,193,0,.08); border: 1px solid rgba(255,193,0,.3); color: #FFC100; border-radius: 20px; font-size: .63rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-left: 10px; vertical-align: middle; }
+
+    /* ── VIEWS ── */
+    #viewDashboard, #viewVessel { display: none; }
+    #viewDashboard.active, #viewVessel.active { display: block; }
+
+    /* ── STATS ROW ── */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; color: var(--text-bright); }
+    .stat-num.teal { color: var(--sp-accent); }
+    .stat-num.gold { color: var(--sp-gold); }
+    .stat-lbl { font-size: .6rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; margin-top: 3px; }
+
+    /* ── VESSEL CARDS GRID ── */
+    .vessel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .vessel-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; cursor: pointer; transition: all .2s; }
+    .vessel-card:hover { border-color: rgba(100,255,218,.35); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    .vc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .vc-icon { width: 36px; height: 36px; border-radius: 9px; background: var(--sp-accent-dim); border: 1px solid rgba(100,255,218,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .vc-name { font-size: .9rem; font-weight: 600; color: var(--text-bright); line-height: 1.3; }
+    .vc-imo { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--text-sec); margin-top: 2px; }
+    .vc-counts { display: flex; gap: 8px; flex-wrap: wrap; }
+    .vc-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: .67rem; font-weight: 600; }
+    .vc-pill.cst { background: rgba(100,255,218,.08); border: 1px solid rgba(100,255,218,.2); color: var(--sp-accent); }
+    .vc-pill.vapt { background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.2); color: var(--sp-gold); }
+    .vc-pill.doc { background: rgba(100,149,237,.08); border: 1px solid rgba(100,149,237,.2); color: #6495ED; }
+    .vc-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .vc-valid { font-size: .68rem; color: var(--text-sec); }
+    .vc-valid span { color: var(--sp-accent); font-weight: 600; }
+    .vc-arrow { color: var(--text-sec); transition: color .2s; }
+    .vessel-card:hover .vc-arrow { color: var(--sp-accent); }
+
+    /* ── QUARTER FILTER ── */
+    .qfilter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .qfilter-label { font-size: .63rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
+    .q-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--text-sec); font-size: .68rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all .15s; }
+    .q-btn:hover { border-color: rgba(100,255,218,.3); color: var(--sp-accent); }
+    .q-btn.active { background: var(--sp-accent-dim); border-color: rgba(100,255,218,.3); color: var(--sp-accent); }
+    .q-btn.all.active { background: rgba(212,168,67,.08); border-color: rgba(212,168,67,.25); color: var(--sp-gold); }
+
+    /* ── VESSEL DETAIL HEADER ── */
+    .vessel-detail-hdr { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+    .vd-back { display: flex; align-items: center; gap: 7px; font-size: .74rem; color: var(--text-sec); cursor: pointer; transition: color .2s; white-space: nowrap; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; }
+    .vd-back:hover { color: var(--sp-accent); border-color: rgba(100,255,218,.3); }
+    .vd-info { flex: 1; }
+    .vd-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--text-bright); font-weight: 700; }
+    .vd-imo { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--text-sec); margin-top: 3px; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+    .tab-btn { padding: 8px 20px; border-radius: 9px; font-size: .74rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--text-sec); transition: all .18s; font-family: 'DM Sans',sans-serif; letter-spacing: .05em; }
+    .tab-btn.active-cst { background: var(--sp-accent-dim); color: var(--sp-accent); border-color: rgba(100,255,218,.35); }
+    .tab-btn.active-vapt { background: var(--sp-gold-dim); color: var(--sp-gold); border-color: rgba(212,168,67,.35); }
+    .tab-btn.active-docs { background: rgba(100,149,237,.08); color: #6495ED; border-color: rgba(100,149,237,.3); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── TABLE ── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+    .data-table th { padding: 11px 16px; text-align: left; font-size: .6rem; color: var(--text-sec); letter-spacing: .12em; text-transform: uppercase; font-weight: 600; border-bottom: 1px solid var(--border); background: var(--navy); white-space: nowrap; }
+    .data-table td { padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-bright); vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(100,255,218,.02); }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: .72rem; }
+    .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: .63rem; font-weight: 700; letter-spacing: .06em; white-space: nowrap; }
+    .status-pill.valid { background: rgba(100,255,218,.1); border: 1px solid rgba(100,255,218,.25); color: var(--sp-accent); }
+    .status-pill.expired { background: rgba(255,107,138,.08); border: 1px solid rgba(255,107,138,.25); color: var(--invalid); }
+    .status-pill.pending { background: rgba(255,193,0,.08); border: 1px solid rgba(255,193,0,.25); color: #FFC100; }
+    .risk-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: .63rem; font-weight: 700; white-space: nowrap; }
+    .risk-pill.critical { background: rgba(255,107,138,.12); border: 1px solid rgba(255,107,138,.3); color: #FF6B8A; }
+    .risk-pill.high { background: rgba(255,120,0,.1); border: 1px solid rgba(255,120,0,.25); color: #FF7800; }
+    .risk-pill.medium { background: rgba(255,193,0,.1); border: 1px solid rgba(255,193,0,.25); color: #FFC100; }
+    .risk-pill.low { background: rgba(100,255,218,.08); border: 1px solid rgba(100,255,218,.2); color: var(--sp-accent); }
+    .empty-state { padding: 48px 24px; text-align: center; color: var(--text-sec); }
+    .empty-state svg { opacity: .25; margin-bottom: 12px; }
+    .empty-title { font-size: .85rem; color: var(--text-sec); margin-bottom: 4px; }
+    .empty-sub { font-size: .72rem; color: var(--text-sec); opacity: .7; }
+
+    /* ── DOCUMENTS ── */
+    .doc-list { display: flex; flex-direction: column; gap: 10px; }
+    .doc-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 14px; transition: border-color .2s; }
+    .doc-item:hover { border-color: rgba(100,149,237,.3); }
+    .doc-icon { width: 38px; height: 38px; border-radius: 9px; background: rgba(100,149,237,.08); border: 1px solid rgba(100,149,237,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .doc-info { flex: 1; min-width: 0; }
+    .doc-title { font-size: .84rem; font-weight: 600; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-meta { font-size: .68rem; color: var(--text-sec); margin-top: 3px; }
+    .doc-dl { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: rgba(100,149,237,.08); border: 1px solid rgba(100,149,237,.25); color: #6495ED; border-radius: 8px; font-size: .72rem; font-weight: 600; text-decoration: none; white-space: nowrap; transition: all .18s; cursor: pointer; }
+    .doc-dl:hover { background: rgba(100,149,237,.15); border-color: rgba(100,149,237,.4); }
+
+    /* ── LOADING / SPINNER ── */
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(100,255,218,.2); border-top-color: var(--sp-accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-center { display: flex; align-items: center; justify-content: center; padding: 48px; gap: 12px; color: var(--text-sec); font-size: .82rem; }
+
+    /* ── GROUP BADGE ── */
+    .group-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: .61rem; font-weight: 600; background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.25); color: var(--sp-gold); letter-spacing: .06em; white-space: nowrap; }
+    .vc-groups { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .vd-groups { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+
+    /* ── VIEW BUTTON (cert rows) ── */
+    .btn-view { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 7px; background: rgba(100,255,218,.07); border: 1px solid rgba(100,255,218,.2); color: var(--sp-accent); font-size: .67rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans',sans-serif; transition: all .15s; white-space: nowrap; }
+    .btn-view:hover { background: rgba(100,255,218,.14); border-color: rgba(100,255,218,.4); }
+    .btn-view.vapt { background: rgba(212,168,67,.07); border-color: rgba(212,168,67,.2); color: var(--sp-gold); }
+    .btn-view.vapt:hover { background: rgba(212,168,67,.14); border-color: rgba(212,168,67,.4); }
+  </style>
+</head>
+<body>
+
+<!-- ─── LOGIN ─────────────────────────────────────────────────────────────── -->
+<div id="loginWrap">
+  <div class="login-bg-grid"></div>
+  <div class="login-card">
+    <div class="login-icon">
+      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="44" height="44" rx="12" fill="rgba(100,255,218,0.08)"/>
+        <path d="M22 10C18.13 10 15 13.13 15 17C15 19.38 16.19 21.47 18 22.74V26C18 27.1 18.9 28 20 28H24C25.1 28 26 27.1 26 26V22.74C27.81 21.47 29 19.38 29 17C29 13.13 25.87 10 22 10Z" stroke="#64FFDA" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M19 28V32C19 33.1 19.9 34 21 34H23C24.1 34 25 33.1 25 32V28" stroke="#64FFDA" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M18 21H26" stroke="#64FFDA" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="login-title">Superintendent Portal</div>
+    <div class="login-sub">Vessel Certificate Access · Read-Only View</div>
+    <div class="login-err" id="loginErr"></div>
+    <div class="fgroup">
+      <label class="flabel">Email Address</label>
+      <input type="email" id="loginEmail" class="fcontrol" placeholder="you@company.com" autocomplete="username" />
+    </div>
+    <div class="fgroup">
+      <label class="flabel">Password</label>
+      <input type="password" id="loginPwd" class="fcontrol" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn-login" id="btnLogin" onclick="doLogin()">Sign In</button>
+    <div class="login-badge">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Secured · Read-Only Access · 24-Hour Session
+    </div>
+  </div>
+</div>
+
+<!-- ─── APP ───────────────────────────────────────────────────────────────── -->
+<div id="appWrap">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="8" fill="rgba(100,255,218,0.1)"/>
+        <path d="M14 5L7 9V15C7 19.09 10 22.93 14 24C18 22.93 21 19.09 21 15V9L14 5Z" stroke="#64FFDA" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="sb-name">Superintendent Portal</div>
+        <div class="sb-sub">Vessel Access</div>
+      </div>
+    </div>
+    <div class="sb-user-info">
+      <div class="sb-user-name" id="sbUserName">—</div>
+      <div class="sb-user-role">Superintendent · Read-Only</div>
+    </div>
+    <div class="sb-nav-title">My Vessels</div>
+    <div class="sb-vessel-list" id="sbVesselList">
+      <!-- populated by JS -->
+    </div>
+    <div class="sb-footer">
+      <div class="sb-back" id="btnBackToDash" onclick="showDashboard()" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        All Vessels
+      </div>
+      <div style="margin-bottom:10px">
+        <button class="theme-toggle" onclick="toggleTheme()" style="width:100%;justify-content:center;padding:7px 12px;border-radius:8px;background:var(--sp-accent-dim);border:1px solid rgba(100,255,218,.2);color:var(--sp-accent);font-size:.68rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px">
+          <span class="tt-icon">☀️</span><span class="tt-label">Light Mode</span>
+        </button>
+      </div>
+      <div class="sb-logout" onclick="doLogout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign Out
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <!-- ── Dashboard View ── -->
+    <div id="viewDashboard">
+      <div class="page-hdr">
+        <div class="page-hdr-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div>
+          <div class="page-title">My Vessels <span class="readonly-badge">Read Only</span></div>
+          <div class="page-sub" id="dashSub">Loading your assigned vessels…</div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num teal" id="statVessels">—</div><div class="stat-lbl">Vessels</div></div>
+        <div class="stat-card"><div class="stat-num" id="statCstCerts">—</div><div class="stat-lbl">CST Certs</div></div>
+        <div class="stat-card"><div class="stat-num gold" id="statVaptCerts">—</div><div class="stat-lbl">VAPT Certs</div></div>
+        <div class="stat-card"><div class="stat-num" id="statDocs">—</div><div class="stat-lbl">Documents</div></div>
+      </div>
+
+      <!-- Vessel grid -->
+      <div id="vesselGrid" class="vessel-grid"></div>
+    </div>
+
+    <!-- ── Vessel Detail View ── -->
+    <div id="viewVessel">
+      <div class="vessel-detail-hdr">
+        <div class="vd-back" onclick="showDashboard()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Back
+        </div>
+        <div class="vd-info">
+          <div class="vd-name" id="vdName">—</div>
+          <div class="vd-imo" id="vdImo">IMO —</div>
+        </div>
+        <span class="readonly-badge">Read Only</span>
+      </div>
+
+      <!-- Analytics bar for this vessel -->
+      <div class="stats-row" id="vesselAnalytics" style="grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px">
+        <div class="stat-card"><div class="stat-num teal" id="vaTotal">—</div><div class="stat-lbl">CST Total</div></div>
+        <div class="stat-card"><div class="stat-num teal" id="vaValid">—</div><div class="stat-lbl">CST Valid</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#FFC100" id="vaExpiring">—</div><div class="stat-lbl">Expiring ≤90d</div></div>
+        <div class="stat-card"><div class="stat-num gold" id="vaVapt">—</div><div class="stat-lbl">VAPT Total</div></div>
+        <div class="stat-card"><div class="stat-num gold" id="vaVaptValid">—</div><div class="stat-lbl">VAPT Valid</div></div>
+        <div class="stat-card"><div class="stat-num" id="vaDocs">—</div><div class="stat-lbl">Documents</div></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active-cst" id="tabCst" onclick="switchTab('cst')">CST Certificates</button>
+        <button class="tab-btn" id="tabVapt" onclick="switchTab('vapt')">VAPT Certificates</button>
+        <button class="tab-btn" id="tabDocs" onclick="switchTab('docs')">Documents</button>
+      </div>
+
+      <!-- Quarter filter (shown for CST and VAPT panes) -->
+      <div class="qfilter-bar" id="quarterFilterBar">
+        <span class="qfilter-label">Filter:</span>
+        <button class="q-btn all active" id="qAll"  onclick="setQuarter(null)">All</button>
+        <button class="q-btn" id="qQ1" onclick="setQuarter(1)">Q1 Jan–Mar</button>
+        <button class="q-btn" id="qQ2" onclick="setQuarter(2)">Q2 Apr–Jun</button>
+        <button class="q-btn" id="qQ3" onclick="setQuarter(3)">Q3 Jul–Sep</button>
+        <button class="q-btn" id="qQ4" onclick="setQuarter(4)">Q4 Oct–Dec</button>
+      </div>
+
+      <!-- CST pane -->
+      <div class="tab-pane active" id="paneCst">
+        <div id="cstContent"><div class="loading-center"><div class="spinner"></div> Loading certificates…</div></div>
+      </div>
+
+      <!-- VAPT pane -->
+      <div class="tab-pane" id="paneVapt">
+        <div id="vaptContent"><div class="loading-center"><div class="spinner"></div> Loading assessments…</div></div>
+      </div>
+
+      <!-- Docs pane -->
+      <div class="tab-pane" id="paneDocs">
+        <div id="docsContent"><div class="loading-center"><div class="spinner"></div> Loading documents…</div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+'use strict';
+// ─── SESSION STORAGE ───────────────────────────────────────────────────────────
+const LS_TOKEN = 'suptSessionToken';
+const LS_NAME  = 'suptSessionName';
+function getToken()     { return localStorage.getItem(LS_TOKEN) || ''; }
+function getName()      { return localStorage.getItem(LS_NAME) || ''; }
+function saveSession(t, n) { localStorage.setItem(LS_TOKEN, t); if (n) localStorage.setItem(LS_NAME, n); }
+function clearSession() { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_NAME); }
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const tok = getToken();
+  if (tok) { enterApp(getName()); loadDashboard(); }
+  document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPwd').focus(); });
+  document.getElementById('loginPwd').addEventListener('keydown',  e => { if (e.key === 'Enter') doLogin(); });
+});
+
+function enterApp(name) {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'flex';
+  document.getElementById('sbUserName').textContent = name || 'Superintendent';
+}
+
+// ─── LOGIN ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pwd   = document.getElementById('loginPwd').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('btnLogin');
+  errEl.classList.remove('show');
+  if (!email || !pwd) { errEl.textContent = 'Email and password are required.'; errEl.classList.add('show'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const r = await fetch('/api/auth/user/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd }),
+    });
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.error || 'Login failed. Check your credentials.'; errEl.classList.add('show'); return; }
+    saveSession(d.sessionToken, d.user && d.user.name ? d.user.name : email);
+    enterApp(d.user && d.user.name ? d.user.name : email);
+    loadDashboard();
+  } catch {
+    errEl.textContent = 'Network error. Please try again.'; errEl.classList.add('show');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+function doLogout() {
+  clearSession();
+  location.reload();
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────────
+function authHeaders() { return { 'Authorization': 'UserSession ' + getToken() }; }
+function fmtDate(d)    { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return d; } }
+function statusPill(s) {
+  const v = (s || '').toUpperCase();
+  if (v === 'VALID')   return `<span class="status-pill valid">● VALID</span>`;
+  if (v === 'EXPIRED') return `<span class="status-pill expired">● EXPIRED</span>`;
+  return `<span class="status-pill pending">● ${v || 'PENDING'}</span>`;
+}
+function riskPill(r) {
+  const v = (r || '').toUpperCase();
+  const cls = v === 'CRITICAL' ? 'critical' : v === 'HIGH' ? 'high' : v === 'MEDIUM' ? 'medium' : 'low';
+  return `<span class="risk-pill ${cls}">${v || 'N/A'}</span>`;
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────────────────
+let _vessels = [];
+let _imoToGroups = {};  // IMO (uppercase) → array of group names
+
+async function loadDashboard() {
+  const grid = document.getElementById('vesselGrid');
+  grid.innerHTML = '<div class="loading-center"><div class="spinner"></div> Loading vessels…</div>';
+  showView('dashboard');
+  try {
+    const [rVessels, rMe] = await Promise.all([
+      fetch('/api/supt/vessels',   { headers: authHeaders() }),
+      fetch('/api/auth/user/me',   { headers: authHeaders() }),
+    ]);
+    if (rVessels.status === 401) { clearSession(); location.reload(); return; }
+    if (!rVessels.ok) throw new Error('Failed to load vessels');
+    _vessels = await rVessels.json();
+    // Build IMO → group names map from /me response
+    _imoToGroups = {};
+    if (rMe.ok) {
+      const me = await rMe.json();
+      ((me.user && me.user.groups) || []).forEach(g => {
+        (g.vesselIMOs || []).forEach(imo => {
+          const key = imo.toUpperCase();
+          if (!_imoToGroups[key]) _imoToGroups[key] = [];
+          if (!_imoToGroups[key].includes(g.name)) _imoToGroups[key].push(g.name);
+        });
+      });
+    }
+    renderDashboard(_vessels);
+  } catch (e) {
+    grid.innerHTML = `<div class="loading-center" style="color:var(--invalid)">Failed to load vessels. ${e.message}</div>`;
+  }
+}
+
+function renderDashboard(vessels) {
+  const grid = document.getElementById('vesselGrid');
+  const sub  = document.getElementById('dashSub');
+  // Stats
+  const totCst  = vessels.reduce((a, v) => a + (v.cstCount  || 0), 0);
+  const totVapt = vessels.reduce((a, v) => a + (v.vaptCount || 0), 0);
+  const totDocs = vessels.reduce((a, v) => a + (v.docCount  || 0), 0);
+  document.getElementById('statVessels').textContent  = vessels.length;
+  document.getElementById('statCstCerts').textContent = totCst;
+  document.getElementById('statVaptCerts').textContent = totVapt;
+  document.getElementById('statDocs').textContent     = totDocs;
+  sub.textContent = `${vessels.length} vessel${vessels.length !== 1 ? 's' : ''} assigned to your groups`;
+  // Sidebar list
+  const sbList = document.getElementById('sbVesselList');
+  sbList.innerHTML = vessels.map(v => `
+    <div class="sb-vessel-item" id="sb-${v.imo}" onclick="openVessel('${v.imo}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l3-9 4 5 3-7 5 11H3z"/></svg>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(v.vesselName)}</span>
+    </div>`).join('');
+  // Grid cards
+  if (!vessels.length) {
+    grid.innerHTML = `<div class="loading-center" style="grid-column:1/-1">
+      <div style="text-align:center">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:.2;display:block;margin:0 auto 12px"><path d="M3 17l3-9 4 5 3-7 5 11H3z"/></svg>
+        <div style="font-size:.85rem;color:var(--text-sec)">No vessels assigned to your account</div>
+        <div style="font-size:.72rem;color:var(--text-sec);opacity:.6;margin-top:4px">Contact your administrator to request vessel access</div>
+      </div></div>`;
+    return;
+  }
+  grid.innerHTML = vessels.map(v => {
+    const groups = _imoToGroups[v.imo] || [];
+    const groupBadges = groups.map(g => `<span class="group-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>${escHtml(g)}</span>`).join('');
+    return `<div class="vessel-card" onclick="openVessel('${v.imo}')">
+      <div class="vc-header">
+        <div class="vc-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="1.8"><path d="M3 17l3-9 4 5 3-7 5 11H3z"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="vc-name">${escHtml(v.vesselName)}</div>
+          <div class="vc-imo">IMO ${escHtml(v.imo)}</div>
+        </div>
+      </div>
+      ${groups.length ? `<div class="vc-groups">${groupBadges}</div>` : ''}
+      <div class="vc-counts" style="margin-top:${groups.length ? '8' : '0'}px">
+        <span class="vc-pill cst">${v.cstCount} CST</span>
+        <span class="vc-pill vapt">${v.vaptCount} VAPT</span>
+        <span class="vc-pill doc">${v.docCount} Docs</span>
+      </div>
+      <div class="vc-footer">
+        <div class="vc-valid">${v.cstValid + v.vaptValid} valid cert${(v.cstValid + v.vaptValid) !== 1 ? 's' : ''} active</div>
+        <svg class="vc-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── VESSEL DETAIL ─────────────────────────────────────────────────────────────
+let _currentIMO = null;
+let _certCache  = {};
+let _docCache   = {};
+
+async function openVessel(imo) {
+  _currentIMO = imo;
+  const vessel = _vessels.find(v => v.imo === imo) || { vesselName: imo, imo };
+  document.getElementById('vdName').textContent = vessel.vesselName;
+  // Show IMO + group names in detail header
+  const groups = _imoToGroups[imo] || [];
+  const groupBadgesHtml = groups.length
+    ? ' &nbsp;' + groups.map(g => `<span class="group-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>${escHtml(g)}</span>`).join(' ')
+    : '';
+  document.getElementById('vdImo').innerHTML = 'IMO ' + escHtml(imo) + groupBadgesHtml;
+  // Reset analytics while loading
+  ['vaTotal','vaValid','vaExpiring','vaVapt','vaVaptValid','vaDocs'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  // Reset quarter filter to All on each vessel open
+  _activeQuarter = null;
+  ['qAll','qQ1','qQ2','qQ3','qQ4'].forEach((id, i) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.className = 'q-btn' + (i === 0 ? ' all active' : '');
+  });
+  // Sidebar highlight
+  document.querySelectorAll('.sb-vessel-item').forEach(el => el.classList.toggle('active', el.id === 'sb-' + imo));
+  document.getElementById('btnBackToDash').style.display = 'flex';
+  showView('vessel');
+  switchTab('cst');
+  // Load certs if not cached
+  if (!_certCache[imo]) {
+    document.getElementById('cstContent').innerHTML  = '<div class="loading-center"><div class="spinner"></div> Loading…</div>';
+    document.getElementById('vaptContent').innerHTML = '<div class="loading-center"><div class="spinner"></div> Loading…</div>';
+    try {
+      const r = await fetch(`/api/supt/vessel/${encodeURIComponent(imo)}/certs`, { headers: authHeaders() });
+      if (r.status === 401) { clearSession(); location.reload(); return; }
+      if (!r.ok) throw new Error('Failed to load cert data');
+      _certCache[imo] = await r.json();
+    } catch (e) {
+      const errHtml = `<div class="loading-center" style="color:var(--invalid)">Failed to load. ${e.message}</div>`;
+      document.getElementById('cstContent').innerHTML  = errHtml;
+      document.getElementById('vaptContent').innerHTML = errHtml;
+      return;
+    }
+  }
+  const cstList  = _certCache[imo].cst  || [];
+  const vaptList = _certCache[imo].vapt || [];
+  renderCstTable(cstList);
+  renderVaptTable(vaptList);
+  // Populate vessel analytics bar
+  const now  = Date.now();
+  const soon = now + 90 * 24 * 60 * 60 * 1000;
+  document.getElementById('vaTotal').textContent     = cstList.length;
+  document.getElementById('vaValid').textContent     = cstList.filter(c => (c.status || '').toUpperCase() === 'VALID').length;
+  document.getElementById('vaExpiring').textContent  = cstList.filter(c => (c.status || '').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil).getTime() <= soon).length;
+  document.getElementById('vaVapt').textContent      = vaptList.length;
+  document.getElementById('vaVaptValid').textContent = vaptList.filter(c => (c.status || '').toUpperCase() === 'VALID').length;
+  // Load docs if not cached
+  if (!_docCache[imo]) loadDocs(imo);
+  else { renderDocList(_docCache[imo]); document.getElementById('vaDocs').textContent = _docCache[imo].length; }
+}
+
+function qBadge(q) {
+  const v = (q || '').toUpperCase();
+  const color = { Q1:'#4A9EFF', Q2:'#64FFDA', Q3:'#FFB347', Q4:'#FF6B8A' }[v] || 'var(--text-sec)';
+  const bg    = { Q1:'rgba(74,158,255,0.12)', Q2:'rgba(100,255,218,0.10)', Q3:'rgba(255,179,71,0.12)', Q4:'rgba(255,107,138,0.12)' }[v] || 'transparent';
+  return v ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:700;letter-spacing:.1em;background:${bg};border:1px solid ${color};color:${color}">${v}</span>`
+           : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
+}
+function modeBadge(m) {
+  const v = (m || '').toUpperCase();
+  const c = { ONLINE:'var(--sp-accent)', OFFLINE:'var(--sp-gold)', HYBRID:'#B47EFF' }[v] || 'var(--text-sec)';
+  return v ? `<span style="font-size:.6rem;font-weight:700;color:${c}">${v}</span>` : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
+}
+
+function renderCstTable(certs) {
+  const filtered = filterByQuarter(certs, 'issuedDate');
+  const el = document.getElementById('cstContent');
+  if (!filtered.length) {
+    const sub = _activeQuarter
+      ? `No CST certificates found in Q${_activeQuarter} — try a different quarter or All`
+      : 'No Cyber Security Training certificates found for this vessel';
+    el.innerHTML = `<div class="empty-state">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <div class="empty-title">No CST Certificates</div>
+      <div class="empty-sub">${sub}</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div class="table-wrap" style="overflow-x:auto">
+    <table class="data-table" style="min-width:900px">
+      <thead><tr>
+        <th>Certificate ID</th>
+        <th>Vessel / Recipient</th>
+        <th>IMO</th>
+        <th>Chief Engineer</th>
+        <th>Quarter</th>
+        <th>Mode</th>
+        <th>Status</th>
+        <th>Valid Until</th>
+        <th>Open</th>
+      </tr></thead>
+      <tbody>${filtered.map(c => {
+        const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
+        const isExpired = c.status === 'VALID' && vu && vu < now;
+        const effStatus = isExpired ? 'EXPIRED' : (c.status || 'PENDING');
+        const daysLeft  = vu ? Math.ceil((vu - now) / 86400000) : null;
+        const validStr  = vu ? `${fmtDate(c.validUntil)}${daysLeft !== null && daysLeft > 0 ? ` <span style="font-size:.6rem;color:var(--text-sec);opacity:.8">· ${daysLeft}d</span>` : ''}` : '—';
+        return `<tr>
+        <td class="mono" style="font-size:.72rem">${escHtml(c.certId || c.id || '—')}</td>
+        <td><div style="font-weight:600;color:var(--text-bright);font-size:.8rem">${escHtml(c.recipientName || c.vesselName || '—')}</div>${c.vesselName && c.recipientName ? `<div style="font-size:.65rem;color:var(--text-sec)">${escHtml(c.vesselName)}</div>` : ''}</td>
+        <td class="mono" style="font-size:.7rem;color:var(--text-sec)">${escHtml(c.vesselIMO || '—')}</td>
+        <td style="font-size:.76rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.chiefEngineer || '')}">${escHtml(c.chiefEngineer || '—')}</td>
+        <td>${qBadge(c.complianceQuarter)}</td>
+        <td>${modeBadge(c.trainingMode)}</td>
+        <td>${statusPill(effStatus)}</td>
+        <td style="white-space:nowrap;font-size:.73rem">${validStr}</td>
+        <td><button class="btn-view" onclick="viewCertPublic('${escHtml(c.id)}','cst');event.stopPropagation()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          View
+        </button></td>
+      </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderVaptTable(certs) {
+  const filtered = filterByQuarter(certs, 'issuedDate');
+  const el = document.getElementById('vaptContent');
+  if (!filtered.length) {
+    const sub = _activeQuarter
+      ? `No VAPT assessments found in Q${_activeQuarter} — try a different quarter or All`
+      : 'No VAPT assessment records found for this vessel';
+    el.innerHTML = `<div class="empty-state">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <div class="empty-title">No VAPT Assessments</div>
+      <div class="empty-sub">${sub}</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div class="table-wrap" style="overflow-x:auto">
+    <table class="data-table" style="min-width:800px">
+      <thead><tr>
+        <th>Certificate ID</th>
+        <th>Vessel / Recipient</th>
+        <th>IMO</th>
+        <th>Assessment Type</th>
+        <th>Quarter</th>
+        <th>Risk Level</th>
+        <th>Status</th>
+        <th>Valid Until</th>
+        <th>Open</th>
+      </tr></thead>
+      <tbody>${filtered.map(c => {
+        const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
+        const isExpired = c.status === 'VALID' && vu && vu < now;
+        const effStatus = isExpired ? 'EXPIRED' : (c.status || 'PENDING');
+        const daysLeft  = vu ? Math.ceil((vu - now) / 86400000) : null;
+        const validStr  = vu ? `${fmtDate(c.validUntil)}${daysLeft !== null && daysLeft > 0 ? ` <span style="font-size:.6rem;color:var(--text-sec);opacity:.8">· ${daysLeft}d</span>` : ''}` : '—';
+        return `<tr>
+        <td class="mono" style="font-size:.72rem">${escHtml(c.certId || c.id || '—')}</td>
+        <td><div style="font-weight:600;color:var(--text-bright);font-size:.8rem">${escHtml(c.recipientName || c.vesselName || '—')}</div>${c.vesselName && c.recipientName ? `<div style="font-size:.65rem;color:var(--text-sec)">${escHtml(c.vesselName)}</div>` : ''}</td>
+        <td class="mono" style="font-size:.7rem;color:var(--text-sec)">${escHtml(c.vesselIMO || '—')}</td>
+        <td style="font-size:.76rem">${escHtml(c.assessmentType || '—')}</td>
+        <td>${qBadge(c.complianceQuarter)}</td>
+        <td>${riskPill(c.riskLevel)}</td>
+        <td>${statusPill(effStatus)}</td>
+        <td style="white-space:nowrap;font-size:.73rem">${validStr}</td>
+        <td><button class="btn-view vapt" onclick="viewCertPublic('${escHtml(c.id)}','vapt');event.stopPropagation()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          View
+        </button></td>
+      </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+async function loadDocs(imo) {
+  document.getElementById('docsContent').innerHTML = '<div class="loading-center"><div class="spinner"></div> Loading documents…</div>';
+  try {
+    const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: authHeaders() });
+    if (r.status === 401) { clearSession(); location.reload(); return; }
+    if (!r.ok) throw new Error('Failed to load documents');
+    _docCache[imo] = await r.json();
+    if (_currentIMO === imo) {
+      renderDocList(_docCache[imo]);
+      document.getElementById('vaDocs').textContent = _docCache[imo].length;
+    }
+  } catch (e) {
+    if (_currentIMO === imo)
+      document.getElementById('docsContent').innerHTML = `<div class="loading-center" style="color:var(--invalid)">Failed to load documents. ${e.message}</div>`;
+  }
+}
+
+function renderDocList(docs) {
+  const el = document.getElementById('docsContent');
+  if (!docs || !docs.length) {
+    el.innerHTML = `<div class="empty-state">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <div class="empty-title">No Documents</div>
+      <div class="empty-sub">No documents have been uploaded for this vessel</div>
+    </div>`;
+    return;
+  }
+  const token = getToken();
+  el.innerHTML = `<div class="doc-list">${docs.map(d => {
+    const isPdf  = (d.mimeType || '').includes('pdf');
+    const isImg  = (d.mimeType || '').startsWith('image/');
+    const isView = isPdf || isImg;
+    const url    = `/api/docs/download/${encodeURIComponent(d.id)}?userSession=${encodeURIComponent(token)}`;
+    const icon   = isPdf
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF6B8A" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`
+      : isImg
+        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`
+        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6495ED" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    return `<div class="doc-item">
+      <div class="doc-icon">${icon}</div>
+      <div class="doc-info">
+        <div class="doc-title">${escHtml(d.title || d.originalName || d.id)}</div>
+        <div class="doc-meta">${escHtml(d.docType || 'Document')} · ${fmtDate(d.uploadedAt)}${d.fileName ? ' · ' + escHtml(d.fileName) : ''}</div>
+      </div>
+      <a class="doc-dl" href="${url}" target="_blank" rel="noopener">
+        ${isView
+          ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View`
+          : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Download`}
+      </a>
+    </div>`;
+  }).join('')}
+  </div>`;
+}
+
+// ─── QUARTER FILTER ────────────────────────────────────────────────────────────
+let _activeQuarter = null;
+
+function setQuarter(q) {
+  _activeQuarter = q;
+  ['qAll','qQ1','qQ2','qQ3','qQ4'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const qVal = i === 0 ? null : i;
+    el.className = 'q-btn' + (i === 0 ? ' all' : '') + (qVal === q ? ' active' : '');
+  });
+  if (_currentIMO && _certCache[_currentIMO]) {
+    renderCstTable(_certCache[_currentIMO].cst || []);
+    renderVaptTable(_certCache[_currentIMO].vapt || []);
+  }
+}
+window.setQuarter = setQuarter;
+
+function filterByQuarter(certs, dateField) {
+  if (!_activeQuarter) return certs;
+  return certs.filter(c => {
+    const d = c[dateField];
+    if (!d) return false;
+    const month = new Date(d).getMonth() + 1;
+    const q = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+    return q === _activeQuarter;
+  });
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  const tabs  = { cst: 'tabCst',  vapt: 'tabVapt',  docs: 'tabDocs'  };
+  const panes = { cst: 'paneCst', vapt: 'paneVapt', docs: 'paneDocs' };
+  const classes = { cst: 'active-cst', vapt: 'active-vapt', docs: 'active-docs' };
+  Object.entries(tabs).forEach(([key, id]) => {
+    const btn  = document.getElementById(id);
+    const pane = document.getElementById(panes[key]);
+    btn.className  = 'tab-btn' + (key === tab ? ' ' + classes[key] : '');
+    pane.className = 'tab-pane' + (key === tab ? ' active' : '');
+  });
+  const qbar = document.getElementById('quarterFilterBar');
+  if (qbar) qbar.style.display = (tab === 'docs') ? 'none' : 'flex';
+}
+
+// ─── VIEWS ─────────────────────────────────────────────────────────────────────
+function showView(view) {
+  document.getElementById('viewDashboard').className = view === 'dashboard' ? 'active' : '';
+  document.getElementById('viewVessel').className    = view === 'vessel'    ? 'active' : '';
+}
+
+function showDashboard() {
+  _currentIMO = null;
+  document.querySelectorAll('.sb-vessel-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('btnBackToDash').style.display = 'none';
+  showView('dashboard');
+}
+
+// ─── VIEW CERT IN PUBLIC PORTAL ────────────────────────────────────────────────
+function viewCertPublic(certId, type) {
+  const cfg     = window.APP_CONFIG && window.APP_CONFIG.routes;
+  const cstBase = (cfg && cfg.cst) || '/CST';
+  const vptBase = (cfg && cfg.vpt) || '/VPT';
+  const base    = (type === 'vapt') ? vptBase : cstBase;
+  window.open(base + '?id=' + encodeURIComponent(certId), '_blank', 'noopener,noreferrer');
+}
+window.viewCertPublic = viewCertPublic;
+
+// ─── XSS GUARD ─────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+</script>
+</body>
+</html>
