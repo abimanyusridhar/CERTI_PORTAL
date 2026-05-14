@@ -1,12 +1,14 @@
 
-# --- Environment files (never commit real credentials) ---
+# --- Environment files ---
 .env
 .env.*
 !.env.example
 
-# --- IDE / editor settings ---
+# --- IDE / Editor settings ---
 .idea/
 .vscode/
+*.swp
+*.swo
 
 # --- OS files ---
 .DS_Store
@@ -14,7 +16,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# --- Logs / temp / caches ---
+# --- Logs / Temp / Caches ---
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -22,40 +24,41 @@ pnpm-debug.log*
 *.tmp
 *.temp
 tmp/
+temp/
 .cache/
 .nyc_output/
 
-# --- Common build output (if you generate any locally) ---
+# --- Build & Dependencies ---
 node_modules/
 dist/
 build/
 coverage/
 .next/
 out/
+.parcel-cache/
 
-# --- App data that contains secrets / user tracking ---
+# --- Application Data (Production Security) ---
+# Ignore all sensitive data files that are generated or modified at runtime
+data/*.json
+data/*.jsonl
+data/**/*.json
+data/**/*.jsonl
 data/.keys.json
-data/certificates.json
-data/vapt_certificates.json
-data/*/.keys.json
-data/*/certificates.json
-data/*/vapt_certificates.json
-data/*/tracking_events.jsonl
-data/*/email_log.jsonl
-data/*/vapt_email_log.jsonl
-data/email_log.jsonl
-data/vapt_email_log.jsonl
-data/tracking_events.jsonl
 
-# --- User uploads (generated at runtime) ---
-uploads/
-uploads/*/
+# Allow specific data structure files if they exist and are non-sensitive
+# !data/schema.json
 
-# --- Sample file(s) you don't want committed ---
-SAMPLE_CSV_DATA.csv
+# --- User Uploads ---
+# Ignore all uploaded files in production
+uploads/**/*
+!uploads/.gitkeep
 
-# --- Documentation files (generated/temporary markdown) ---
+# --- Scripts & Tools ---
+# Ignore temporary outputs from scripts
+scripts/output/
+
+# --- Documentation ---
 *.md
 !README.md
-!(/)docs/
-!(/)docs/**/*.md
+!docs/
+!docs/**/*.md
