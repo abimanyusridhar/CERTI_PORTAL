@@ -119,6 +119,17 @@
     .toast-msg.ok  { background: rgba(100,255,218,.12); border: 1px solid rgba(100,255,218,.3); color: #64FFDA; }
     .toast-msg.err { background: rgba(255,107,138,.12); border: 1px solid rgba(255,107,138,.3); color: var(--invalid); }
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── LIGHT THEME ── */
+    html.light body { background: #F5F7FA; }
+    html.light .login-bg-grid { background-image: linear-gradient(rgba(0,0,0,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.025) 1px,transparent 1px); }
+    html.light .login-card { box-shadow: 0 8px 40px rgba(0,0,0,.1); border-color: rgba(181,134,10,.25); }
+    html.light #loginWrap { background: #F0F4FA; }
+    html.light .vessel-suggest { border-color: rgba(0,151,167,.25); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+    html.light .vessel-suggest-item { border-bottom-color: rgba(0,0,0,.05); }
+    html.light .vessel-suggest-item:hover { background: rgba(0,151,167,.05); }
+    html.light .toast-msg.ok { background: rgba(5,150,105,.09); border-color: rgba(5,150,105,.28); color: #059669; }
+    html.light .nav-item:hover, html.light .nav-item.active { background: rgba(0,151,167,.08); color: #0097A7; border-color: rgba(0,151,167,.22); }
   </style>
 </head>
 <body>
@@ -127,6 +138,10 @@
 <!-- LOGIN -->
 <div id="loginWrap">
   <div class="login-card">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
+      <img src="/images/SYN.png" alt="Synergy Marine Group" style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(181,134,10,.35);object-fit:contain" />
+      <img src="/images/AFT.png" alt="AFT" style="width:40px;height:40px;border-radius:50%;border:1px solid rgba(0,0,0,.1);object-fit:contain" />
+    </div>
     <div style="text-align:center;margin-bottom:6px">
       <span class="login-badge">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -150,6 +165,10 @@
 <div id="appWrap" style="display:none">
   <aside class="sidebar">
     <div class="sb-brand">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+        <img src="/images/SYN.png" alt="Synergy" style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(181,134,10,.3);object-fit:contain" />
+        <img src="/images/AFT.png" alt="AFT" style="width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.1);object-fit:contain" />
+      </div>
       <div class="sb-name" id="sbBrandName">Synergy Marine</div>
       <div class="sb-sub">Admin Portal</div>
       <span class="sb-badge">Super Admin</span>

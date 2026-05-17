@@ -49,9 +49,11 @@ data/.keys.json
 # !data/schema.json
 
 # --- User Uploads ---
-# Ignore all uploaded files in production
-uploads/**/*
-!uploads/.gitkeep
+# Ignore all uploaded files in production; preserve directory placeholders
+uploads/**
+!uploads/
+!uploads/*/
+!uploads/**/.gitkeep
 
 # --- Scripts & Tools ---
 # Ignore temporary outputs from scripts

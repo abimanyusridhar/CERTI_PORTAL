@@ -334,12 +334,12 @@
           <input type="text" class="f-inp" id="uDesc" placeholder="Brief description of the document" maxlength="500" />
         </div>
         <div class="file-drop" id="fileDrop">
-          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" onchange="onFileSelect(this)" />
+          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx" onchange="onFileSelect(this)" />
           <div class="file-drop-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           </div>
           <div class="file-drop-text">Drag &amp; drop or <strong>click to browse</strong></div>
-          <div class="file-drop-text" style="font-size:.65rem;margin-top:4px;opacity:.7">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG — max 10 MB</div>
+          <div class="file-drop-text" style="font-size:.65rem;margin-top:4px;opacity:.7">PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, PPT, PPTX — max 10 MB</div>
           <div class="file-selected" id="fileSelected"></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px">
@@ -626,7 +626,11 @@
     const q    = (document.getElementById('docSearch').value || '').toLowerCase();
     const tf   = document.getElementById('docTypeFilter').value;
     const body = document.getElementById('docsTableBody');
+    const IMAGE_EXTS = /\.(png|jpg|jpeg|gif|bmp|webp|tiff|svg)$/i;
     let filtered = allDocs.filter(d => {
+      const mime = (d.mimeType || '').toLowerCase();
+      const fname = (d.fileName || d.title || '').toLowerCase();
+      if (mime.startsWith('image/') || IMAGE_EXTS.test(fname)) return false;
       const match = !q || (d.vesselName||'').toLowerCase().includes(q) || (d.vesselIMO||'').toLowerCase().includes(q) || (d.title||'').toLowerCase().includes(q);
       const tMatch = !tf || d.docType === tf;
       return match && tMatch;

@@ -1053,73 +1053,112 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl, cer
     }
   }
 
-  const brandName = CFG.brand.name || 'Synergy Marine Group';
-
-  // Logo SVG: shield with check — same icon used across the portal pages
-  const logoSvg = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="1.8" style="display:inline-block;vertical-align:middle;margin-right:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`;
+  const brandName  = CFG.brand.name || 'Synergy Marine Group';
+  const division   = (CFG.brand.division || 'Cyber Security & Compliance Division').replace(brandName, '').replace(/^\s*·?\s*/, '');
+  const logoImgUrl = BASE_ORIGIN + '/images/SYN.png';
+  const aftImgUrl  = BASE_ORIGIN + '/images/AFT.png';
+  const year       = new Date().getFullYear();
 
   const certNote = hasImage
-    ? `<p style="margin:16px 0 0;font-size:12px;color:#6a7a8a;text-align:center;border-top:1px solid #e8edf4;padding-top:14px">
-        📎 Your certificate image is attached to this email.
-      </p>`
+    ? `<tr><td style="padding:0 36px 4px">
+        <p style="margin:0;font-size:12px;color:#6a7a8a;text-align:center;border-top:1px solid #e8edf4;padding-top:14px">
+          &#128206; Your certificate image is attached to this email.
+        </p>
+      </td></tr>`
     : '';
 
   const htmlBody = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
   <title>${esc(subject)}</title>
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f7;padding:32px 16px">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
+<body style="margin:0;padding:0;background-color:#EEF2F7;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF2F7;padding:32px 16px">
+  <tr><td align="center">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 28px rgba(0,0,0,0.12)">
 
-        <!-- Header bar with logo -->
-        <tr>
-          <td style="background:linear-gradient(135deg,#0A1628 0%,#1D3557 100%);padding:28px 32px;text-align:center">
-            <div style="margin-bottom:10px">${logoSvg}<span style="font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#D4A843;font-weight:800;vertical-align:middle">${esc(brandName)}</span></div>
-            <p style="margin:4px 0 0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:.02em">${esc(subject.replace(/^(Subject:\s*)?Your (CST|VAPT) Certificate\s*—\s*/, '').replace(/\s*—\s*.+$/, '') || 'Certificate Notification')}</p>
-            <p style="margin:6px 0 0;font-size:10px;color:#8892B0;letter-spacing:.14em;text-transform:uppercase">Cyber Security &amp; Compliance Division</p>
-          </td>
-        </tr>
+      <!-- ── HEADER ── -->
+      <tr>
+        <td style="background:linear-gradient(135deg,#0A1628 0%,#1A3050 100%);padding:26px 32px 22px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="width:52px;vertical-align:middle;padding-right:14px">
+                <img src="${logoImgUrl}" width="48" height="48"
+                  alt="${esc(brandName)} Logo"
+                  style="display:block;border-radius:50%;border:2px solid rgba(212,168,67,0.45);background:rgba(212,168,67,0.08)">
+              </td>
+              <td style="vertical-align:middle;padding-right:10px">
+                <p style="margin:0;font-size:7px;letter-spacing:.22em;text-transform:uppercase;color:#8892B0;font-weight:700">OFFICIAL CORRESPONDENCE</p>
+                <p style="margin:3px 0 1px;font-size:15px;font-weight:800;color:#D4A843;letter-spacing:.04em">${esc(brandName)}</p>
+                <p style="margin:0;font-size:8px;color:#8892B0;letter-spacing:.1em;text-transform:uppercase">${esc(division)}</p>
+              </td>
+              <td style="width:44px;vertical-align:middle;text-align:right">
+                <img src="${aftImgUrl}" width="38" height="38"
+                  alt="AFT"
+                  style="display:block;border-radius:50%;border:1px solid rgba(255,255,255,0.15);margin-left:auto">
+              </td>
+            </tr>
+          </table>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px">
+            <tr>
+              <td>
+                <p style="margin:0;font-size:18px;font-weight:800;color:#ffffff;letter-spacing:.01em;line-height:1.25">${esc(subject.replace(/^Subject:\s*/i,'').replace(/\s*—\s*Synergy.*$/,'').replace(/^Your\s+(CST|VAPT)\s+Certificate\s*[—-]\s*/i,''))}</p>
+                <p style="margin:6px 0 0;font-size:9px;color:#8892B0;letter-spacing:.16em;text-transform:uppercase">Certificate Notification &nbsp;·&nbsp; Do not reply to this email</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
 
-        <!-- Body content -->
-        <tr>
-          <td style="padding:32px 36px 20px">
-            ${htmlContent}
-            ${certNote}
-          </td>
-        </tr>
+      <!-- ── BODY CONTENT ── -->
+      <tr>
+        <td style="padding:30px 36px 22px">
+          ${htmlContent}
+        </td>
+      </tr>
 
-        <!-- Divider -->
-        <tr>
-          <td style="padding:0 36px">
-            <hr style="border:none;border-top:1px solid #e8edf4;margin:0">
-          </td>
-        </tr>
+      ${certNote}
 
-        <!-- Footer -->
-        <tr>
-          <td style="padding:20px 36px 28px;text-align:center">
-            <p style="margin:0;font-size:11px;color:#8892B0;line-height:1.6">
-              This is an automated message from the ${esc(brandName)} Cyber Security Certificate Registry.<br>
-              Please do not reply directly to this email.
-            </p>
-            <p style="margin:10px 0 0;font-size:10px;color:#aab4c4">
-              &copy; ${new Date().getFullYear()} ${esc(brandName)} &middot; Cyber Security &amp; Compliance Division
-            </p>
-          </td>
-        </tr>
+      <!-- ── DIVIDER ── -->
+      <tr><td style="padding:0 36px"><hr style="border:none;border-top:1px solid #E8EDF4;margin:0"></td></tr>
 
-      </table>
-    </td></tr>
-  </table>
-  ${trackingPixelUrl
-    ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none!important;width:1px!important;height:1px!important;min-width:1px;min-height:1px;overflow:hidden;mso-hide:all" />`
-    : ''}
+      <!-- ── FOOTER ── -->
+      <tr>
+        <td style="padding:20px 36px 28px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="text-align:center;padding-bottom:14px">
+                <img src="${logoImgUrl}" width="32" height="32"
+                  alt="${esc(brandName)}"
+                  style="display:inline-block;border-radius:50%;border:1px solid rgba(181,134,10,0.3);margin-bottom:10px">
+                <p style="margin:0;font-size:11px;color:#8892B0;line-height:1.7">
+                  This is an automated message from the <strong style="color:#5a6a7a">${esc(brandName)}</strong><br>
+                  Cyber Security Certificate Registry. Please do not reply to this email.
+                </p>
+                <p style="margin:10px 0 0;font-size:10px;color:#aab4c4">
+                  &copy; ${year} ${esc(brandName)} &nbsp;&middot;&nbsp; ${esc(division)}<br>
+                  <a href="${BASE_ORIGIN}" style="color:#aab4c4;text-decoration:none">${BASE_ORIGIN}</a>
+                </p>
+                <p style="margin:8px 0 0;font-size:9px;color:#c4ccd8;letter-spacing:.06em;text-transform:uppercase">
+                  Data Classification: RESTRICTED &nbsp;·&nbsp; Maritime Personnel &amp; Vessel Security Records
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+${trackingPixelUrl
+  ? `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:none!important;width:1px!important;height:1px!important;min-width:1px;min-height:1px;overflow:hidden;mso-hide:all">`
+  : ''}
 </body>
 </html>`;
 

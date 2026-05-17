@@ -540,9 +540,127 @@ h1, h2, h3, h4, h5, h6 {
 /* Print styles */
 @media print {
   .no-print { display: none !important; }
-  
+
   .card {
     box-shadow: none;
     border: 1px solid #ccc;
   }
+}
+
+/* ── LIGHT THEME ──────────────────────────────────────────────────────────── */
+html.light {
+  /* Backgrounds */
+  --navy:          #F8F9FB;
+  --navy-mid:      #FFFFFF;
+  --navy-light:    #EEF1F6;
+  --surface:       #FFFFFF;
+  --surface-hover: #F1F5FB;
+
+  /* Borders */
+  --border:        rgba(0, 0, 0, 0.08);
+  --border-gold:   rgba(181, 134, 10, 0.28);
+
+  /* Text */
+  --text:          #374151;
+  --text-sec:      #6B7280;
+  --text-bright:   #111827;
+
+  /* Brand accents (lighter/darker for light bg) */
+  --gold:          #B5860A;
+  --gold-light:    #D4A843;
+  --gold-dim:      rgba(181, 134, 10, 0.08);
+  --teal:          #0097A7;
+  --teal-dim:      rgba(0, 151, 167, 0.06);
+
+  /* Semantic */
+  --valid:    #059669;
+  --invalid:  #DC2626;
+  --warn:     #D97706;
+  --sent:     #059669;
+  --not-sent: #DC2626;
+
+  /* Shadows */
+  --shadow:    0 8px 32px rgba(0, 0, 0, 0.10);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.07);
+}
+
+/* Light-theme component overrides */
+html.light body {
+  background: #F5F7FA;
+  color: #374151;
+}
+
+html.light .form-control {
+  background: #F9FAFB;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #111827;
+}
+
+html.light .form-control::placeholder {
+  color: #9CA3AF;
+}
+
+html.light .badge-gold {
+  background: rgba(181, 134, 10, 0.09);
+  border-color: rgba(181, 134, 10, 0.28);
+  color: #92600B;
+}
+
+html.light .badge-teal {
+  background: rgba(0, 151, 167, 0.08);
+  border-color: rgba(0, 151, 167, 0.25);
+  color: #0097A7;
+}
+
+html.light .badge-error {
+  background: rgba(220, 38, 38, 0.06);
+  border-color: rgba(220, 38, 38, 0.22);
+  color: #DC2626;
+}
+
+html.light .badge-warning {
+  background: rgba(217, 119, 6, 0.07);
+  border-color: rgba(217, 119, 6, 0.25);
+  color: #D97706;
+}
+
+html.light .btn-primary {
+  background: linear-gradient(135deg, #B5860A, #8A6508);
+  color: #FFFFFF;
+}
+
+html.light .btn-ghost {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #4A5568;
+}
+
+html.light .btn-ghost:hover:not(:disabled) {
+  color: #111827;
+  border-color: #0097A7;
+}
+
+html.light .btn-teal {
+  background: rgba(0, 151, 167, 0.08);
+  border-color: rgba(0, 151, 167, 0.30);
+  color: #0097A7;
+}
+
+html.light .btn-teal:hover:not(:disabled) {
+  background: rgba(0, 151, 167, 0.14);
+}
+
+html.light .btn-danger {
+  background: rgba(220, 38, 38, 0.06);
+  border-color: rgba(220, 38, 38, 0.25);
+  color: #DC2626;
+}
+
+html.light .skip-nav {
+  background: #B5860A;
+  color: #FFFFFF;
+}
+
+html.light :focus-visible {
+  outline-color: #B5860A;
 }
