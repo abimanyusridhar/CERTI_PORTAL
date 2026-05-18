@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Certificate Verification</title>
+  <meta name="theme-color" content="#0A1628" />
   <!-- Open Graph / social preview -->
   <meta name="description" content="Verify the authenticity of Synergy Marine Group Cyber Security Training certificates in real-time." />
   <meta property="og:type" content="website" />
@@ -11,7 +12,7 @@
   <meta property="og:description" content="Real-time CST certificate verification for maritime compliance officers, port authorities, and PSC inspectors." />
   <meta property="og:image" content="/images/SYN.png" />
   <!-- CSP meta fallback (mirrors server header — protects if CDN strips headers) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; frame-ancestors 'none';" />
   <!-- Preconnect for Google Fonts (eliminates render-blocking DNS + TLS round-trips) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -52,7 +53,7 @@
 
 <nav role="navigation" aria-label="Main navigation">
   <div class="nav-brand">
-    <div class="nav-logo-box" style="background:none;border:none;padding:0;width:auto;height:auto;overflow:visible;display:flex;align-items:center">
+    <div class="nav-logo-wrap">
       <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Group" />
     </div>
     <div class="brand-text"><div class="name" id="navBrandName"></div><div class="sub" id="navBrandSub"></div></div>
@@ -184,6 +185,6 @@
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/assets/smg-public/cst/index.js"></script>
+<script src="/assets/smg-public/cst/index.js"></script>
 </body>
 </html>

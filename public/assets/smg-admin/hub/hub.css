@@ -1,0 +1,100 @@
+/* ── ADMIN PORTAL HUB STYLES ─────────────────────────────────────────────── */
+body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
+
+.hub-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.hub-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(100,255,218,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.025) 1px,transparent 1px); background-size: 40px 40px; }
+.hub-orb-1 { position: absolute; top: -120px; left: -120px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(212,168,67,.06) 0%, transparent 65%); border-radius: 50%; }
+.hub-orb-2 { position: absolute; bottom: -80px; right: -80px; width: 480px; height: 480px; background: radial-gradient(circle, rgba(100,255,218,.04) 0%, transparent 65%); border-radius: 50%; }
+
+.hub-wrap { position: relative; z-index: 1; max-width: 1040px; margin: 0 auto; padding: 40px 24px 60px; }
+
+/* ── Top Bar ── */
+.hub-topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; padding: 12px 18px; background: rgba(17,34,64,.7); border: 1px solid var(--border); border-radius: 14px; backdrop-filter: blur(8px); }
+.hub-topbar-logos { display: flex; align-items: center; gap: 10px; }
+.hub-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: contain; border: 1px solid var(--border-gold); background: rgba(212,168,67,.06); padding: 3px; }
+.hub-brand-text { flex: 1; }
+.hub-brand-name { font-family: 'Playfair Display', serif; font-size: .95rem; color: var(--text-bright); font-weight: 700; }
+.hub-brand-sub { font-size: .62rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; margin-top: 1px; }
+.hub-topbar-actions { display: flex; align-items: center; gap: 10px; }
+.hub-health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background .4s; }
+.hub-health-label { font-size: .6rem; color: var(--text-sec); letter-spacing: .08em; }
+.hub-health-sep { width: 1px; height: 16px; background: var(--border); }
+
+/* ── Hero ── */
+.hub-hero { text-align: center; margin-bottom: 36px; }
+.hub-hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: .65rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); background: rgba(212,168,67,.07); border: 1px solid rgba(212,168,67,.22); border-radius: 20px; padding: 5px 14px; margin-bottom: 16px; }
+.hub-hero-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--text-bright); font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+.hub-hero-sub { font-size: .82rem; color: var(--text-sec); max-width: 520px; margin: 0 auto; line-height: 1.75; }
+
+/* ── Stats Row ── */
+.hub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+.hub-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: center; transition: border-color .2s; }
+.hub-stat:hover { border-color: var(--border-gold); }
+.hub-stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text-bright); }
+.hub-stat-lbl { font-size: .62rem; color: var(--text-sec); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+
+/* ── Module Cards ── */
+.hub-modules { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 28px; }
+.hub-module { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: border-color .22s, box-shadow .22s, transform .22s; cursor: default; margin-bottom: 28px; }
+.hub-module:last-child { margin-bottom: 0; }
+.hub-modules .hub-module { margin-bottom: 0; }
+.hub-module:hover { border-color: var(--border-gold); box-shadow: 0 8px 40px rgba(0,0,0,.3); transform: translateY(-2px); }
+.hub-module-hdr { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+.hub-module-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; padding: 4px 11px; border-radius: 20px; margin-bottom: 10px; }
+.badge-cst { background: rgba(212,168,67,.08); color: var(--gold); border: 1px solid rgba(212,168,67,.25); }
+.badge-vapt { background: rgba(100,255,218,.07); color: var(--teal); border: 1px solid rgba(100,255,218,.22); }
+.badge-docs { background: rgba(212,168,67,.07); color: var(--gold); border: 1px solid rgba(212,168,67,.22); }
+.badge-admin { background: rgba(100,255,218,.07); color: var(--teal); border: 1px solid rgba(100,255,218,.22); }
+.hub-module-title { font-size: 1rem; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+.hub-module-desc { font-size: .75rem; color: var(--text-sec); line-height: 1.65; }
+.hub-module-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 20px; background: rgba(255,255,255,.014); border-bottom: 1px solid var(--border); }
+.hub-mstat { text-align: center; }
+.hub-mstat-num { font-family: 'JetBrains Mono', monospace; font-size: .95rem; font-weight: 700; color: var(--text-bright); }
+.hub-mstat-lbl { font-size: .55rem; color: var(--text-sec); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+.hub-module-foot { padding: 12px 20px; display: flex; gap: 8px; }
+
+/* ── Hub Buttons ── */
+.hub-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-decoration: none; transition: all .18s; white-space: nowrap; cursor: pointer; border: none; }
+.hub-btn-primary { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--border-gold); }
+.hub-btn-primary:hover { background: rgba(212,168,67,.18); border-color: var(--gold); }
+.hub-btn-teal { background: rgba(100,255,218,.06); color: var(--teal); border: 1px solid rgba(100,255,218,.22); }
+.hub-btn-teal:hover { background: rgba(100,255,218,.14); border-color: rgba(100,255,218,.5); }
+.hub-btn-ghost { background: none; color: var(--text-sec); border: 1px solid var(--border); }
+.hub-btn-ghost:hover { color: var(--text-bright); border-color: rgba(255,255,255,.18); }
+
+/* ── Public Portals ── */
+.hub-portals { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 28px; }
+.hub-portals-title { font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); margin-bottom: 14px; }
+.hub-portals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hub-portal-link { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; text-decoration: none; transition: all .2s; }
+.hub-portal-link:hover { border-color: var(--border-gold); background: rgba(212,168,67,.03); }
+.hub-portal-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-cst { background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.2); }
+.icon-vapt { background: rgba(100,255,218,.06); border: 1px solid rgba(100,255,218,.2); }
+.hub-portal-name { font-size: .78rem; font-weight: 600; color: var(--text-bright); }
+.hub-portal-url { font-size: .62rem; color: var(--text-sec); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+/* ── Footer ── */
+.hub-footer { text-align: center; padding-top: 24px; border-top: 1px solid var(--border); font-size: .65rem; color: var(--text-sec); line-height: 2; }
+.hub-footer-audit { margin-top: 4px; opacity: .5; }
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.skel { background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; display: inline-block; }
+
+/* ── Light theme overrides ── */
+html.light .hub-topbar { background: rgba(255,255,255,.9); }
+html.light .hub-module { background: var(--surface); }
+html.light .hub-module:hover { border-color: rgba(181,134,10,.4); }
+html.light .hub-portals { background: var(--surface); }
+html.light .hub-stat { background: var(--surface); }
+html.light .skel { background: linear-gradient(90deg, rgba(0,0,0,.04) 25%, rgba(0,0,0,.08) 50%, rgba(0,0,0,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+
+/* ── Responsive ── */
+@media (max-width: 680px) {
+  .hub-modules { grid-template-columns: 1fr; }
+  .hub-stats { grid-template-columns: repeat(2, 1fr); }
+  .hub-portals-grid { grid-template-columns: 1fr; }
+  .hub-topbar { flex-wrap: wrap; gap: 10px; }
+  .hub-brand-text { flex: 1 1 100%; order: 3; }
+}

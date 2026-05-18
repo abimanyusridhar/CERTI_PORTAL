@@ -28,7 +28,7 @@
 <body>
 
 <!-- ACCESSIBILITY: Skip navigation -->
-<a href="#main-content" style="position:absolute;left:-9999px;top:0;z-index:9999;padding:10px 20px;background:var(--gold);color:var(--navy);font-weight:700;font-size:.82rem;border-radius:0 0 8px 0;text-decoration:none;letter-spacing:.06em;text-transform:uppercase">Skip to main content</a>
+<a href="#main-content" class="skip-nav">Skip to main content</a>
 
 <!-- SESSION EXPIRY WARNING (shown via JS) -->
 <div id="sessionWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9990;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,179,71,0.14);border-bottom:2px solid rgba(255,179,71,0.4);color:var(--warn);box-shadow:0 2px 16px rgba(0,0,0,.3)">
@@ -50,7 +50,7 @@
     <div class="login-bg-grid" aria-hidden="true"></div>
     <div class="login-card" role="form" aria-labelledby="loginTitle">
       <div class="login-icon" style="background:none;border:none;display:flex;align-items:center;justify-content:center">
-        <img src="/images/SYN.png" class="nav-logo-circle syn-circle" alt="Synergy Marine Group" style="width:56px;height:56px" />
+        <img src="/images/SYN.png" class="nav-logo-circle syn-circle login-logo-img" alt="Synergy Marine Group" />
       </div>
       <div class="login-title" id="loginTitle">Admin Access</div>
       <div class="login-sub" id="loginSub"></div>
@@ -85,7 +85,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navigation sidebar">
       <div class="sb-brand">
-        <div class="sb-icon" style="background:none;border:none;width:auto;height:auto"><img src="/images/SYN.png" class="nav-logo-circle syn-circle sb-circle" alt="Synergy" /></div>
+        <div class="nav-logo-wrap"><img src="/images/SYN.png" class="nav-logo-circle syn-circle sb-circle" alt="Synergy" /></div>
         <div>
           <div class="sb-name" id="sbName"></div>
           <div class="sb-sub">Training Admin</div>
