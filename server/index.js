@@ -168,6 +168,15 @@ let _reqSeq = 0;
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 
+// ─── COGNITO SSO CONFIG ──────────────────────────────────────────────────────
+const COGNITO_ENABLED       = !!(process.env.COGNITO_USER_POOL_ID && process.env.COGNITO_CLIENT_ID && process.env.COGNITO_DOMAIN);
+const COGNITO_REGION        = process.env.COGNITO_REGION || process.env.AWS_REGION || 'ap-south-1';
+const COGNITO_USER_POOL_ID  = process.env.COGNITO_USER_POOL_ID  || '';
+const COGNITO_CLIENT_ID     = process.env.COGNITO_CLIENT_ID     || '';
+const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || '';
+// COGNITO_DOMAIN = just the hostname, e.g. myapp.auth.ap-south-1.amazoncognito.com
+const COGNITO_DOMAIN        = (process.env.COGNITO_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
 if (!ADMIN_USER || !ADMIN_PASS) {
   log.error('ADMIN_USER and ADMIN_PASS must be set in your .env file before starting the server.');
   process.exit(1);
@@ -659,6 +668,75 @@ const usersStore = createJsonStore({
 });
 function loadUsers()       { _usersCache = usersStore.load(); return _usersCache; }
 function saveUsers(data)   { _usersCache = data; usersStore.save(data); }
+
+// ─── COGNITO SSO — JWKS + TOKEN VERIFICATION ─────────────────────────────────
+let _cognitoJwksCache = null;
+let _cognitoJwksCacheAt = 0;
+
+function getCognitoJWKS() {
+  if (_cognitoJwksCache && Date.now() - _cognitoJwksCacheAt < 3600000) return Promise.resolve(_cognitoJwksCache);
+  const issuer = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`;
+  return new Promise((resolve, reject) => {
+    require('https').get(`${issuer}/.well-known/jwks.json`, r => {
+      let buf = '';
+      r.on('data', c => buf += c);
+      r.on('end', () => {
+        try {
+          _cognitoJwksCache = JSON.parse(buf);
+          _cognitoJwksCacheAt = Date.now();
+          resolve(_cognitoJwksCache);
+        } catch { reject(new Error('Invalid JWKS response')); }
+      });
+    }).on('error', reject);
+  });
+}
+
+async function verifyCognitoIdToken(idToken) {
+  const parts = idToken.split('.');
+  if (parts.length !== 3) throw new Error('Invalid JWT structure');
+  const header  = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  const issuer  = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`;
+  if (payload.iss !== issuer)             throw new Error('Invalid token issuer');
+  if (payload.aud !== COGNITO_CLIENT_ID)  throw new Error('Invalid token audience');
+  if (Date.now() / 1000 > payload.exp)    throw new Error('Token expired');
+  if (header.alg !== 'RS256')             throw new Error('Expected RS256 algorithm');
+  const jwks = await getCognitoJWKS();
+  const jwk  = (jwks.keys || []).find(k => k.kid === header.kid);
+  if (!jwk) throw new Error('Unknown signing key');
+  const pubKey   = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+  const verifier = crypto.createVerify('RSA-SHA256');
+  verifier.update(parts[0] + '.' + parts[1]);
+  if (!verifier.verify(pubKey, Buffer.from(parts[2], 'base64url'))) throw new Error('Signature invalid');
+  return payload;
+}
+
+function exchangeCognitoCode(code) {
+  const redirectUri = BASE_ORIGIN + '/auth/sso/callback';
+  const body = `grant_type=authorization_code&client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  const authHeader = COGNITO_CLIENT_SECRET
+    ? 'Basic ' + Buffer.from(`${COGNITO_CLIENT_ID}:${COGNITO_CLIENT_SECRET}`).toString('base64')
+    : null;
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: COGNITO_DOMAIN,
+      path: '/oauth2/token',
+      method: 'POST',
+      headers: Object.assign(
+        { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
+        authHeader ? { Authorization: authHeader } : {}
+      ),
+    };
+    const req = require('https').request(opts, r => {
+      let buf = '';
+      r.on('data', c => buf += c);
+      r.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Token parse error')); } });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
 let _groupsCache = null;
@@ -3375,6 +3453,86 @@ async function handleRequest(req, res) {
 
   const parsed = new URL(req.url, 'http://localhost');
   const p      = parsed.pathname;
+
+  // ── SSO: GET /auth/sso/login ─────────────────────────────────────────────
+  if (p === '/auth/sso/login' && method === 'GET') {
+    if (!COGNITO_ENABLED) { res.writeHead(302, { Location: '/' }); return res.end(); }
+    const next  = (parsed.searchParams.get('next') || '/').replace(/[<>"'`]/g, '');
+    const state = Buffer.from(JSON.stringify({ next, ts: Date.now() })).toString('base64url');
+    const loginUrl = `https://${COGNITO_DOMAIN}/login?response_type=code`
+      + `&client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}`
+      + `&redirect_uri=${encodeURIComponent(BASE_ORIGIN + '/auth/sso/callback')}`
+      + `&scope=openid+email+profile`
+      + `&state=${state}`;
+    res.writeHead(302, { ...SECURITY_HEADERS, Location: loginUrl });
+    return res.end();
+  }
+
+  // ── SSO: GET /auth/sso/callback ──────────────────────────────────────────
+  if (p === '/auth/sso/callback' && method === 'GET') {
+    const code  = parsed.searchParams.get('code')  || '';
+    const state = parsed.searchParams.get('state') || '';
+    let next = '/';
+    try { const s = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')); next = (s.next || '/').replace(/[<>"'`]/g, ''); } catch { /* default */ }
+    if (!code || !COGNITO_ENABLED) {
+      res.writeHead(302, { Location: next + (next.includes('?') ? '&' : '?') + 'sso_error=1' });
+      return res.end();
+    }
+    try {
+      const tokens    = await exchangeCognitoCode(code);
+      if (tokens.error) throw new Error(tokens.error_description || tokens.error);
+      const idPayload = await verifyCognitoIdToken(tokens.id_token);
+      const email     = (idPayload.email || '').toLowerCase();
+      const cogGroups = idPayload['cognito:groups'] || [];
+      const isAdmin   = email === (ADMIN_USER || '').toLowerCase()
+                        || cogGroups.some(g => /^admins?$/i.test(g));
+      let sessionToken, cookieName;
+      if (isAdmin) {
+        sessionToken = issueToken(ADMIN_USER);
+        cookieName   = 'sso_admin_token';
+      } else {
+        const users = loadUsers();
+        let user = Object.values(users).find(u => (u.email || '').toLowerCase() === email && u.active);
+        if (!user) {
+          const newId = 'usr_' + crypto.randomBytes(8).toString('hex');
+          user = { id: newId, name: idPayload.name || idPayload.email || email, email,
+                   role: 'user', active: true, groupIds: [], passwordHash: '',
+                   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ssoSub: idPayload.sub };
+          users[newId] = user;
+          saveUsers(users);
+          log.info('SSO auto-provisioned user:', email);
+        }
+        sessionToken = issueUserSessionToken(user.id);
+        cookieName   = 'sso_user_token';
+      }
+      const secure = BASE_ORIGIN.startsWith('https') ? '; Secure' : '';
+      res.writeHead(302, {
+        ...SECURITY_HEADERS,
+        'Set-Cookie': `${cookieName}=${sessionToken}; Path=/; Max-Age=30; SameSite=Strict${secure}`,
+        Location: next,
+      });
+      return res.end();
+    } catch (err) {
+      log.error('SSO callback error:', err.message);
+      res.writeHead(302, { Location: '/?sso_error=1' });
+      return res.end();
+    }
+  }
+
+  // ── SSO: GET /auth/sso/logout ────────────────────────────────────────────
+  if (p === '/auth/sso/logout' && method === 'GET') {
+    const logoutUri = encodeURIComponent(BASE_ORIGIN + '/');
+    const location  = COGNITO_ENABLED
+      ? `https://${COGNITO_DOMAIN}/logout?client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}&logout_uri=${logoutUri}`
+      : '/';
+    const clr = '; Path=/; Max-Age=0; SameSite=Strict';
+    res.writeHead(302, {
+      ...SECURITY_HEADERS,
+      'Set-Cookie': [`sso_admin_token=${clr}`, `sso_user_token=${clr}`],
+      Location: location,
+    });
+    return res.end();
+  }
 
   // ── Uploads (shared) ─────────────────────────────────────────────────────
   if (p.startsWith('/uploads/')) {
