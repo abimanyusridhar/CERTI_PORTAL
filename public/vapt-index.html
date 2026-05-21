@@ -55,8 +55,8 @@
     <div class="brand-text"><div class="name" id="navBrandName"></div><div class="sub" id="navBrandSub"></div></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
-    <a id="navTabCST" href="#" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
-    <a id="navTabVPT" href="#" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VAPT Assessment</span></a>
+    <a id="navTabCST" href="#" class="nav-tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <span id="cstTabLabel">CST Training</span></a>
+    <a id="navTabVPT" href="#" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VAPT Assessment</span></a>
     <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Verification</div>
     <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
     <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
@@ -74,7 +74,7 @@
   <p class="hero-sub" id="heroSub">Enter a Vulnerability &amp; Penetration Testing (VAPT) certificate number to get real-time verification of vessel cybersecurity assessment status for maritime compliance, PSC, and vetting inspectors.</p>
   <div class="search-container" role="search" aria-label="VAPT certificate verification">
     <div class="search-wrap" id="searchWrap">
-      <div class="search-icon-wrap" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+      <div class="search-icon-wrap" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></div>
       <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="VAPT certificate number" aria-describedby="searchHint" aria-required="true" />
       <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify VAPT certificate authenticity">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -159,7 +159,7 @@
     <label class="egate-label" for="gateEmailInput">Registered Email Address</label>
     <input type="email" id="gateEmailInput" class="egate-input" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')verifyEmailGate()" />
     <button class="egate-btn" id="gateProceedBtn" onclick="verifyEmailGate()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:6px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
       Access Document
     </button>
     <button class="egate-cancel" onclick="closeEmailGate()">Cancel</button>
@@ -175,7 +175,7 @@
 <div id="pdfViewerOverlay" role="dialog" aria-modal="true" aria-label="Document viewer" aria-hidden="true" onclick="if(event.target===this)closePdfModal()">
   <div class="pdf-modal">
     <div class="pdf-modal-bar">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2" style="flex-shrink:0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span class="pdf-modal-title" id="pdfModalTitle"></span>
       <a class="pdf-modal-open" id="pdfModalLink" href="#" target="_blank" rel="noopener noreferrer">↗ Open in New Tab</a>
       <button class="pdf-modal-close" onclick="closePdfModal()" aria-label="Close document viewer">✕</button>
@@ -184,6 +184,6 @@
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/assets/smg-public/vapt/index.js"></script>
+<script src="/assets/smg-public/vapt/index.js"></script>
 </body>
 </html>
