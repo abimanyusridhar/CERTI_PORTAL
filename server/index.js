@@ -740,6 +740,102 @@ function exchangeCognitoCode(code) {
   });
 }
 
+// ─── COGNITO USER SYNC ────────────────────────────────────────────────────────
+// Fetches one page of users from Cognito IDP using AWS Sig V4 (same pattern as SES).
+function cognitoListUsersPage(paginationToken) {
+  return new Promise((resolve) => {
+    if (!COGNITO_ENABLED || !SES_ACCESS_KEY || !SES_SECRET_KEY) {
+      resolve({ Users: [], PaginationToken: null });
+      return;
+    }
+    const region  = COGNITO_REGION;
+    const host    = `cognito-idp.${region}.amazonaws.com`;
+    const service = 'cognito-idp';
+    const target  = 'AmazonCognitoIdentityProvider.ListUsers';
+    const bodyObj = { UserPoolId: COGNITO_USER_POOL_ID, Limit: 60 };
+    if (paginationToken) bodyObj.PaginationToken = paginationToken;
+    const bodyStr = JSON.stringify(bodyObj);
+
+    const now       = new Date();
+    const date      = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const time      = now.toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
+    const credScope = `${date}/${region}/${service}/aws4_request`;
+
+    function hmac(key, data)    { return crypto.createHmac('sha256', key).update(data).digest(); }
+    function hmacHex(key, data) { return crypto.createHmac('sha256', key).update(data).digest('hex'); }
+    function sha256hex(data)    { return crypto.createHash('sha256').update(data).digest('hex'); }
+
+    const payloadHash      = sha256hex(bodyStr);
+    const signedHeaders    = 'content-type;host;x-amz-date;x-amz-target';
+    const canonicalHeaders = `content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${time}\nx-amz-target:${target}\n`;
+    const canonicalRequest = ['POST', '/', '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
+    const strToSign        = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
+    const signingKey = hmac(hmac(hmac(hmac('AWS4' + SES_SECRET_KEY, date), region), service), 'aws4_request');
+    const signature  = hmacHex(signingKey, strToSign);
+    const authHeader = `AWS4-HMAC-SHA256 Credential=${SES_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+    const req = https.request({
+      hostname: host, port: 443, path: '/', method: 'POST',
+      headers: {
+        'Content-Type':   'application/x-amz-json-1.1',
+        'Host':            host,
+        'X-Amz-Date':      time,
+        'X-Amz-Target':    target,
+        'Content-Length':  Buffer.byteLength(bodyStr),
+        'Authorization':   authHeader,
+      },
+    }, (r) => {
+      let buf = '';
+      r.on('data', c => buf += c);
+      r.on('end', () => {
+        try {
+          const json = JSON.parse(buf);
+          resolve({ Users: json.Users || [], PaginationToken: json.PaginationToken || null });
+        } catch { resolve({ Users: [], PaginationToken: null }); }
+      });
+    });
+    req.setTimeout(10_000, () => { req.destroy(); resolve({ Users: [], PaginationToken: null }); });
+    req.on('error', () => resolve({ Users: [], PaginationToken: null }));
+    req.write(bodyStr);
+    req.end();
+  });
+}
+
+async function syncCognitoUsers() {
+  if (!COGNITO_ENABLED) return 0;
+  const cognitoUsers = [];
+  let token = null;
+  do {
+    const page = await cognitoListUsersPage(token);
+    cognitoUsers.push(...page.Users);
+    token = page.PaginationToken;
+  } while (token);
+
+  const users = loadUsers();
+  const adminEmail = ADMIN_USER.toLowerCase();
+  let added = 0;
+  for (const cu of cognitoUsers) {
+    const attrs = Object.fromEntries((cu.Attributes || []).map(a => [a.Name, a.Value]));
+    const email = (attrs.email || '').toLowerCase().trim();
+    if (!email || email === adminEmail) continue;
+    if (Object.values(users).some(u => (u.email || '').toLowerCase() === email)) continue;
+    const newId = nextSequentialId(users, 'USR');
+    const now   = new Date().toISOString();
+    users[newId] = {
+      id: newId, name: attrs.name || cu.Username || email, email,
+      role: 'superintendent', active: cu.Enabled !== false,
+      groupIds: [], passwordHash: '',
+      createdAt: now, updatedAt: now,
+    };
+    added++;
+  }
+  if (added > 0) {
+    saveUsers(users);
+    log.info(`Cognito sync: provisioned ${added} new user(s)`);
+  }
+  return added;
+}
+
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
 let _groupsCache = null;
 const groupsStore = createJsonStore({
@@ -3263,6 +3359,7 @@ async function handleAPI(req, res, parsed) {
   // ── GET /api/admin/users ── (admin read-only, super admin full)
   if (route === '/admin/users' && method === 'GET') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    await syncCognitoUsers().catch(() => {});
     const users = loadUsers();
     const safe = Object.values(users).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, groupIds: u.groupIds, active: u.active, createdAt: u.createdAt }));
     return sendJSON(res, 200, safe, corsH);
