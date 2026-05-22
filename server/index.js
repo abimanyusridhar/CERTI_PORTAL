@@ -3466,7 +3466,7 @@ async function handleRequest(req, res) {
     const loginUrl = `https://${COGNITO_DOMAIN}/login?response_type=code`
       + `&client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}`
       + `&redirect_uri=${encodeURIComponent(BASE_ORIGIN + '/auth/sso/callback')}`
-      + `&scope=openid+email+profile`
+      + `&scope=openid+email`
       + `&nonce=${nonce}`
       + `&state=${stateParam}`;
     res.writeHead(302, { ...SECURITY_HEADERS, Location: loginUrl });
