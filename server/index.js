@@ -3461,29 +3461,37 @@ async function handleRequest(req, res) {
     if (!COGNITO_ENABLED) { res.writeHead(302, { Location: '/' }); return res.end(); }
     const next  = (parsed.searchParams.get('next') || '/').replace(/[<>"'`]/g, '');
     const state = Buffer.from(JSON.stringify({ next, ts: Date.now() })).toString('base64url');
+    const nonce      = crypto.randomBytes(16).toString('base64url');
+    const stateParam = Buffer.from(JSON.stringify({ next, ts: Date.now(), nonce })).toString('base64url');
     const loginUrl = `https://${COGNITO_DOMAIN}/login?response_type=code`
       + `&client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}`
       + `&redirect_uri=${encodeURIComponent(BASE_ORIGIN + '/auth/sso/callback')}`
-      + `&scope=openid+email+profile`
-      + `&state=${state}`;
+      + `&scope=openid+email+phone+profile`
+      + `&nonce=${nonce}`
+      + `&state=${stateParam}`;
     res.writeHead(302, { ...SECURITY_HEADERS, Location: loginUrl });
     return res.end();
   }
 
   // ── SSO: GET /auth/sso/callback ──────────────────────────────────────────
   if (p === '/auth/sso/callback' && method === 'GET') {
-    const code  = parsed.searchParams.get('code')  || '';
-    const state = parsed.searchParams.get('state') || '';
-    let next = '/';
-    try { const s = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')); next = (s.next || '/').replace(/[<>"'`]/g, ''); } catch { /* default */ }
+    const code     = parsed.searchParams.get('code')  || '';
+    const stateRaw = parsed.searchParams.get('state') || '';
+    let next = '/', expectedNonce = null;
+    try {
+      const s = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'));
+      next          = (s.next  || '/').replace(/[<>"'`]/g, '');
+      expectedNonce = s.nonce  || null;
+    } catch { /* use defaults */ }
     if (!code || !COGNITO_ENABLED) {
       res.writeHead(302, { Location: next + (next.includes('?') ? '&' : '?') + 'sso_error=1' });
       return res.end();
     }
     try {
-      const tokens    = await exchangeCognitoCode(code);
+      const tokens = await exchangeCognitoCode(code);
       if (tokens.error) throw new Error(tokens.error_description || tokens.error);
       const idPayload = await verifyCognitoIdToken(tokens.id_token);
+      if (expectedNonce && idPayload.nonce !== expectedNonce) throw new Error('Nonce mismatch — possible replay attack');
       const email     = (idPayload.email || '').toLowerCase();
       const cogGroups = idPayload['cognito:groups'] || [];
       // Primary: Cognito group membership. Fallback: email matches ADMIN_USER.
