@@ -217,7 +217,7 @@
       </div>
       <div>
         <div class="page-title">User Management</div>
-        <div class="page-sub">Create and manage superintendent accounts · Assign vessel groups</div>
+        <div class="page-sub">Manage superintendent accounts synced from AWS · Assign vessel groups</div>
       </div>
     </div>
 
@@ -235,15 +235,11 @@
       </div>
       <button class="btn-sm" id="btnSyncAws" onclick="syncAws()" title="Pull latest users from AWS Cognito">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        Sync AWS
+        Sync from AWS
       </button>
       <button class="btn-sm" onclick="loadData()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Refresh
-      </button>
-      <button class="btn-primary" onclick="openCreateModal()" style="padding:7px 14px;font-size:.75rem">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
-        Add User
       </button>
     </div>
 
@@ -264,7 +260,7 @@
       </table>
       <div id="userEmpty" class="empty-state" style="display:none">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.5" style="margin-bottom:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-        <div>No users yet. Superintendents appear here after their first AWS SSO sign-in.</div>
+        <div>No users yet. Create users in AWS Cognito, then click "Sync from AWS".</div>
       </div>
     </div>
   </main>
@@ -283,8 +279,8 @@
       <input id="mName" type="text" class="mfcontrol" placeholder="e.g. John Smith" />
     </div>
     <div class="mfgroup">
-      <label class="mflabel" for="mEmail">Email Address <span id="mEmailHint" style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(SSO identity — read-only)</span></label>
-      <input id="mEmail" type="email" class="mfcontrol" placeholder="user@example.com" />
+      <label class="mflabel" for="mEmail">Email Address <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(AWS SSO identity)</span></label>
+      <input id="mEmail" type="email" class="mfcontrol" readonly style="opacity:.6;cursor:default;background:var(--navy)" />
     </div>
     <div class="mfgroup">
       <label class="mflabel">Assign to Groups</label>
@@ -391,7 +387,7 @@
     if (!list.length) {
       tbody.innerHTML = '';
       const msgEl = empty.querySelector('div');
-      if (msgEl) msgEl.textContent = q ? 'No users match your search.' : 'No users yet. Superintendents appear here after their first AWS SSO sign-in.';
+      if (msgEl) msgEl.textContent = q ? 'No users match your search.' : 'No users yet. Create users in AWS Cognito, then click "Sync from AWS".';
       empty.style.display = 'block';
       return;
     }
@@ -430,21 +426,6 @@
     }).join('');
   }
 
-  function openCreateModal() {
-    editingId = null;
-    document.getElementById('modalTitle').textContent = 'Add User';
-    document.getElementById('mName').value  = '';
-    document.getElementById('mEmail').value = '';
-    document.getElementById('mEmail').readOnly = false;
-    document.getElementById('mEmail').style.cssText = '';
-    document.getElementById('mEmailHint').textContent = '(must match their AWS Cognito email)';
-    document.getElementById('mActive').checked = true;
-    document.getElementById('modalErr').classList.remove('show');
-    buildGroupList([]);
-    document.getElementById('userModal').classList.add('open');
-  }
-  window.openCreateModal = openCreateModal;
-
   function openEditModal(id) {
     const u = allUsers.find(x => x.id === id);
     if (!u) return;
@@ -452,9 +433,6 @@
     document.getElementById('modalTitle').textContent = 'Edit User';
     document.getElementById('mName').value  = u.name;
     document.getElementById('mEmail').value = u.email;
-    document.getElementById('mEmail').readOnly = true;
-    document.getElementById('mEmail').style.cssText = 'opacity:.6;cursor:default;background:var(--navy)';
-    document.getElementById('mEmailHint').textContent = '(SSO identity — read-only)';
     document.getElementById('mActive').checked = !!u.active;
     document.getElementById('modalErr').classList.remove('show');
     buildGroupList(u.groupIds || []);
@@ -466,25 +444,19 @@
   window.closeModal = closeModal;
 
   async function saveUser() {
+    if (!editingId) return;
     const name     = document.getElementById('mName').value.trim();
-    const email    = document.getElementById('mEmail').value.trim().toLowerCase();
     const active   = document.getElementById('mActive').checked;
     const groupIds = Array.from(document.querySelectorAll('#groupSelectList input[type=checkbox]:checked')).map(c => c.value);
     const err = document.getElementById('modalErr');
     err.classList.remove('show');
     if (!name) { err.textContent = 'Name is required.'; err.classList.add('show'); return; }
-    if (!email) { err.textContent = 'Email is required.'; err.classList.add('show'); return; }
     try {
-      let r, d;
-      if (editingId) {
-        r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, active, groupIds }) });
-      } else {
-        r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, active, groupIds }) });
-      }
-      d = await r.json();
+      const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, active, groupIds }) });
+      const d = await r.json();
       if (!r.ok) { err.textContent = d.error || 'Save failed.'; err.classList.add('show'); return; }
       closeModal();
-      toast(editingId ? 'User updated.' : 'User added.');
+      toast('User updated.');
       await loadData();
     } catch { err.textContent = 'Network error.'; err.classList.add('show'); }
   }
@@ -500,14 +472,14 @@
         toast('AWS sync failed: ' + (d.error || 'unknown error'), true);
       } else {
         const parts = [];
-      if (d.added > 0) parts.push(`${d.added} new user(s) added`);
-      if (d.updated > 0) parts.push(`${d.updated} name(s) refreshed`);
-      toast(parts.length ? parts.join(', ') + ' from AWS.' : 'All AWS users already up to date.');
+        if (d.added   > 0) parts.push(`${d.added} new user(s) added`);
+        if (d.updated > 0) parts.push(`${d.updated} name(s) refreshed`);
+        toast(parts.length ? parts.join(', ') + ' from AWS.' : 'All AWS users already up to date.');
         await loadData();
       }
     } catch { toast('Network error during sync', true); }
     finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sync AWS'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sync from AWS'; }
     }
   }
   window.syncAws = syncAws;
