@@ -176,6 +176,8 @@ const COGNITO_CLIENT_ID     = process.env.COGNITO_CLIENT_ID     || '';
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || '';
 // COGNITO_DOMAIN = just the hostname, e.g. myapp.auth.ap-south-1.amazoncognito.com
 const COGNITO_DOMAIN        = (process.env.COGNITO_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+// Users in this Cognito group are granted admin access (case-sensitive)
+const COGNITO_ADMIN_GROUP   = process.env.COGNITO_ADMIN_GROUP || 'Admins';
 
 if (!ADMIN_USER || !ADMIN_PASS) {
   log.error('ADMIN_USER and ADMIN_PASS must be set in your .env file before starting the server.');
@@ -3484,8 +3486,10 @@ async function handleRequest(req, res) {
       const idPayload = await verifyCognitoIdToken(tokens.id_token);
       const email     = (idPayload.email || '').toLowerCase();
       const cogGroups = idPayload['cognito:groups'] || [];
-      const isAdmin   = email === (ADMIN_USER || '').toLowerCase()
-                        || cogGroups.some(g => /^admins?$/i.test(g));
+      // Primary: Cognito group membership. Fallback: email matches ADMIN_USER.
+      const isAdmin   = cogGroups.includes(COGNITO_ADMIN_GROUP)
+                        || email === (ADMIN_USER || '').toLowerCase();
+      log.info('SSO login:', email, '| groups:', cogGroups, '| admin:', isAdmin);
       let sessionToken, cookieName;
       if (isAdmin) {
         sessionToken = issueToken(ADMIN_USER);
@@ -3500,7 +3504,7 @@ async function handleRequest(req, res) {
                    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ssoSub: idPayload.sub };
           users[newId] = user;
           saveUsers(users);
-          log.info('SSO auto-provisioned user:', email);
+          log.info('SSO auto-provisioned superintendent:', email);
         }
         sessionToken = issueUserSessionToken(user.id);
         cookieName   = 'sso_user_token';
