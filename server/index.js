@@ -3405,7 +3405,8 @@ async function handleAPI(req, res, parsed) {
     if (!name) return sendJSON(res, 400, { error: 'Group name is required.' }, corsH);
     const groups = loadGroups();
     const id = nextSequentialId(groups, 'GRP');
-    groups[id] = { id, name, vesselIMOs, notes, createdAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    groups[id] = { id, name, vesselIMOs, notes, createdAt: now, updatedAt: now };
     saveGroups(groups);
     return sendJSON(res, 201, groups[id], corsH);
   }
@@ -3434,6 +3435,15 @@ async function handleAPI(req, res, parsed) {
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
     delete groups[groupId];
     saveGroups(groups);
+    const users = loadUsers();
+    let usersChanged = false;
+    Object.values(users).forEach(u => {
+      if ((u.groupIds || []).includes(groupId)) {
+        u.groupIds = u.groupIds.filter(gid => gid !== groupId);
+        usersChanged = true;
+      }
+    });
+    if (usersChanged) saveUsers(users);
     return sendJSON(res, 200, { ok: true }, corsH);
   }
 

@@ -500,7 +500,7 @@
     const el = document.getElementById('memberSelectList');
     const supts = allUsers.filter(u => u.active || (selectedIds||[]).includes(u.id));
     if (!supts.length) {
-      el.innerHTML = '<div style="padding:12px;font-size:.75rem;color:var(--text-sec)">No superintendent accounts yet. Create users first.</div>';
+      el.innerHTML = '<div style="padding:12px;font-size:.75rem;color:var(--text-sec)">No users yet. Superintendents appear here after their first AWS SSO sign-in.</div>';
       return;
     }
     el.innerHTML = supts.map(u => {
@@ -622,7 +622,7 @@
     const el = document.getElementById('membersModalList');
     const supts = allUsers.filter(u => u.active || currentMemberIds.includes(u.id));
     if (!supts.length) {
-      el.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No superintendent accounts yet. Create users first.</div>';
+      el.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No users yet. Superintendents appear here after their first AWS SSO sign-in.</div>';
     } else {
       el.innerHTML = supts.map(u => {
         const checked = currentMemberIds.includes(u.id) ? 'checked' : '';

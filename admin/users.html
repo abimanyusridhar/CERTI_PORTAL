@@ -256,7 +256,7 @@
       </table>
       <div id="userEmpty" class="empty-state" style="display:none">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.5" style="margin-bottom:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-        <div>No users yet. Add the first superintendent to get started.</div>
+        <div>No users yet. Superintendents appear here after their first AWS SSO sign-in.</div>
       </div>
     </div>
   </main>
@@ -383,7 +383,7 @@
     if (!list.length) {
       tbody.innerHTML = '';
       const msgEl = empty.querySelector('div');
-      if (msgEl) msgEl.textContent = q ? 'No users match your search.' : 'No users yet. Add the first superintendent to get started.';
+      if (msgEl) msgEl.textContent = q ? 'No users match your search.' : 'No users yet. Superintendents appear here after their first AWS SSO sign-in.';
       empty.style.display = 'block';
       return;
     }
