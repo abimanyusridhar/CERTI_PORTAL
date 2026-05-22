@@ -3268,7 +3268,7 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, safe, corsH);
   }
 
-  // ── POST /api/admin/users ── (admin — create superintendent)
+  // ── POST /api/admin/users ── (admin — create superintendent, password optional — SSO is primary auth)
   if (route === '/admin/users' && method === 'POST') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     let body;
@@ -3278,13 +3278,13 @@ async function handleAPI(req, res, parsed) {
     const password = (body.password || '').trim();
     const role     = (body.role     || 'superintendent').trim();
     const groupIds = Array.isArray(body.groupIds) ? body.groupIds.filter(g => typeof g === 'string') : [];
-    if (!name || !email || !password) return sendJSON(res, 400, { error: 'name, email, password are required.' }, corsH);
+    if (!name || !email) return sendJSON(res, 400, { error: 'name and email are required.' }, corsH);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJSON(res, 400, { error: 'Invalid email.' }, corsH);
-    if (password.length < 8) return sendJSON(res, 400, { error: 'Password must be at least 8 characters.' }, corsH);
+    if (password && password.length < 8) return sendJSON(res, 400, { error: 'Password must be at least 8 characters.' }, corsH);
     const users = loadUsers();
     if (Object.values(users).some(u => u.email.toLowerCase() === email)) return sendJSON(res, 409, { error: 'Email already registered.' }, corsH);
     const id = nextSequentialId(users, 'USR');
-    const passwordHash = await hashUserPassword(password);
+    const passwordHash = password ? await hashUserPassword(password) : '';
     users[id] = { id, name, email, passwordHash, role, groupIds, active: true, createdAt: new Date().toISOString() };
     saveUsers(users);
     const { passwordHash: _ph, ...safeUser } = users[id];

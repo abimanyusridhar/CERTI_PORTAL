@@ -2,6 +2,14 @@
 
 (function () {
   var API = '/api';
+  // Read SSO cookie if present (hub page may be landing target after SSO redirect)
+  (function () {
+    var m = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
+    if (m) {
+      sessionStorage.setItem('adminToken', decodeURIComponent(m[1]));
+      document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Strict';
+    }
+  })();
   var TOKEN = sessionStorage.getItem('adminToken') || '';
 
   function applyConfig() {
@@ -101,24 +109,38 @@
     });
   }
 
+  function redirectToSso() {
+    var C = window.APP_CONFIG;
+    var next = window.location.pathname + window.location.search.replace(/[?&]sso_error=1/, '');
+    if (!next || next === '/') next = (C && C.routes && C.routes.cstAdmin) ? C.routes.cstAdmin + '/' : '/CST/misecure/';
+    window.location.replace('/auth/sso/login?next=' + encodeURIComponent(next));
+  }
+
+  var _ssoError = /[?&]sso_error=1/.test(window.location.search);
+
   function loadStats() {
     if (!TOKEN) {
-      var C = window.APP_CONFIG;
-      var redir = (C && C.routes && C.routes.cstAdmin) ? C.routes.cstAdmin + '/' : '/CST/misecure/';
-      window.location.replace(redir);
+      if (_ssoError) {
+        // Show error without redirect loop
+        setStatsFallback();
+        var hero = document.querySelector('.hub-hero-sub');
+        if (hero) { hero.textContent = 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#ff6b8a)'; }
+        return;
+      }
+      redirectToSso();
       return;
     }
     try {
       var parts = TOKEN.split('.');
-      if (parts.length !== 3) { setStatsFallback(); return; }
+      if (parts.length !== 3) { sessionStorage.removeItem('adminToken'); TOKEN = ''; redirectToSso(); return; }
       var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
       if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
         sessionStorage.removeItem('adminToken');
         TOKEN = '';
-        setStatsFallback();
+        redirectToSso();
         return;
       }
-    } catch (e) { setStatsFallback(); return; }
+    } catch (e) { sessionStorage.removeItem('adminToken'); TOKEN = ''; redirectToSso(); return; }
 
     var headers = { Authorization: 'Bearer ' + TOKEN };
 
@@ -148,21 +170,19 @@
       setText('reqApproved', reqs.filter(function(r) { return r.status === 'APPROVED'; }).length);
     });
 
-    var saToken = sessionStorage.getItem('superAdminToken') || '';
-    if (saToken) {
-      Promise.all([
-        fetch(API + '/admin/users',  { headers: { Authorization: 'SuperAdmin ' + saToken } }).then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; }),
-        fetch(API + '/admin/groups', { headers: { Authorization: 'SuperAdmin ' + saToken } }).then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
-      ]).then(function(res) {
-        var uArr = Object.values(res[0] || {});
-        var gArr = Object.values(res[1] || {});
-        var vessels = new Set();
-        gArr.forEach(function(g) { (g.vesselIMOs || []).forEach(function(i) { vessels.add(i); }); });
-        setText('saUserCount',   uArr.length);
-        setText('saGroupCount',  gArr.length);
-        setText('saVesselCount', vessels.size);
-      });
-    }
+    // User & group stats use the same Bearer admin token
+    Promise.all([
+      fetch(API + '/admin/users',  { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+      fetch(API + '/admin/groups', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+    ]).then(function(res) {
+      var uArr = Array.isArray(res[0]) ? res[0] : Object.values(res[0] || {});
+      var gArr = Array.isArray(res[1]) ? res[1] : Object.values(res[1] || {});
+      var vessels = new Set();
+      gArr.forEach(function(g) { (g.vesselIMOs || []).forEach(function(i) { vessels.add(i); }); });
+      setText('saUserCount',   uArr.length);
+      setText('saGroupCount',  gArr.length);
+      setText('saVesselCount', vessels.size);
+    });
   }
 
   checkHealth();

@@ -192,7 +192,7 @@
 
     <!-- SSO error message (shown when ?sso_error=1) -->
     <div id="ssoErrMsg" style="display:none;margin-bottom:12px;padding:9px 13px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.3);color:var(--invalid);border-radius:8px;font-size:.73rem;text-align:center">
-      SSO sign-in failed. Please sign in with your passcode below.
+      SSO sign-in failed. Please contact your administrator or try again.
     </div>
 
     <!-- Primary: AWS SSO -->
@@ -210,23 +210,6 @@
       Use your company AWS identity &mdash; no profile URL required
     </p>
 
-    <!-- Divider -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <div style="flex:1;height:1px;background:var(--border)"></div>
-      <span style="font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap">or sign in with passcode</span>
-      <div style="flex:1;height:1px;background:var(--border)"></div>
-    </div>
-
-    <div class="login-err" id="loginErr"></div>
-    <div class="fgroup">
-      <label class="flabel">Email Address</label>
-      <input type="email" id="loginEmail" class="fcontrol" placeholder="you@company.com" autocomplete="username" />
-    </div>
-    <div class="fgroup">
-      <label class="flabel">Passcode</label>
-      <input type="password" id="loginPwd" class="fcontrol" placeholder="••••••••" autocomplete="current-password" />
-    </div>
-    <button class="btn-login" id="btnLogin" onclick="doLogin()">Sign In with Passcode</button>
     <div class="login-badge">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Secured · Read-Only Access · 24-Hour Session
@@ -390,8 +373,6 @@ function applyPortalConfig() {
 }
 function showLogin() {
   document.getElementById('loginWrap').style.display = 'flex';
-  document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPwd').focus(); });
-  document.getElementById('loginPwd').addEventListener('keydown',  e => { if (e.key === 'Enter') doLogin(); });
   applyPortalConfig();
   document.addEventListener('appconfigready', applyPortalConfig);
 }
@@ -425,32 +406,6 @@ function enterApp(name) {
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('appWrap').style.display = 'flex';
   document.getElementById('sbUserName').textContent = name || 'Superintendent';
-}
-
-// ─── LOGIN ─────────────────────────────────────────────────────────────────────
-async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const pwd   = document.getElementById('loginPwd').value;
-  const errEl = document.getElementById('loginErr');
-  const btn   = document.getElementById('btnLogin');
-  errEl.classList.remove('show');
-  if (!email || !pwd) { errEl.textContent = 'Email and password are required.'; errEl.classList.add('show'); return; }
-  btn.disabled = true; btn.textContent = 'Signing in…';
-  try {
-    const r = await fetch('/api/auth/user/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pwd }),
-    });
-    const d = await r.json();
-    if (!r.ok) { errEl.textContent = d.error || 'Login failed. Check your credentials.'; errEl.classList.add('show'); return; }
-    saveSession(d.sessionToken, d.user && d.user.name ? d.user.name : email);
-    enterApp(d.user && d.user.name ? d.user.name : email);
-    loadDashboard();
-  } catch {
-    errEl.textContent = 'Network error. Please try again.'; errEl.classList.add('show');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Sign In';
-  }
 }
 
 function doLogout() {
