@@ -3292,7 +3292,7 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── PUT /api/admin/users/:id ── (admin — update user)
-  if (route.match(/^\/admin\/users\/USR-\d+$/) && method === 'PUT') {
+  if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'PUT') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
@@ -3318,7 +3318,7 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── DELETE /api/admin/users/:id ── (admin — remove user)
-  if (route.match(/^\/admin\/users\/USR-\d+$/) && method === 'DELETE') {
+  if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'DELETE') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
@@ -3506,13 +3506,13 @@ async function handleRequest(req, res) {
         const users = loadUsers();
         let user = Object.values(users).find(u => (u.email || '').toLowerCase() === email && u.active);
         if (!user) {
-          const newId = 'usr_' + crypto.randomBytes(8).toString('hex');
+          const newId = nextSequentialId(users, 'USR');
           user = { id: newId, name: idPayload.name || idPayload.email || email, email,
-                   role: 'user', active: true, groupIds: [], passwordHash: '',
+                   role: 'superintendent', active: true, groupIds: [], passwordHash: '',
                    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ssoSub: idPayload.sub };
           users[newId] = user;
           saveUsers(users);
-          log.info('SSO auto-provisioned superintendent:', email);
+          log.info('SSO auto-provisioned superintendent:', email, 'id:', newId);
         }
         sessionToken = issueUserSessionToken(user.id);
         cookieName   = 'sso_user_token';
@@ -3526,7 +3526,8 @@ async function handleRequest(req, res) {
       return res.end();
     } catch (err) {
       log.error('SSO callback error:', err.message);
-      res.writeHead(302, { Location: '/?sso_error=1' });
+      const errDest = next && next !== '/' ? next + (next.includes('?') ? '&' : '?') + 'sso_error=1' : '/?sso_error=1';
+      res.writeHead(302, { Location: errDest });
       return res.end();
     }
   }
