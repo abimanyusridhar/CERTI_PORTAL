@@ -753,6 +753,7 @@ function cognitoIDPCall(target, bodyObj) {
     const host    = `cognito-idp.${region}.amazonaws.com`;
     const service = 'cognito-idp';
     const bodyStr = JSON.stringify(bodyObj);
+    const bodyBuf = Buffer.from(bodyStr, 'utf8');
 
     const now       = new Date();
     const date      = now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -763,46 +764,47 @@ function cognitoIDPCall(target, bodyObj) {
     function hmacHex(key, data) { return crypto.createHmac('sha256', key).update(data).digest('hex'); }
     function sha256hex(data)    { return crypto.createHash('sha256').update(data).digest('hex'); }
 
-    const payloadHash      = sha256hex(bodyStr);
-    // Cognito IDP uses JSON protocol — sign only content-type;host;x-amz-date (NOT x-amz-target)
-    const signedHeaders    = 'content-type;host;x-amz-date';
-    const canonicalHeaders = `content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${time}\n`;
+    const payloadHash      = sha256hex(bodyBuf);
+    const signedHeaders    = 'content-type;host;x-amz-date;x-amz-target';
+    const canonicalHeaders = `content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${time}\nx-amz-target:${target}\n`;
     const canonicalRequest = ['POST', '/', '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
     const strToSign        = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
     const signingKey = hmac(hmac(hmac(hmac('AWS4' + SES_SECRET_KEY, date), region), service), 'aws4_request');
     const signature  = hmacHex(signingKey, strToSign);
     const authHeader = `AWS4-HMAC-SHA256 Credential=${SES_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
+    log.info(`[Cognito] ${target.split('.').pop()} → host=${host} date=${time} bodyLen=${bodyBuf.length}`);
+
     const req = https.request({
       hostname: host, port: 443, path: '/', method: 'POST',
       headers: {
-        'Content-Type':  'application/x-amz-json-1.1',
-        'Host':           host,
-        'X-Amz-Date':     time,
-        'X-Amz-Target':   target,
-        'Content-Length': Buffer.byteLength(bodyStr),
-        'Authorization':  authHeader,
+        'Content-Type':   'application/x-amz-json-1.1',
+        'Host':            host,
+        'X-Amz-Date':      time,
+        'X-Amz-Target':    target,
+        'Content-Length':  bodyBuf.length,
+        'Authorization':   authHeader,
       },
     }, (r) => {
       let buf = '';
       r.on('data', c => buf += c);
       r.on('end', () => {
+        log.info(`[Cognito] HTTP ${r.statusCode} ← ${buf}`);
         try {
           const json = JSON.parse(buf);
           if (r.statusCode >= 400) {
             const errType = (json.__type || '').replace(/^.*#/, '');
-            const msg = errType || json.message || JSON.stringify(json);
-            log.error(`Cognito IDP ${target} → ${r.statusCode} ${msg}:`, json.message || '');
-            reject(new Error(`${r.statusCode} ${msg}: ${json.message || ''}`));
+            const detail  = json.message || '';
+            reject(new Error(`${r.statusCode} ${errType}${detail ? ': ' + detail : ''}`));
           } else {
             resolve(json);
           }
-        } catch { reject(new Error(`HTTP ${r.statusCode}: non-JSON response`)); }
+        } catch { reject(new Error(`HTTP ${r.statusCode}: ${buf.slice(0, 400)}`)); }
       });
     });
     req.setTimeout(10_000, () => { req.destroy(); reject(new Error('Cognito API timeout')); });
     req.on('error', (e) => reject(e));
-    req.write(bodyStr);
+    req.write(bodyBuf);
     req.end();
   });
 }
