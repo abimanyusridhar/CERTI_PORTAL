@@ -3455,12 +3455,12 @@ async function handleRequest(req, res) {
 
   const parsed = new URL(req.url, 'http://localhost');
   const p      = parsed.pathname;
+  const method = req.method.toUpperCase();
 
   // ── SSO: GET /auth/sso/login ─────────────────────────────────────────────
   if (p === '/auth/sso/login' && method === 'GET') {
     if (!COGNITO_ENABLED) { res.writeHead(302, { Location: '/' }); return res.end(); }
-    const next  = (parsed.searchParams.get('next') || '/').replace(/[<>"'`]/g, '');
-    const state = Buffer.from(JSON.stringify({ next, ts: Date.now() })).toString('base64url');
+    const next       = (parsed.searchParams.get('next') || '/').replace(/[<>"'`]/g, '');
     const nonce      = crypto.randomBytes(16).toString('base64url');
     const stateParam = Buffer.from(JSON.stringify({ next, ts: Date.now(), nonce })).toString('base64url');
     const loginUrl = `https://${COGNITO_DOMAIN}/login?response_type=code`
