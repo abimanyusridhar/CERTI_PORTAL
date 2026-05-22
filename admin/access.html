@@ -149,28 +149,31 @@
 </div>
 
 <!-- LOGIN -->
-<div id="loginWrap">
+<div id="loginWrap" style="display:none">
   <div class="login-bg-grid"></div>
   <div class="login-card">
-    <div class="login-icon" style="gap:10px">
+    <div class="login-icon" style="gap:10px;justify-content:center">
       <img src="/images/SYN.png" alt="Synergy Marine Group" style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(181,134,10,.35);object-fit:contain" />
       <img src="/images/AFT.png" alt="AFT" style="width:38px;height:38px;border-radius:50%;border:1px solid rgba(0,0,0,.1);object-fit:contain" />
     </div>
     <div class="login-title">Access Control</div>
-    <div class="login-sub">ADMIN AUTHENTICATION REQUIRED</div>
-    <div class="login-err" id="loginErr">Invalid credentials. Please try again.</div>
-    <div class="fgroup">
-      <label class="flabel" for="lUser">Username</label>
-      <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()" />
+    <div class="login-sub">Admin authentication required</div>
+    <a id="ssoBtn" href="/auth/sso/login?next=/CST/misecure/access/"
+      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#B5860A,#8A6508);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(181,134,10,.25);transition:opacity .18s,box-shadow .18s"
+      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(181,134,10,.35)'"
+      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(181,134,10,.25)'">
+      <svg width="19" height="19" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(255,255,255,.25)"/>
+        <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M35 28l4 2-2 4" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <circle cx="24" cy="22" r="6" stroke="#fff" stroke-width="2.2" fill="none"/>
+      </svg>
+      Sign in with AWS SSO
+    </a>
+    <p style="font-size:.62rem;color:var(--text-sec);text-align:center;margin:10px 0 0;line-height:1.6">Secured via AWS Cognito — use your company identity</p>
+    <div id="ssoErrMsg" style="display:none;margin-top:10px;padding:9px 13px;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.22);border-radius:8px;font-size:.7rem;color:var(--invalid);text-align:center">
+      SSO sign-in failed. Please check your AWS account or try again.
     </div>
-    <div class="fgroup" style="margin-bottom:24px">
-      <label class="flabel" for="lPass">Password</label>
-      <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
-    </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-      <span id="lBtnTxt">Login</span>
-    </button>
   </div>
 </div>
 
@@ -294,6 +297,19 @@
 <div id="toast"></div>
 
 <script>
+(function () {
+  var m = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
+  if (m) {
+    sessionStorage.setItem('adminToken', decodeURIComponent(m[1]));
+    document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Strict';
+  }
+  if (/[?&]sso_error=1/.test(location.search)) {
+    var el = document.getElementById('ssoErrMsg');
+    if (el) el.style.display = 'block';
+  }
+})();
+</script>
+<script>
 (function() {
   'use strict';
   const API = '/api';
@@ -336,25 +352,6 @@
   setInterval(tickSession, 30000);
 
   // ── AUTH ────────────────────────────────────────────────────────
-  async function doLogin() {
-    const u = document.getElementById('lUser').value.trim();
-    const p = document.getElementById('lPass').value;
-    const err = document.getElementById('loginErr');
-    const btn = document.getElementById('lBtnTxt');
-    err.classList.remove('show');
-    btn.textContent = 'Verifying…';
-    try {
-      const r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
-      const d = await r.json();
-      if (!r.ok || !d.token) { err.classList.add('show'); btn.textContent = 'Login'; return; }
-      TOKEN = d.token;
-      sessionStorage.setItem('adminToken', TOKEN);
-      _sessionStart = Date.now();
-      showApp();
-    } catch { err.classList.add('show'); btn.textContent = 'Login'; }
-  }
-  window.doLogin = doLogin;
-
   function doLogout() {
     sessionStorage.removeItem('adminToken');
     TOKEN = '';
@@ -622,11 +619,28 @@
   }
 
   // ── BOOT ─────────────────────────────────────────────────────────
-  if (TOKEN) {
-    showApp();
-  } else {
-    document.getElementById('loginWrap').style.display = 'flex';
-  }
+  (function bootCheck() {
+    var ssoBtn = document.getElementById('ssoBtn');
+    var C = window.APP_CONFIG;
+    if (ssoBtn && C && C.routes && C.routes.cstAdmin) {
+      ssoBtn.href = '/auth/sso/login?next=' + encodeURIComponent(C.routes.cstAdmin + '/access/');
+    }
+    if (!TOKEN) { document.getElementById('loginWrap').style.display = 'flex'; return; }
+    try {
+      var parts = TOKEN.split('.');
+      if (parts.length !== 3) throw new Error();
+      var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+      if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) throw new Error();
+      showApp();
+    } catch { TOKEN = ''; sessionStorage.removeItem('adminToken'); document.getElementById('loginWrap').style.display = 'flex'; }
+  })();
+  document.addEventListener('appconfigready', function () {
+    var ssoBtn = document.getElementById('ssoBtn');
+    var C = window.APP_CONFIG;
+    if (ssoBtn && C && C.routes && C.routes.cstAdmin) {
+      ssoBtn.href = '/auth/sso/login?next=' + encodeURIComponent(C.routes.cstAdmin + '/access/');
+    }
+  });
 })();
 </script>
 </body>

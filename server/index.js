@@ -3268,9 +3268,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, safe, corsH);
   }
 
-  // ── POST /api/admin/users ── (super admin — create superintendent)
+  // ── POST /api/admin/users ── (admin — create superintendent)
   if (route === '/admin/users' && method === 'POST') {
-    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name     = (body.name     || '').trim().slice(0, 120);
@@ -3291,9 +3291,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 201, safeUser, corsH);
   }
 
-  // ── PUT /api/admin/users/:id ── (super admin — update user)
+  // ── PUT /api/admin/users/:id ── (admin — update user)
   if (route.match(/^\/admin\/users\/USR-\d+$/) && method === 'PUT') {
-    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3317,9 +3317,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, safeUser, corsH);
   }
 
-  // ── DELETE /api/admin/users/:id ── (super admin — remove user)
+  // ── DELETE /api/admin/users/:id ── (admin — remove user)
   if (route.match(/^\/admin\/users\/USR-\d+$/) && method === 'DELETE') {
-    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3426,9 +3426,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, groups[groupId], corsH);
   }
 
-  // ── DELETE /api/admin/groups/:id ── (super admin — remove group)
+  // ── DELETE /api/admin/groups/:id ── (admin — remove group)
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'DELETE') {
-    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Super admin access required.' }, corsH);
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);

@@ -143,28 +143,30 @@
 <div class="login-bg-grid"></div>
 
 <!-- LOGIN -->
-<div id="loginWrap">
+<div id="loginWrap" style="display:none">
   <div class="login-card">
     <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
       <img src="/images/SYN.png" alt="Synergy Marine Group" style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(181,134,10,.35);object-fit:contain" />
       <img src="/images/AFT.png" alt="AFT" style="width:40px;height:40px;border-radius:50%;border:1px solid rgba(0,0,0,.1);object-fit:contain" />
     </div>
-    <div style="text-align:center;margin-bottom:6px">
-      <span class="login-badge">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        Super Admin
-      </span>
-    </div>
     <div class="login-title">User Management</div>
-    <div class="login-sub">Super administrator access only</div>
-    <div class="login-err" id="loginErr">Invalid super admin credentials.</div>
-    <div class="fgroup">
-      <label class="flabel" for="lPass">Super Admin Password</label>
-      <input id="lPass" type="password" class="fcontrol" placeholder="Enter super admin password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <div class="login-sub">Admin authentication required</div>
+    <a id="ssoBtn" href="/auth/sso/login?next=/CST/misecure/users/"
+      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#B5860A,#8A6508);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(181,134,10,.25);transition:opacity .18s,box-shadow .18s"
+      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(181,134,10,.35)'"
+      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(181,134,10,.25)'">
+      <svg width="19" height="19" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(255,255,255,.25)"/>
+        <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M35 28l4 2-2 4" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <circle cx="24" cy="22" r="6" stroke="#fff" stroke-width="2.2" fill="none"/>
+      </svg>
+      Sign in with AWS SSO
+    </a>
+    <p style="font-size:.62rem;color:var(--text-sec);text-align:center;margin:10px 0 0;line-height:1.6">Secured via AWS Cognito — use your company identity</p>
+    <div id="ssoErrMsg" style="display:none;margin-top:10px;padding:9px 13px;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.22);border-radius:8px;font-size:.7rem;color:var(--invalid);text-align:center">
+      SSO sign-in failed. Please check your AWS account or try again.
     </div>
-    <button onclick="doLogin()" style="width:100%;padding:11px;border-radius:9px;background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.35);color:var(--gold);font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .18s;margin-top:4px">
-      <span id="lBtnTxt">Login</span>
-    </button>
   </div>
 </div>
 
@@ -178,7 +180,7 @@
       </div>
       <div class="sb-name" id="sbBrandName">Synergy Marine</div>
       <div class="sb-sub">Admin Portal</div>
-      <span class="sb-badge">Super Admin</span>
+      <span class="sb-badge">Admin</span>
     </div>
     <nav class="sb-nav">
       <div class="nav-sec">Super Admin</div>
@@ -308,33 +310,29 @@
 <div id="toast"></div>
 
 <script>
+(function () {
+  var m = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
+  if (m) {
+    sessionStorage.setItem('adminToken', decodeURIComponent(m[1]));
+    document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Strict';
+  }
+  if (/[?&]sso_error=1/.test(location.search)) {
+    var el = document.getElementById('ssoErrMsg');
+    if (el) el.style.display = 'block';
+  }
+})();
+</script>
+<script>
 (function() {
   'use strict';
   const API = '/api';
-  let TOKEN = sessionStorage.getItem('superAdminToken') || '';
+  let TOKEN = sessionStorage.getItem('adminToken') || '';
   let allUsers  = [];
   let allGroups = [];
   let editingId = null;
 
   // ── AUTH ────────────────────────────────────────────────────────────────────
-  async function doLogin() {
-    const p   = document.getElementById('lPass').value;
-    const err = document.getElementById('loginErr');
-    const btn = document.getElementById('lBtnTxt');
-    err.classList.remove('show');
-    btn.textContent = 'Verifying…';
-    try {
-      const r = await fetch(API + '/superadmin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p }) });
-      const d = await r.json();
-      if (!r.ok || !d.token) { err.classList.add('show'); err.textContent = d.error || 'Invalid credentials.'; btn.textContent = 'Login'; return; }
-      TOKEN = d.token;
-      sessionStorage.setItem('superAdminToken', TOKEN);
-      showApp();
-    } catch { err.classList.add('show'); err.textContent = 'Network error.'; btn.textContent = 'Login'; }
-  }
-  window.doLogin = doLogin;
-
-  function doLogout() { sessionStorage.removeItem('superAdminToken'); TOKEN = ''; document.getElementById('appWrap').style.display = 'none'; document.getElementById('loginWrap').style.display = 'flex'; }
+  function doLogout() { sessionStorage.removeItem('adminToken'); TOKEN = ''; document.getElementById('appWrap').style.display = 'none'; document.getElementById('loginWrap').style.display = 'flex'; }
   window.doLogout = doLogout;
 
   async function showApp() {
@@ -344,7 +342,7 @@
     await loadData();
   }
 
-  const authHdr = () => ({ Authorization: 'SuperAdmin ' + TOKEN });
+  const authHdr = () => ({ Authorization: 'Bearer ' + TOKEN });
   function checkUnauth(r) { if (r.status === 401) { doLogout(); return true; } return false; }
 
   // ── NAV ─────────────────────────────────────────────────────────────────────
@@ -514,14 +512,28 @@
   }
 
   // ── INIT ────────────────────────────────────────────────────────────────────
-  if (TOKEN) {
-    fetch(API + '/superadmin/verify', { headers: authHdr() }).then(r => {
-      if (r.ok) showApp();
-      else { TOKEN = ''; sessionStorage.removeItem('superAdminToken'); }
-    }).catch(() => {});
-  } else {
-    document.getElementById('loginWrap').style.display = 'flex';
-  }
+  (function bootCheck() {
+    var ssoBtn = document.getElementById('ssoBtn');
+    var C = window.APP_CONFIG;
+    if (ssoBtn && C && C.routes && C.routes.cstAdmin) {
+      ssoBtn.href = '/auth/sso/login?next=' + encodeURIComponent(C.routes.cstAdmin + '/users/');
+    }
+    if (!TOKEN) { document.getElementById('loginWrap').style.display = 'flex'; return; }
+    try {
+      var parts = TOKEN.split('.');
+      if (parts.length !== 3) throw new Error();
+      var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+      if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) throw new Error();
+      showApp();
+    } catch { TOKEN = ''; sessionStorage.removeItem('adminToken'); document.getElementById('loginWrap').style.display = 'flex'; }
+  })();
+  document.addEventListener('appconfigready', function () {
+    var ssoBtn = document.getElementById('ssoBtn');
+    var C = window.APP_CONFIG;
+    if (ssoBtn && C && C.routes && C.routes.cstAdmin) {
+      ssoBtn.href = '/auth/sso/login?next=' + encodeURIComponent(C.routes.cstAdmin + '/users/');
+    }
+  });
 })();
 </script>
 </body>
