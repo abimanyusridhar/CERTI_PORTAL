@@ -499,7 +499,10 @@
       if (!r.ok || d.error) {
         toast('AWS sync failed: ' + (d.error || 'unknown error'), true);
       } else {
-        toast(d.added > 0 ? `Synced ${d.added} new user(s) from AWS.` : 'All AWS users already in portal.');
+        const parts = [];
+      if (d.added > 0) parts.push(`${d.added} new user(s) added`);
+      if (d.updated > 0) parts.push(`${d.updated} name(s) refreshed`);
+      toast(parts.length ? parts.join(', ') + ' from AWS.' : 'All AWS users already up to date.');
         await loadData();
       }
     } catch { toast('Network error during sync', true); }

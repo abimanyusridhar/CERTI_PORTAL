@@ -835,6 +835,7 @@ async function syncCognitoUsers() {
   const users = loadUsers();
   const adminEmail = (ADMIN_USER || '').toLowerCase();
   let added = 0;
+  let updated = 0;
   let profilesFixed = 0;
 
   for (const cu of cognitoUsers) {
@@ -842,8 +843,9 @@ async function syncCognitoUsers() {
     const email = (attrs.email || '').toLowerCase().trim();
     if (!email || email === adminEmail) continue;
 
-    // Auto-provision into local users if not yet present
-    if (!Object.values(users).some(u => (u.email || '').toLowerCase() === email)) {
+    // Auto-provision into local users if not yet present; otherwise refresh name from Cognito
+    const existingUser = Object.values(users).find(u => (u.email || '').toLowerCase() === email);
+    if (!existingUser) {
       const newId = nextSequentialId(users, 'USR');
       const now   = new Date().toISOString();
       users[newId] = {
@@ -853,6 +855,14 @@ async function syncCognitoUsers() {
         createdAt: now, updatedAt: now,
       };
       added++;
+    } else {
+      // Keep portal groupIds/role/active; just refresh name if Cognito has one and portal doesn't
+      const cognitoName = attrs.name || '';
+      if (cognitoName && (!existingUser.name || existingUser.name === existingUser.email)) {
+        existingUser.name = cognitoName;
+        existingUser.updatedAt = new Date().toISOString();
+        updated++;
+      }
     }
 
     // Pre-set profile='-' to suppress the "Change Password" profile URL prompt
@@ -865,11 +875,11 @@ async function syncCognitoUsers() {
     }
   }
 
-  if (added > 0) {
+  if (added > 0 || updated > 0) {
     saveUsers(users);
-    log.info(`Cognito sync: provisioned ${added} new user(s)`);
+    log.info(`Cognito sync: provisioned ${added} new, refreshed ${updated} name(s)`);
   }
-  return { added, profilesFixed };
+  return { added, updated, profilesFixed };
 }
 
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
@@ -3426,7 +3436,8 @@ async function handleAPI(req, res, parsed) {
     if (Object.values(users).some(u => u.email.toLowerCase() === email)) return sendJSON(res, 409, { error: 'Email already registered.' }, corsH);
     const id = nextSequentialId(users, 'USR');
     const passwordHash = password ? await hashUserPassword(password) : '';
-    users[id] = { id, name, email, passwordHash, role, groupIds, active: true, createdAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    users[id] = { id, name, email, passwordHash, role, groupIds, active: body.active !== false, createdAt: now, updatedAt: now };
     saveUsers(users);
     const { passwordHash: _ph, ...safeUser } = users[id];
     return sendJSON(res, 201, safeUser, corsH);
@@ -3655,15 +3666,28 @@ async function handleRequest(req, res) {
         cookieName   = 'sso_admin_token';
       } else {
         const users = loadUsers();
-        let user = Object.values(users).find(u => (u.email || '').toLowerCase() === email && u.active);
+        const allMatching = Object.values(users).filter(u => (u.email || '').toLowerCase() === email);
+        let user = allMatching.find(u => u.active);
+        if (!user && allMatching.length > 0) {
+          // Account exists but is deactivated — deny login
+          throw new Error('Account deactivated: ' + email);
+        }
         if (!user) {
           const newId = nextSequentialId(users, 'USR');
+          const now = new Date().toISOString();
           user = { id: newId, name: idPayload.name || idPayload.email || email, email,
                    role: 'superintendent', active: true, groupIds: [], passwordHash: '',
-                   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ssoSub: idPayload.sub };
+                   createdAt: now, updatedAt: now, ssoSub: idPayload.sub };
           users[newId] = user;
           saveUsers(users);
           log.info('SSO auto-provisioned superintendent:', email, 'id:', newId);
+        } else {
+          // Refresh name and ssoSub from Cognito token on each login
+          let changed = false;
+          const cognitoName = idPayload.name || idPayload.email || '';
+          if (cognitoName && user.name !== cognitoName) { user.name = cognitoName; changed = true; }
+          if (idPayload.sub && user.ssoSub !== idPayload.sub) { user.ssoSub = idPayload.sub; changed = true; }
+          if (changed) { user.updatedAt = new Date().toISOString(); saveUsers(users); }
         }
         sessionToken = issueUserSessionToken(user.id);
         cookieName   = 'sso_user_token';
