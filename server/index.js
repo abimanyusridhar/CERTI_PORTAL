@@ -764,8 +764,9 @@ function cognitoIDPCall(target, bodyObj) {
     function sha256hex(data)    { return crypto.createHash('sha256').update(data).digest('hex'); }
 
     const payloadHash      = sha256hex(bodyStr);
-    const signedHeaders    = 'content-type;host;x-amz-date;x-amz-target';
-    const canonicalHeaders = `content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${time}\nx-amz-target:${target}\n`;
+    // Cognito IDP uses JSON protocol — sign only content-type;host;x-amz-date (NOT x-amz-target)
+    const signedHeaders    = 'content-type;host;x-amz-date';
+    const canonicalHeaders = `content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${time}\n`;
     const canonicalRequest = ['POST', '/', '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
     const strToSign        = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
     const signingKey = hmac(hmac(hmac(hmac('AWS4' + SES_SECRET_KEY, date), region), service), 'aws4_request');
@@ -789,8 +790,10 @@ function cognitoIDPCall(target, bodyObj) {
         try {
           const json = JSON.parse(buf);
           if (r.statusCode >= 400) {
-            const msg = json.__type || json.message || JSON.stringify(json);
-            reject(new Error(`${r.statusCode} ${msg}`));
+            const errType = (json.__type || '').replace(/^.*#/, '');
+            const msg = errType || json.message || JSON.stringify(json);
+            log.error(`Cognito IDP ${target} → ${r.statusCode} ${msg}:`, json.message || '');
+            reject(new Error(`${r.statusCode} ${msg}: ${json.message || ''}`));
           } else {
             resolve(json);
           }
