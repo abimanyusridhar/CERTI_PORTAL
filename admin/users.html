@@ -233,9 +233,17 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
         <input type="search" id="userSearch" class="filter-search" placeholder="Search name or email…" oninput="renderUsers()" />
       </div>
+      <button class="btn-sm" id="btnSyncAws" onclick="syncAws()" title="Pull latest users from AWS Cognito">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Sync AWS
+      </button>
       <button class="btn-sm" onclick="loadData()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Refresh
+      </button>
+      <button class="btn-primary" onclick="openCreateModal()" style="padding:7px 14px;font-size:.75rem">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+        Add User
       </button>
     </div>
 
@@ -275,8 +283,8 @@
       <input id="mName" type="text" class="mfcontrol" placeholder="e.g. John Smith" />
     </div>
     <div class="mfgroup">
-      <label class="mflabel" for="mEmail">Email Address <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(SSO identity — read-only)</span></label>
-      <input id="mEmail" type="email" class="mfcontrol" readonly style="opacity:.6;cursor:default;background:var(--navy)" />
+      <label class="mflabel" for="mEmail">Email Address <span id="mEmailHint" style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(SSO identity — read-only)</span></label>
+      <input id="mEmail" type="email" class="mfcontrol" placeholder="user@example.com" />
     </div>
     <div class="mfgroup">
       <label class="mflabel">Assign to Groups</label>
@@ -422,6 +430,21 @@
     }).join('');
   }
 
+  function openCreateModal() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'Add User';
+    document.getElementById('mName').value  = '';
+    document.getElementById('mEmail').value = '';
+    document.getElementById('mEmail').readOnly = false;
+    document.getElementById('mEmail').style.cssText = '';
+    document.getElementById('mEmailHint').textContent = '(must match their AWS Cognito email)';
+    document.getElementById('mActive').checked = true;
+    document.getElementById('modalErr').classList.remove('show');
+    buildGroupList([]);
+    document.getElementById('userModal').classList.add('open');
+  }
+  window.openCreateModal = openCreateModal;
+
   function openEditModal(id) {
     const u = allUsers.find(x => x.id === id);
     if (!u) return;
@@ -429,6 +452,9 @@
     document.getElementById('modalTitle').textContent = 'Edit User';
     document.getElementById('mName').value  = u.name;
     document.getElementById('mEmail').value = u.email;
+    document.getElementById('mEmail').readOnly = true;
+    document.getElementById('mEmail').style.cssText = 'opacity:.6;cursor:default;background:var(--navy)';
+    document.getElementById('mEmailHint').textContent = '(SSO identity — read-only)';
     document.getElementById('mActive').checked = !!u.active;
     document.getElementById('modalErr').classList.remove('show');
     buildGroupList(u.groupIds || []);
@@ -440,25 +466,48 @@
   window.closeModal = closeModal;
 
   async function saveUser() {
-    if (!editingId) return;
     const name     = document.getElementById('mName').value.trim();
-    const email    = document.getElementById('mEmail').value.trim();
+    const email    = document.getElementById('mEmail').value.trim().toLowerCase();
     const active   = document.getElementById('mActive').checked;
     const groupIds = Array.from(document.querySelectorAll('#groupSelectList input[type=checkbox]:checked')).map(c => c.value);
     const err = document.getElementById('modalErr');
     err.classList.remove('show');
     if (!name) { err.textContent = 'Name is required.'; err.classList.add('show'); return; }
-    const body = { name, email, active, groupIds };
+    if (!email) { err.textContent = 'Email is required.'; err.classList.add('show'); return; }
     try {
-      const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const d = await r.json();
+      let r, d;
+      if (editingId) {
+        r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, active, groupIds }) });
+      } else {
+        r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, active, groupIds }) });
+      }
+      d = await r.json();
       if (!r.ok) { err.textContent = d.error || 'Save failed.'; err.classList.add('show'); return; }
       closeModal();
-      toast('User updated.');
+      toast(editingId ? 'User updated.' : 'User added.');
       await loadData();
     } catch { err.textContent = 'Network error.'; err.classList.add('show'); }
   }
   window.saveUser = saveUser;
+
+  async function syncAws() {
+    const btn = document.getElementById('btnSyncAws');
+    if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+    try {
+      const r = await fetch(API + '/admin/cognito-sync', { method: 'POST', headers: authHdr() });
+      const d = await r.json();
+      if (!r.ok || d.error) {
+        toast('AWS sync failed: ' + (d.error || 'unknown error'), true);
+      } else {
+        toast(d.added > 0 ? `Synced ${d.added} new user(s) from AWS.` : 'All AWS users already in portal.');
+        await loadData();
+      }
+    } catch { toast('Network error during sync', true); }
+    finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sync AWS'; }
+    }
+  }
+  window.syncAws = syncAws;
 
   async function deleteUser(id, name) {
     if (!confirm('Delete user "' + name + '"? This cannot be undone.')) return;

@@ -740,20 +740,18 @@ function exchangeCognitoCode(code) {
   });
 }
 
-// ─── COGNITO USER SYNC ────────────────────────────────────────────────────────
-// Fetches one page of users from Cognito IDP using AWS Sig V4 (same pattern as SES).
-function cognitoListUsersPage(paginationToken) {
-  return new Promise((resolve) => {
+// ─── COGNITO IDP API (AWS Sig V4) ─────────────────────────────────────────────
+// Generic helper — makes a single Cognito IDP API call and resolves with the parsed JSON body.
+// Rejects with an Error whose message includes the AWS error code on failure.
+function cognitoIDPCall(target, bodyObj) {
+  return new Promise((resolve, reject) => {
     if (!COGNITO_ENABLED || !SES_ACCESS_KEY || !SES_SECRET_KEY) {
-      resolve({ Users: [], PaginationToken: null });
+      reject(new Error('Cognito IDP not configured (missing keys or pool config)'));
       return;
     }
     const region  = COGNITO_REGION;
     const host    = `cognito-idp.${region}.amazonaws.com`;
     const service = 'cognito-idp';
-    const target  = 'AmazonCognitoIdentityProvider.ListUsers';
-    const bodyObj = { UserPoolId: COGNITO_USER_POOL_ID, Limit: 60 };
-    if (paginationToken) bodyObj.PaginationToken = paginationToken;
     const bodyStr = JSON.stringify(bodyObj);
 
     const now       = new Date();
@@ -777,12 +775,12 @@ function cognitoListUsersPage(paginationToken) {
     const req = https.request({
       hostname: host, port: 443, path: '/', method: 'POST',
       headers: {
-        'Content-Type':   'application/x-amz-json-1.1',
-        'Host':            host,
-        'X-Amz-Date':      time,
-        'X-Amz-Target':    target,
-        'Content-Length':  Buffer.byteLength(bodyStr),
-        'Authorization':   authHeader,
+        'Content-Type':  'application/x-amz-json-1.1',
+        'Host':           host,
+        'X-Amz-Date':     time,
+        'X-Amz-Target':   target,
+        'Content-Length': Buffer.byteLength(bodyStr),
+        'Authorization':  authHeader,
       },
     }, (r) => {
       let buf = '';
@@ -790,50 +788,85 @@ function cognitoListUsersPage(paginationToken) {
       r.on('end', () => {
         try {
           const json = JSON.parse(buf);
-          resolve({ Users: json.Users || [], PaginationToken: json.PaginationToken || null });
-        } catch { resolve({ Users: [], PaginationToken: null }); }
+          if (r.statusCode >= 400) {
+            const msg = json.__type || json.message || JSON.stringify(json);
+            reject(new Error(`${r.statusCode} ${msg}`));
+          } else {
+            resolve(json);
+          }
+        } catch { reject(new Error(`HTTP ${r.statusCode}: non-JSON response`)); }
       });
     });
-    req.setTimeout(10_000, () => { req.destroy(); resolve({ Users: [], PaginationToken: null }); });
-    req.on('error', () => resolve({ Users: [], PaginationToken: null }));
+    req.setTimeout(10_000, () => { req.destroy(); reject(new Error('Cognito API timeout')); });
+    req.on('error', (e) => reject(e));
     req.write(bodyStr);
     req.end();
   });
 }
 
+// ─── COGNITO USER SYNC ────────────────────────────────────────────────────────
+// Syncs all Cognito pool users into data/users.json.
+// Also pre-sets the 'profile' attribute to '-' for each user so the Cognito
+// hosted-UI "Change Password" screen never prompts for a profile URL.
+// Returns { added, profilesFixed, error? }
 async function syncCognitoUsers() {
-  if (!COGNITO_ENABLED) return 0;
+  if (!COGNITO_ENABLED) return { added: 0, profilesFixed: 0, error: 'Cognito not configured' };
+  if (!SES_ACCESS_KEY || !SES_SECRET_KEY) return { added: 0, profilesFixed: 0, error: 'AWS credentials not set' };
+
+  // Collect all pages
   const cognitoUsers = [];
   let token = null;
-  do {
-    const page = await cognitoListUsersPage(token);
-    cognitoUsers.push(...page.Users);
-    token = page.PaginationToken;
-  } while (token);
+  try {
+    do {
+      const bodyObj = { UserPoolId: COGNITO_USER_POOL_ID, Limit: 60 };
+      if (token) bodyObj.PaginationToken = token;
+      const page = await cognitoIDPCall('AmazonCognitoIdentityProvider.ListUsers', bodyObj);
+      cognitoUsers.push(...(page.Users || []));
+      token = page.PaginationToken || null;
+    } while (token);
+  } catch (err) {
+    log.error('Cognito ListUsers failed:', err.message);
+    return { added: 0, profilesFixed: 0, error: err.message };
+  }
 
   const users = loadUsers();
-  const adminEmail = ADMIN_USER.toLowerCase();
+  const adminEmail = (ADMIN_USER || '').toLowerCase();
   let added = 0;
+  let profilesFixed = 0;
+
   for (const cu of cognitoUsers) {
     const attrs = Object.fromEntries((cu.Attributes || []).map(a => [a.Name, a.Value]));
     const email = (attrs.email || '').toLowerCase().trim();
     if (!email || email === adminEmail) continue;
-    if (Object.values(users).some(u => (u.email || '').toLowerCase() === email)) continue;
-    const newId = nextSequentialId(users, 'USR');
-    const now   = new Date().toISOString();
-    users[newId] = {
-      id: newId, name: attrs.name || cu.Username || email, email,
-      role: 'superintendent', active: cu.Enabled !== false,
-      groupIds: [], passwordHash: '',
-      createdAt: now, updatedAt: now,
-    };
-    added++;
+
+    // Auto-provision into local users if not yet present
+    if (!Object.values(users).some(u => (u.email || '').toLowerCase() === email)) {
+      const newId = nextSequentialId(users, 'USR');
+      const now   = new Date().toISOString();
+      users[newId] = {
+        id: newId, name: attrs.name || cu.Username || email, email,
+        role: 'superintendent', active: cu.Enabled !== false,
+        groupIds: [], passwordHash: '',
+        createdAt: now, updatedAt: now,
+      };
+      added++;
+    }
+
+    // Pre-set profile='-' to suppress the "Change Password" profile URL prompt
+    if (!attrs.profile) {
+      cognitoIDPCall('AmazonCognitoIdentityProvider.AdminUpdateUserAttributes', {
+        UserPoolId: COGNITO_USER_POOL_ID,
+        Username: cu.Username,
+        UserAttributes: [{ Name: 'profile', Value: '-' }],
+      }).then(() => { profilesFixed++; }).catch(() => {});
+    }
   }
+
   if (added > 0) {
     saveUsers(users);
     log.info(`Cognito sync: provisioned ${added} new user(s)`);
   }
-  return added;
+  return { added, profilesFixed };
 }
 
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
@@ -3359,10 +3392,18 @@ async function handleAPI(req, res, parsed) {
   // ── GET /api/admin/users ── (admin read-only, super admin full)
   if (route === '/admin/users' && method === 'GET') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    await syncCognitoUsers().catch(() => {});
+    const syncResult = await syncCognitoUsers().catch(e => ({ added: 0, profilesFixed: 0, error: e.message }));
+    if (syncResult.error) log.warn('Cognito sync error on users load:', syncResult.error);
     const users = loadUsers();
     const safe = Object.values(users).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, groupIds: u.groupIds, active: u.active, createdAt: u.createdAt }));
     return sendJSON(res, 200, safe, corsH);
+  }
+
+  // ── POST /api/admin/cognito-sync ── (admin — explicit Cognito sync with status report)
+  if (route === '/admin/cognito-sync' && method === 'POST') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const result = await syncCognitoUsers().catch(e => ({ added: 0, profilesFixed: 0, error: e.message }));
+    return sendJSON(res, result.error ? 500 : 200, result, corsH);
   }
 
   // ── POST /api/admin/users ── (admin — create superintendent, password optional — SSO is primary auth)
