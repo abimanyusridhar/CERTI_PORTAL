@@ -199,6 +199,23 @@ if (!_cfgCheck.ok) {
   process.exit(1);
 }
 
+// ─── COGNITO STARTUP DIAGNOSTICS ─────────────────────────────────────────────
+(function logCognitoConfig() {
+  if (!COGNITO_ENABLED) {
+    log.warn('[Cognito] SSO disabled — COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID or COGNITO_DOMAIN missing in .env');
+    return;
+  }
+  log.info(`[Cognito] SSO enabled — pool=${COGNITO_USER_POOL_ID} region=${COGNITO_REGION} domain=${COGNITO_DOMAIN}`);
+  if (!COGNITO_CLIENT_SECRET) log.warn('[Cognito] COGNITO_CLIENT_SECRET not set — token exchange will fail if app client has a secret');
+  if (COGNITO_IAM_ACCESS_KEY) {
+    const src = process.env.COGNITO_ACCESS_KEY_ID ? 'COGNITO_ACCESS_KEY_ID' : 'AWS_ACCESS_KEY_ID (fallback)';
+    const hint = COGNITO_IAM_ACCESS_KEY.slice(0, 4) + '...' + COGNITO_IAM_ACCESS_KEY.slice(-4);
+    log.info(`[Cognito] Admin API credentials: ${src} (${hint})`);
+  } else {
+    log.warn('[Cognito] Admin API credentials NOT set — Sync from AWS will fail. Add COGNITO_ACCESS_KEY_ID + COGNITO_SECRET_ACCESS_KEY to .env');
+  }
+})();
+
 // ─── PASSWORD HASHING ────────────────────────────────────────────────────────
 function hashPassword(password) {
   return security.hashPassword(password);
@@ -2484,6 +2501,41 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, {
       total, valid, expired, pending, revoked,
       lastIssued: lastIssuedDate ? lastIssuedDate.slice(0, 10) : null,
+    }, corsH);
+  }
+
+  // ── GET /api/cognito-status ── (admin — Cognito configuration check)
+  if (route === '/cognito-status' && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const hasPoolId    = !!COGNITO_USER_POOL_ID;
+    const hasClientId  = !!COGNITO_CLIENT_ID;
+    const hasSecret    = !!COGNITO_CLIENT_SECRET;
+    const hasDomain    = !!COGNITO_DOMAIN;
+    const hasIamKey    = !!COGNITO_IAM_ACCESS_KEY;
+    const hasIamSecret = !!COGNITO_IAM_SECRET_KEY;
+    const iamSource    = process.env.COGNITO_ACCESS_KEY_ID ? 'COGNITO_ACCESS_KEY_ID'
+                       : process.env.AWS_ACCESS_KEY_ID     ? 'AWS_ACCESS_KEY_ID (fallback)'
+                       : 'not set';
+    const keyHint = COGNITO_IAM_ACCESS_KEY ? COGNITO_IAM_ACCESS_KEY.slice(0, 4) + '...' + COGNITO_IAM_ACCESS_KEY.slice(-4) : null;
+    const missing = [
+      !hasPoolId    && 'COGNITO_USER_POOL_ID',
+      !hasClientId  && 'COGNITO_CLIENT_ID',
+      !hasSecret    && 'COGNITO_CLIENT_SECRET',
+      !hasDomain    && 'COGNITO_DOMAIN',
+      !hasIamKey    && 'COGNITO_ACCESS_KEY_ID (or AWS_ACCESS_KEY_ID)',
+      !hasIamSecret && 'COGNITO_SECRET_ACCESS_KEY (or AWS_SECRET_ACCESS_KEY)',
+    ].filter(Boolean);
+    return sendJSON(res, 200, {
+      ssoEnabled:   COGNITO_ENABLED,
+      syncEnabled:  hasIamKey && hasIamSecret,
+      region:       COGNITO_REGION,
+      userPoolId:   COGNITO_USER_POOL_ID || null,
+      domain:       COGNITO_DOMAIN       || null,
+      clientId:     COGNITO_CLIENT_ID ? COGNITO_CLIENT_ID.slice(0, 6) + '...' : null,
+      hasClientSecret: hasSecret,
+      iamKeySource: iamSource,
+      iamKeyHint:   keyHint,
+      missing,
     }, corsH);
   }
 

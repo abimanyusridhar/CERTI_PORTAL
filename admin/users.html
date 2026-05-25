@@ -237,6 +237,10 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Sync from AWS
       </button>
+      <button class="btn-sm" onclick="checkCognitoConfig()" title="Check what is and isn't configured for AWS Cognito">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>
+        Config Check
+      </button>
       <button class="btn-sm" onclick="loadData()">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Refresh
@@ -483,6 +487,31 @@
     }
   }
   window.syncAws = syncAws;
+
+  async function checkCognitoConfig() {
+    try {
+      const r = await fetch(API + '/cognito-status', { headers: authHdr() });
+      const d = await r.json();
+      if (!r.ok) { toast('Config check failed', true); return; }
+      const lines = [
+        'SSO Login: '    + (d.ssoEnabled  ? '✓ Enabled' : '✗ Disabled'),
+        'Sync from AWS: '+ (d.syncEnabled ? '✓ Ready'   : '✗ IAM credentials missing'),
+        'Region: '       + (d.region      || '—'),
+        'Pool ID: '      + (d.userPoolId  || '—'),
+        'Domain: '       + (d.domain      || '—'),
+        'Client ID: '    + (d.clientId    || '—'),
+        'Client Secret: '+ (d.hasClientSecret ? '✓ Set' : '✗ MISSING'),
+        'IAM Key source: '+ (d.iamKeySource || '—'),
+        'IAM Key hint: ' + (d.iamKeyHint  || '—'),
+      ];
+      if (d.missing && d.missing.length) {
+        lines.push('');
+        lines.push('MISSING: ' + d.missing.join(', '));
+      }
+      alert('Cognito Configuration\n\n' + lines.join('\n'));
+    } catch { toast('Network error', true); }
+  }
+  window.checkCognitoConfig = checkCognitoConfig;
 
   async function deleteUser(id, name) {
     if (!confirm('Delete user "' + name + '"? This cannot be undone.')) return;
