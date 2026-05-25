@@ -178,6 +178,10 @@ const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || '';
 const COGNITO_DOMAIN        = (process.env.COGNITO_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 // Users in this Cognito group are granted admin access (case-sensitive)
 const COGNITO_ADMIN_GROUP   = process.env.COGNITO_ADMIN_GROUP || 'Admins';
+// Dedicated IAM credentials for Cognito Admin API (may differ from SES credentials).
+// Falls back to AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY if not set separately.
+const COGNITO_IAM_ACCESS_KEY = process.env.COGNITO_ACCESS_KEY_ID     || process.env.AWS_ACCESS_KEY_ID     || process.env.AWS_SES_ACCESS_KEY || '';
+const COGNITO_IAM_SECRET_KEY = process.env.COGNITO_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || process.env.AWS_SES_SECRET_KEY || '';
 
 if (!ADMIN_USER || !ADMIN_PASS) {
   log.error('ADMIN_USER and ADMIN_PASS must be set in your .env file before starting the server.');
@@ -745,8 +749,8 @@ function exchangeCognitoCode(code) {
 // Rejects with an Error whose message includes the AWS error code on failure.
 function cognitoIDPCall(target, bodyObj) {
   return new Promise((resolve, reject) => {
-    if (!COGNITO_ENABLED || !SES_ACCESS_KEY || !SES_SECRET_KEY) {
-      reject(new Error('Cognito IDP not configured (missing keys or pool config)'));
+    if (!COGNITO_ENABLED || !COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) {
+      reject(new Error('Cognito IDP not configured — set COGNITO_ACCESS_KEY_ID and COGNITO_SECRET_ACCESS_KEY in .env'));
       return;
     }
     const region  = COGNITO_REGION;
@@ -769,9 +773,9 @@ function cognitoIDPCall(target, bodyObj) {
     const canonicalHeaders = `content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${time}\nx-amz-target:${target}\n`;
     const canonicalRequest = ['POST', '/', '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
     const strToSign        = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
-    const signingKey = hmac(hmac(hmac(hmac('AWS4' + SES_SECRET_KEY, date), region), service), 'aws4_request');
+    const signingKey = hmac(hmac(hmac(hmac('AWS4' + COGNITO_IAM_SECRET_KEY, date), region), service), 'aws4_request');
     const signature  = hmacHex(signingKey, strToSign);
-    const authHeader = `AWS4-HMAC-SHA256 Credential=${SES_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    const authHeader = `AWS4-HMAC-SHA256 Credential=${COGNITO_IAM_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
     log.info(`[Cognito] ${target.split('.').pop()} → host=${host} date=${time} bodyLen=${bodyBuf.length}`);
 
@@ -816,7 +820,7 @@ function cognitoIDPCall(target, bodyObj) {
 // Returns { added, profilesFixed, error? }
 async function syncCognitoUsers() {
   if (!COGNITO_ENABLED) return { added: 0, profilesFixed: 0, error: 'Cognito not configured' };
-  if (!SES_ACCESS_KEY || !SES_SECRET_KEY) return { added: 0, profilesFixed: 0, error: 'AWS credentials not set' };
+  if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) return { added: 0, profilesFixed: 0, error: 'Cognito IAM credentials not set — add COGNITO_ACCESS_KEY_ID and COGNITO_SECRET_ACCESS_KEY to .env' };
 
   // Collect all pages
   const cognitoUsers = [];
