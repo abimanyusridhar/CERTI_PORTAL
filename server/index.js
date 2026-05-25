@@ -831,7 +831,15 @@ async function syncCognitoUsers() {
     } while (token);
   } catch (err) {
     log.error('Cognito ListUsers failed:', err.message);
-    return { added: 0, profilesFixed: 0, error: err.message };
+    let friendlyError = err.message;
+    if (/AccessDeniedException|not authorized/i.test(err.message)) {
+      friendlyError = 'IAM permission denied — add cognito-idp:ListUsers to your AWS IAM user policy';
+    } else if (/UnknownOperationException/i.test(err.message)) {
+      friendlyError = 'IAM permission missing — go to AWS Console → IAM → your user → add inline policy with cognito-idp:ListUsers on this user pool';
+    } else if (/timeout/i.test(err.message)) {
+      friendlyError = 'Cognito API timeout — check network connectivity to AWS';
+    }
+    return { added: 0, profilesFixed: 0, error: friendlyError };
   }
 
   const users = loadUsers();
@@ -3407,8 +3415,8 @@ async function handleAPI(req, res, parsed) {
   // ── GET /api/admin/users ── (admin read-only, super admin full)
   if (route === '/admin/users' && method === 'GET') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    const syncResult = await syncCognitoUsers().catch(e => ({ added: 0, profilesFixed: 0, error: e.message }));
-    if (syncResult.error) log.warn('Cognito sync error on users load:', syncResult.error);
+    // Trigger background sync without blocking the response — page loads instantly
+    syncCognitoUsers().catch(e => log.warn('Cognito background sync:', e.message));
     const users = loadUsers();
     const safe = Object.values(users).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, groupIds: u.groupIds, active: u.active, createdAt: u.createdAt }));
     return sendJSON(res, 200, safe, corsH);
