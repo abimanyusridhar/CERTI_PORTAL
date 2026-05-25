@@ -830,8 +830,23 @@ function cognitoIDPCall(target, bodyObj) {
   });
 }
 
+// ─── COGNITO: CREATE USER IN POOL ─────────────────────────────────────────────
+// Called when admin creates a user in the portal — mirrors them into Cognito so
+// they can log in via SSO. Cognito sends them a welcome email with a temp password.
+function cognitoAdminCreateUser(email, name) {
+  return cognitoIDPCall('AmazonCognitoIdentityProvider.AdminCreateUser', {
+    UserPoolId: COGNITO_USER_POOL_ID,
+    Username:   email,
+    UserAttributes: [
+      { Name: 'email',          Value: email },
+      { Name: 'email_verified', Value: 'true' },
+      { Name: 'name',           Value: name },
+    ],
+  });
+}
+
 // ─── COGNITO USER SYNC ────────────────────────────────────────────────────────
-// Syncs all Cognito pool users into data/users.json.
+// Fallback: pulls existing Cognito users into data/users.json (e.g. pre-existing pool).
 // Returns { added, updated, error? }
 async function syncCognitoUsers() {
   if (!COGNITO_ENABLED) return { added: 0, updated: 0, error: 'Cognito not configured' };
@@ -3457,8 +3472,6 @@ async function handleAPI(req, res, parsed) {
   // ── GET /api/admin/users ── (admin read-only, super admin full)
   if (route === '/admin/users' && method === 'GET') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    // Trigger background sync without blocking the response — page loads instantly
-    syncCognitoUsers().catch(e => log.warn('Cognito background sync:', e.message));
     const users = loadUsers();
     const safe = Object.values(users).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, groupIds: u.groupIds, active: u.active, createdAt: u.createdAt }));
     return sendJSON(res, 200, safe, corsH);
@@ -3491,8 +3504,27 @@ async function handleAPI(req, res, parsed) {
     const now = new Date().toISOString();
     users[id] = { id, name, email, passwordHash, role, groupIds, active: body.active !== false, createdAt: now, updatedAt: now };
     saveUsers(users);
+
+    // Mirror user into Cognito so they can SSO-login; Cognito sends welcome email with temp password
+    let cognitoCreated = false;
+    let cognitoError   = null;
+    if (COGNITO_ENABLED && COGNITO_IAM_ACCESS_KEY && COGNITO_IAM_SECRET_KEY) {
+      try {
+        await cognitoAdminCreateUser(email, name);
+        cognitoCreated = true;
+        log.info(`Cognito: created user ${email}`);
+      } catch (cogErr) {
+        if (/UsernameExistsException/i.test(cogErr.message)) {
+          cognitoCreated = true; // already in Cognito — fine
+        } else {
+          cognitoError = cogErr.message;
+          log.warn(`Cognito AdminCreateUser failed for ${email}:`, cogErr.message);
+        }
+      }
+    }
+
     const { passwordHash: _ph, ...safeUser } = users[id];
-    return sendJSON(res, 201, safeUser, corsH);
+    return sendJSON(res, 201, { ...safeUser, cognitoCreated, cognitoError }, corsH);
   }
 
   // ── PUT /api/admin/users/:id ── (admin — update user)
