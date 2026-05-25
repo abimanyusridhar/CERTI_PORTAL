@@ -835,83 +835,15 @@ function cognitoIDPCall(target, bodyObj) {
 // they can log in via SSO. Cognito sends them a welcome email with a temp password.
 function cognitoAdminCreateUser(email, name) {
   return cognitoIDPCall('AmazonCognitoIdentityProvider.AdminCreateUser', {
-    UserPoolId: COGNITO_USER_POOL_ID,
-    Username:   email,
+    UserPoolId:              COGNITO_USER_POOL_ID,
+    Username:                email,
+    DesiredDeliveryMediums:  ['EMAIL'],
     UserAttributes: [
       { Name: 'email',          Value: email },
       { Name: 'email_verified', Value: 'true' },
       { Name: 'name',           Value: name },
     ],
   });
-}
-
-// ─── COGNITO USER SYNC ────────────────────────────────────────────────────────
-// Fallback: pulls existing Cognito users into data/users.json (e.g. pre-existing pool).
-// Returns { added, updated, error? }
-async function syncCognitoUsers() {
-  if (!COGNITO_ENABLED) return { added: 0, updated: 0, error: 'Cognito not configured' };
-  if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) return { added: 0, updated: 0, error: 'Cognito IAM credentials not set — add COGNITO_ACCESS_KEY_ID and COGNITO_SECRET_ACCESS_KEY to .env' };
-
-  // Collect all pages
-  const cognitoUsers = [];
-  let token = null;
-  try {
-    do {
-      const bodyObj = { UserPoolId: COGNITO_USER_POOL_ID, Limit: 60 };
-      if (token) bodyObj.PaginationToken = token;
-      const page = await cognitoIDPCall('AmazonCognitoIdentityProvider.ListUsers', bodyObj);
-      cognitoUsers.push(...(page.Users || []));
-      token = page.PaginationToken || null;
-    } while (token);
-  } catch (err) {
-    log.error('Cognito ListUsers failed:', err.message);
-    let friendlyError = err.message;
-    if (/AccessDeniedException|not authorized/i.test(err.message)) {
-      friendlyError = 'IAM permission denied — add cognito-idp:ListUsers to your AWS IAM user policy';
-    } else if (/UnknownOperationException/i.test(err.message)) {
-      friendlyError = 'IAM permission missing — go to AWS Console → IAM → your user → add inline policy with cognito-idp:ListUsers on this user pool';
-    } else if (/timeout/i.test(err.message)) {
-      friendlyError = 'Cognito API timeout — check network connectivity to AWS';
-    }
-    return { added: 0, updated: 0, error: friendlyError };
-  }
-
-  const users = loadUsers();
-  const adminEmail = (ADMIN_USER || '').toLowerCase();
-  let added = 0;
-  let updated = 0;
-
-  for (const cu of cognitoUsers) {
-    const attrs = Object.fromEntries((cu.Attributes || []).map(a => [a.Name, a.Value]));
-    const email = (attrs.email || '').toLowerCase().trim();
-    if (!email || email === adminEmail) continue;
-
-    const existingUser = Object.values(users).find(u => (u.email || '').toLowerCase() === email);
-    if (!existingUser) {
-      const newId = nextSequentialId(users, 'USR');
-      const now   = new Date().toISOString();
-      users[newId] = {
-        id: newId, name: attrs.name || cu.Username || email, email,
-        role: 'superintendent', active: cu.Enabled !== false,
-        groupIds: [], passwordHash: '',
-        createdAt: now, updatedAt: now,
-      };
-      added++;
-    } else {
-      const cognitoName = attrs.name || '';
-      if (cognitoName && (!existingUser.name || existingUser.name === existingUser.email)) {
-        existingUser.name = cognitoName;
-        existingUser.updatedAt = new Date().toISOString();
-        updated++;
-      }
-    }
-  }
-
-  if (added > 0 || updated > 0) {
-    saveUsers(users);
-    log.info(`Cognito sync: provisioned ${added} new, refreshed ${updated} name(s)`);
-  }
-  return { added, updated };
 }
 
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
@@ -3477,12 +3409,6 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, safe, corsH);
   }
 
-  // ── POST /api/admin/cognito-sync ── (admin — explicit Cognito sync with status report)
-  if (route === '/admin/cognito-sync' && method === 'POST') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    const result = await syncCognitoUsers().catch(e => ({ added: 0, profilesFixed: 0, error: e.message }));
-    return sendJSON(res, result.error ? 500 : 200, result, corsH);
-  }
 
   // ── POST /api/admin/users ── (admin — create superintendent, password optional — SSO is primary auth)
   if (route === '/admin/users' && method === 'POST') {
@@ -3753,22 +3679,18 @@ async function handleRequest(req, res) {
         const allMatching = Object.values(users).filter(u => (u.email || '').toLowerCase() === email);
         let user = allMatching.find(u => u.active);
         if (!user && allMatching.length > 0) {
-          // Account exists but is deactivated — deny login
-          throw new Error('Account deactivated: ' + email);
+          // Account exists in portal but is deactivated — deny login
+          throw new Error('Account deactivated. Contact your administrator.');
         }
         if (!user) {
-          const newId = nextSequentialId(users, 'USR');
-          const now = new Date().toISOString();
-          user = { id: newId, name: idPayload.name || idPayload.email || email, email,
-                   role: 'superintendent', active: true, groupIds: [], passwordHash: '',
-                   createdAt: now, updatedAt: now, ssoSub: idPayload.sub };
-          users[newId] = user;
-          saveUsers(users);
-          log.info('SSO auto-provisioned superintendent:', email, 'id:', newId);
-        } else {
-          // Refresh name and ssoSub from Cognito token on each login
+          // Portal-first: user must be added by admin before they can log in
+          log.warn('SSO login rejected — not in portal:', email);
+          throw new Error('Access not granted. Ask your administrator to add your account to the portal.');
+        }
+        // Refresh name and ssoSub from Cognito token on each login
+        {
           let changed = false;
-          const cognitoName = idPayload.name || idPayload.email || '';
+          const cognitoName = idPayload.name || '';
           if (cognitoName && user.name !== cognitoName) { user.name = cognitoName; changed = true; }
           if (idPayload.sub && user.ssoSub !== idPayload.sub) { user.ssoSub = idPayload.sub; changed = true; }
           if (changed) { user.updatedAt = new Date().toISOString(); saveUsers(users); }
