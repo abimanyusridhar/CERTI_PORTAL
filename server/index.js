@@ -810,12 +810,12 @@ function cognitoIDPCall(target, bodyObj) {
       let buf = '';
       r.on('data', c => buf += c);
       r.on('end', () => {
-        log.info(`[Cognito] HTTP ${r.statusCode} ← ${buf}`);
         try {
           const json = JSON.parse(buf);
           if (r.statusCode >= 400) {
             const errType = (json.__type || '').replace(/^.*#/, '');
             const detail  = json.message || '';
+            log.error(`[Cognito] HTTP ${r.statusCode} ${errType}${detail ? ': ' + detail : ''}`);
             reject(new Error(`${r.statusCode} ${errType}${detail ? ': ' + detail : ''}`));
           } else {
             resolve(json);
@@ -832,12 +832,10 @@ function cognitoIDPCall(target, bodyObj) {
 
 // ─── COGNITO USER SYNC ────────────────────────────────────────────────────────
 // Syncs all Cognito pool users into data/users.json.
-// Also pre-sets the 'profile' attribute to '-' for each user so the Cognito
-// hosted-UI "Change Password" screen never prompts for a profile URL.
-// Returns { added, profilesFixed, error? }
+// Returns { added, updated, error? }
 async function syncCognitoUsers() {
-  if (!COGNITO_ENABLED) return { added: 0, profilesFixed: 0, error: 'Cognito not configured' };
-  if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) return { added: 0, profilesFixed: 0, error: 'Cognito IAM credentials not set — add COGNITO_ACCESS_KEY_ID and COGNITO_SECRET_ACCESS_KEY to .env' };
+  if (!COGNITO_ENABLED) return { added: 0, updated: 0, error: 'Cognito not configured' };
+  if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) return { added: 0, updated: 0, error: 'Cognito IAM credentials not set — add COGNITO_ACCESS_KEY_ID and COGNITO_SECRET_ACCESS_KEY to .env' };
 
   // Collect all pages
   const cognitoUsers = [];
@@ -860,21 +858,19 @@ async function syncCognitoUsers() {
     } else if (/timeout/i.test(err.message)) {
       friendlyError = 'Cognito API timeout — check network connectivity to AWS';
     }
-    return { added: 0, profilesFixed: 0, error: friendlyError };
+    return { added: 0, updated: 0, error: friendlyError };
   }
 
   const users = loadUsers();
   const adminEmail = (ADMIN_USER || '').toLowerCase();
   let added = 0;
   let updated = 0;
-  let profilesFixed = 0;
 
   for (const cu of cognitoUsers) {
     const attrs = Object.fromEntries((cu.Attributes || []).map(a => [a.Name, a.Value]));
     const email = (attrs.email || '').toLowerCase().trim();
     if (!email || email === adminEmail) continue;
 
-    // Auto-provision into local users if not yet present; otherwise refresh name from Cognito
     const existingUser = Object.values(users).find(u => (u.email || '').toLowerCase() === email);
     if (!existingUser) {
       const newId = nextSequentialId(users, 'USR');
@@ -887,7 +883,6 @@ async function syncCognitoUsers() {
       };
       added++;
     } else {
-      // Keep portal groupIds/role/active; just refresh name if Cognito has one and portal doesn't
       const cognitoName = attrs.name || '';
       if (cognitoName && (!existingUser.name || existingUser.name === existingUser.email)) {
         existingUser.name = cognitoName;
@@ -895,22 +890,13 @@ async function syncCognitoUsers() {
         updated++;
       }
     }
-
-    // Pre-set profile='-' to suppress the "Change Password" profile URL prompt
-    if (!attrs.profile) {
-      cognitoIDPCall('AmazonCognitoIdentityProvider.AdminUpdateUserAttributes', {
-        UserPoolId: COGNITO_USER_POOL_ID,
-        Username: cu.Username,
-        UserAttributes: [{ Name: 'profile', Value: '-' }],
-      }).then(() => { profilesFixed++; }).catch(() => {});
-    }
   }
 
   if (added > 0 || updated > 0) {
     saveUsers(users);
     log.info(`Cognito sync: provisioned ${added} new, refreshed ${updated} name(s)`);
   }
-  return { added, updated, profilesFixed };
+  return { added, updated };
 }
 
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
