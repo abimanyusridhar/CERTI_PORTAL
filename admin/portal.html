@@ -366,9 +366,19 @@ function applyPortalConfig() {
   const portalPath = ((C.routes && C.routes.cstAdmin) || '/CST/misecure') + '/portal/';
   const btn = document.getElementById('ssoLoginBtn');
   if (btn) btn.href = '/auth/sso/login?next=' + encodeURIComponent(portalPath);
-  if (new URLSearchParams(location.search).get('sso_error')) {
+  const ssoErr = new URLSearchParams(location.search).get('sso_error');
+  if (ssoErr) {
     const el = document.getElementById('ssoErrMsg');
-    if (el) el.style.display = 'block';
+    if (el) {
+      const SSO_MSGS = {
+        deactivated:     'Your account has been deactivated. Contact your administrator.',
+        not_enrolled:    'Your account is not registered in this portal. Ask your administrator to add you.',
+        auth_failed:     'Authentication failed. Please try again or contact your administrator.',
+        session_expired: 'Your login session expired. Please try again.'
+      };
+      el.textContent = SSO_MSGS[ssoErr] || 'SSO login failed. Please check your account or contact your administrator.';
+      el.style.display = 'block';
+    }
   }
 }
 function showLogin() {

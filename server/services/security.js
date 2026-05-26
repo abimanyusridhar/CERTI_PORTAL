@@ -75,12 +75,6 @@ class CircuitBreaker {
  * Input validation utilities
  */
 const validation = {
-  isValidEmail(email) {
-    if (!email || typeof email !== 'string') return false;
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email) && email.length <= 255;
-  },
-
   isValidCertId(id) {
     if (!id || typeof id !== 'string') return false;
     // Allow CST/VAPT format: CST-XXXXXXX-XX-XX, VAP-XXXXXXX-XXXX

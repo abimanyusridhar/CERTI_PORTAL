@@ -52,6 +52,9 @@ loadDotEnv(log, __dirname);
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT           = parseInt(process.env.PORT || '3000', 10);
+// Set TRUST_PROXY=1 in .env when running behind a reverse proxy (nginx, ALB, CloudFront).
+// Without it, X-Forwarded-For is ignored to prevent IP spoofing that bypasses rate limits.
+const TRUST_PROXY    = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
 let DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
 let VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
 let TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
@@ -1564,16 +1567,40 @@ async function sendVaptEmail({ to, from, cert, verifyUrl, baseUrl }) {
 
 // ─── IMAGE SAVE HELPER ───────────────────────────────────────────────────────
 const ALLOWED_IMG_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+// ─── MAGIC BYTE VALIDATOR ─────────────────────────────────────────────────────
+// Verifies that the first bytes of uploaded data match the declared format,
+// preventing extension-mismatch uploads (e.g. a script renamed as .png).
+function validateFileMagic(data, ext) {
+  if (!data || data.length < 4) return false;
+  switch (ext) {
+    case '.png':  return data[0]===0x89 && data[1]===0x50 && data[2]===0x4E && data[3]===0x47;
+    case '.jpg':
+    case '.jpeg': return data[0]===0xFF && data[1]===0xD8 && data[2]===0xFF;
+    case '.gif':  return data[0]===0x47 && data[1]===0x49 && data[2]===0x46 && data[3]===0x38;
+    case '.webp': return data.length >= 12 &&
+                         data[0]===0x52 && data[1]===0x49 && data[2]===0x46 && data[3]===0x46 &&
+                         data[8]===0x57 && data[9]===0x45 && data[10]===0x42 && data[11]===0x50;
+    case '.pdf':  return data[0]===0x25 && data[1]===0x50 && data[2]===0x44 && data[3]===0x46; // %PDF
+    case '.doc':
+    case '.xls':  return data[0]===0xD0 && data[1]===0xCF && data[2]===0x11 && data[3]===0xE0; // OLE2
+    case '.docx':
+    case '.xlsx': return data[0]===0x50 && data[1]===0x4B && data[2]===0x03 && data[3]===0x04; // ZIP
+    default:      return true;
+  }
+}
+
 function saveCertImageFile(files, prefix, existingPath) {
   const f = files && files.certificateImage;
   if (!f || !f.data || !f.data.length) return null;
+  const origExt = path.extname(f.filename || '').toLowerCase();
+  if (!ALLOWED_IMG_EXTS.includes(origExt)) throw new Error('Certificate image must be PNG, JPEG, WebP, or GIF.');
+  if (!validateFileMagic(f.data, origExt)) throw new Error('Uploaded image content does not match its declared file type.');
   if (existingPath) {
     const old = path.join(UPLOADS_DIR, path.basename(existingPath));
-    if (fs.existsSync(old)) fs.unlinkSync(old);
+    if (fs.existsSync(old)) try { fs.unlinkSync(old); } catch { /* non-fatal */ }
   }
-  const origExt = path.extname(f.filename || '').toLowerCase();
-  const ext     = ALLOWED_IMG_EXTS.includes(origExt) ? origExt : '.jpg';
-  const fname   = prefix + '_' + crypto.randomBytes(12).toString('hex') + ext;
+  const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), f.data);
   return '/uploads/' + fname;
 }
@@ -1618,9 +1645,10 @@ function vaptPublicFields(cert) {
 const ALLOWED_ATTACHMENT_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.doc', '.docx', '.xls', '.xlsx'];
 
 function saveAttachmentFile(fileObj, prefix) {
-  const origExt = path.extname(fileObj.filename).toLowerCase();
-  const ext     = ALLOWED_ATTACHMENT_EXTS.includes(origExt) ? origExt : '.pdf';
-  const fname   = prefix + '_' + crypto.randomBytes(12).toString('hex') + ext;
+  const origExt = path.extname(fileObj.filename || '').toLowerCase();
+  if (!ALLOWED_ATTACHMENT_EXTS.includes(origExt)) throw new Error(`Attachment type '${origExt || 'unknown'}' is not allowed.`);
+  if (!validateFileMagic(fileObj.data, origExt)) throw new Error('Attachment content does not match its declared file type.');
+  const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
   return { name: fileObj.filename || fname, url: '/uploads/' + fname, size: fileObj.data.length };
 }
@@ -1677,14 +1705,18 @@ function sanitiseCertBody(obj) {
       out[field] = String(out[field]).replace(CTRL, '').trim().slice(0, maxLen);
     }
   }
-  if (out.recipientEmail && !security.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
-  if (out.issuerEmail    && !security.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
+  if (out.recipientEmail && !validation.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
+  if (out.issuerEmail    && !validation.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
   return out;
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getClientIp(req) {
-  return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  if (TRUST_PROXY) {
+    const xff = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (xff) return xff;
+  }
+  return req.socket.remoteAddress || '';
 }
 
 function sendJSON(res, status, data, extraHeaders = {}) {
@@ -1767,7 +1799,10 @@ function authCheck(req) {
 
 // ─── CORS HELPER ─────────────────────────────────────────────────────────────
 function getCorsHeaders(origin) {
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  // Reflect origin only when it is explicitly in the allowlist.
+  // For direct calls or same-origin requests (no Origin header) fall back to
+  // BASE_ORIGIN so admin-panel fetch() calls still receive valid CORS headers.
+  const allowed = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : BASE_ORIGIN;
   return {
     'Access-Control-Allow-Origin':  allowed,
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
@@ -2029,10 +2064,12 @@ async function handleAPI(req, res, parsed) {
       }
     }
     res.writeHead(200, {
-      'Content-Type': 'image/gif',
-      'Content-Length': TRACKING_PIXEL_GIF.length,
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
+      'Content-Type':           'image/gif',
+      'Content-Length':         TRACKING_PIXEL_GIF.length,
+      'Cache-Control':          'no-store, no-cache, must-revalidate',
+      'Pragma':                 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options':        'DENY',
     });
     return res.end(TRACKING_PIXEL_GIF);
   }
@@ -2058,10 +2095,12 @@ async function handleAPI(req, res, parsed) {
       }
     }
     res.writeHead(200, {
-      'Content-Type': 'image/gif',
-      'Content-Length': TRACKING_PIXEL_GIF.length,
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache',
+      'Content-Type':           'image/gif',
+      'Content-Length':         TRACKING_PIXEL_GIF.length,
+      'Cache-Control':          'no-store, no-cache, must-revalidate',
+      'Pragma':                 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options':        'DENY',
     });
     return res.end(TRACKING_PIXEL_GIF);
   }
@@ -2982,8 +3021,10 @@ async function handleAPI(req, res, parsed) {
     const fileObj = files.file;
     if (!vesselIMO) return sendJSON(res, 400, { error: 'Vessel IMO is required' }, corsH);
     if (!fileObj || !fileObj.data || !fileObj.data.length) return sendJSON(res, 400, { error: 'No file provided' }, corsH);
-    const ALLOWED_MIME = ['application/pdf','image/jpeg','image/png','image/gif','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    if (!ALLOWED_MIME.includes(fileObj.contentType)) return sendJSON(res, 400, { error: 'File type not allowed' }, corsH);
+    const ALLOWED_DOC_EXTS = new Set(['.pdf','.jpg','.jpeg','.png','.gif','.webp','.doc','.docx','.xls','.xlsx']);
+    const docFileExt = path.extname(fileObj.filename || '').toLowerCase();
+    if (!ALLOWED_DOC_EXTS.has(docFileExt)) return sendJSON(res, 400, { error: 'File type not allowed. Accepted: PDF, images, Word, Excel.' }, corsH);
+    if (!validateFileMagic(fileObj.data, docFileExt)) return sendJSON(res, 400, { error: 'File content does not match its declared type.' }, corsH);
     const safeOrig = path.basename(fileObj.filename || 'upload').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80);
     const uid = crypto.randomBytes(8).toString('hex');
     const fname = `DOC-${vesselIMO}-${uid}-${safeOrig}`;
@@ -3748,7 +3789,15 @@ async function handleRequest(req, res) {
       return res.end();
     } catch (err) {
       log.error('SSO callback error:', err.message);
-      const errDest = next && next !== '/' ? next + (next.includes('?') ? '&' : '?') + 'sso_error=1' : '/?sso_error=1';
+      // Map internal error messages to safe public error codes — never expose raw messages in URLs.
+      let ssoErrCode;
+      if (/deactivated/i.test(err.message))          ssoErrCode = 'deactivated';
+      else if (/not granted|not in portal/i.test(err.message)) ssoErrCode = 'not_enrolled';
+      else if (/nonce|replay/i.test(err.message))    ssoErrCode = 'auth_failed';
+      else if (/expired/i.test(err.message))         ssoErrCode = 'session_expired';
+      else                                            ssoErrCode = 'auth_failed';
+      const base = (next && next !== '/') ? next : '/';
+      const errDest = base + (base.includes('?') ? '&' : '?') + 'sso_error=' + ssoErrCode;
       res.writeHead(302, { Location: errDest });
       return res.end();
     }
@@ -3861,12 +3910,13 @@ async function handleRequest(req, res) {
     try {
       const content = fs.readFileSync(fpath);
       res.writeHead(200, {
-        'Content-Type':           mime,
-        'Content-Length':         content.length,
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control':          'private, max-age=3600',
-        'X-Frame-Options':        'SAMEORIGIN',
-        'Content-Disposition':    isPdf ? `inline; filename="${fname}"` : 'inline',
+        ...SECURITY_HEADERS,
+        'Content-Type':        mime,
+        'Content-Length':      content.length,
+        'Cache-Control':       'private, max-age=3600',
+        // SAMEORIGIN allows inline PDF viewing in same-origin iframes; overrides DENY from SECURITY_HEADERS
+        'X-Frame-Options':     'SAMEORIGIN',
+        'Content-Disposition': isPdf ? `inline; filename="${fname}"` : 'inline',
       });
       return res.end(content);
     } catch {
