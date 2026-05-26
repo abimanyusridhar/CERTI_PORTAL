@@ -852,11 +852,11 @@
     tab.document.write('<html><head><title>Loading…</title></head><body style="margin:0;background:#0A1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#CCD6F6"><div style="text-align:center"><div style="font-size:1.1rem;margin-bottom:8px">🔒 Generating secure link…</div><div style="font-size:.8rem;opacity:.5">Please wait</div></div></body></html>');
     try {
       const r = await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`, { headers: { Authorization: 'Bearer ' + TOKEN } });
-      const base = window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT';
+      const base = window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VAPT';
       const url = r.ok ? (await r.json()).url : `${window.location.origin}${base}/cert/${encodeURIComponent(id)}`;
       tab.location.href = url;
     } catch(e) {
-      const base = window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT';
+      const base = window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VAPT';
       tab.location.href = `${window.location.origin}${base}/cert/${encodeURIComponent(id)}`;
     }
     if (btn) { btn.textContent = orig; btn.disabled = false; }
@@ -1115,7 +1115,7 @@
       const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
       if (r.ok){
         const d=await r.json();
-        const url = d.url || `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'}/cert/${encodeURIComponent(id)}`;
+        const url = d.url || `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VAPT'}/cert/${encodeURIComponent(id)}`;
         await navigator.clipboard.writeText(url);
         if(btn){const t=btn.textContent;btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent=t,2000);}
         toast('Verification URL copied!','ok');
@@ -1170,7 +1170,7 @@
 
   async function updateIssueEmailPreview() {
     const c=CERTS.find(x=>x.id===selectedIssueCertId); if(!c) return;
-    let certUrl = `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VPT'}/cert/${encodeURIComponent(c.id)}`;
+    let certUrl = `${window.location.origin}${window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VAPT'}/cert/${encodeURIComponent(c.id)}`;
     try {
       const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(c.id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
       if (r.ok) { const d=await r.json(); if(d.url) certUrl=d.url; }

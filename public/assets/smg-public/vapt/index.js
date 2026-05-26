@@ -77,10 +77,10 @@
         hideDesc();
         if (res.status === 404) {
           renderNotFound();
-          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT'));
+          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VAPT'));
         } else if (!res.ok) {
           renderError(data.error);
-          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT'));
+          history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VAPT'));
         } else {
           // Fetch the encrypted, shareable verification URL from the server
           let shareUrl = window.location.href;
@@ -1032,7 +1032,7 @@
 
   async function checkUrl() {
     // Case 1: Encrypted cert token in path — e.g. /VPT/cert/<token>?s=<sig>
-    const _vptBase = (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VPT');
+    const _vptBase = (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VAPT');
     const pathMatch = window.location.pathname.match(new RegExp('^' + _vptBase.replace('/', '\\/') + '\\/cert\\/(.+)'));
     if (pathMatch) {
       const token = pathMatch[1];

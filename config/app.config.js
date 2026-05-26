@@ -48,7 +48,7 @@
 
     // Routes  (change once — all href / fetch paths update)
     routeCST:  '/CST',
-    routeVPT:  '/VPT',
+    routeVPT:  '/VAPT',
 
     // Certificate ID prefixes
     cstPrefix:  'CST',                          // → "CST-{IMO}-{MM}-{YY}"

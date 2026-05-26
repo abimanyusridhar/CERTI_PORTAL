@@ -823,7 +823,7 @@ function showDashboard() {
 function viewCertPublic(certId, type) {
   const cfg     = window.APP_CONFIG && window.APP_CONFIG.routes;
   const cstBase = (cfg && cfg.cst) || '/CST';
-  const vptBase = (cfg && cfg.vpt) || '/VPT';
+  const vptBase = (cfg && cfg.vpt) || '/VAPT';
   const base    = (type === 'vapt') ? vptBase : cstBase;
   window.open(base + '?id=' + encodeURIComponent(certId), '_blank', 'noopener,noreferrer');
 }

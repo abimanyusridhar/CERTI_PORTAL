@@ -4009,6 +4009,14 @@ async function handleRequest(req, res) {
   }
 
   // ── Legacy redirect support ───────────────────────────────────────────────
+  if (p.startsWith('/VPT/')) {
+    res.writeHead(301, { Location: p.replace('/VPT/', '/VAPT/') + (parsed.search || '') });
+    return res.end();
+  }
+  if (p === '/VPT') {
+    res.writeHead(301, { Location: '/VAPT' + (parsed.search || '') });
+    return res.end();
+  }
   if (p.startsWith('/cert/')) {
     res.writeHead(301, { Location: p.replace('/cert/', CFG.routes.cst + '/cert/') + (parsed.search || '') });
     return res.end();

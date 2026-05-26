@@ -358,7 +358,7 @@
     const C = window.APP_CONFIG;
     if (!C) return;
     const base = C.routes && C.routes.cstAdmin ? C.routes.cstAdmin : '/CST/misecure';
-    const vaptBase = C.routes && C.routes.vaptAdmin ? C.routes.vaptAdmin : '/VPT/misecure';
+    const vaptBase = C.routes && C.routes.vaptAdmin ? C.routes.vaptAdmin : '/VAPT/misecure';
     if (document.getElementById('sbBrandName') && C.brand && C.brand.companyShort) document.getElementById('sbBrandName').textContent = C.brand.companyShort;
     document.getElementById('navLinkUsers').href   = base + '/users/';
     document.getElementById('navLinkGroups').href  = base + '/groups/';
