@@ -87,6 +87,11 @@ const validation = {
     return /^(CST|VAP)-[A-Z0-9]{5,}-[A-Z0-9]{2,}$/.test(id) && id.length <= 50;
   },
 
+  isValidEmail(email) {
+    if (!email || typeof email !== 'string') return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
+  },
+
   isValidUsername(username) {
     if (!username || typeof username !== 'string') return false;
     return /^[a-zA-Z0-9._-]{3,32}$/.test(username);

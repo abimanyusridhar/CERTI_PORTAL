@@ -393,14 +393,15 @@
       } else {
         neEl.innerHTML = a.nearExpiry.map(c => {
           const dl=c.daysLeft, bc=dl<=7?'crit':dl<=20?'warn':'ok', label=dl===0?'TODAY':dl+'d';
-          return `<div class="ne-item" onclick="editCert('${c.id}')">
+          const sId=escHtml(c.id), sName=escHtml(c.recipientName);
+          return `<div class="ne-item" onclick="editCert('${sId}')">
             <div class="ne-days-badge ${bc}">${label}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
-              <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||'—'}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
+              <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName||'—'}</div>
               <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)} · ${dl===0?'expires today':dl+' day'+(dl===1?'':'s')+' left'}</div>
             </div>
-            <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${c.id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${sId}')">Edit</button>
           </div>`;
         }).join('');
       }
@@ -414,19 +415,21 @@
       if (!pendingCerts.length) {
         pendEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--text-sec);font-size:.78rem">✓ No pending certificates</div>';
       } else {
-        pendEl.innerHTML = pendingCerts.map(c=>`
-          <div class="ne-item" onclick="editCert('${c.id}')">
+        pendEl.innerHTML = pendingCerts.map(c=>{
+          const sId=escHtml(c.id), sName=escHtml(c.recipientName), sIMO=escHtml(c.vesselIMO);
+          return `<div class="ne-item" onclick="editCert('${sId}')">
             <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(126,184,247,.1);border:1px solid rgba(126,184,247,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
             <div style="flex:1;min-width:0">
-              <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
-              <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.recipientName||'—'}${c.vesselIMO?' · IMO '+c.vesselIMO:''}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
+              <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName||'—'}${sIMO?' · IMO '+sIMO:''}</div>
               <div style="font-size:.62rem;color:#7EB8F7">Not yet publicly verifiable — activate to enable</div>
             </div>
             <div style="display:flex;gap:5px">
-              <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${c.id}')">✓ Activate</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${c.id}')">Edit</button>
+              <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">✓ Activate</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${sId}')">Edit</button>
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
     }
     // ── Emails Not Sent ──
@@ -443,26 +446,27 @@
         epEl.innerHTML = allMissing.map(c => {
           const isPending = (c.status||'').toUpperCase() === 'PENDING';
           const hasEmail  = !!c.recipientEmail;
+          const sId=escHtml(c.id), sName=escHtml(c.recipientName), sEmail=escHtml(c.recipientEmail);
           const subColor  = isPending ? '#7EB8F7' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
-          const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? c.recipientEmail : '⚠ No email address on record';
-          return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="goIssue('${c.id}')"`:''}> 
+          const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? sEmail : '⚠ No email address on record';
+          return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="goIssue('${sId}')"`:''}>
             <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             </div>
             <div style="flex:1;min-width:0">
-              <div style="font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--gold)">${c.id}</div>
-              <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${c.recipientName||'—'}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--gold)">${sId}</div>
+              <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${sName||'—'}</div>
               <div style="font-size:.61rem;color:${subColor};margin-top:1px">${subText}</div>
             </div>
             <div style="display:flex;gap:5px;flex-shrink:0">
               ${!isPending && hasEmail
-                ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" onclick="event.stopPropagation();goIssue('${c.id}')">
+                ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" onclick="event.stopPropagation();goIssue('${sId}')">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                     Send
                   </button>`
                 : !isPending && !hasEmail
-                ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" onclick="event.stopPropagation();editCert('${c.id}')">+ Email</button>`
-                : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${c.id}')">Activate</button>`
+                ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" onclick="event.stopPropagation();editCert('${sId}')">+ Email</button>`
+                : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">Activate</button>`
               }
             </div>
           </div>`;

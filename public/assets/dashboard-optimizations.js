@@ -226,7 +226,7 @@ class TableRenderer {
 
   forceRender() {
     clearTimeout(this.pendingRender);
-    // Call _render immediately
+    this._render();
   }
 }
 
@@ -244,24 +244,18 @@ class PerformanceMonitor {
   }
 
   measure(name, startMark) {
-    if (!this.marks[startMark]) {
-      console.warn(`Start mark "${startMark}" not found`);
-      return;
-    }
+    if (!this.marks[startMark]) return;
     const duration = performance.now() - this.marks[startMark];
     this.metrics[name] = duration;
     return duration;
   }
 
   log(name) {
-    const duration = this.metrics[name];
-    if (duration) {
-      console.log(`${name}: ${duration.toFixed(2)}ms`);
-    }
+    return this.metrics[name];
   }
 
   logAll() {
-    console.log('Performance Metrics:', this.metrics);
+    return { ...this.metrics };
   }
 
   getMetric(name) {

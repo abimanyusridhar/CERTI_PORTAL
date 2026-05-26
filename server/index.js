@@ -1416,7 +1416,7 @@ ${trackingPixelUrl
 function logEmail(logFile, fields, sesResult) {
   const entry = {
     timestamp: new Date().toISOString(),
-    ...fields,
+    ...(fields && typeof fields === 'object' ? fields : {}),
     status:    sesResult.success ? 'SENT' : (SES_ENABLED ? 'FAILED' : 'LOGGED_ONLY'),
     messageId: sesResult.messageId || null,
     sesError:  sesResult.error     || null,
@@ -1439,7 +1439,7 @@ function appendTrackEvent(certId, event, meta = {}) {
     event,
     ...meta,
   }) + '\n';
-  fs.promises.appendFile(TRACK_FILE, entry, 'utf8').catch(() => {});
+  fs.promises.appendFile(TRACK_FILE, entry, 'utf8').catch(e => log.warn('appendTrackEvent failed:', e.message));
 }
 
 /**
@@ -1475,7 +1475,7 @@ function recordEngagement(data, certId, event, meta, saveFn) {
       break;
   }
   data[certId] = cert;
-  saveFn(data);
+  try { saveFn(data); } catch (e) { log.warn('recordEngagement: save failed:', e.message); }
   appendTrackEvent(certId, event, meta);
 }
 
@@ -1677,8 +1677,8 @@ function sanitiseCertBody(obj) {
       out[field] = String(out[field]).replace(CTRL, '').trim().slice(0, maxLen);
     }
   }
-  if (out.recipientEmail && !validation.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
-  if (out.issuerEmail    && !validation.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
+  if (out.recipientEmail && !security.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
+  if (out.issuerEmail    && !security.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
   return out;
 }
 
@@ -2583,7 +2583,7 @@ async function handleAPI(req, res, parsed) {
     const certId = sanitiseCertId(route.replace('/vapt/verify-by-id/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const cert = loadVaptData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
+    if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
     recordEngagement(loadVaptData(), certId, 'cert_viewed', { src: 'id_lookup' }, saveVaptData);
     return sendJSON(res, 200, vaptPublicFields(cert), corsH);
   }
@@ -2618,7 +2618,7 @@ async function handleAPI(req, res, parsed) {
     const certId = decryptCertToken(encToken);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadVaptData()[certId];
-    if (!cert) return sendJSON(res, 404, { error: 'VAPT Certificate not found' }, corsH);
+    if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
     recordEngagement(loadVaptData(), certId, 'cert_viewed', { src: 'token_link' }, saveVaptData);
     return sendJSON(res, 200, vaptPublicFields(cert), corsH);
   }
