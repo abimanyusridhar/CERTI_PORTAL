@@ -300,7 +300,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="saveUser()">Save</button>
+      <button class="btn-save" id="saveUserBtn" onclick="saveUser()">Save User</button>
     </div>
   </div>
 </div>
@@ -370,7 +370,7 @@
       allGroups = await rG.json();
       updateStats();
       renderUsers();
-    } catch { toast('Network error', true); }
+    } catch { toast('Connection failed. Check your internet and try again.', true); }
   }
   window.loadData = loadData;
 
@@ -472,50 +472,77 @@
     const active   = document.getElementById('mActive').checked;
     const groupIds = Array.from(document.querySelectorAll('#groupSelectList input[type=checkbox]:checked')).map(c => c.value);
     const err = document.getElementById('modalErr');
+    const btn = document.getElementById('saveUserBtn');
     err.classList.remove('show');
-    if (!name) { err.textContent = 'Name is required.'; err.classList.add('show'); return; }
+    if (!name)  { err.textContent = 'Full name is required.';  err.classList.add('show'); document.getElementById('mName').focus();  return; }
+    if (!editingId && !email) { err.textContent = 'Email address is required.'; err.classList.add('show'); document.getElementById('mEmail').focus(); return; }
 
+    if (btn) { btn.disabled = true; btn.textContent = editingId ? 'Saving…' : 'Creating…'; }
     if (!editingId) {
-      // CREATE
-      if (!email) { err.textContent = 'Email is required.'; err.classList.add('show'); return; }
       try {
         const r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, role: 'superintendent', groupIds, active }) });
         const d = await r.json();
-        if (!r.ok) { err.textContent = d.error || 'Create failed.'; err.classList.add('show'); return; }
+        if (!r.ok) { err.textContent = d.error || 'Could not create user. Please try again.'; err.classList.add('show'); return; }
         closeModal();
         if (d.cognitoCreated) {
           toast('User created. ' + name + ' will receive a welcome email from AWS to set their login password.');
         } else if (d.cognitoError) {
-          toast('User saved locally, but Cognito registration failed: ' + d.cognitoError, true);
+          toast('User saved, but Cognito registration failed: ' + d.cognitoError, true);
         } else {
-          toast('User created. Add COGNITO_ACCESS_KEY_ID to .env to auto-register in AWS.');
+          toast('User created locally. Configure COGNITO_ACCESS_KEY_ID in .env to auto-register in AWS.');
         }
         await loadData();
-      } catch { err.textContent = 'Network error.'; err.classList.add('show'); }
+      } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     } else {
-      // EDIT
       try {
         const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, active, groupIds }) });
         const d = await r.json();
-        if (!r.ok) { err.textContent = d.error || 'Save failed.'; err.classList.add('show'); return; }
+        if (!r.ok) { err.textContent = d.error || 'Could not save changes. Please try again.'; err.classList.add('show'); return; }
         closeModal();
-        toast('User updated.');
+        toast('User updated successfully.');
         await loadData();
-      } catch { err.textContent = 'Network error.'; err.classList.add('show'); }
+      } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     }
+    if (btn) { btn.disabled = false; btn.textContent = 'Save User'; }
   }
   window.saveUser = saveUser;
 
   async function deleteUser(id, name) {
-    if (!confirm('Delete user "' + name + '"? This cannot be undone.')) return;
+    const confirmed = await confirmDanger('Delete user <strong>' + name + '</strong>?<br><span style="font-size:.75rem;opacity:.7">This will remove their portal access. Their AWS Cognito account is not affected.</span>');
+    if (!confirmed) return;
     try {
       const r = await fetch(API + '/admin/users/' + id, { method: 'DELETE', headers: authHdr() });
-      if (!r.ok) { toast('Delete failed', true); return; }
+      if (!r.ok) { toast('Could not delete user. Please try again.', true); return; }
       toast('User deleted.');
       await loadData();
-    } catch { toast('Network error', true); }
+    } catch { toast('Connection failed. Check your internet and try again.', true); }
   }
   window.deleteUser = deleteUser;
+
+  // ── CONFIRM DANGER MODAL ────────────────────────────────────────────────────
+  function confirmDanger(msg, confirmLabel) {
+    return new Promise(resolve => {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+      ov.innerHTML = `<div style="background:#1a2332;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B8A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          </div>
+          <span style="font-size:.9rem;font-weight:700;color:#FF6B8A">Confirm Delete</span>
+        </div>
+        <p style="font-size:.82rem;color:#a0aec0;line-height:1.65;margin-bottom:22px">${msg}</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button id="_cdCancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#a0aec0;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>
+          <button id="_cdConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:#FF6B8A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">${confirmLabel || 'Delete'}</button>
+        </div>
+      </div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#_cdConfirm').onclick = () => { ov.remove(); resolve(true); };
+      ov.querySelector('#_cdCancel').onclick  = () => { ov.remove(); resolve(false); };
+      ov.onclick = e => { if (e.target === ov) { ov.remove(); resolve(false); } };
+    });
+  }
 
   // ── TOAST ───────────────────────────────────────────────────────────────────
   function toast(msg, isErr) {

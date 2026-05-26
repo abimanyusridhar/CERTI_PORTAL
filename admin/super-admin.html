@@ -784,7 +784,7 @@
     fetch(API + '/docs/temp-link/' + id, { headers: saHdr() })
       .then(function (r) { return r.json(); })
       .then(function (d) { if (d.url) window.open(d.url, '_blank'); else toast('Failed to generate link.', 'err'); })
-      .catch(function () { toast('Network error.', 'err'); })
+      .catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); })
       .finally(function () { if (btn) { btn.disabled = false; btn.textContent = orig; } });
   };
 
@@ -800,7 +800,7 @@
           prompt('Copy this link:', d.url);
         });
       })
-      .catch(function () { toast('Network error.', 'err'); })
+      .catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); })
       .finally(function () { if (btn) btn.disabled = false; });
   };
 
@@ -874,7 +874,7 @@
     var filt = document.getElementById('reqFilter').value;
     var list = filt ? _reqs.filter(function (r) { return r.status === filt; }) : _reqs;
     var el = document.getElementById('reqList');
-    if (!list.length) { el.innerHTML = '<div class="tbl-empty">No access requests found.</div>'; return; }
+    if (!list.length) { el.innerHTML = '<div class="tbl-empty">No access requests yet. Requests appear here when superintendents ask for vessel document access.</div>'; return; }
     el.innerHTML = list.map(function (r) {
       var statusBadge = '<span class="badge badge-' + (r.status || 'pending').toLowerCase() + '">' + (r.status || 'PENDING') + '</span>';
       var date = r.requestedAt ? new Date(r.requestedAt).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
@@ -907,16 +907,18 @@
     }).then(function (r) {
       if (r.ok) { toast(action === 'APPROVED' ? 'Request approved.' : 'Request denied.', 'ok'); loadAccessReqs(); loadOverviewStats(); }
       else { toast('Failed to update request.', 'err'); }
-    }).catch(function () { toast('Network error.', 'err'); });
+    }).catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); });
   };
 
   window.deleteReq = function (id) {
-    if (!confirm('Remove this access request?')) return;
-    fetch(API + '/docs/access-requests/' + id, { method: 'DELETE', headers: saHdr() })
-      .then(function (r) {
-        if (r.ok) { toast('Request removed.', 'ok'); loadAccessReqs(); }
-        else { toast('Failed to remove.', 'err'); }
-      }).catch(function () { toast('Network error.', 'err'); });
+    confirmDanger('Remove this access request? This action cannot be undone.', 'Remove').then(function (ok) {
+      if (!ok) return;
+      fetch(API + '/docs/access-requests/' + id, { method: 'DELETE', headers: saHdr() })
+        .then(function (r) {
+          if (r.ok) { toast('Request removed.', 'ok'); loadAccessReqs(); }
+          else { toast('Could not remove request. Please try again.', 'err'); }
+        }).catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); });
+    });
   };
 
   // ── Users ─────────────────────────────────────────────────────────────────────
@@ -933,7 +935,7 @@
       return !q || (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
     });
     var tbody = document.getElementById('userTbody');
-    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No users found.</td></tr>'; return; }
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No users found. Go to the Users page to create superintendent accounts.</td></tr>'; return; }
     tbody.innerHTML = list.map(function (u) {
       var role = (u.role || 'superintendent');
       var roleBadge = '<span class="badge badge-' + (role === 'admin' ? 'admin' : role === 'superadmin' ? 'super' : 'user') + '">' + role + '</span>';
@@ -996,7 +998,7 @@
         closeModal('userModal');
         loadUsers();
       })
-      .catch(function () { toast('Network error.', 'err'); });
+      .catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); });
   };
 
   window.toggleUser = function (id, currentlyActive) {
@@ -1007,7 +1009,7 @@
     }).then(function (r) {
       if (r.ok) { toast(currentlyActive ? 'User deactivated.' : 'User activated.', 'ok'); loadUsers(); }
       else { toast('Failed to update user.', 'err'); }
-    }).catch(function () { toast('Network error.', 'err'); });
+    }).catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); });
   };
 
   // ── Groups ────────────────────────────────────────────────────────────────────
@@ -1106,22 +1108,45 @@
         closeModal('groupModal');
         loadGroups();
       })
-      .catch(function () { toast('Network error.', 'err'); });
+      .catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); });
   };
 
   window.deleteGroup = function (id) {
-    if (!confirm('Delete this group? This cannot be undone.')) return;
-    fetch(API + '/admin/groups/' + id, { method: 'DELETE', headers: saHdr() })
-      .then(function (r) {
-        if (r.ok) { toast('Group deleted.', 'ok'); loadGroups(); }
-        else { toast('Failed to delete group.', 'err'); }
-      }).catch(function () { toast('Network error.', 'err'); });
+    confirmDanger('Delete this group? Superintendents assigned to it will lose vessel access. This cannot be undone.').then(function (ok) {
+      if (!ok) return;
+      fetch(API + '/admin/groups/' + id, { method: 'DELETE', headers: saHdr() })
+        .then(function (r) {
+          if (r.ok) { toast('Group deleted.', 'ok'); loadGroups(); }
+          else { toast('Could not delete group. Please try again.', 'err'); }
+        }).catch(function () { toast('Connection failed. Check your internet and try again.', 'err'); });
+    });
   };
 
   // ── Utilities ─────────────────────────────────────────────────────────────────
   window.closeModal = function (id) {
     document.getElementById(id).classList.remove('open');
   };
+
+  function confirmDanger(msg, confirmLabel) {
+    return new Promise(function (resolve) {
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+      ov.innerHTML = '<div style="background:#1a2332;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+        + '<div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+        + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B8A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>'
+        + '</div><span style="font-size:.9rem;font-weight:700;color:#FF6B8A">Confirm Delete</span></div>'
+        + '<p style="font-size:.82rem;color:#a0aec0;line-height:1.65;margin-bottom:22px">' + msg + '</p>'
+        + '<div style="display:flex;gap:10px;justify-content:flex-end">'
+        + '<button id="_cdCancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#a0aec0;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>'
+        + '<button id="_cdConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:#FF6B8A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">' + (confirmLabel || 'Delete') + '</button>'
+        + '</div></div>';
+      document.body.appendChild(ov);
+      ov.querySelector('#_cdConfirm').onclick = function () { ov.remove(); resolve(true); };
+      ov.querySelector('#_cdCancel').onclick  = function () { ov.remove(); resolve(false); };
+      ov.onclick = function (e) { if (e.target === ov) { ov.remove(); resolve(false); } };
+    });
+  }
 
   var _toastTimer;
   function toast(msg, type) {

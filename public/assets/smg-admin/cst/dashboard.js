@@ -550,7 +550,7 @@
           await refreshStats();
           renderTbl('dashTbl', '');
         } else { toast('Could not activate certificate. Please try again.', 'err'); }
-      } catch { toast('Something went wrong. Please try again.', 'err'); }
+      } catch (e) { toast(e.message || 'Connection failed. Check your internet and try again.', 'err'); }
     }
 
     // ════════════════════════════════════════════════════
@@ -1346,7 +1346,7 @@
           resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
           resultEl.style.color      = 'var(--invalid)';
           resultEl.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${errMsg}</span></div>`;
-          toast('✗ ' + (d.error || 'Send failed'), 'err');
+          toast('✗ Email not sent: ' + errMsg, 'err');
         }
       } catch (e) {
         resultEl.style.display = 'block';
@@ -1354,7 +1354,7 @@
         resultEl.style.border     = '1px solid rgba(255,107,138,.2)';
         resultEl.style.color      = 'var(--invalid)';
         resultEl.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Could not reach the server. Check your network connection and try again.</span></div>`;
-        toast('Connection error. Please try again.', 'err');
+        toast('Connection failed. Check your internet and try again.', 'err');
       }
       btn.disabled = false;
       btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
@@ -1387,7 +1387,7 @@
         btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
         document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
         document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
-      } catch { toast('Something went wrong. Please try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; }
+      } catch { toast('Connection failed. Check your internet and try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; }
     }
 
     async function quickSend(id) {
@@ -1845,7 +1845,7 @@
         editingId = null; imgFile = null; resetForm();
         await refreshStats();
         showPage('certs', document.getElementById('nav-certs'));
-      } catch (e) { toast(e.message || 'Something went wrong. Please try again.', 'err'); }
+      } catch (e) { toast(e.message || 'Connection failed. Check your internet and try again.', 'err'); }
     }
 
     function resetForm() {
@@ -1888,7 +1888,7 @@
         if (!r.ok) { toast('Could not delete certificate. Please try again.', 'err'); return; }
         closeDel(); await refreshStats(); renderTbl('dashTbl', ''); renderTbl('allTbl', '');
         toast('Certificate removed successfully.', 'ok');
-      } catch { toast('Something went wrong. Please try again.', 'err'); }
+      } catch (e) { toast(e.message || 'Connection failed. Check your internet and try again.', 'err'); }
     }
 
     // ════════════════════════════════════════════════════

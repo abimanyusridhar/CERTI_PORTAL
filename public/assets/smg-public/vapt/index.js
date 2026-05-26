@@ -636,7 +636,7 @@
       if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Check Approval Status'; }
     } catch {
       if (btn) { btn.disabled = false; btn.textContent = 'Check Approval Status'; }
-      if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Network error. Please try again.'; }
+      if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Connection failed. Check your internet and try again.'; }
     }
   }
 
@@ -655,7 +655,7 @@
         body: JSON.stringify({ captainName, vesselName, vesselIMO: imo, emailId: email }),
       });
       const d = await r.json();
-      if (!r.ok) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent=d.error||'Request failed.'; } return; }
+      if (!r.ok) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent=d.error||'Request could not be submitted. Please try again.'; } return; }
       // Save claim token — browser uses this to silently poll status without auth
       _saveDocReqId(imo, d.requestId);
       _saveDocClaimTok(imo, d.claimToken);
@@ -667,7 +667,7 @@
       } else {
         if (el) renderPendingState(el, imo, vesselName);
       }
-    } catch { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Network error. Please try again.'; } }
+    } catch { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Connection failed. Check your internet and try again.'; } }
   }
 
   async function submitSuperintendentLogin(imo, vesselName) {
@@ -684,12 +684,12 @@
         body: JSON.stringify({ email, password: pwd }),
       });
       const d = await r.json();
-      if (!r.ok) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent = d.error || 'Login failed.'; } return; }
+      if (!r.ok) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent = d.error || 'Sign-in failed. Check your email and password.'; } return; }
       _saveUserSession(d.sessionToken);
       if (d.user && d.user.name) _saveUserSessionName(d.user.name);
       if (msg) { msg.style.color='#64FFDA'; msg.textContent='Signed in — loading your documents…'; }
       setTimeout(() => loadRelevantDocs(imo, vesselName), 600);
-    } catch { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Network error. Please try again.'; } }
+    } catch { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Connection failed. Check your internet and try again.'; } }
   }
 
   window.loadRelevantDocs          = loadRelevantDocs;

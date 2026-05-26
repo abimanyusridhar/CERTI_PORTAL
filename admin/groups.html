@@ -375,7 +375,7 @@
       vesselNames = rV.ok ? await rV.json() : {};
       updateStats();
       renderGroups();
-    } catch { toast('Network error', true); }
+    } catch { toast('Connection failed. Check your internet and try again.', true); }
   }
   window.loadData = loadData;
 
@@ -593,19 +593,20 @@
       closeModal();
       toast(editingId ? 'Group updated.' : 'Group created.');
       await loadData();
-    } catch (e) { err.textContent = 'Network error: ' + e.message; err.classList.add('show'); }
+    } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     finally { if (btn) { btn.disabled = false; btn.textContent = 'Save Group'; } }
   }
   window.saveGroup = saveGroup;
 
   async function deleteGroup(id, name) {
-    if (!confirm('Delete group "' + name + '"? Superintendents assigned to this group will lose access. This cannot be undone.')) return;
+    const ok = await confirmDanger('Delete group <strong>' + name + '</strong>?<br><span style="font-size:.75rem;opacity:.7">Superintendents in this group will lose vessel access. This cannot be undone.</span>');
+    if (!ok) return;
     try {
       const r = await fetch(API + '/admin/groups/' + id, { method: 'DELETE', headers: authHdr() });
-      if (!r.ok) { toast('Delete failed', true); return; }
+      if (!r.ok) { toast('Could not delete group. Please try again.', true); return; }
       toast('Group deleted.');
       await loadData();
-    } catch { toast('Network error', true); }
+    } catch { toast('Connection failed. Check your internet and try again.', true); }
   }
   window.deleteGroup = deleteGroup;
 
@@ -677,10 +678,35 @@
       closeMembersModal();
       toast('Members updated.');
       await loadData();
-    } catch (e) { err.textContent = 'Network error: ' + e.message; err.classList.add('show'); }
+    } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     finally { if (btn) { btn.disabled = false; btn.textContent = 'Save Members'; } }
   }
   window.saveMembersModal = saveMembersModal;
+
+  // ── CONFIRM DANGER ────────────────────────────────────────────────────────
+  function confirmDanger(msg, confirmLabel) {
+    return new Promise(resolve => {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+      ov.innerHTML = `<div style="background:#1a2332;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B8A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          </div>
+          <span style="font-size:.9rem;font-weight:700;color:#FF6B8A">Confirm Delete</span>
+        </div>
+        <p style="font-size:.82rem;color:#a0aec0;line-height:1.65;margin-bottom:22px">${msg}</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button id="_cdCancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#a0aec0;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>
+          <button id="_cdConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:#FF6B8A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">${confirmLabel || 'Delete'}</button>
+        </div>
+      </div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#_cdConfirm').onclick = () => { ov.remove(); resolve(true); };
+      ov.querySelector('#_cdCancel').onclick  = () => { ov.remove(); resolve(false); };
+      ov.onclick = e => { if (e.target === ov) { ov.remove(); resolve(false); } };
+    });
+  }
 
   // ── TOAST ─────────────────────────────────────────────────────────────────
   function toast(msg, isErr) {
