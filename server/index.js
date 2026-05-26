@@ -834,7 +834,7 @@ function cognitoIDPCall(target, bodyObj) {
 // Called when admin creates a user in the portal — mirrors them into Cognito so
 // they can log in via SSO. Cognito sends them a welcome email with a temp password.
 function cognitoAdminCreateUser(email, name) {
-  return cognitoIDPCall('AmazonCognitoIdentityProvider.AdminCreateUser', {
+  return cognitoIDPCall('AWSCognitoIdentityProviderService.AdminCreateUser', {
     UserPoolId:              COGNITO_USER_POOL_ID,
     Username:                email,
     DesiredDeliveryMediums:  ['EMAIL'],
@@ -3607,6 +3607,44 @@ async function handleAPI(req, res, parsed) {
     });
     if (usersChanged) saveUsers(users);
     return sendJSON(res, 200, { ok: true }, corsH);
+  }
+
+  // ── POST /api/admin/cognito-sync ── (admin — pull users from Cognito User Pool)
+  if (route === '/admin/cognito-sync' && method === 'POST') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!COGNITO_ENABLED) return sendJSON(res, 503, { error: 'Cognito not configured.' }, corsH);
+    if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) {
+      return sendJSON(res, 503, { error: 'Cognito credentials not configured.' }, corsH);
+    }
+    try {
+      // Attempt to list users from Cognito to verify configuration
+      const result = await cognitoIDPCall('AWSCognitoIdentityProviderService.ListUsers', {
+        UserPoolId: COGNITO_USER_POOL_ID,
+        Limit: 60,
+      });
+      const cognitoUsers = result.Users || [];
+      // Map Cognito users to internal format
+      const syncedUsers = cognitoUsers.map(cu => {
+        const emailAttr = (cu.Attributes || []).find(a => a.Name === 'email');
+        const nameAttr = (cu.Attributes || []).find(a => a.Name === 'name');
+        return {
+          username: cu.Username,
+          email: emailAttr ? emailAttr.Value : cu.Username,
+          name: nameAttr ? nameAttr.Value : cu.Username,
+          status: cu.UserStatus,
+          enabled: cu.Enabled,
+        };
+      });
+      return sendJSON(res, 200, {
+        ok: true,
+        count: syncedUsers.length,
+        users: syncedUsers,
+        message: `Synced ${syncedUsers.length} users from Cognito User Pool`,
+      }, corsH);
+    } catch (err) {
+      log.error('Cognito sync failed:', err.message);
+      return sendJSON(res, 500, { error: 'Cognito sync failed: ' + err.message }, corsH);
+    }
   }
 
   sendJSON(res, 404, { error: 'Not found.' }, corsH);
