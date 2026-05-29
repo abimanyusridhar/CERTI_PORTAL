@@ -93,11 +93,12 @@ const validation = {
 
   isValidPassword(password) {
     if (!password || typeof password !== 'string') return false;
-    // Minimum 8 chars, at least one uppercase, one lowercase, one digit
-    return password.length >= 8 &&
+    // Minimum 12 chars, uppercase, lowercase, digit, and special character
+    return password.length >= 12 &&
            /[A-Z]/.test(password) &&
            /[a-z]/.test(password) &&
-           /[0-9]/.test(password);
+           /[0-9]/.test(password) &&
+           /[^A-Za-z0-9]/.test(password);
   },
 
   sanitize(input) {
@@ -221,7 +222,9 @@ function createSecurityService({ keys, cfg }) {
       const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAuthTag(tag);
       return decipher.update(enc).toString('utf8') + decipher.final('utf8');
-    } catch {
+    } catch (err) {
+      // Log reason so decryption failures are diagnosable without leaking token data
+      if (typeof console !== 'undefined') console.warn('[security] decryptCertToken failed:', err && err.message);
       return null;
     }
   }

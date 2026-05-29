@@ -31,7 +31,17 @@ function loadDotEnv(log, serverDir) {
 function validateRuntimeConfig({ port, adminUser, adminPass, cfg }) {
   const errors = [];
   if (!Number.isInteger(port) || port < 1 || port > 65535) errors.push('PORT must be a valid integer between 1 and 65535');
-  if (!adminUser || !adminPass) errors.push('ADMIN_USER and ADMIN_PASS must be set');
+  if (!adminUser || !adminPass) {
+    errors.push('ADMIN_USER and ADMIN_PASS must be set');
+  } else {
+    // Enforce strong admin password: min 12 chars, uppercase, lowercase, digit, special char
+    const passOk = adminPass.length >= 12 &&
+                   /[A-Z]/.test(adminPass) &&
+                   /[a-z]/.test(adminPass) &&
+                   /[0-9]/.test(adminPass) &&
+                   /[^A-Za-z0-9]/.test(adminPass);
+    if (!passOk) errors.push('ADMIN_PASS must be at least 12 characters and include uppercase, lowercase, digit, and special character');
+  }
   if (!cfg || !cfg.routes || !cfg.routes.cst || !cfg.routes.vpt || !cfg.routes.cstAdmin || !cfg.routes.vptAdmin) {
     errors.push('App config routes are missing required values');
   }

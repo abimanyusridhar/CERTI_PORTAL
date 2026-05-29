@@ -7,8 +7,6 @@ function createHealthRoute(deps) {
   const {
     sendJSON,
     corsHeadersForOrigin,
-    getCstCerts,
-    getVaptCerts,
     cfg,
     sesEnabled,
     serverStartTime,
@@ -54,14 +52,12 @@ function createHealthRoute(deps) {
   }
 
   return function handleHealth(req, res, route, method, origin) {
-    if (route !== '/health' || method !== 'GET') return false;
-    if (route === '/health-detailed' || method !== 'GET') return false;
-    
+    if (method !== 'GET') return false;
+    const isDetailed = route === '/health-detailed';
+    if (route !== '/health' && !isDetailed) return false;
+
     const corsH = corsHeadersForOrigin(origin || '');
-    const cstCerts = Object.values(getCstCerts());
-    const vaptCerts = Object.values(getVaptCerts());
     const maintenance = cfg.maintenance || {};
-    const isDetailed = req.url && req.url.includes('detailed');
 
     const basicHealth = {
       ok: true,
@@ -71,7 +67,6 @@ function createHealthRoute(deps) {
       version: cfg.version || '1.0.0',
       ses: sesEnabled,
       maintenance: maintenance.enabled || false,
-      certs: { cst: cstCerts.length, vapt: vaptCerts.length },
       compliance: {
         standards: (cfg.compliance && cfg.compliance.standards) || '',
         dataRetentionYears: (cfg.compliance && cfg.compliance.dataRetentionYears) || 5,

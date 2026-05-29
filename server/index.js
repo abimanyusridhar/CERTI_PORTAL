@@ -55,6 +55,12 @@ const PORT           = parseInt(process.env.PORT || '3000', 10);
 // Set TRUST_PROXY=1 in .env when running behind a reverse proxy (nginx, ALB, CloudFront).
 // Without it, X-Forwarded-For is ignored to prevent IP spoofing that bypasses rate limits.
 const TRUST_PROXY    = process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true';
+if (!TRUST_PROXY && (process.env.BASE_ORIGIN || '').startsWith('https://')) {
+  log.warn('⚠️  TRUST_PROXY is not set but BASE_ORIGIN uses HTTPS. ' +
+    'If this server is behind a reverse proxy (nginx, ALB, CloudFront), ' +
+    'rate limiting will use socket IP instead of the real client IP. ' +
+    'Set TRUST_PROXY=1 in .env to fix this.');
+}
 let DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
 let VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
 let TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
@@ -280,7 +286,7 @@ function verifyCertUrlSignature(encToken, sig) {
 // ─── SERVER-ISSUED DOWNLOAD TOKENS (PDF Gating) ──────────────────────────
 // Used to gate access to confidential PDF attachments after a successful
 // email verification. The token is short-lived and tied to `certId` + kind.
-const DOWNLOAD_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const DOWNLOAD_TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function issueDownloadToken(certId, kind /* 'cst' | 'vapt' */) {
   const payload = {
@@ -1182,6 +1188,13 @@ function sesSendRaw(rawMessage, fromAddress, toAddresses) {
  * @param {string}  [opts.certImageMime]   MIME type e.g. "image/png"
  */
 function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl, certImageData, certImageName, certImageMime }) {
+  // Strip CR/LF from all header fields to prevent SMTP header injection
+  const _hdr = s => String(s || '').replace(/[\r\n]/g, '');
+  from    = _hdr(from);
+  to      = _hdr(to);
+  subject = _hdr(subject);
+  if (replyTo) replyTo = _hdr(replyTo);
+
   const b64subject = '=?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=';
   const msgId      = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${(from.match(/@([^>\s]+)/) || [])[1] || 'mail'}>`;
   const dateStr    = new Date().toUTCString().replace(/GMT$/, '+0000');
@@ -1895,6 +1908,9 @@ function parseMultipart(req) {
             data:        content
           };
         } else {
+          if (content.length > 64 * 1024) {
+            return reject(new Error(`Field "${fieldName}" exceeds the 64 KB text field limit.`));
+          }
           fields[fieldName] = content.toString().trim();
         }
       }
@@ -1949,29 +1965,6 @@ async function handleAPI(req, res, parsed) {
   if (healthRoute(req, res, route, method, origin)) return;
   if (await authRoutes.handleLogin(req, res, method, route, ip, corsH)) return;
   if (authRoutes.handleVerify(req, res, method, route, corsH)) return;
-
-  // ── GET /api/health ── (public — liveness / monitoring probe)
-  // Returns uptime, config version, SES status, cert counts, and maintenance state.
-  // Intentionally does NOT expose sensitive details.
-  if (route === '/health' && method === 'GET') {
-    const cstCerts  = Object.values(loadData());
-    const vaptCerts = Object.values(loadVaptData());
-    const maintenance = CFG.maintenance || {};
-    return sendJSON(res, 200, {
-      ok:          true,
-      status:      'operational',
-      uptime:      Math.floor((Date.now() - SERVER_START_TIME) / 1000),
-      timestamp:   new Date().toISOString(),
-      version:     CFG.version || '1.0.0',
-      ses:         SES_ENABLED,
-      maintenance: maintenance.enabled || false,
-      certs:       { cst: cstCerts.length, vapt: vaptCerts.length },
-      compliance: {
-        standards: (CFG.compliance && CFG.compliance.standards) || '',
-        dataRetentionYears: (CFG.compliance && CFG.compliance.dataRetentionYears) || 5,
-      },
-    }, corsH);
-  }
 
   // ── POST /api/auth/login ──────────────────────────────────────────────────
   if (route === '/auth/login' && method === 'POST') {

@@ -38,22 +38,20 @@ out/
 .parcel-cache/
 
 # --- Application Data (Production Security) ---
-# Ignore all sensitive data files that are generated or modified at runtime
+# Runtime-generated JSON/JSONL — never commit; server creates these on first run
 data/*.json
 data/*.jsonl
-data/**/*.json
-data/**/*.jsonl
 data/.keys.json
 
-# Allow specific data structure files if they exist and are non-sensitive
-# !data/schema.json
+# Tenant-scoped data directories (runtime; includes integration test tenants)
+# Ignoring the directory covers all files within it, no need for nested globs
+data/*/
 
 # --- User Uploads ---
-# Ignore all uploaded files in production; preserve directory placeholders
+# All uploaded content is runtime — never commit
+# Only the root placeholder (uploads/.gitkeep) is tracked to preserve the directory
 uploads/**
-!uploads/
-!uploads/*/
-!uploads/**/.gitkeep
+!uploads/.gitkeep
 
 # --- Scripts & Tools ---
 # Ignore temporary outputs from scripts

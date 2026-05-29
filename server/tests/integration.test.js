@@ -145,8 +145,8 @@ test('server critical API flows', async () => {
       PORT: String(port),
       BASE_ORIGIN: `http://127.0.0.1:${port}`,
       ADMIN_USER: 'admin_test',
-      ADMIN_PASS: 'admin_test_pw',
-      SUPER_ADMIN_PASS: 'super_admin_test_pw',
+      ADMIN_PASS: 'Admin@Test_123!',        // meets: 12+ chars, upper, lower, digit, special
+      SUPER_ADMIN_PASS: 'Sup3r@Adm1n_Sec!', // HMAC-compared only, no strength gate
       TENANT_ID: tenantId,
       LOG_LEVEL: 'silent',
     },
@@ -156,12 +156,57 @@ test('server critical API flows', async () => {
   try {
     await waitForHealth(port);
 
+    // ── Health endpoint: no cert counts exposed publicly ──────────────────
+    const healthRes = await requestJson({ port, urlPath: '/api/health' });
+    assert.equal(healthRes.status, 200);
+    assert.ok(healthRes.json.ok);
+    assert.ok(!('certs' in healthRes.json), 'health endpoint must not expose cert counts');
+
+    // ── Health detailed endpoint: filesystem + memory info present ────────
+    const healthDetailRes = await requestJson({ port, urlPath: '/api/health-detailed' });
+    assert.equal(healthDetailRes.status, 200);
+    assert.ok(healthDetailRes.json.detailed, 'health-detailed must return detailed block');
+    assert.ok(healthDetailRes.json.detailed.system, 'detailed must include system info');
+
+    // ── CORS: unknown origin must not be reflected ────────────────────────
+    const corsCheck = await requestBinary({
+      port,
+      urlPath: '/api/health',
+      headers: { Origin: 'https://evil.example.com' },
+    });
+    assert.ok(
+      corsCheck.headers['access-control-allow-origin'] !== 'https://evil.example.com',
+      'CORS must not reflect unknown origin',
+    );
+
+    // ── Auth: unauthenticated admin endpoint must return 401 ──────────────
+    const unauth = await requestJson({ port, urlPath: '/api/certs' });
+    assert.equal(unauth.status, 401, 'admin endpoint must require auth');
+
+    // ── Auth: wrong password must return 401 ─────────────────────────────
+    const badLogin = await requestJson({
+      method: 'POST',
+      port,
+      urlPath: '/api/auth/login',
+      body: { username: 'admin_test', password: 'WrongPass@999!' },
+    });
+    assert.equal(badLogin.status, 401);
+
+    // ── Input validation: cert ID with illegal character → 400 ───────────
+    // sanitiseCertId rejects chars outside [A-Za-z0-9-_]
+    const badId = await requestJson({ port, urlPath: '/api/verify-by-id/CERT!INVALID' });
+    assert.equal(badId.status, 400, 'cert ID with illegal characters must return 400');
+
+    // Path traversal resolves at URL layer (/../ → /etc/passwd → no route → 404)
+    const traversal = await requestJson({ port, urlPath: '/api/verify-by-id/../../etc/passwd' });
+    assert.equal(traversal.status, 404, 'path traversal attempt must not reach any data');
+
     // Login
     const login = await requestJson({
       method: 'POST',
       port,
       urlPath: '/api/auth/login',
-      body: { username: 'admin_test', password: 'admin_test_pw' },
+      body: { username: 'admin_test', password: 'Admin@Test_123!' },
     });
     assert.equal(login.status, 200);
     assert.ok(login.json && login.json.token);
@@ -227,6 +272,16 @@ test('server critical API flows', async () => {
     assert.equal(attachRes.status, 200);
     assert.ok(attachRes.json && Array.isArray(attachRes.json.attachments));
     assert.equal(attachRes.json.attachments.length, 1, 'CST attachment should be stored');
+
+    // ── Input validation: text field > 64 KB must be rejected ────────────
+    const bigField = await requestMultipart({
+      method: 'PUT',
+      port,
+      urlPath: `/api/certs/${certId}`,
+      token,
+      fields: { notes: 'x'.repeat(65 * 1024) },
+    });
+    assert.equal(bigField.status, 400, 'oversized text field must be rejected');
 
     const cstGate = await requestJson({
       method: 'POST',
@@ -388,7 +443,7 @@ test('server critical API flows', async () => {
       method: 'POST',
       port,
       urlPath: '/api/superadmin/login',
-      body: { password: 'super_admin_test_pw' },
+      body: { password: 'Sup3r@Adm1n_Sec!' },
     });
     assert.equal(superLogin.status, 200);
     const superHeader = { Authorization: `SuperAdmin ${superLogin.json.token}` };
