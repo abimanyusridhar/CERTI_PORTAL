@@ -319,8 +319,13 @@
         var d = c.complianceDate
           ? new Date(c.complianceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
           : '\u2014';
+        var exp = c.validUntil
+          ? new Date(c.validUntil).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '\u2014';
         return 'Dear ' + (c.recipientName || c.vesselName || 'Sir / Madam') + ',\n\n'
-          + 'Please find below the Cyber Security Threat Awareness Training certificate details for your records.\n\n'
+          + 'Congratulations on the successful completion of the Cyber Security Threat Intelligence Awareness Training!\n\n'
+          + 'We are pleased to confirm that your certificate has been issued and is now available for verification. '
+          + 'Please find the certificate details below for your records.\n\n'
           + 'Vessel            : ' + (c.recipientName     || '\u2014') + '\n'
           + 'Vessel IMO        : ' + (c.vesselIMO         || '\u2014') + '\n'
           + 'Chief Engineer    : ' + (c.chiefEngineer     || '\u2014') + '\n'
@@ -328,14 +333,17 @@
           + 'Compliance Date   : ' + d                                 + '\n'
           + 'Compliance Quarter: ' + (c.complianceQuarter || '\u2014') + '\n'
           + 'Training Mode     : ' + (c.trainingMode      || '\u2014') + '\n'
-          + 'Valid For         : ' + (c.validFor          || '\u2014') + '\n\n'
+          + 'Valid For         : ' + (c.validFor          || '90 Days') + '\n'
+          + 'Valid Until       : ' + exp                               + '\n\n'
           + 'Your certificate image is attached to this email for your records.\n\n'
-          + 'To verify the authenticity of this certificate at any time, visit the link below\n'
-          + 'or enter Certificate No. ' + c.id + ' at the verification portal:\n\n'
+          + 'To verify the authenticity of this certificate at any time, use the link below\n'
+          + 'or enter Certificate No. ' + c.id + ' at the Synergy Cyber Security Certificate Portal:\n\n'
           + verifyUrl + '\n\n'
           + 'This training was organized by the ' + cstTeam + ' and conducted\n'
-          + 'under supervision of ISO Lead Auditor and Security trainers.\n\n'
-          + 'Regards,\n'
+          + 'under the supervision of ISO Lead Auditor and Cyber Security trainers.\n\n'
+          + 'We commend the vessel crew for their commitment to maritime cyber security and look\n'
+          + 'forward to your continued participation in future training programmes.\n\n'
+          + 'Warm regards,\n'
           + cstTeam + '\n'
           + A.cstEmail;
       },
@@ -347,22 +355,32 @@
        * @returns {string}
        */
       vapt: function (c, certUrl) {
+        var ad = c.assessmentDate
+          ? new Date(c.assessmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '\u2014';
+        var exp = c.validUntil
+          ? new Date(c.validUntil).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '\u2014';
         return 'Subject: Your VAPT Certificate \u2014 ' + c.id + ' \u2014 ' + A.companyShort + ' Group\n\n'
           + 'Dear ' + (c.recipientName || c.vesselName) + ',\n\n'
-          + 'Please find below your Vulnerability Assessment & Penetration Testing (VAPT)\n'
-          + 'certificate details from ' + A.company + ' Cyber Security Division.\n\n'
+          + 'Congratulations on the successful completion of the Vulnerability Assessment & Penetration Testing (VAPT)!\n\n'
+          + 'We are pleased to confirm that your VAPT certificate has been issued by '
+          + A.company + ' Cyber Security Division. Please find the certificate details below.\n\n'
           + 'Certificate ID   : ' + c.id                                          + '\n'
-          + 'Vessel           : ' + c.vesselName                                  + '\n'
-          + 'IMO Number       : ' + c.vesselIMO                                   + '\n'
-          + 'Assessment Date  : ' + c.assessmentDate                              + '\n'
-          + 'Valid Until      : ' + c.validUntil                                  + '\n'
-          + 'Status           : ' + c.status                                      + '\n'
+          + 'Vessel           : ' + (c.vesselName  || '\u2014')                        + '\n'
+          + 'IMO Number       : ' + (c.vesselIMO   || '\u2014')                        + '\n'
+          + 'Assessment Date  : ' + ad                                             + '\n'
+          + 'Valid Until      : ' + exp                                            + '\n'
+          + 'Status           : ' + (c.status || 'VALID')                         + '\n'
           + 'Frameworks       : ' + (c.frameworks || A.frameworks)                + '\n\n'
           + 'Your certificate image is attached to this email for your records.\n\n'
-          + 'To verify the authenticity of this certificate at any time, visit the link below\n'
+          + 'To verify the authenticity of this certificate at any time, use the link below\n'
           + 'or enter Certificate No. ' + c.id + ' at the VAPT verification portal:\n\n'
           + certUrl + '\n\n'
-          + 'For questions or re-assessment, contact us at ' + A.vaptEmail + '.\n\n'
+          + 'We appreciate your vessel\'s commitment to cyber resilience and look forward to\n'
+          + 'supporting your continued compliance journey.\n\n'
+          + 'For re-assessment enquiries, contact us at ' + A.vaptEmail + '.\n\n'
+          + 'Warm regards,\n'
           + (c.verifiedBy    || A.cisoName)  + '\n'
           + (c.verifierTitle || cisoDisplay) + '\n'
           + A.company + ' \u00b7 Cyber Security Division';

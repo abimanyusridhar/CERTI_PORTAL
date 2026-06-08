@@ -144,17 +144,11 @@
           </svg>
           All Certificates
         </div>
-        <div class="nav-item" id="nav-add" onclick="startAdd()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Add Certificate
-        </div>
         <div class="nav-item" id="nav-csv" onclick="showPage('csv',this)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          Import CSV
+          Import Certificates
         </div>
         <div class="nav-item" id="nav-issue" onclick="showPage('issue',this)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -222,7 +216,7 @@
         <div class="tb-actions">
           <button class="btn btn-ghost btn-sm" onclick="window.open(window.location.origin,'_blank')">🌐 Public Portal</button>
           <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue Credentials</button>
-          <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add Certificate</button>
+          <button class="btn btn-primary btn-sm" onclick="showPage('csv',document.getElementById('nav-csv'))">+ Import Certificates</button>
           <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.6rem;font-weight:600;letter-spacing:.1em;color:var(--teal)">
             <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite;flex-shrink:0"></span>
             <span id="realtimeBadge">Live · –</span>
@@ -307,6 +301,67 @@
             <div style="font-size:.57rem;color:rgba(100,255,218,.5);margin-top:4px" id="stEmailPct">—% dispatch rate</div>
           </div>
         </div>
+        <!-- ── QUARTERLY ANALYTICS DASHBOARD ── -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:.85rem;font-weight:700;color:var(--text-bright);letter-spacing:.02em">Quarterly Analytics</div>
+              <div style="font-size:.62rem;color:var(--text-sec);margin-top:2px">CST certificate activity by quarter</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <select id="qYear" onchange="loadQuarterlyStats()" style="background:var(--input);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:5px 10px;font-size:.72rem;font-family:inherit;cursor:pointer"></select>
+              <div style="display:flex;gap:4px" id="qTabs">
+                <button class="q-tab" data-q="Q1" onclick="selectQuarter('Q1')">Q1</button>
+                <button class="q-tab" data-q="Q2" onclick="selectQuarter('Q2')">Q2</button>
+                <button class="q-tab" data-q="Q3" onclick="selectQuarter('Q3')">Q3</button>
+                <button class="q-tab" data-q="Q4" onclick="selectQuarter('Q4')">Q4</button>
+                <button class="q-tab q-tab-all" data-q="ALL" onclick="selectQuarter('ALL')">All</button>
+              </div>
+            </div>
+          </div>
+          <!-- Per-quarter stat cards -->
+          <div id="qStatsRow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            <div class="stat-card gold" id="qCardTotal">
+              <div class="slabel" style="margin:0 0 4px">Total</div>
+              <div class="snum" id="qTotal">—</div>
+              <div style="font-size:.55rem;color:var(--text-sec);margin-top:3px" id="qLabel">—</div>
+            </div>
+            <div class="stat-card green" id="qCardValid">
+              <div class="slabel" style="margin:0 0 4px;color:var(--teal)">Valid</div>
+              <div class="snum" id="qValid" style="color:var(--teal)">—</div>
+            </div>
+            <div class="stat-card orange" id="qCardExpired">
+              <div class="slabel" style="margin:0 0 4px">Expired</div>
+              <div class="snum" id="qExpired">—</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(126,184,247,.3)" id="qCardPending">
+              <div class="slabel" style="margin:0 0 4px;color:#7EB8F7">Pending</div>
+              <div class="snum" id="qPending" style="color:#7EB8F7">—</div>
+            </div>
+          </div>
+          <!-- All-quarters breakdown table -->
+          <div id="qAllTable" style="display:none;margin-top:14px;overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:.72rem">
+              <thead>
+                <tr style="color:var(--text-sec);text-transform:uppercase;letter-spacing:.08em;font-size:.58rem">
+                  <th style="padding:6px 10px;text-align:left;font-weight:600">Quarter</th>
+                  <th style="padding:6px 10px;text-align:right;font-weight:600">Total</th>
+                  <th style="padding:6px 10px;text-align:right;font-weight:600;color:var(--teal)">Valid</th>
+                  <th style="padding:6px 10px;text-align:right;font-weight:600;color:var(--warn)">Expired</th>
+                  <th style="padding:6px 10px;text-align:right;font-weight:600;color:#7EB8F7">Pending</th>
+                  <th style="padding:6px 10px;text-align:right;font-weight:600;color:var(--invalid)">Revoked</th>
+                </tr>
+              </thead>
+              <tbody id="qAllTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <style>
+          .q-tab{padding:5px 14px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:.68rem;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:all .15s;font-family:inherit}
+          .q-tab:hover{border-color:var(--teal);color:var(--teal)}
+          .q-tab.active{background:rgba(100,255,218,.1);border-color:var(--teal);color:var(--teal)}
+          .q-tab-all{border-color:rgba(255,255,255,.12)}
+        </style>
         <!-- ── ANALYTICS CHARTS ROW ── -->
         <div class="analytics-row" style="grid-template-columns:1.1fr 1.1fr 0.8fr;gap:14px;margin-bottom:14px">
           <div class="analytics-card">
@@ -379,6 +434,27 @@
             </div>
             <div id="emailPendingList" style="max-height:260px;overflow-y:auto">
               <div style="padding:28px;text-align:center;color:var(--text-sec);font-size:.78rem">All credentials dispatched ✓</div>
+            </div>
+          </div>
+
+          <!-- Vessel Certificate History -->
+          <div class="near-expiry-card" style="border-color:rgba(100,255,218,.2)" id="panelVesselHistory">
+            <div class="ne-hdr" style="border-bottom-color:rgba(100,255,218,.1);background:rgba(100,255,218,.03)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+              <span style="font-size:.78rem;font-weight:600;color:var(--teal)">Vessel Certificate History</span>
+            </div>
+            <div style="padding:14px 16px">
+              <div style="display:flex;gap:8px;margin-bottom:12px">
+                <input id="vesselHistorySearch" type="text" placeholder="Search by vessel name or IMO…" style="flex:1;background:var(--input);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 12px;font-size:.72rem;font-family:inherit" oninput="renderVesselHistory()" />
+                <select id="vesselHistoryFilter" onchange="renderVesselHistory()" style="background:var(--input);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.72rem;font-family:inherit;cursor:pointer">
+                  <option value="ALL">All Status</option>
+                  <option value="VALID">Valid</option>
+                  <option value="EXPIRED">Expired</option>
+                </select>
+              </div>
+              <div id="vesselHistoryList" style="max-height:320px;overflow-y:auto">
+                <div style="padding:20px;text-align:center;color:var(--text-sec);font-size:.72rem">Search for a vessel to view its certificate history</div>
+              </div>
             </div>
           </div>
 
@@ -954,7 +1030,7 @@
                   <!-- Primary: AWS SES send -->
                   <button class="btn btn-issue" style="flex:1;justify-content:center;padding:13px;font-size:.75rem;border-radius:10px;letter-spacing:.06em;box-shadow:0 2px 12px rgba(100,255,218,.12);transition:all .2s" id="sendSesBtn" onclick="sendViaSES()" onmouseover="this.style.boxShadow='0 4px 20px rgba(100,255,218,.22)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(100,255,218,.12)';this.style.transform=''">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                    <span id="sendSesTxt">Send via AWS SES</span>
+                    <span id="sendSesTxt">Send</span>
                   </button>
                   <!-- Secondary: manual mark sent -->
                   <button style="display:inline-flex;align-items:center;gap:7px;padding:13px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.08em;cursor:pointer;border:1px solid rgba(100,255,218,.22);background:rgba(100,255,218,.05);color:var(--teal);transition:all .18s;white-space:nowrap" id="markSentBtn" onclick="markAsSent()" title="Record as sent manually — use if you emailed directly" onmouseover="this.style.background='rgba(100,255,218,.12)';this.style.borderColor='rgba(100,255,218,.4)'" onmouseout="this.style.background='rgba(100,255,218,.05)';this.style.borderColor='rgba(100,255,218,.22)'">
@@ -971,7 +1047,7 @@
                   <div style="padding:9px 12px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.15);border-radius:8px">
                     <div style="font-size:.62rem;font-weight:700;color:var(--teal);margin-bottom:3px;display:flex;align-items:center;gap:5px">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                      Send via AWS SES
+                      Send
                     </div>
                     <div style="font-size:.6rem;color:var(--text-sec);line-height:1.6">Dispatches automatically via Amazon SES and records delivery timestamp.</div>
                   </div>
@@ -1015,7 +1091,7 @@
                   </div>
                   <div style="display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--text-sec)">
                     <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>
-                    <strong style="color:var(--teal)">Send via AWS SES</strong>&nbsp;to dispatch automatically
+                    <strong style="color:var(--teal)">Send</strong> to dispatch automatically
                   </div>
                   <div style="display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--text-sec)">
                     <span style="width:5px;height:5px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>

@@ -43,6 +43,7 @@ const { createSecurityService, validation } = require('./services/security');
 const { createMetrics } = require('./ops/metrics');
 const { createHealthRoute } = require('./routes/health');
 const { createAuthRoutes } = require('./routes/auth');
+const s3 = require('./services/s3');
 
 // ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
 let CFG = require('../config/app.config');
@@ -869,6 +870,7 @@ const groupsStore = createJsonStore({
 function loadGroups()      { _groupsCache = groupsStore.load(); return _groupsCache; }
 function saveGroups(data)  { _groupsCache = data; groupsStore.save(data); }
 
+
 // ─── USER PASSWORD HELPERS (per-user PBKDF2 with random salt) ────────────────
 async function hashUserPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -1515,7 +1517,7 @@ const TRACKING_PIXEL_GIF = Buffer.from(
 // ─── CST CREDENTIAL EMAIL ─────────────────────────────────────────────────────
 async function sendCstEmail({ to, from, cert, verifyUrl, baseUrl }) {
   const body             = CFG.emailTemplates.cst(cert, verifyUrl);
-  const subject          = `Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
+  const subject          = `Congratulations! Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'cst');
 
   // Load certificate image for attachment (if present)
@@ -1615,6 +1617,10 @@ function saveCertImageFile(files, prefix, existingPath) {
   }
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), f.data);
+  if (s3.S3_ENABLED) {
+    s3.uploadFile('uploads/' + fname, f.data, f.contentType || 'application/octet-stream')
+      .catch(err => log.warn('S3 cert image mirror failed: ' + err.message));
+  }
   return '/uploads/' + fname;
 }
 
@@ -1663,6 +1669,10 @@ function saveAttachmentFile(fileObj, prefix) {
   if (!validateFileMagic(fileObj.data, origExt)) throw new Error('Attachment content does not match its declared file type.');
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
+  if (s3.S3_ENABLED) {
+    s3.uploadFile('uploads/' + fname, fileObj.data, fileObj.contentType || 'application/octet-stream')
+      .catch(err => log.warn('S3 attachment mirror failed: ' + err.message));
+  }
   return { name: fileObj.filename || fname, url: '/uploads/' + fname, size: fileObj.data.length };
 }
 
@@ -1825,40 +1835,27 @@ function getCorsHeaders(origin) {
   };
 }
 
-// ─── QUARTER HELPER ──────────────────────────────────────────────────────────
-const QUARTER_MAP = {
-  Q1: { label: 'Q2 (APR–JUN)',  endMonth: 6,  endDay: 30 },
-  Q2: { label: 'Q3 (JUL–SEP)',  endMonth: 9,  endDay: 30 },
-  Q3: { label: 'Q4 (OCT–DEC)',  endMonth: 12, endDay: 31 },
-  Q4: { label: 'Q1 (JAN–MAR)',  endMonth: 3,  endDay: 31, nextYear: true }
-};
-
+// ─── QUARTER HELPER ────────────────────────────────────────────────────────────────────────────
+// complianceQuarter is retained for analytics/display only.
+// Expiry is always 90 days from date of conduction (complianceDate).
 function deriveQuarterFields(cert) {
-  const q    = (cert.complianceQuarter || '').toUpperCase();
-  const info = QUARTER_MAP[q];
-  if (!info) return;
-
-  const baseYear = cert.complianceDate
-    ? new Date(cert.complianceDate).getFullYear()
-    : new Date().getFullYear();
-  const year = info.nextYear ? baseYear + 1 : baseYear;
-
-  // Set validFor / validUntil only when not already present
-  // (callers delete these fields before calling when forcing recalculation)
-  if (!cert.validFor)   cert.validFor   = info.label + '-' + year;
-  if (!cert.validUntil) {
-    const d = new Date(year, info.endMonth - 1, info.endDay);
-    cert.validUntil = d.toISOString().slice(0, 10);
+  if (cert.complianceDate) {
+    if (!cert.validUntil) {
+      const expiry = new Date(cert.complianceDate);
+      expiry.setDate(expiry.getDate() + 90);
+      cert.validUntil = expiry.toISOString().slice(0, 10);
+    }
+    if (!cert.validFor) cert.validFor = '90 Days';
   }
 
   // Normalise recipientName → "<PREFIX> - <VESSEL>" when missing or bare
   if (cert.vesselName) {
     const current = (cert.recipientName || '').trim();
-    const bare    = cert.vesselName.replace(/^(MV|MT)\s*[-\u2013]?\s*/i, '').trim();
-    const hasPrefix = /^(MV|MT)\s*[-\u2013]\s*/i.test(current);
+    const bare    = cert.vesselName.replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim();
+    const hasPrefix = /^(MV|MT)\s*[-–]\s*/i.test(current);
     if (!current || current === cert.vesselName.trim() || !hasPrefix) {
       const srcForPrefix = current || cert.vesselName;
-      const m   = srcForPrefix.match(/^(MV|MT)\b/i);
+      const m   = srcForPrefix.match(/^(MV|MT)/i);
       const pfx = m ? m[1].toUpperCase() : 'MV';
       cert.recipientName = pfx + ' - ' + bare;
     }
@@ -2265,9 +2262,9 @@ async function handleAPI(req, res, parsed) {
     }
     // FIX: re-derive quarter fields on update when compliance fields change.
     // Reset derived fields so deriveQuarterFields can recalculate them.
-    if (updates.complianceQuarter || updates.complianceDate) {
-      if (updates.complianceQuarter) delete updated.validFor;
-      if (updates.complianceDate || updates.complianceQuarter) delete updated.validUntil;
+    if (updates.complianceDate || updates.complianceQuarter) {
+      delete updated.validFor;
+      delete updated.validUntil;
       deriveQuarterFields(updated);
     }
     if (updates.id) {
@@ -2472,6 +2469,57 @@ async function handleAPI(req, res, parsed) {
     }, corsH);
   }
 
+  // ── GET /api/stats/quarterly ── (admin — per-quarter stats for a given year)
+  if (route === '/stats/quarterly' && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const urlQ  = new URL('http://x' + req.url).searchParams;
+    const year  = parseInt(urlQ.get('year') || String(new Date().getFullYear()), 10);
+    const data  = loadData();
+    const now   = new Date();
+    const QUARTERS = ['Q1','Q2','Q3','Q4'];
+    const result = {};
+    for (const q of QUARTERS) {
+      const qCerts = Object.values(data).filter(c => {
+        if ((c.complianceQuarter || '').toUpperCase() !== q) return false;
+        const d = c.complianceDate || c.issuedAt || c.createdAt || '';
+        return d.slice(0, 4) === String(year);
+      });
+      const valid   = qCerts.filter(c => (c.status||'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
+      const expired = qCerts.filter(c => { const st = (c.status||'VALID').toUpperCase(); return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now); }).length;
+      const pending = qCerts.filter(c => (c.status||'').toUpperCase() === 'PENDING').length;
+      const revoked = qCerts.filter(c => (c.status||'').toUpperCase() === 'REVOKED').length;
+      result[q] = { total: qCerts.length, valid, expired, pending, revoked };
+    }
+    return sendJSON(res, 200, { year, quarters: result }, corsH);
+  }
+
+  // ── GET /api/vapt/stats/quarterly ── (admin — per-quarter VAPT stats)
+  if (route === '/vapt/stats/quarterly' && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const urlQ  = new URL('http://x' + req.url).searchParams;
+    const year  = parseInt(urlQ.get('year') || String(new Date().getFullYear()), 10);
+    const data  = loadVaptData();
+    const now   = new Date();
+    const QUARTERS = ['Q1','Q2','Q3','Q4'];
+    const result = {};
+    for (const q of QUARTERS) {
+      const QMONTHS = { Q1:[1,3], Q2:[4,6], Q3:[7,9], Q4:[10,12] };
+      const [mFrom, mTo] = QMONTHS[q];
+      const qCerts = Object.values(data).filter(c => {
+        const d = c.assessmentDate || c.issuedAt || c.createdAt || '';
+        if (d.slice(0,4) !== String(year)) return false;
+        const m = parseInt(d.slice(5,7), 10);
+        return m >= mFrom && m <= mTo;
+      });
+      const valid   = qCerts.filter(c => (c.status||'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
+      const expired = qCerts.filter(c => { const st = (c.status||'VALID').toUpperCase(); return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now); }).length;
+      const pending = qCerts.filter(c => (c.status||'').toUpperCase() === 'PENDING').length;
+      const revoked = qCerts.filter(c => (c.status||'').toUpperCase() === 'REVOKED').length;
+      result[q] = { total: qCerts.length, valid, expired, pending, revoked };
+    }
+    return sendJSON(res, 200, { year, quarters: result }, corsH);
+  }
+
   // ── GET /api/cognito-status ── (admin — Cognito configuration check)
   if (route === '/cognito-status' && method === 'GET') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
@@ -2504,6 +2552,22 @@ async function handleAPI(req, res, parsed) {
       iamKeySource: iamSource,
       iamKeyHint:   keyHint,
       missing,
+    }, corsH);
+  }
+
+  // ── GET /api/s3-status ── (admin — S3 storage configuration status)
+  if (route === '/s3-status' && method === 'GET') {
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    return sendJSON(res, 200, {
+      enabled: s3.S3_ENABLED,
+      bucket:  s3.BUCKET  || null,
+      region:  s3.REGION  || null,
+      prefix:  s3.PREFIX  || null,
+      missing: [
+        !process.env.S3_BUCKET     && 'S3_BUCKET',
+        !process.env.S3_ACCESS_KEY && !process.env.AWS_ACCESS_KEY_ID && 'S3_ACCESS_KEY',
+        !process.env.S3_SECRET_KEY && !process.env.AWS_SECRET_ACCESS_KEY && 'S3_SECRET_KEY',
+      ].filter(Boolean),
     }, corsH);
   }
 
@@ -2992,10 +3056,11 @@ async function handleAPI(req, res, parsed) {
   //  RELEVANT DOCUMENTS — vessel-level documents with access-token gating
   // ════════════════════════════════════════════════════════════════════════════
 
-  // ── GET /api/docs ── (admin — list all documents)
+  // ── GET /api/docs ── (admin — list all documents; scoped to training reports only)
   if (route === '/docs' && method === 'GET') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    return sendJSON(res, 200, allDocumentLibraryRecords(), corsH);
+    const allDocs = allDocumentLibraryRecords().filter(d => !d.docType || d.docType === 'TRAINING_REPORT');
+    return sendJSON(res, 200, allDocs, corsH);
   }
 
   // ── POST /api/docs/upload ── (admin — upload a document for a vessel)
@@ -3007,7 +3072,7 @@ async function handleAPI(req, res, parsed) {
     try { ({ fields, files } = await parseMultipart(req)); } catch (e) { return sendJSON(res, 400, { error: e.message || 'Upload failed' }, corsH); }
     const vesselIMO  = normalizeVesselIMO(fields.vesselIMO);
     const vesselName = (fields.vesselName || '').trim().slice(0, 120);
-    const docType    = ['TRAINING_REPORT','DRILL_REPORT','AUDIT_REPORT','OTHER'].includes((fields.docType||'').toUpperCase()) ? fields.docType.toUpperCase() : 'OTHER';
+    const docType    = 'TRAINING_REPORT';
     const title      = (fields.title || '').trim().slice(0, 200) || 'Untitled Document';
     const description = (fields.description || '').trim().slice(0, 500);
     const linkedCertId = (fields.linkedCertId || '').trim().slice(0, 60);
@@ -3025,6 +3090,10 @@ async function handleAPI(req, res, parsed) {
     fs.mkdirSync(docsUploadDir, { recursive: true });
     const fpath = path.join(docsUploadDir, fname);
     fs.writeFileSync(fpath, fileObj.data);
+    if (s3.S3_ENABLED) {
+      s3.uploadFile(`uploads/documents/${fname}`, fileObj.data, fileObj.contentType || 'application/octet-stream')
+        .catch(err => log.warn('S3 doc mirror failed: ' + err.message));
+    }
     const docs = loadDocs();
     const docId = nextSequentialId(docs, 'DOC');
     const doc = {
@@ -3078,26 +3147,11 @@ async function handleAPI(req, res, parsed) {
     const imo = normalizeVesselIMO(route.replace('/docs/by-vessel/', ''));
     const authHdr = req.headers['authorization'] || '';
 
-    // Path A: UserSession (superintendent)
+    // UserSession (superintendent) — only access path
     const sessUser = getUserFromSession(req);
-    if (sessUser) {
-      const imoSet = getUserVesselIMOs(sessUser);
-      if (!imoSet.has(imo)) return sendJSON(res, 403, { error: 'Access denied. Vessel not in your group.' }, corsH);
-      return sendJSON(res, 200, [...getStoredDocsForVessel(imo), ...collectCertAttachmentsForVessel(imo)], corsH);
-    }
-
-    // Path B: DocAccess token (captain / vessel user)
-    const token = authHdr.startsWith('DocAccess ') ? authHdr.slice(10) : (parsed.searchParams.get('docToken') || '');
-    const payload = verifyDocAccessToken(token);
-    if (!payload || payload.sub !== imo) return sendJSON(res, 403, { error: 'Access denied. Valid document access token required.' }, corsH);
-    // Verify the grant hasn't been revoked
-    if (payload.reqId) {
-      const ac = loadDocAccess();
-      const gr = ac[payload.reqId];
-      if (!gr || !gr.permanentGrant || gr.status !== 'APPROVED') {
-        return sendJSON(res, 403, { error: 'Access revoked.' }, corsH);
-      }
-    }
+    if (!sessUser) return sendJSON(res, 401, { error: 'Superintendent session required.' }, corsH);
+    const imoSet = getUserVesselIMOs(sessUser);
+    if (!imoSet.has(imo)) return sendJSON(res, 403, { error: 'Access denied. Vessel not in your group.' }, corsH);
     return sendJSON(res, 200, [...getStoredDocsForVessel(imo), ...collectCertAttachmentsForVessel(imo)], corsH);
   }
 
@@ -3129,21 +3183,6 @@ async function handleAPI(req, res, parsed) {
         }
       }
     }
-    // DocAccess token
-    if (!accessGranted) {
-      const token = authHdr.startsWith('DocAccess ') ? authHdr.slice(10) : (parsed.searchParams.get('docToken') || '');
-      const payload = verifyDocAccessToken(token);
-      if (payload && payload.sub === normalizeVesselIMO(doc.vesselIMO)) {
-        // Verify not revoked
-        let grantOk = true;
-        if (payload.reqId) {
-          const ac = loadDocAccess();
-          const gr = ac[payload.reqId];
-          if (!gr || !gr.permanentGrant || gr.status !== 'APPROVED') grantOk = false;
-        }
-        if (grantOk) accessGranted = true;
-      }
-    }
     if (!accessGranted) return sendJSON(res, 403, { error: 'Access denied.' }, corsH);
     const fp = certAttachment
       ? certAttachment.filePath
@@ -3166,131 +3205,29 @@ async function handleAPI(req, res, parsed) {
     return res.end(data);
   }
 
-  // ── POST /api/docs/request-access ── (public — vessel requests document access)
+  // ── POST /api/docs/request-access ── DECOMMISSIONED (Item 10)
   if (route === '/docs/request-access' && method === 'POST') {
-    const rl = checkRateLimit(ip, 'verify');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req, 5000)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const captainName = (body.captainName || body.vesselName || '').trim().slice(0, 120); // captain's name
-    const vesselName  = (body.vesselName  || '').trim().slice(0, 120);                    // vessel name from cert
-    const vesselIMO   = normalizeVesselIMO(body.vesselIMO);
-    const emailId     = (body.emailId     || '').trim().toLowerCase().slice(0, 200);
-    if (!emailId) return sendJSON(res, 400, { error: 'emailId is required' }, corsH);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailId)) return sendJSON(res, 400, { error: 'Invalid email address' }, corsH);
-    const access = loadDocAccess();
-    // If already permanently approved — return a fresh claim token so the browser can auto-retrieve access
-    const approved = Object.values(access).find(r => r.emailId === emailId && r.vesselIMO === vesselIMO && r.permanentGrant);
-    if (approved) {
-      const claimToken = issueDocClaimToken(approved.id);
-      return sendJSON(res, 200, { ok: true, requestId: approved.id, claimToken, alreadyApproved: true }, corsH);
-    }
-    // If already pending — return existing reqId + fresh claim token
-    const dup = Object.values(access).find(r => r.emailId === emailId && r.vesselIMO === vesselIMO && r.status === 'PENDING');
-    if (dup) {
-      const claimToken = issueDocClaimToken(dup.id);
-      return sendJSON(res, 200, { ok: true, requestId: dup.id, claimToken, alreadyPending: true }, corsH);
-    }
-    const reqId = nextSequentialId(access, 'REQ');
-    const req_ = { id: reqId, captainName, vesselName, vesselIMO, emailId, requestedAt: new Date().toISOString(), status: 'PENDING', permanentGrant: false, accessToken: null, tokenExpiry: null, approvedAt: null, notes: '' };
-    access[reqId] = req_;
-    saveDocAccess(access);
-    const claimToken = issueDocClaimToken(reqId);
-    return sendJSON(res, 201, { ok: true, requestId: reqId, claimToken, message: 'Access request submitted.' }, corsH);
+    return sendJSON(res, 410, { error: 'Captain access requests have been removed. Documents are accessible to superintendents via the Superintendent Portal.' }, corsH);
   }
 
-  // ── GET /api/docs/access-requests ── (admin — list all access requests)
+  // ── GET /api/docs/access-requests ── DECOMMISSIONED (Item 10)
   if (route === '/docs/access-requests' && method === 'GET') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    const access = loadDocAccess();
-    return sendJSON(res, 200, Object.values(access).sort((a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || '')), corsH);
+    return sendJSON(res, 410, { error: 'Access request management has been removed.', data: [] }, corsH);
   }
 
-  // ── PUT /api/docs/access-requests/:id ── (admin — approve or deny)
+  // ── PUT /api/docs/access-requests/:id ── DECOMMISSIONED (Item 10)
   if (route.match(/^\/docs\/access-requests\/REQ-\d+$/) && method === 'PUT') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    const reqId = route.replace('/docs/access-requests/', '');
-    const access = loadDocAccess();
-    if (!access[reqId]) return sendJSON(res, 404, { error: 'Request not found' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const action = (body.status || '').toUpperCase();
-    if (!['APPROVED', 'DENIED'].includes(action)) return sendJSON(res, 400, { error: 'status must be APPROVED or DENIED' }, corsH);
-    access[reqId].status = action;
-    access[reqId].notes  = (body.notes || '').trim().slice(0, 300);
-    if (action === 'APPROVED') {
-      const token = issueDocAccessToken(access[reqId].vesselIMO, reqId);
-      access[reqId].accessToken    = token;
-      access[reqId].tokenExpiry    = new Date(Date.now() + DOC_ACCESS_TOKEN_TTL_MS).toISOString();
-      access[reqId].approvedAt     = new Date().toISOString();
-      access[reqId].permanentGrant = true; // One-time approval — auto-renews forever
-      saveDocAccess(access);
-      // Auto-send approval email — vessel just returns to the cert page, no token link needed
-      const certPageUrl = BASE_ORIGIN + (CFG.routes.cst || '/CST') + '/';
-      let emailSent = false;
-      try {
-        const mailResult = await sendDocAccessEmail(access[reqId], certPageUrl);
-        emailSent = mailResult.success;
-        if (!mailResult.success) log.warn('Doc access email failed:', mailResult.error);
-      } catch (e) { log.warn('Doc access email error:', e.message); }
-      access[reqId].emailSent   = emailSent;
-      access[reqId].emailSentAt = emailSent ? new Date().toISOString() : null;
-      saveDocAccess(access);
-      return sendJSON(res, 200, { ...access[reqId], emailSent }, corsH);
-    } else {
-      access[reqId].accessToken    = null;
-      access[reqId].tokenExpiry    = null;
-      access[reqId].permanentGrant = false;
-      saveDocAccess(access);
-      return sendJSON(res, 200, access[reqId], corsH);
-    }
+    return sendJSON(res, 410, { error: 'Access request management has been removed.' }, corsH);
   }
 
-  // ── DELETE /api/docs/access-requests/:id ── (admin — remove request)
+  // ── DELETE /api/docs/access-requests/:id ── DECOMMISSIONED (Item 10)
   if (route.match(/^\/docs\/access-requests\/REQ-\d+$/) && method === 'DELETE') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    const reqId = route.replace('/docs/access-requests/', '');
-    const access = loadDocAccess();
-    if (!access[reqId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    delete access[reqId];
-    saveDocAccess(access);
-    return sendJSON(res, 200, { ok: true }, corsH);
+    return sendJSON(res, 410, { error: 'Access request management has been removed.' }, corsH);
   }
 
-  // ── GET /api/docs/check-access ── (public — verify token; auto-renews permanent grants)
+  // ── GET /api/docs/check-access ── DECOMMISSIONED (Item 10)
   if (route === '/docs/check-access' && method === 'GET') {
-    const token = parsed.searchParams.get('token') || '';
-    const imo   = (parsed.searchParams.get('imo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    // Fast path — token still valid
-    const payload = verifyDocAccessToken(token);
-    if (payload && (!imo || payload.sub === imo)) {
-      // Verify the grant hasn't been revoked since this token was issued
-      if (payload.reqId) {
-        const ac = loadDocAccess();
-        const gr = ac[payload.reqId];
-        if (!gr || !gr.permanentGrant || gr.status !== 'APPROVED') {
-          return sendJSON(res, 200, { valid: false }, corsH);
-        }
-      }
-      return sendJSON(res, 200, { valid: true, vesselIMO: payload.sub, exp: payload.exp }, corsH);
-    }
-    // Slow path — token expired or missing; check for permanent grant and auto-renew
-    if (token) {
-      const relaxed = verifyDocAccessTokenRelaxed(token);
-      if (relaxed && relaxed.reqId && (!imo || relaxed.sub === imo)) {
-        const access = loadDocAccess();
-        const grant  = access[relaxed.reqId];
-        if (grant && grant.permanentGrant && grant.status === 'APPROVED' && grant.vesselIMO === relaxed.sub) {
-          const newToken = issueDocAccessToken(grant.vesselIMO, relaxed.reqId);
-          grant.accessToken    = newToken;
-          grant.tokenExpiry    = new Date(Date.now() + DOC_ACCESS_TOKEN_TTL_MS).toISOString();
-          grant.lastRenewedAt  = new Date().toISOString();
-          saveDocAccess(access);
-          return sendJSON(res, 200, { valid: true, vesselIMO: grant.vesselIMO, newToken, renewed: true }, corsH);
-        }
-      }
-    }
-    return sendJSON(res, 200, { valid: false }, corsH);
+    return sendJSON(res, 200, { valid: false, message: 'Captain access workflow decommissioned.' }, corsH);
   }
 
   // ── GET /api/docs/temp-link/:id ── (admin — generates 24-hour signed URL; no auth needed to open it)
@@ -3542,9 +3479,11 @@ async function handleAPI(req, res, parsed) {
       const certDocs  = collectCertAttachmentsForVessel(imo);
       const vesselName = (cstCerts[0] || vaptCerts[0] || {}).vesselName || imo;
       const now = Date.now();
-      const cstValid  = cstCerts.filter(c  => c.status === 'VALID' && (!c.validUntil  || new Date(c.validUntil).getTime()  > now)).length;
-      const vaptValid = vaptCerts.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil).getTime() > now)).length;
-      return { imo, vesselName, cstCount: cstCerts.length, vaptCount: vaptCerts.length, docCount: docs.length + certDocs.length, cstValid, vaptValid };
+      const soon      = now + 90 * 24 * 60 * 60 * 1000;
+      const cstValid    = cstCerts.filter(c  => c.status === 'VALID' && (!c.validUntil  || new Date(c.validUntil).getTime()  > now)).length;
+      const vaptValid   = vaptCerts.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil).getTime() > now)).length;
+      const cstExpiring = cstCerts.filter(c  => c.status === 'VALID' && c.validUntil && new Date(c.validUntil).getTime() > now && new Date(c.validUntil).getTime() <= soon).length;
+      return { imo, vesselName, cstCount: cstCerts.length, vaptCount: vaptCerts.length, docCount: docs.length + certDocs.length, cstValid, vaptValid, cstExpiring };
     }).sort((a, b) => a.vesselName.localeCompare(b.vesselName));
     return sendJSON(res, 200, vessels, corsH);
   }
@@ -3622,6 +3561,39 @@ async function handleAPI(req, res, parsed) {
     if (body.vesselIMOs !== undefined) groups[groupId].vesselIMOs = Array.isArray(body.vesselIMOs) ? body.vesselIMOs.map(i => String(i).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20)).filter(Boolean) : [];
     if (body.notes      !== undefined) groups[groupId].notes      = String(body.notes).trim().slice(0, 500);
     groups[groupId].updatedAt = new Date().toISOString();
+    saveGroups(groups);
+    return sendJSON(res, 200, groups[groupId], corsH);
+  }
+
+  // ── POST /api/admin/groups/:id/vessels ── (admin — add vessel IMO to group)
+  if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels$/) && method === 'POST') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const groupId = route.replace('/admin/groups/', '').replace('/vessels', '');
+    const groups = loadGroups();
+    if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
+    let body;
+    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
+    const imo = String(body.vesselIMO || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
+    if (!imo) return sendJSON(res, 400, { error: 'vesselIMO is required' }, corsH);
+    if (!Array.isArray(groups[groupId].vesselIMOs)) groups[groupId].vesselIMOs = [];
+    if (!groups[groupId].vesselIMOs.includes(imo)) {
+      groups[groupId].vesselIMOs.push(imo);
+      groups[groupId].updatedAt = new Date().toISOString();
+      saveGroups(groups);
+    }
+    return sendJSON(res, 200, groups[groupId], corsH);
+  }
+
+  // ── DELETE /api/admin/groups/:id/vessels/:imo ── (admin — remove vessel from group)
+  if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels\/[A-Z0-9]+$/) && method === 'DELETE') {
+    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    const parts   = route.split('/');
+    const groupId = parts[3];
+    const imo     = parts[5].toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const groups  = loadGroups();
+    if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
+    groups[groupId].vesselIMOs = (groups[groupId].vesselIMOs || []).filter(i => i !== imo);
+    groups[groupId].updatedAt  = new Date().toISOString();
     saveGroups(groups);
     return sendJSON(res, 200, groups[groupId], corsH);
   }
@@ -3951,7 +3923,7 @@ async function handleRequest(req, res) {
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
     const relative = p.slice((CFG.routes.cstAdmin + '/').length).replace(/\/$/, '');
     // Known named admin pages — extensionless sub-paths resolved here.
-    const PAGE_MAP = { documents: 'documents.html', hub: 'index.html', access: 'access.html', users: 'users.html', groups: 'groups.html', portal: 'portal.html', superadmin: 'super-admin.html' };
+    const PAGE_MAP = { documents: 'documents.html', hub: 'index.html', users: 'users.html', groups: 'groups.html', portal: 'portal.html', superadmin: 'super-admin.html' };
     let filePath;
     if (!relative) {
       filePath = path.join(adminDir, 'dashboard.html');

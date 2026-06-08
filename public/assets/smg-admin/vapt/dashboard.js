@@ -1164,7 +1164,7 @@
     sendBtn.disabled = false;
     sendBtn.style.background = ''; sendBtn.style.borderColor = ''; sendBtn.style.color = '';
     document.getElementById('markSentTxt').textContent = c.emailStatus === 'SENT' ? '✓ Re-Mark Sent' : 'Mark Sent';
-    document.getElementById('sendSesTxt').textContent = c.emailStatus === 'SENT' ? 'Re-Send via AWS' : 'Send via AWS SES';
+    document.getElementById('sendSesTxt').textContent = c.emailStatus === 'SENT' ? 'Re-Send' : 'Send';
     updateIssueEmailPreview();
   }
 
@@ -1336,7 +1336,7 @@
         renderSentLog();
         btn.disabled = false;
         btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
-        document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
+        document.getElementById('sendSesTxt').textContent = 'Re-Send';
         document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
         return;
       } else {
@@ -1365,7 +1365,7 @@
     }
     btn.disabled = false;
     btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
-    document.getElementById('sendSesTxt').textContent = 'Send via AWS SES';
+    document.getElementById('sendSesTxt').textContent = 'Send';
   }
 
   async function markAsSent() {
@@ -1393,7 +1393,7 @@
         btn.disabled = false;
         btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
         document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
-        document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
+        document.getElementById('sendSesTxt').textContent = 'Re-Send';
         return;
       } else {
         toast('Could not record dispatch status. Please try again.', 'err');

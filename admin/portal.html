@@ -521,7 +521,9 @@ function renderDashboard(vessels) {
         <span class="vc-pill doc">${v.docCount} Docs</span>
       </div>
       <div class="vc-footer">
-        <div class="vc-valid">${v.cstValid + v.vaptValid} valid cert${(v.cstValid + v.vaptValid) !== 1 ? 's' : ''} active</div>
+        <div class="vc-valid">${v.cstValid + v.vaptValid} valid cert${(v.cstValid + v.vaptValid) !== 1 ? 's' : ''} active
+          ${v.cstExpiring ? `<span style="margin-left:6px;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:.6rem;font-weight:700;background:rgba(255,193,0,.1);border:1px solid rgba(255,193,0,.3);color:#FFC100">&#9651; ${v.cstExpiring} expiring</span>` : ''}
+        </div>
         <svg class="vc-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </div>`;

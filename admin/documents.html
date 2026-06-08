@@ -233,11 +233,6 @@
         Document Library
         <span class="badge-count gold" id="badgeDocs">0</span>
       </div>
-      <div class="nav-item req-tab" id="navReqs" onclick="switchTab('reqs')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-        Access Requests
-        <span class="badge-count" id="badgeReqs">0</span>
-      </div>
       <div class="nav-sec">Navigate</div>
       <a href="/CST/misecure/" id="navLinkCst" class="nav-item" style="text-decoration:none">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -246,10 +241,6 @@
       <a href="/VAPT/misecure/" id="navLinkVapt" class="nav-item" style="text-decoration:none">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
         VAPT Admin
-      </a>
-      <a href="/CST/misecure/access/" id="navLinkAccess" class="nav-item" style="text-decoration:none">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-        Access Control
       </a>
       <div class="nav-sec" style="margin-top:16px">Super Admin</div>
       <a href="/CST/misecure/users/" id="navLinkUsers" class="nav-item" style="text-decoration:none">
@@ -276,7 +267,7 @@
       </div>
       <div>
         <div class="page-title">Relevant Documents</div>
-        <div class="page-sub">Upload training reports, drill reports &amp; audit files · Manage vessel access</div>
+        <div class="page-sub">Upload training reports for vessels · Accessible to superintendents via the portal</div>
       </div>
       <div style="margin-left:auto;font-size:.64rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace" id="sessionInfo"></div>
     </div>
@@ -286,11 +277,6 @@
       <button class="tab-btn active-docs" id="tabBtnDocs" onclick="switchTab('docs')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         Document Library
-      </button>
-      <button class="tab-btn" id="tabBtnReqs" onclick="switchTab('reqs')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-        Access Requests
-        <span id="tabBadgePending" style="display:none;margin-left:6px;background:rgba(100,255,218,.14);border:1px solid rgba(100,255,218,.3);color:var(--teal);border-radius:9px;padding:1px 7px;font-size:.6rem;font-weight:700"></span>
       </button>
     </div>
 
@@ -316,12 +302,8 @@
         <div class="form-row">
           <div class="f-group">
             <label class="f-label">Document Type</label>
-            <select class="f-inp" id="uType">
-              <option value="TRAINING_REPORT">Training Report</option>
-              <option value="DRILL_REPORT">Drill Report</option>
-              <option value="AUDIT_REPORT">Audit Report</option>
-              <option value="OTHER">Other</option>
-            </select>
+            <input type="text" class="f-inp" id="uType" value="Training Report" readonly style="opacity:.7;cursor:default" />
+            <input type="hidden" id="uTypeValue" value="TRAINING_REPORT" />
           </div>
           <div class="f-group">
             <label class="f-label">Linked Certificate ID (optional)</label>
@@ -357,14 +339,8 @@
       <!-- Docs list -->
       <div class="filter-bar">
         <input type="text" class="filter-inp" id="docSearch" placeholder="Search by vessel, title…" oninput="renderDocs()" />
-        <select class="filter-inp" id="docTypeFilter" style="width:180px" onchange="renderDocs()">
-          <option value="">All Types</option>
-          <option value="TRAINING_REPORT">Training Report</option>
-          <option value="DRILL_REPORT">Drill Report</option>
-          <option value="AUDIT_REPORT">Audit Report</option>
-          <option value="CERT_ATTACHMENT">Certificate Attachment</option>
-          <option value="OTHER">Other</option>
-        </select>
+        <span style="font-size:.68rem;color:var(--text-sec);padding:6px 10px;border:1px solid var(--border);border-radius:8px;white-space:nowrap">Training Reports</span>
+        <input type="hidden" id="docTypeFilter" value="TRAINING_REPORT" />
         <button class="btn-sm primary" onclick="loadAllData()">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Refresh
@@ -382,23 +358,6 @@
       </div>
     </div>
 
-    <!-- ── ACCESS REQUESTS TAB ── -->
-    <div class="tab-pane" id="paneReq">
-      <div class="filter-bar">
-        <input type="text" class="filter-inp" id="reqSearch" placeholder="Search by vessel, email…" oninput="renderRequests()" />
-        <select class="filter-inp" id="reqStatusFilter" style="width:160px" onchange="renderRequests()">
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="APPROVED">Approved</option>
-          <option value="DENIED">Denied</option>
-        </select>
-        <button class="btn-sm primary" onclick="loadAllData()">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          Refresh
-        </button>
-      </div>
-      <div id="reqListBody"></div>
-    </div>
 
   </main>
 </div>
@@ -446,7 +405,7 @@
   'use strict';
   const API = '/api';
   let TOKEN = sessionStorage.getItem('adminToken') || '';
-  let allDocs = [], allRequests = [];
+  let allDocs = [];
   let _confirmCb = null;
 
   // ── SESSION MANAGEMENT ──────────────────────────────────────────
@@ -532,41 +491,25 @@
   async function loadAllData() {
     const loadingHtml = '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:.78rem">Loading…</div>';
     document.getElementById('docsTableBody').innerHTML = loadingHtml;
-    document.getElementById('reqListBody').innerHTML = loadingHtml;
     try {
-      const [docsRes, reqsRes] = await Promise.all([
-        fetch(API + '/docs', { headers: { Authorization: 'Bearer ' + TOKEN } }),
-        fetch(API + '/docs/access-requests', { headers: { Authorization: 'Bearer ' + TOKEN } }),
-      ]);
+      const docsRes = await fetch(API + '/docs', { headers: { Authorization: 'Bearer ' + TOKEN } });
       if (docsRes.ok) allDocs = await docsRes.json();
-      if (reqsRes.ok) allRequests = await reqsRes.json();
     } catch { toast('Failed to load data', true); }
     renderDocs();
-    renderRequests();
     updateBadges();
   }
   window.loadAllData = loadAllData;
 
   function updateBadges() {
-    const pending = allRequests.filter(r => r.status === 'PENDING').length;
     document.getElementById('badgeDocs').textContent = allDocs.length;
-    document.getElementById('badgeReqs').textContent = allRequests.length;
-    const tb = document.getElementById('tabBadgePending');
-    if (pending > 0) { tb.style.display = 'inline'; tb.textContent = pending + ' pending'; }
-    else { tb.style.display = 'none'; }
   }
 
   // ── TABS ─────────────────────────────────────────────────────────
   function switchTab(tab) {
-    ['docs','reqs'].forEach(t => {
-      document.getElementById('pane' + (t === 'docs' ? 'Doc' : 'Req')).classList.toggle('active', t === tab);
-      document.getElementById('nav' + (t === 'docs' ? 'Docs' : 'Reqs')).classList.toggle('active', t === tab);
-      document.getElementById('nav' + (t === 'docs' ? 'Docs' : 'Reqs')).classList.toggle('req-tab', t === 'reqs');
-    });
-    const dBtn = document.getElementById('tabBtnDocs');
-    const rBtn = document.getElementById('tabBtnReqs');
-    dBtn.className = 'tab-btn' + (tab === 'docs' ? ' active-docs' : '');
-    rBtn.className = 'tab-btn' + (tab === 'reqs' ? ' active-req' : '');
+    const pane = document.getElementById('paneDoc');
+    if (pane) pane.classList.add('active');
+    const btn = document.getElementById('tabBtnDocs');
+    if (btn) btn.className = 'tab-btn active-docs';
   }
   window.switchTab = switchTab;
 
@@ -596,7 +539,7 @@
   async function uploadDoc() {
     const imo    = document.getElementById('uImo').value.trim();
     const vessel = document.getElementById('uVessel').value.trim();
-    const type   = document.getElementById('uType').value;
+    const type   = document.getElementById('uTypeValue').value;
     const certId = document.getElementById('uCertId').value.trim();
     const title  = document.getElementById('uTitle').value.trim();
     const desc   = document.getElementById('uDesc').value.trim();
@@ -627,7 +570,7 @@
       msg.textContent = '';
       // Reset form
       ['uImo','uVessel','uCertId','uTitle','uDesc'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('uType').value = 'TRAINING_REPORT';
+      // docType is locked to TRAINING_REPORT — no reset needed
       document.getElementById('fileInput').value = '';
       document.getElementById('fileSelected').textContent = '';
       await loadAllData();
@@ -941,7 +884,6 @@
     const tab    = sp.get('tab')    || '';
     if (imo)    { const el = document.getElementById('uImo');    if (el) el.value = imo;    }
     if (vessel) { const el = document.getElementById('uVessel'); if (el) el.value = vessel; }
-    if (tab === 'reqs') switchTab('reqs');
   })();
 
   checkExistingSession();

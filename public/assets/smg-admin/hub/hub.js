@@ -147,10 +147,9 @@
     Promise.all([
       fetch(API + '/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
       fetch(API + '/vapt/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
-      fetch(API + '/docs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
-      fetch(API + '/docs/access-requests', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
+      fetch(API + '/docs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
     ]).then(function (results) {
-      var cst = results[0], vapt = results[1], docs = results[2], reqs = results[3];
+      var cst = results[0], vapt = results[1], docs = results[2];
 
       setText('statTotalCst', cst.length);
       setText('statTotalVapt', vapt.length);
@@ -166,8 +165,6 @@
       setText('vaptExpired', countExpired(vapt));
 
       setText('docTotal',    docs.length);
-      setText('reqPending',  reqs.filter(function(r) { return r.status === 'PENDING'; }).length);
-      setText('reqApproved', reqs.filter(function(r) { return r.status === 'APPROVED'; }).length);
     });
 
     // User & group stats use the same Bearer admin token

@@ -356,30 +356,10 @@
     if (_certImo) loadRelevantDocs(_certImo, _certVesselName);
   }
 
-  // ── RELEVANT DOCUMENTS — shared doc-access helpers ────────────────────────────
-  const _initialDocToken = (function() {
-    try { return new URLSearchParams(window.location.search).get('docToken') || ''; } catch { return ''; }
-  })();
-
-  // Per-vessel access token (internal — never shown to user)
-  function _docToken(imo)       { try { return localStorage.getItem('docAccessToken_' + imo) || ''; } catch { return ''; } }
-  function _saveDocToken(imo,t) { try { localStorage.setItem('docAccessToken_' + imo, t); } catch {} }
-  function _clearDocToken(imo)  { try { localStorage.removeItem('docAccessToken_' + imo); } catch {} }
-
-  // Per-vessel request tracking (claim token lets browser poll status without auth)
-  function _docReqId(imo)           { try { return localStorage.getItem('docReqId_' + imo) || ''; } catch { return ''; } }
-  function _saveDocReqId(imo, id)   { try { localStorage.setItem('docReqId_' + imo, id); } catch {} }
-  function _clearDocReqId(imo)      { try { localStorage.removeItem('docReqId_' + imo); } catch {} }
-  function _docClaimTok(imo)        { try { return localStorage.getItem('docClaimTok_' + imo) || ''; } catch { return ''; } }
-  function _saveDocClaimTok(imo, t) { try { localStorage.setItem('docClaimTok_' + imo, t); } catch {} }
-  function _clearDocClaimTok(imo)   { try { localStorage.removeItem('docClaimTok_' + imo); } catch {} }
-
-  // Superintendent session (global, not per-vessel)
-  function _userSession()         { try { return localStorage.getItem('userSessionToken') || ''; } catch { return ''; } }
-  function _saveUserSession(t)    { try { localStorage.setItem('userSessionToken', t); } catch {} }
-  function _clearUserSession()    { try { localStorage.removeItem('userSessionToken'); localStorage.removeItem('userSessionName'); } catch {} }
-  function _userSessionName()     { try { return localStorage.getItem('userSessionName') || ''; } catch { return ''; } }
-  function _saveUserSessionName(n){ try { localStorage.setItem('userSessionName', n); } catch {} }
+  // ── RELEVANT DOCUMENTS — superintendent-only loader ──────────────────────────
+  function _userSession()      { try { return localStorage.getItem('userSessionToken') || ''; } catch { return ''; } }
+  function _userSessionName()  { try { return localStorage.getItem('userSessionName') || ''; } catch { return ''; } }
+  function _clearUserSession() { try { localStorage.removeItem('userSessionToken'); localStorage.removeItem('userSessionName'); } catch {} }
 
   async function loadRelevantDocs(imo, vesselName) {
     const el = document.getElementById('relevantDocsSection');
@@ -391,7 +371,7 @@
       + ' Relevant Documents</div>'
       + '<div style="font-size:.74rem;color:var(--text-sec);padding:8px 2px">Checking access…</div>';
 
-    // 0. Superintendent session
+    // Superintendent UserSession — sole access path
     const storedSession = _userSession();
     if (storedSession) {
       try {
@@ -399,79 +379,32 @@
         if (me.ok) {
           const md = await me.json();
           if (md.vessels && md.vessels.includes(imo)) {
-            const userName = (md.user && md.user.name) ? md.user.name : _userSessionName();
-            if (userName) _saveUserSessionName(userName);
             const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: { Authorization: 'UserSession ' + storedSession } });
-            if (r.ok) { renderDocList(el, await r.json(), storedSession, imo, 'userSession', userName); return; }
+            if (r.ok) { _renderDocList(el, await r.json(), storedSession, imo); return; }
           }
         } else if (me.status === 401) { _clearUserSession(); }
       } catch { /* fall through */ }
     }
 
-    // 1. Already-granted access token in localStorage
-    const storedToken = _docToken(imo);
-    if (storedToken) {
-      try {
-        const chk = await fetch(`/api/docs/check-access?token=${encodeURIComponent(storedToken)}&imo=${encodeURIComponent(imo)}`);
-        const d   = await chk.json();
-        if (d.valid) {
-          const activeToken = d.newToken ? (_saveDocToken(imo, d.newToken), d.newToken) : storedToken;
-          const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: { Authorization: 'DocAccess ' + activeToken } });
-          if (r.ok) { renderDocList(el, await r.json(), activeToken, imo); return; }
-          if (r.status === 403) _clearDocToken(imo);
-        } else { _clearDocToken(imo); }
-      } catch { /* fall through */ }
-    }
-
-    // 2. Legacy URL token (email links from before claim-token flow)
-    if (_initialDocToken) {
-      try {
-        const chk = await fetch(`/api/docs/check-access?token=${encodeURIComponent(_initialDocToken)}&imo=${encodeURIComponent(imo)}`);
-        const d   = await chk.json();
-        if (d.valid) {
-          const activeToken = d.newToken || _initialDocToken;
-          _saveDocToken(imo, activeToken);
-          const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: { Authorization: 'DocAccess ' + activeToken } });
-          if (r.ok) { renderDocList(el, await r.json(), activeToken, imo); return; }
-        }
-      } catch { /* fall through */ }
-    }
-
-    // 3. Tracked request — poll status silently using stored claim token
-    const storedReqId = _docReqId(imo);
-    const storedClaim = _docClaimTok(imo);
-    if (storedReqId && storedClaim) {
-      try {
-        const chk = await fetch(`/api/docs/request-status?reqId=${encodeURIComponent(storedReqId)}&claimToken=${encodeURIComponent(storedClaim)}&imo=${encodeURIComponent(imo)}`);
-        const d   = await chk.json();
-        if (d.status === 'APPROVED' && d.accessToken) {
-          _saveDocToken(imo, d.accessToken);
-          const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: { Authorization: 'DocAccess ' + d.accessToken } });
-          if (r.ok) { renderDocList(el, await r.json(), d.accessToken, imo); return; }
-        }
-        if (d.status === 'PENDING') { renderPendingState(el, imo, vesselName); return; }
-        if (d.status === 'DENIED')  { _clearDocReqId(imo); _clearDocClaimTok(imo); renderDeniedState(el, imo, vesselName); return; }
-        // NOT_FOUND or error — clear stale claim and show form
-        _clearDocReqId(imo); _clearDocClaimTok(imo);
-      } catch { /* fall through */ }
-    }
-
-    // 4. No state — show fresh request form
-    renderDocRequestForm(el, imo, vesselName);
+    // Not authenticated — prompt to use the portal
+    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:10px">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
+      + ' Relevant Documents</div>'
+      + '<div style="border:1px solid rgba(100,255,218,.2);border-radius:11px;padding:16px;background:rgba(100,255,218,.03)">'
+      + '<div style="font-size:.76rem;color:var(--text-sec);line-height:1.65">VAPT assessment reports and compliance documents are accessible to superintendents via the <strong style="color:#64FFDA">Superintendent Portal</strong>.</div>'
+      + '</div>';
   }
 
-  function renderDocList(el, docs, token, imo, tokenType, userName) {
-    const isSuperintendent = tokenType === 'userSession';
+  function _renderDocList(el, docs, token, imo) {
     const fmtSize = b => b > 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB';
     const typeLbl = { TRAINING_REPORT: 'Training Report', DRILL_REPORT: 'Drill Report', AUDIT_REPORT: 'Audit Report', CERT_ATTACHMENT: 'Certificate Attachment', OTHER: 'Document' };
-    const resolvedName = userName || _userSessionName();
-    const accessLabel = isSuperintendent
-      ? (resolvedName ? 'Supt · ' + resolvedName : 'Superintendent Access')
-      : 'Access Granted';
+    const name = _userSessionName();
     el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px">'
       + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
       + ' Relevant Documents'
-      + '<span style="margin-left:auto;font-size:.6rem;color:var(--teal);display:flex;align-items:center;gap:4px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> ' + escH(accessLabel) + '</span>'
+      + '<span style="margin-left:auto;font-size:.6rem;color:var(--teal);display:flex;align-items:center;gap:4px">'
+      + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>'
+      + (name ? 'Supt · ' + escH(name) : 'Superintendent Access') + '</span>'
       + '</div>'
       + (docs.length ? '' : '<div style="font-size:.76rem;color:var(--text-sec);text-align:center;padding:16px 0">No documents uploaded for this vessel yet.</div>')
       + '<div class="docs-list">'
@@ -486,10 +419,9 @@
           const actionIcon = canView
             ? '<path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
             : '<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>';
-          const dlParam = isSuperintendent ? 'userSession=' : 'docToken=';
           const dlHref = d.directUrl
             ? d.directUrl
-            : '/api/docs/download/' + escH(d.id) + '?' + dlParam + encodeURIComponent(token);
+            : '/api/docs/download/' + escH(d.id) + '?userSession=' + encodeURIComponent(token);
           return '<div style="border:1px solid rgba(100,255,218,.2);border-radius:11px;margin-bottom:8px;background:rgba(100,255,218,.03)">'
             + '<div style="display:flex;align-items:center;gap:10px;padding:11px 14px">'
             + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
@@ -504,205 +436,13 @@
             + '</div>';
         }).join('')
       + '</div>'
-      + '<div style="margin-top:10px;font-size:.64rem;color:var(--text-sec);display:flex;align-items:center;justify-content:space-between">'
-      + '<span>Access is vessel-specific and authorised by Synergy Marine Group.</span>'
-      + (isSuperintendent
-          ? '<button onclick="_clearUserSession();loadRelevantDocs(\'' + escH(imo) + '\',\'\')" style="background:none;border:none;color:var(--text-sec);font-size:.62rem;cursor:pointer;text-decoration:underline">Clear access</button>'
-          : '<button onclick="_clearDocToken(\'' + escH(imo) + '\');_clearDocReqId(\'' + escH(imo) + '\');_clearDocClaimTok(\'' + escH(imo) + '\');loadRelevantDocs(\'' + escH(imo) + '\')" style="background:none;border:none;color:var(--text-sec);font-size:.62rem;cursor:pointer;text-decoration:underline">Clear access</button>'
-        )
+      + '<div style="margin-top:10px;font-size:.64rem;color:var(--text-sec)">'
+      + 'Access is vessel-specific and authorised by Synergy Marine Group.'
       + '</div>';
   }
 
-  function renderDocRequestForm(el, imo, vesselName) {
-    vesselName = vesselName || '';
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents'
-      + '</div>'
-      + '<div style="border:1px solid rgba(100,255,218,.2);border-radius:11px;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(100,255,218,.04);border-bottom:1px solid rgba(100,255,218,.12);display:flex;align-items:center;gap:9px">'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>'
-      + '<div>'
-      + '<div style="font-size:.74rem;font-weight:700;color:#64FFDA;letter-spacing:.04em">Access Required</div>'
-      + '<div style="font-size:.65rem;color:var(--text-sec);margin-top:1px">Enter the captain\'s name and email to request access</div>'
-      + '</div>'
-      + '</div>'
-      + '<div style="padding:16px">'
-      + '<p style="font-size:.76rem;color:var(--text-sec);line-height:1.65;margin-bottom:14px">VAPT assessment reports, drill records and compliance documents for this vessel are available to authorised personnel. Once approved your documents will appear here automatically on every future visit.</p>'
-      + '<div style="margin-bottom:12px"><label style="font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Captain\'s Name</label>'
-      + '<input id="_docReqCaptain" type="text" placeholder="Enter captain\'s full name" style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:.8rem;color:var(--text-bright);font-family:\'DM Sans\',sans-serif;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor=\'var(--teal)\'" onblur="this.style.borderColor=\'var(--border)\'" /></div>'
-      + '<div style="margin-bottom:14px"><label style="font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Email Address</label>'
-      + '<input id="_docReqEmail" type="email" placeholder="vessel@company.com" style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:.8rem;color:var(--text-bright);font-family:\'DM Sans\',sans-serif;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor=\'var(--teal)\'" onblur="this.style.borderColor=\'var(--border)\'" /></div>'
-      + '<button onclick="submitDocAccessRequest(\'' + escH(imo) + '\',\'' + escH(vesselName) + '\')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.73rem;font-weight:700;cursor:pointer;letter-spacing:.05em;transition:all .2s;font-family:\'DM Sans\',sans-serif">'
-      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>'
-      + 'Request Access</button>'
-      + '<div id="_docReqMsg" style="margin-top:10px;font-size:.73rem"></div>'
-      + '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">'
-      + '<button onclick="document.getElementById(\'_saLoginPanel\').style.display=document.getElementById(\'_saLoginPanel\').style.display===\'none\'?\'block\':\'none\'" style="background:none;border:none;color:var(--text-sec);font-size:.68rem;cursor:pointer;text-decoration:underline;font-family:\'DM Sans\',sans-serif;padding:0">Superintendent? Sign in for direct access</button>'
-      + '<div id="_saLoginPanel" style="display:none;margin-top:12px">'
-      + '<div style="margin-bottom:10px"><label style="font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Email</label>'
-      + '<input id="_saEmail" type="email" placeholder="superintendent@company.com" style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:.8rem;color:var(--text-bright);font-family:\'DM Sans\',sans-serif;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor=\'var(--teal)\'" onblur="this.style.borderColor=\'var(--border)\'" /></div>'
-      + '<div style="margin-bottom:12px"><label style="font-size:.62rem;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Password</label>'
-      + '<input id="_saPwd" type="password" placeholder="••••••••" style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:.8rem;color:var(--text-bright);font-family:\'DM Sans\',sans-serif;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor=\'var(--teal)\'" onblur="this.style.borderColor=\'var(--border)\'" onkeydown="if(event.key===\'Enter\')submitSuperintendentLogin(\'' + escH(imo) + '\',\'' + escH(vesselName) + '\')" /></div>'
-      + '<button onclick="submitSuperintendentLogin(\'' + escH(imo) + '\',\'' + escH(vesselName) + '\')" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.72rem;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">'
-      + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>'
-      + 'Sign In</button>'
-      + '<div id="_saLoginMsg" style="margin-top:8px;font-size:.72rem"></div>'
-      + '</div>'
-      + '</div>'
-      + '</div>'
-      + '</div>';
-  }
-
-  function renderPendingState(el, imo, vesselName) {
-    vesselName = vesselName || '';
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents'
-      + '</div>'
-      + '<div style="border:1px solid rgba(100,255,218,.2);border-radius:11px;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(100,255,218,.04);border-bottom:1px solid rgba(100,255,218,.12);display:flex;align-items:center;gap:9px">'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
-      + '<div>'
-      + '<div style="font-size:.74rem;font-weight:700;color:#64FFDA;letter-spacing:.04em">Approval Pending</div>'
-      + '<div style="font-size:.65rem;color:var(--text-sec);margin-top:1px">Your request is under review by the admin team</div>'
-      + '</div>'
-      + '</div>'
-      + '<div style="padding:16px">'
-      + '<p style="font-size:.76rem;color:var(--text-sec);line-height:1.65;margin-bottom:16px">Your document access request has been submitted and is awaiting approval. Once approved, your documents will appear here automatically — no token or extra steps required.</p>'
-      + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
-      + '<button id="_checkApprovalBtn" onclick="checkApprovalStatus(\'' + escH(imo) + '\',\'' + escH(vesselName) + '\')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.73rem;font-weight:700;cursor:pointer;transition:all .2s;font-family:\'DM Sans\',sans-serif">'
-      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>'
-      + 'Check Approval Status</button>'
-      + '<button onclick="_clearDocReqId(\'' + escH(imo) + '\');_clearDocClaimTok(\'' + escH(imo) + '\');renderDocRequestForm(document.getElementById(\'relevantDocsSection\'),\'' + escH(imo) + '\',\'' + escH(vesselName) + '\')" style="background:none;border:none;color:var(--text-sec);font-size:.7rem;cursor:pointer;text-decoration:underline;font-family:\'DM Sans\',sans-serif">Submit a different request</button>'
-      + '</div>'
-      + '<div id="_statusMsg" style="margin-top:10px;font-size:.73rem"></div>'
-      + '</div>'
-      + '</div>';
-  }
-
-  function renderDeniedState(el, imo, vesselName) {
-    vesselName = vesselName || '';
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents'
-      + '</div>'
-      + '<div style="border:1px solid rgba(255,107,138,.25);border-radius:11px;overflow:hidden">'
-      + '<div style="padding:12px 16px;background:rgba(255,107,138,.04);border-bottom:1px solid rgba(255,107,138,.12);display:flex;align-items:center;gap:9px">'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF6B8A" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>'
-      + '<div>'
-      + '<div style="font-size:.74rem;font-weight:700;color:#FF6B8A;letter-spacing:.04em">Access Not Approved</div>'
-      + '<div style="font-size:.65rem;color:var(--text-sec);margin-top:1px">Your previous request was not approved</div>'
-      + '</div>'
-      + '</div>'
-      + '<div style="padding:16px">'
-      + '<p style="font-size:.76rem;color:var(--text-sec);line-height:1.65;margin-bottom:16px">Your access request was not approved. Please contact the admin team or submit a new request below.</p>'
-      + '<button onclick="renderDocRequestForm(document.getElementById(\'relevantDocsSection\'),\'' + escH(imo) + '\',\'' + escH(vesselName) + '\')" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.73rem;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif">'
-      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>'
-      + 'Submit New Request</button>'
-      + '</div>'
-      + '</div>';
-  }
-
-  async function checkApprovalStatus(imo, vesselName) {
-    const btn = document.getElementById('_checkApprovalBtn');
-    const msg = document.getElementById('_statusMsg');
-    const storedReqId = _docReqId(imo);
-    const storedClaim = _docClaimTok(imo);
-    if (!storedReqId || !storedClaim) {
-      const el = document.getElementById('relevantDocsSection');
-      if (el) renderDocRequestForm(el, imo, vesselName);
-      return;
-    }
-    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
-    if (msg) { msg.textContent = ''; }
-    try {
-      const chk = await fetch(`/api/docs/request-status?reqId=${encodeURIComponent(storedReqId)}&claimToken=${encodeURIComponent(storedClaim)}&imo=${encodeURIComponent(imo)}`);
-      const d   = await chk.json();
-      if (d.status === 'APPROVED' && d.accessToken) {
-        _saveDocToken(imo, d.accessToken);
-        if (msg) { msg.style.color='#64FFDA'; msg.textContent='Access approved — loading your documents…'; }
-        setTimeout(() => loadRelevantDocs(imo, vesselName), 700);
-        return;
-      }
-      if (d.status === 'DENIED') {
-        _clearDocReqId(imo); _clearDocClaimTok(imo);
-        const el = document.getElementById('relevantDocsSection');
-        if (el) renderDeniedState(el, imo, vesselName);
-        return;
-      }
-      // Still pending
-      if (msg) { msg.style.color='var(--text-sec)'; msg.textContent='Still pending — you\'ll be notified once approved.'; }
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Check Approval Status'; }
-    } catch {
-      if (btn) { btn.disabled = false; btn.textContent = 'Check Approval Status'; }
-      if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Connection failed. Check your internet and try again.'; }
-    }
-  }
-
-  async function submitDocAccessRequest(imo, vesselName) {
-    vesselName = vesselName || '';
-    const captainName = ((document.getElementById('_docReqCaptain') || {}).value || '').trim();
-    const email       = ((document.getElementById('_docReqEmail')   || {}).value || '').trim();
-    const msg         = document.getElementById('_docReqMsg');
-    if (!captainName) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent="Please enter the captain's name."; } return; }
-    if (!email)       { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Please enter your email address.';  } return; }
-    if (msg) { msg.style.color='var(--text-sec)'; msg.textContent='Submitting…'; }
-    try {
-      const r = await fetch('/api/docs/request-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ captainName, vesselName, vesselIMO: imo, emailId: email }),
-      });
-      const d = await r.json();
-      if (!r.ok) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent=d.error||'Request could not be submitted. Please try again.'; } return; }
-      // Save claim token — browser uses this to silently poll status without auth
-      _saveDocReqId(imo, d.requestId);
-      _saveDocClaimTok(imo, d.claimToken);
-      const el = document.getElementById('relevantDocsSection');
-      if (d.alreadyApproved) {
-        // Was already approved — silently fetch access and load docs
-        if (msg) { msg.style.color='var(--text-sec)'; msg.textContent='Checking access…'; }
-        await checkApprovalStatus(imo, vesselName);
-      } else {
-        if (el) renderPendingState(el, imo, vesselName);
-      }
-    } catch { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Connection failed. Check your internet and try again.'; } }
-  }
-
-  async function submitSuperintendentLogin(imo, vesselName) {
-    vesselName = vesselName || '';
-    const email = ((document.getElementById('_saEmail')   || {}).value || '').trim();
-    const pwd   = ((document.getElementById('_saPwd')     || {}).value || '').trim();
-    const msg   = document.getElementById('_saLoginMsg');
-    if (!email || !pwd) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Please enter your email and password.'; } return; }
-    if (msg) { msg.style.color='var(--text-sec)'; msg.textContent='Signing in…'; }
-    try {
-      const r = await fetch('/api/auth/user/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pwd }),
-      });
-      const d = await r.json();
-      if (!r.ok) { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent = d.error || 'Sign-in failed. Check your email and password.'; } return; }
-      _saveUserSession(d.sessionToken);
-      if (d.user && d.user.name) _saveUserSessionName(d.user.name);
-      if (msg) { msg.style.color='#64FFDA'; msg.textContent='Signed in — loading your documents…'; }
-      setTimeout(() => loadRelevantDocs(imo, vesselName), 600);
-    } catch { if (msg) { msg.style.color='var(--invalid,#FF6B8A)'; msg.textContent='Connection failed. Check your internet and try again.'; } }
-  }
-
-  window.loadRelevantDocs          = loadRelevantDocs;
-  window.renderDocRequestForm      = renderDocRequestForm;
-  window.checkApprovalStatus       = checkApprovalStatus;
-  window.submitDocAccessRequest    = submitDocAccessRequest;
-  window.submitSuperintendentLogin = submitSuperintendentLogin;
-  window._clearDocToken            = _clearDocToken;
-  window._clearDocReqId            = _clearDocReqId;
-  window._clearDocClaimTok         = _clearDocClaimTok;
-  window._clearUserSession          = _clearUserSession;
-  window._saveUserSession           = _saveUserSession;
-  window._saveUserSessionName       = _saveUserSessionName;
+  window.loadRelevantDocs  = loadRelevantDocs;
+  window._clearUserSession = _clearUserSession;
 
   async function downloadCertificate(certId, btn) {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparing…'; }

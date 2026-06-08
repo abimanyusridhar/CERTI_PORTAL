@@ -96,6 +96,7 @@
 
     async function initApp() {
       await refreshStats();
+      selectQuarter(_currentQuarter ? _currentQuarter() : 'Q1');
       await loadGroupsMap();
       renderTbl('dashTbl', '');
       updateRealTimeBadge();
@@ -175,7 +176,134 @@
           ivBadge.style.borderColor = alertCount > 0 ? 'rgba(255,107,138,.3)' : 'rgba(255,179,71,.25)';
         }
         if (window.PSP) PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'CST' });
+        loadQuarterlyStats();
       } catch { }
+    }
+
+    // ── Quarterly Analytics ────────────────────────────────────────────────────
+    let _qData = null;
+    let _activeQ = null;
+
+    function _currentQuarter() {
+      const m = new Date().getMonth() + 1;
+      if (m <= 3) return 'Q1'; if (m <= 6) return 'Q2'; if (m <= 9) return 'Q3'; return 'Q4';
+    }
+
+    async function loadQuarterlyStats() {
+      // Populate year selector on first call
+      const yearSel = document.getElementById('qYear');
+      if (yearSel && yearSel.options.length === 0) {
+        const curYear = new Date().getFullYear();
+        for (let y = curYear; y >= curYear - 3; y--) {
+          const opt = document.createElement('option');
+          opt.value = y; opt.textContent = y;
+          yearSel.appendChild(opt);
+        }
+      }
+      const year = yearSel ? yearSel.value : new Date().getFullYear();
+      try {
+        const r = await fetch(API + '/stats/quarterly?year=' + year, { headers: { Authorization: 'Bearer ' + TOKEN } });
+        if (!r.ok) return;
+        _qData = await r.json();
+        if (!_activeQ) _activeQ = _currentQuarter();
+        renderQuarterlyStats(_activeQ);
+      } catch { }
+    }
+
+    function selectQuarter(q) {
+      _activeQ = q;
+      document.querySelectorAll('.q-tab').forEach(t => t.classList.toggle('active', t.dataset.q === q));
+      renderQuarterlyStats(q);
+    }
+
+    // ── Vessel Certificate History ─────────────────────────────────────────────
+    function renderVesselHistory() {
+      const query  = (document.getElementById('vesselHistorySearch')?.value || '').trim().toLowerCase();
+      const filter = document.getElementById('vesselHistoryFilter')?.value || 'ALL';
+      const list   = document.getElementById('vesselHistoryList');
+      if (!list) return;
+
+      if (!query) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-sec);font-size:.72rem">Search for a vessel to view its certificate history</div>';
+        return;
+      }
+
+      const now = new Date();
+      const matched = (CERTS || []).filter(c => {
+        const nameMatch = (c.vesselName || '').toLowerCase().includes(query);
+        const imoMatch  = (c.vesselIMO  || '').toLowerCase().includes(query);
+        if (!nameMatch && !imoMatch) return false;
+        if (filter === 'VALID') {
+          return (c.status||'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now);
+        }
+        if (filter === 'EXPIRED') {
+          const st = (c.status||'VALID').toUpperCase();
+          return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now);
+        }
+        return true;
+      }).sort((a, b) => (b.complianceDate||'').localeCompare(a.complianceDate||''));
+
+      if (!matched.length) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-sec);font-size:.72rem">No certificates found for this vessel</div>';
+        return;
+      }
+
+      list.innerHTML = matched.map(c => {
+        const isExp = (c.status||'VALID').toUpperCase() === 'EXPIRED' || ((c.status||'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < now);
+        const statusColor = isExp ? 'var(--warn)' : (c.status||'VALID').toUpperCase() === 'PENDING' ? '#7EB8F7' : 'var(--teal)';
+        const statusLabel = isExp ? 'EXPIRED' : (c.status||'VALID').toUpperCase();
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.04)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.72rem;font-weight:600;color:var(--text-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(c.vesselName||c.recipientName||'—')}</div>
+            <div style="font-size:.6rem;color:var(--text-sec);margin-top:1px">${escH(c.id)} · ${escH(c.complianceQuarter||'—')} ${c.complianceDate?c.complianceDate.slice(0,7):''}</div>
+          </div>
+          <div style="font-size:.6rem;font-weight:700;color:${statusColor};white-space:nowrap">${statusLabel}</div>
+          <div style="font-size:.6rem;color:var(--text-sec);white-space:nowrap">${c.validUntil||'—'}</div>
+          <button onclick="openCertDetail('${escH(c.id)}')" style="padding:3px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:.6rem;cursor:pointer;white-space:nowrap" title="View certificate">View</button>
+        </div>`;
+      }).join('');
+    }
+
+    function renderQuarterlyStats(q) {
+      if (!_qData) return;
+      const allTable  = document.getElementById('qAllTable');
+      const statsRow  = document.getElementById('qStatsRow');
+      const qLabel    = document.getElementById('qLabel');
+      document.querySelectorAll('.q-tab').forEach(t => t.classList.toggle('active', t.dataset.q === q));
+
+      if (q === 'ALL') {
+        if (statsRow) statsRow.style.display = 'none';
+        if (allTable) {
+          allTable.style.display = 'block';
+          const tbody = document.getElementById('qAllTableBody');
+          if (tbody) {
+            tbody.innerHTML = ['Q1','Q2','Q3','Q4'].map(qt => {
+              const d = (_qData.quarters||{})[qt] || {};
+              const isCurrentQ = qt === _currentQuarter() && String(_qData.year) === String(new Date().getFullYear());
+              return `<tr style="border-top:1px solid var(--border);${isCurrentQ?'background:rgba(100,255,218,.03)':''}">
+                <td style="padding:8px 10px;font-weight:700;color:var(--text-bright)">${qt}${isCurrentQ?' <span style="font-size:.55rem;color:var(--teal);padding:1px 6px;border-radius:4px;background:rgba(100,255,218,.08)">Current</span>':''}</td>
+                <td style="padding:8px 10px;text-align:right;font-weight:600">${d.total||0}</td>
+                <td style="padding:8px 10px;text-align:right;color:var(--teal)">${d.valid||0}</td>
+                <td style="padding:8px 10px;text-align:right;color:var(--warn)">${d.expired||0}</td>
+                <td style="padding:8px 10px;text-align:right;color:#7EB8F7">${d.pending||0}</td>
+                <td style="padding:8px 10px;text-align:right;color:var(--invalid)">${d.revoked||0}</td>
+              </tr>`;
+            }).join('');
+          }
+        }
+        return;
+      }
+
+      if (allTable) allTable.style.display = 'none';
+      if (statsRow) statsRow.style.display = '';
+      const d = (_qData.quarters||{})[q] || {};
+      const el = id => document.getElementById(id);
+      if (el('qTotal'))   el('qTotal').textContent   = d.total   ?? '—';
+      if (el('qValid'))   el('qValid').textContent   = d.valid   ?? '—';
+      if (el('qExpired')) el('qExpired').textContent = d.expired ?? '—';
+      if (el('qPending')) el('qPending').textContent = d.pending ?? '—';
+      const isCurrentQ = q === _currentQuarter() && String(_qData.year) === String(new Date().getFullYear());
+      if (qLabel) qLabel.textContent = isCurrentQ ? q + ' · Current Quarter' : q + ' · ' + _qData.year;
     }
 
     // ════════════════════════════════════════════════════
@@ -505,11 +633,12 @@
       try {
         const fd = new FormData();
         fd.append('status', newStatus);
-        // If activating from PENDING and no validUntil set, auto-set 1 year from today
+        // If activating from PENDING and no validUntil, derive 90 days from complianceDate (or today)
         if (newStatus === 'VALID' && !c.validUntil) {
-          const d = new Date(); d.setFullYear(d.getFullYear() + 1);
-          fd.append('validUntil', d.toISOString().slice(0, 10));
-          c.validUntil = d.toISOString().slice(0, 10);
+          const base = c.complianceDate ? new Date(c.complianceDate) : new Date();
+          base.setDate(base.getDate() + 90);
+          fd.append('validUntil', base.toISOString().slice(0, 10));
+          c.validUntil = base.toISOString().slice(0, 10);
         }
         // When marking EXPIRED or REVOKED → set validUntil to today so radar + filters are accurate
         if (newStatus === 'EXPIRED' || newStatus === 'REVOKED') {
@@ -810,30 +939,16 @@
     }
 
     // ════════════════════════════════════════════════════
+    // MODULE: Expiry Logic — 90 days from date of conduction
     // ════════════════════════════════════════════════════
-    // MODULE: Quarter Logic — auto-derive validFor, validUntil, recipientName
-    // ════════════════════════════════════════════════════
-    // Quarter the training was DONE in → valid until END of the NEXT quarter
-    // Q1 (Jan-Mar) done → expires end of Q2 (Jun 30)
-    // Q2 (Apr-Jun) done → expires end of Q3 (Sep 30)
-    // Q3 (Jul-Sep) done → expires end of Q4 (Dec 31)
-    // Q4 (Oct-Dec) done → expires end of Q1 next year (Mar 31)
-    const QUARTER_MAP = {
-      Q1: { label: 'Q2 (APR–JUN)',  endMonth: 6,  endDay: 30 },
-      Q2: { label: 'Q3 (JUL–SEP)',  endMonth: 9,  endDay: 30 },
-      Q3: { label: 'Q4 (OCT–DEC)',  endMonth: 12, endDay: 31 },
-      Q4: { label: 'Q1 (JAN–MAR)',  endMonth: 3,  endDay: 31, nextYear: true }
-    };
     function onQuarterChange() {
-      const q = document.getElementById('fQuarter').value;
       const compDate = document.getElementById('fCompDate').value;
-      const baseYear = compDate ? new Date(compDate).getFullYear() : new Date().getFullYear();
-      const info = QUARTER_MAP[q];
-      if (!info) return;
-      const year = info.nextYear ? baseYear + 1 : baseYear;
-      document.getElementById('fValidFor').value = info.label + '-' + year;
-      const until = new Date(year, info.endMonth - 1, info.endDay);
-      document.getElementById('fUntil').value = until.toISOString().slice(0, 10);
+      if (compDate) {
+        const expiry = new Date(compDate);
+        expiry.setDate(expiry.getDate() + 90);
+        document.getElementById('fValidFor').value = '90 Days';
+        document.getElementById('fUntil').value = expiry.toISOString().slice(0, 10);
+      }
       livePreview();
     }
     function onVesselNameInput() {
@@ -1141,7 +1256,7 @@
       sendBtn.disabled = false;
       sendBtn.style.background = ''; sendBtn.style.borderColor = ''; sendBtn.style.color = '';
       document.getElementById('markSentTxt').textContent = c.emailStatus === 'SENT' ? '✓ Re-Mark Sent' : 'Mark Sent';
-      document.getElementById('sendSesTxt').textContent = c.emailStatus === 'SENT' ? 'Re-Send via AWS' : 'Send via AWS SES';
+      document.getElementById('sendSesTxt').textContent = c.emailStatus === 'SENT' ? 'Re-Send' : 'Send';
       updateIssueEmailPreview();
     }
 
@@ -1329,7 +1444,7 @@
           renderSentLog();
           btn.disabled = false;
           btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
-          document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
+          document.getElementById('sendSesTxt').textContent = 'Re-Send';
           document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
           return;
         } else {
@@ -1358,7 +1473,7 @@
       }
       btn.disabled = false;
       btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
-      document.getElementById('sendSesTxt').textContent = 'Send via AWS SES';
+      document.getElementById('sendSesTxt').textContent = 'Send';
     }
 
     async function markAsSent() {
@@ -1386,7 +1501,7 @@
         btn.disabled = false;
         btn.style.background = ''; btn.style.borderColor = ''; btn.style.color = '';
         document.getElementById('markSentTxt').textContent = '✓ Re-Mark Sent';
-        document.getElementById('sendSesTxt').textContent = 'Re-Send via AWS';
+        document.getElementById('sendSesTxt').textContent = 'Re-Send';
       } catch { toast('Connection failed. Check your internet and try again.', 'err'); btn.disabled = false; document.getElementById('markSentTxt').textContent = 'Mark as Sent'; }
     }
 
@@ -2146,10 +2261,7 @@
         }
       }
 
-      const qMap = { Q1:{label:'Q2 (APR–JUN)',end:'06-30'}, Q2:{label:'Q3 (JUL–SEP)',end:'09-30'}, Q3:{label:'Q4 (OCT–DEC)',end:'12-31'}, Q4:{label:'Q1 (JAN–MAR)',end:'03-31',nextYear:true} };
-      const qi = qMap[quarter] || qMap['Q1'];
-      const baseYear = complianceDate ? parseInt(complianceDate.slice(0,4)) : new Date().getFullYear();
-      const validYear = qi.nextYear ? baseYear + 1 : baseYear;
+      const _expiry = complianceDate ? (() => { const d = new Date(complianceDate); d.setDate(d.getDate() + 90); return d.toISOString().slice(0,10); })() : '';
 
       const CFG = window.APP_CONFIG || {};
       return {
@@ -2158,8 +2270,8 @@
         trainingTitle: (CFG.cst||{}).trainingTitle || 'Cyber Security Threat Intelligence Awareness Training',
         organizer:     (CFG.cst||{}).organizer     || 'Synergy Marine Group Cyber Security Team',
         complianceDate, complianceQuarter: quarter, trainingMode: mode,
-        validFor:      qi.label + '-' + validYear,
-        validUntil:    validYear + '-' + qi.end,
+        validFor:      '90 Days',
+        validUntil:    _expiry,
         issuedAt:      complianceDate,
         verifiedBy:    (CFG.cst||{}).verifiedBy    || 'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group',
         status: 'PENDING', certificateImage: null,
