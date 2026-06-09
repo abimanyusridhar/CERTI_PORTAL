@@ -1793,6 +1793,10 @@
       opacity: .6;
       margin-top: 3px;
     }
+    .upload-zone.paste-flash { border-color: var(--teal) !important; background: rgba(100,255,218,.06) !important; animation: paste-pop .5s ease; }
+    @keyframes paste-pop { 0% { transform:scale(1.02); } 100% { transform:scale(1); } }
+    .upload-zone kbd { display:inline-block; font-family:'JetBrains Mono',monospace; font-size:.55rem; padding:1px 5px; border-radius:4px; border:1px solid var(--border); background:rgba(255,255,255,.07); color:var(--text-sec); letter-spacing:0; vertical-align:middle; }
+    html.light .upload-zone kbd { background:rgba(30,60,120,.05); border-color:rgba(30,60,120,.15); }
 
     .prev-wrap {
       margin-top: 10px;

@@ -2077,6 +2077,25 @@
     function onDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
     function onDragLeave() { document.getElementById('dropZone').classList.remove('drag-over'); }
     function onDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) onFileSelect({ files: [f] }); }
+    document.addEventListener('paste', function(e) {
+      const zone = document.getElementById('dropZone');
+      if (!zone || zone.offsetParent === null) return;
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          e.preventDefault();
+          const raw = items[i].getAsFile();
+          if (!raw) return;
+          const ext = (items[i].type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+          const named = new File([raw], 'cert-screenshot-' + Date.now() + '.' + ext, { type: items[i].type });
+          onFileSelect({ files: [named] });
+          zone.classList.add('paste-flash');
+          setTimeout(function() { zone.classList.remove('paste-flash'); }, 600);
+          break;
+        }
+      }
+    });
     function clearImg(e) { e.stopPropagation(); clearImgSilent(); }
     // ── PDF / DOCUMENT ATTACHMENTS ──
     function _he(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
