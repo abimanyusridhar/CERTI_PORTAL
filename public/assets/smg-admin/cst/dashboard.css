@@ -2702,6 +2702,24 @@
     border-color: rgba(181,134,10,0.22) !important;
   }
 
+  /* ── LIGHT MODE: shadow & hover refinements ── */
+  html.light .sidebar-card:hover { box-shadow: 0 6px 24px rgba(30,60,120,0.12) !important; }
+  html.light .info-card { box-shadow: 0 2px 12px rgba(30,60,120,0.07) !important; }
+  html.light .info-card:hover { box-shadow: 0 4px 20px rgba(30,60,120,0.12) !important; border-color: rgba(181,134,10,0.25) !important; }
+  html.light .analytics-card:hover { border-color: rgba(181,134,10,0.25) !important; box-shadow: 0 4px 20px rgba(30,60,120,0.10) !important; }
+  html.light .cp-item:hover { background: rgba(30,60,120,0.04) !important; }
+  html.light #toast { box-shadow: 0 6px 24px rgba(30,60,120,0.14) !important; background: #fff !important; color: #0A1628 !important; border: 1px solid rgba(30,60,120,0.12) !important; }
+
+  /* ── LIGHT MODE: status pill colors ── */
+  html.light .pill.valid   { background: rgba(5,150,105,0.10) !important; color: #059669 !important; border-color: rgba(5,150,105,0.25) !important; }
+  html.light .pill.expired { background: rgba(220,38,38,0.09) !important; color: #DC2626 !important; border-color: rgba(220,38,38,0.22) !important; }
+  html.light .pill.pending { background: rgba(217,119,6,0.10) !important; color: #D97706 !important; border-color: rgba(217,119,6,0.25) !important; }
+  html.light .pill.revoked { background: rgba(100,116,139,0.10) !important; color: #475569 !important; border-color: rgba(100,116,139,0.22) !important; }
+
+  /* ── LIGHT MODE: inline status select ── */
+  html.light .inline-status-sel { background: #F7FAFF !important; border-color: rgba(30,60,120,0.14) !important; color: #0A1628 !important; }
+  html.light .inline-status-sel:focus { border-color: rgba(181,134,10,0.45) !important; box-shadow: 0 0 0 3px rgba(181,134,10,0.10) !important; }
+
 
   /* ═══ DASHBOARD COMPONENT ALIGNMENT POLISH ═══ */
 

@@ -2530,13 +2530,23 @@ async function handleAPI(req, res, parsed) {
     const data  = loadData();
     const now   = new Date();
     const QUARTERS = ['Q1','Q2','Q3','Q4'];
+    const Q_MONTH_RANGES = { Q1:[1,3], Q2:[4,6], Q3:[7,9], Q4:[10,12] };
+    function certQuarter(c) {
+      const stored = (c.complianceQuarter || '').toUpperCase().replace(/\s/g, '');
+      if (stored) return stored;
+      const d = c.complianceDate || c.issuedAt || c.createdAt || '';
+      const m = parseInt(d.slice(5, 7), 10);
+      if (!m) return '';
+      if (m <= 3) return 'Q1'; if (m <= 6) return 'Q2'; if (m <= 9) return 'Q3'; return 'Q4';
+    }
     const result = {};
     for (const q of QUARTERS) {
       const qCerts = Object.values(data).filter(c => {
-        if ((c.complianceQuarter || '').toUpperCase() !== q) return false;
+        if (certQuarter(c) !== q) return false;
         const d = c.complianceDate || c.issuedAt || c.createdAt || '';
         return d.slice(0, 4) === String(year);
       });
+      qCerts.forEach(c => deriveQuarterFields(c));
       const valid   = qCerts.filter(c => (c.status||'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
       const expired = qCerts.filter(c => { const st = (c.status||'VALID').toUpperCase(); return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now); }).length;
       const pending = qCerts.filter(c => (c.status||'').toUpperCase() === 'PENDING').length;
@@ -2554,9 +2564,9 @@ async function handleAPI(req, res, parsed) {
     const data  = loadVaptData();
     const now   = new Date();
     const QUARTERS = ['Q1','Q2','Q3','Q4'];
+    const QMONTHS  = { Q1:[1,3], Q2:[4,6], Q3:[7,9], Q4:[10,12] };
     const result = {};
     for (const q of QUARTERS) {
-      const QMONTHS = { Q1:[1,3], Q2:[4,6], Q3:[7,9], Q4:[10,12] };
       const [mFrom, mTo] = QMONTHS[q];
       const qCerts = Object.values(data).filter(c => {
         const d = c.assessmentDate || c.issuedAt || c.createdAt || '';
@@ -2564,6 +2574,7 @@ async function handleAPI(req, res, parsed) {
         const m = parseInt(d.slice(5,7), 10);
         return m >= mFrom && m <= mTo;
       });
+      qCerts.forEach(c => deriveQuarterFields(c));
       const valid   = qCerts.filter(c => (c.status||'VALID').toUpperCase() === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now)).length;
       const expired = qCerts.filter(c => { const st = (c.status||'VALID').toUpperCase(); return st === 'EXPIRED' || (st === 'VALID' && c.validUntil && new Date(c.validUntil) < now); }).length;
       const pending = qCerts.filter(c => (c.status||'').toUpperCase() === 'PENDING').length;

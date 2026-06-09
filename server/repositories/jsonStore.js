@@ -10,7 +10,9 @@ function createJsonStore({ filePath, seedData, onError, debounceMs = 50 }) {
     if (cache) return cache;
     try {
       if (fs.existsSync(filePath)) {
-        cache = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        let raw = fs.readFileSync(filePath, 'utf8');
+        if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1); // strip UTF-8 BOM
+        cache = JSON.parse(raw);
         return cache;
       }
     } catch {
