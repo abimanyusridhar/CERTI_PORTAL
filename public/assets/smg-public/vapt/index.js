@@ -386,13 +386,9 @@
       } catch { /* fall through */ }
     }
 
-    // Not authenticated — prompt to use the portal
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:10px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents</div>'
-      + '<div style="border:1px solid rgba(100,255,218,.2);border-radius:11px;padding:16px;background:rgba(100,255,218,.03)">'
-      + '<div style="font-size:.76rem;color:var(--text-sec);line-height:1.65">VAPT assessment reports and compliance documents are accessible to superintendents via the <strong style="color:#64FFDA">Superintendent Portal</strong>.</div>'
-      + '</div>';
+    // Not authenticated — hide section entirely
+    el.innerHTML = '';
+    el.style.display = 'none';
   }
 
   function _renderDocList(el, docs, token, imo) {
@@ -516,22 +512,7 @@
       }
     }
 
-    // Confidential notice shown only when PDFs are present
     var confidentialNotice = '';
-    if (hasPdfs) {
-      confidentialNotice =
-        '<div style="margin-bottom:14px;border:1px solid rgba(212,168,67,.25);border-radius:11px;overflow:hidden">' +
-          '<div style="display:flex;align-items:center;gap:9px;padding:11px 14px;background:rgba(212,168,67,.06);border-bottom:1px solid rgba(212,168,67,.15)">' +
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>' +
-            '<span style="font-size:.72rem;font-weight:700;color:#D4A843;letter-spacing:.05em">SUPERINTENDENT ACCESS ONLY</span>' +
-          '</div>' +
-          '<div style="padding:11px 14px;background:rgba(212,168,67,.02)">' +
-            '<p style="font-size:.73rem;color:var(--text-sec);line-height:1.65;margin:0">' +
-              'These documents are accessible exclusively to authenticated Superintendent users via the Superintendent Portal.' +
-            '</p>' +
-          '</div>' +
-        '</div>';
-    }
 
     var items = '';
     for (var i = 0; i < atts.length; i++) {

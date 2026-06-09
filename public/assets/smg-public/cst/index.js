@@ -382,13 +382,9 @@
       } catch { /* fall through */ }
     }
 
-    // Not authenticated — prompt to use the portal
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:10px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents</div>'
-      + '<div style="border:1px solid rgba(212,168,67,.2);border-radius:11px;padding:16px;background:rgba(212,168,67,.03)">'
-      + '<div style="font-size:.76rem;color:var(--text-sec);line-height:1.65">Training reports and compliance documents are accessible to superintendents via the <strong style="color:#D4A843">Superintendent Portal</strong>.</div>'
-      + '</div>';
+    // Not authenticated — hide section entirely
+    el.innerHTML = '';
+    el.style.display = 'none';
   }
 
   function _renderDocList(el, docs, token, imo) {
