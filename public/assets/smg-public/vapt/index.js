@@ -41,6 +41,8 @@
 
   // Cached shareable URL for the last-verified cert (populated after each verify)
   let _lastShareUrl = null;
+  let _currentCertId = '';
+  let _downloadToken = null;
   let _verifying = false; // debounce guard
 
   async function verify() {

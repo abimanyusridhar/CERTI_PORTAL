@@ -51,6 +51,8 @@
 
   // Cached shareable URL for the last-verified cert (populated after each verify)
   let _lastShareUrl = null;
+  let _currentCertId = '';
+  let _downloadToken = null;
 
   // In-flight guard: prevents concurrent verify() calls
   let _verifying = false;
