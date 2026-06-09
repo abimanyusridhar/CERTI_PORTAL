@@ -1873,10 +1873,10 @@ function deriveQuarterFields(cert) {
   }
 
   if (!cert.validFor) {
-    if      (q === 'Q1') cert.validFor = `Q2 (APR–JUN)-${baseYear}`;
-    else if (q === 'Q2') cert.validFor = `Q3 (JUL–SEP)-${baseYear}`;
-    else if (q === 'Q3') cert.validFor = `Q4 (OCT–DEC)-${baseYear}`;
-    else if (q === 'Q4') cert.validFor = `Q1 (JAN–MAR)-${baseYear + 1}`;
+    if      (q === 'Q1') cert.validFor = `Q2 (APR-MAY-JUN)-${baseYear}`;
+    else if (q === 'Q2') cert.validFor = `Q3 (JUL-AUG-SEP)-${baseYear}`;
+    else if (q === 'Q3') cert.validFor = `Q4 (OCT-NOV-DEC)-${baseYear}`;
+    else if (q === 'Q4') cert.validFor = `Q1 (JAN-FEB-MAR)-${baseYear + 1}`;
     else                 cert.validFor = '90 Days';
   }
 

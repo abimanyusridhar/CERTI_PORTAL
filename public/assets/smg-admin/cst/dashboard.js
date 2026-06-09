@@ -979,14 +979,25 @@
     // ════════════════════════════════════════════════════
     // MODULE: Expiry Logic — 90 days from date of conduction
     // ════════════════════════════════════════════════════
+    function quarterLabel(q, compDate) {
+      const yr = compDate ? new Date(compDate).getFullYear() : new Date().getFullYear();
+      if (q === 'Q1') return `Q2 (APR-MAY-JUN)-${yr}`;
+      if (q === 'Q2') return `Q3 (JUL-AUG-SEP)-${yr}`;
+      if (q === 'Q3') return `Q4 (OCT-NOV-DEC)-${yr}`;
+      if (q === 'Q4') return `Q1 (JAN-FEB-MAR)-${yr + 1}`;
+      return '';
+    }
     function onQuarterChange() {
       const compDate = document.getElementById('fCompDate').value;
+      const quarter  = document.getElementById('fQuarter').value;
+      document.getElementById('fValidFor').value = quarterLabel(quarter, compDate);
       if (compDate) {
         const expiry = new Date(compDate);
         expiry.setDate(expiry.getDate() + 90);
-        document.getElementById('fValidFor').value = '90 Days';
         document.getElementById('fUntil').value = expiry.toISOString().slice(0, 10);
       }
+      const issuedEl = document.getElementById('fIssued');
+      if (issuedEl && !issuedEl.value) issuedEl.value = new Date().toISOString().slice(0, 10);
       livePreview();
     }
     function onVesselNameInput() {
@@ -2308,9 +2319,9 @@
         trainingTitle: (CFG.cst||{}).trainingTitle || 'Cyber Security Threat Intelligence Awareness Training',
         organizer:     (CFG.cst||{}).organizer     || 'Synergy Marine Group Cyber Security Team',
         complianceDate, complianceQuarter: quarter, trainingMode: mode,
-        validFor:      '90 Days',
+        validFor:      quarterLabel(quarter, complianceDate),
         validUntil:    _expiry,
-        issuedAt:      complianceDate,
+        issuedAt:      new Date().toISOString().slice(0, 10),
         verifiedBy:    (CFG.cst||{}).verifiedBy    || 'Gaurav Singh, CISO - Chief Information Security Officer, Synergy Marine Group',
         status: 'PENDING', certificateImage: null,
         notes:         notes || (CFG.cst||{}).notes || 'Training conducted under supervision of ISO Lead Auditor and Security trainers',
