@@ -28,7 +28,7 @@
       return src;
     }
     let CERTS = [];
-    let STATUS_CHART = null, EXPIRY_CHART = null, EMAIL_CHART = null;
+    let STATUS_CHART = null, EXPIRY_CHART = null, EMAIL_CHART = null, QUARTERLY_CHART = null;
     let editingId = null, imgFile = null, deleteId = null;
     let issuanceMode = false;
     let selectedIssueCertId = null;
@@ -429,6 +429,31 @@
       });
     }
 
+    function _buildQuarterlyChart(qCounts) {
+      const canvas = document.getElementById('quarterlyChart');
+      if (!canvas) return null;
+      return new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'],
+          datasets: [{
+            label: 'Completions',
+            data: [qCounts.Q1, qCounts.Q2, qCounts.Q3, qCounts.Q4],
+            backgroundColor: ['rgba(100,255,218,.45)', 'rgba(212,168,67,.5)', 'rgba(126,184,247,.45)', 'rgba(255,179,71,.45)'],
+            borderColor: ['#64FFDA', '#D4A843', '#7EB8F7', '#FFB347'],
+            borderWidth: 1.5, borderRadius: 6
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} cert${ctx.raw !== 1 ? 's' : ''}` } } },
+          scales: {
+            x: { ticks: { color: '#8892B0', font: { size: 11 } }, grid: { display: false } },
+            y: { ticks: { color: '#8892B0', font: { size: 10 }, callback: v => Number.isInteger(v) ? v : '', stepSize: 1 }, grid: { color: 'rgba(136,146,176,.12)' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
     function updateCharts(a) {
       if (!window.Chart) return;
       // ── Status Doughnut: update data in-place, rebuild only on first load ──
@@ -453,6 +478,18 @@
         EXPIRY_CHART.update('none');
       } else {
         EXPIRY_CHART = _buildExpiryChart(a);
+      }
+      // ── Quarterly Completions Bar ──
+      const qC = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+      CERTS.forEach(c => { if (c.complianceQuarter && qC[c.complianceQuarter.toUpperCase()] !== undefined) qC[c.complianceQuarter.toUpperCase()]++; });
+      const qTotal = qC.Q1 + qC.Q2 + qC.Q3 + qC.Q4;
+      const qSub = document.getElementById('quarterlyChartSub');
+      if (qSub) qSub.textContent = `${qTotal} total completions · Q1: ${qC.Q1}  Q2: ${qC.Q2}  Q3: ${qC.Q3}  Q4: ${qC.Q4}`;
+      if (QUARTERLY_CHART) {
+        QUARTERLY_CHART.data.datasets[0].data = [qC.Q1, qC.Q2, qC.Q3, qC.Q4];
+        QUARTERLY_CHART.update('none');
+      } else {
+        QUARTERLY_CHART = _buildQuarterlyChart(qC);
       }
     }
 
@@ -1429,7 +1466,7 @@
             <div style="display:flex;align-items:flex-start;gap:10px">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
               <div>
-                <div style="font-weight:700;font-size:.78rem">Dispatched via AWS SES</div>
+                <div style="font-weight:700;font-size:.78rem">Credential Email Sent</div>
                 <div style="font-size:.65rem;opacity:.85;margin-top:3px;line-height:1.6">
                   To: <strong>${recipEmail}</strong><br>
                   Sent: ${sentAt}${d.messageId ? '<br>Message ID: <code style="font-size:.6rem;opacity:.7">' + d.messageId + '</code>' : ''}
@@ -1452,7 +1489,7 @@
           if (r.status === 409) {
             errMsg = d.error || 'Email has already been sent for this certificate.';
           } else if (r.status === 503 || d.sesEnabled === false) {
-            errMsg = 'Email dispatch (AWS SES) is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.';
+            errMsg = 'Email dispatch is not configured on this server. Contact your system administrator to configure mail settings.';
           } else {
             errMsg = d.error || d.sesError || ('Server error — HTTP ' + r.status);
           }

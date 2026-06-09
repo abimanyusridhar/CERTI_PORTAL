@@ -118,7 +118,7 @@
       <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
       <a id="sbLinkVPT" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-        VPT Public Portal
+        VAPT Public Portal
       </a>
       <a id="sbLinkCSTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -132,10 +132,6 @@
       <div class="nav-item" id="nav-certs" onclick="showPage('certs',this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
         All VAPT Certificates
-      </div>
-      <div class="nav-item" id="nav-add" onclick="startAdd()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-        Add Certificate
       </div>
       <div class="nav-item" id="nav-csv" onclick="showPage('csv',this)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -156,7 +152,7 @@
       <div class="nav-sec" style="margin-top:10px">Navigation</div>
       <div class="nav-item" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VAPT'),'_blank')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-        Public VPT Portal
+        VAPT Public Portal
       </div>
       <div class="nav-item" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.cstAdmin+'/':'/CST/misecure/'),'_blank')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
@@ -165,6 +161,10 @@
       <a id="navLinkDocuments" href="/CST/misecure/documents/" class="nav-item" style="text-decoration:none">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         Document Library
+      </a>
+      <a id="navLinkGroups" href="/CST/misecure/groups/" class="nav-item" style="text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Vessel Groups
       </a>
     </nav>
     <div class="sb-foot">
@@ -207,7 +207,7 @@
         </span>
         <button class="btn btn-ghost btn-sm" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VAPT'),'_blank')">🌐 Public Portal</button>
         <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue Credentials</button>
-        <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add Certificate</button>
+        <button class="btn btn-primary btn-sm" onclick="showPage('csv',document.getElementById('nav-csv'))">+ Import Certificates</button>
         <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.6rem;font-weight:600;letter-spacing:.1em;color:var(--teal)">
           <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite;flex-shrink:0"></span>
           <span id="realtimeBadge">Live · –</span>
@@ -736,7 +736,7 @@
                       <div style="font-size:.72rem;font-weight:700;color:var(--text-bright)">VAPT Certificate Notification</div>
                       <div style="font-size:.6rem;color:var(--text-sec);margin-top:1px">Auto-generated · VAPT Assessment Registry</div>
                     </div>
-                    <span style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.2)">AWS SES</span>
+                    <span style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.2)">Secure Mail</span>
                   </div>
 
                   <!-- Email body -->

@@ -1249,11 +1249,12 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl, cer
       const isDataLine = /^[A-Za-z\s]+\s*:\s+\S/.test(line.trim());
       if (isDataLine) {
         const colonIdx = line.indexOf(':');
-        const label = esc(line.slice(0, colonIdx + 1));
-        const value = esc(line.slice(colonIdx + 1));
-        htmlContent += `<p style="margin:3px 0;font-size:13px;color:#2a3a4a;line-height:1.6">
-          <span style="color:#5a6a7a;min-width:160px;display:inline-block">${label}</span>${value}
-        </p>`;
+        const label = esc(line.slice(0, colonIdx).trim());
+        const value = esc(line.slice(colonIdx + 1).trim());
+        htmlContent += `<div style="display:flex;padding:7px 0;border-bottom:1px solid #f0f4f8;align-items:baseline">
+          <span style="font-size:11px;font-weight:700;color:#8892B0;letter-spacing:.06em;text-transform:uppercase;min-width:150px;flex-shrink:0">${label}</span>
+          <span style="font-size:13px;color:#1e2c3c;font-weight:600;flex:1">${value}</span>
+        </div>`;
       } else {
         htmlContent += `<p style="margin:3px 0;font-size:14px;color:#2a3a4a;line-height:1.7">${esc(line)}</p>`;
       }
@@ -1322,10 +1323,33 @@ function buildRawEmail({ from, to, subject, body, replyTo, trackingPixelUrl, cer
         </td>
       </tr>
 
+      <!-- ── CONGRATULATIONS BANNER ── -->
+      <tr>
+        <td style="padding:24px 36px 0">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="background:linear-gradient(135deg,#0d2240 0%,#16304f 100%);border:1px solid rgba(212,168,67,0.4);border-radius:12px;padding:18px 22px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="width:44px;vertical-align:middle;padding-right:14px;text-align:center;font-size:26px;line-height:1">&#127942;</td>
+                    <td style="vertical-align:middle">
+                      <p style="margin:0 0 3px;font-size:17px;font-weight:800;color:#D4A843;letter-spacing:.02em;font-family:Georgia,serif">Congratulations!</p>
+                      <p style="margin:0;font-size:12px;color:#8892B0;line-height:1.55">Your training has been successfully completed and your certificate is now active in the registry.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
       <!-- ── BODY CONTENT ── -->
       <tr>
-        <td style="padding:30px 36px 22px">
-          ${htmlContent}
+        <td style="padding:22px 36px 22px">
+          <div style="background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;padding:16px 18px;margin-bottom:18px">
+            ${htmlContent}
+          </div>
         </td>
       </tr>
 
@@ -1947,6 +1971,27 @@ const authRoutes = createAuthRoutes({
 });
 
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
+// ─── VESSEL AUTO-MAP ─────────────────────────────────────────────────────────
+// When a cert is created, auto-add the vessel IMO to its org group.
+// If already mapped, no action. If exactly one group exists and IMO is unassigned,
+// auto-add it. Multi-group deployments require manual assignment via Groups admin.
+function autoMapVesselToGroup(vesselIMO) {
+  if (!vesselIMO) return;
+  const grps = loadGroups();
+  const allGroups = Object.values(grps);
+  const alreadyMapped = allGroups.some(g => (g.vesselIMOs || []).includes(vesselIMO));
+  if (alreadyMapped) return;
+  if (allGroups.length === 1) {
+    const g = allGroups[0];
+    if (!Array.isArray(g.vesselIMOs)) g.vesselIMOs = [];
+    g.vesselIMOs.push(vesselIMO);
+    g.updatedAt = new Date().toISOString();
+    grps[g.id] = g;
+    saveGroups(grps);
+    log.info(`Auto-mapped vessel ${vesselIMO} to group "${g.name}" (${g.id})`);
+  }
+}
+
 async function handleAPI(req, res, parsed) {
   const method = req.method.toUpperCase();
   const route  = parsed.pathname.replace(/^\/api/, '');
@@ -2228,6 +2273,7 @@ async function handleAPI(req, res, parsed) {
     else if (!cert.status)                                       cert.status = 'PENDING';
     data[cert.id]    = cert;
     saveData(data);
+    autoMapVesselToGroup(cert.vesselIMO);
     return sendJSON(res, 201, cert, corsH);
   }
 
@@ -2414,6 +2460,7 @@ async function handleAPI(req, res, parsed) {
       added++;
     }
     saveData(data);
+    Object.values(data).forEach(c => { if (c.vesselIMO) autoMapVesselToGroup(c.vesselIMO); });
     return sendJSON(res, 200, { added, skipped, failed, total: records.length, results }, corsH);
   }
 
@@ -2798,6 +2845,7 @@ async function handleAPI(req, res, parsed) {
     else if (!cert.status)                                       cert.status = 'PENDING';
     data[cert.id] = cert;
     saveVaptData(data);
+    autoMapVesselToGroup(cert.vesselIMO);
     return sendJSON(res, 201, cert, corsH);
   }
 
@@ -2861,6 +2909,7 @@ async function handleAPI(req, res, parsed) {
       added++;
     }
     saveVaptData(data);
+    Object.values(data).forEach(c => { if (c.vesselIMO) autoMapVesselToGroup(c.vesselIMO); });
     return sendJSON(res, 200, { added, skipped, failed, total: records.length, results }, corsH);
   }
 

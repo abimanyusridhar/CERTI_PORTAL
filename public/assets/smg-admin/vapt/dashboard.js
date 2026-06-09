@@ -1321,7 +1321,7 @@
           <div style="display:flex;align-items:flex-start;gap:10px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
             <div>
-              <div style="font-weight:700;font-size:.78rem">Dispatched via AWS SES</div>
+              <div style="font-weight:700;font-size:.78rem">Credential Email Sent</div>
               <div style="font-size:.65rem;opacity:.85;margin-top:3px;line-height:1.6">
                 To: <strong>${recipEmail}</strong><br>
                 Sent: ${sentAt}${d.messageId ? '<br>Message ID: <code style="font-size:.6rem;opacity:.7">' + d.messageId + '</code>' : ''}
@@ -1344,7 +1344,7 @@
         if (r.status === 409) {
           errMsg = d.error || 'Email has already been sent for this certificate.';
         } else if (r.status === 503 || d.sesEnabled === false) {
-          errMsg = 'Email dispatch (AWS SES) is not configured on this server. Set SES_ACCESS_KEY, SES_SECRET_KEY and SES_REGION in your .env file.';
+          errMsg = 'Email dispatch is not configured on this server. Contact your system administrator to configure mail settings.';
         } else {
           errMsg = d.error || d.sesError || ('Server error — HTTP ' + r.status);
         }

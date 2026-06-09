@@ -216,21 +216,6 @@
       .info-grid{grid-template-columns:1fr}
       .ii.fw{grid-column:1}
     }
-    /* ── EMAIL GATE OVERLAY ── */
-    #emailGateOverlay{position:fixed;inset:0;background:rgba(5,12,28,.92);backdrop-filter:blur(18px);z-index:10100;display:none;align-items:center;justify-content:center;padding:24px}
-    .email-gate-card{background:rgba(15,30,53,.98);border:1px solid rgba(212,168,67,.35);border-radius:22px;padding:38px 40px;max-width:420px;width:100%;box-shadow:0 40px 100px rgba(0,0,0,.7);position:relative;animation:fadeUp .3s ease}
-    .egate-icon{width:52px;height:52px;border-radius:14px;background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
-    .egate-title{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:700;color:#E6F1FF;text-align:center;margin-bottom:8px}
-    .egate-sub{font-size:.78rem;color:#8892B0;text-align:center;line-height:1.7;margin-bottom:24px}
-    .egate-label{font-size:.58rem;letter-spacing:.18em;color:var(--teal);text-transform:uppercase;font-weight:600;margin-bottom:7px;display:block}
-    .egate-input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(212,168,67,.25);border-radius:10px;padding:13px 16px;color:#E6F1FF;font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:14px}
-    .egate-input:focus{border-color:rgba(212,168,67,.6);box-shadow:0 0 0 3px rgba(212,168,67,.08)}
-    .egate-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--gold),#8B6914);border:none;border-radius:10px;color:#0A1628;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .2s;margin-bottom:10px}
-    .egate-btn:hover{opacity:.9;transform:translateY(-1px)}
-    .egate-btn:disabled{opacity:.5;cursor:wait;transform:none}
-    .egate-cancel{width:100%;padding:10px;background:none;border:1px solid rgba(255,255,255,.07);border-radius:10px;color:#8892B0;font-family:'DM Sans',sans-serif;font-size:.75rem;cursor:pointer;transition:border-color .2s,color .2s}
-    .egate-cancel:hover{border-color:rgba(255,255,255,.15);color:#CCD6F6}
-    .egate-err{display:none;padding:9px 13px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.25);border-radius:8px;color:#FF6B8A;font-size:.75rem;margin-bottom:12px;text-align:center}
     /* PDF / DOC VIEWER MODAL */
     #pdfViewerOverlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
     .pdf-modal{width:100%;max-width:960px;background:#0f1e35;border:1px solid rgba(212,168,67,.3);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)}
@@ -770,12 +755,6 @@
     margin-top: 60px !important;
   }
 
-  /* Email gate card */
-  .email-gate-card {
-    border-radius: 22px !important;
-    box-shadow: 0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,168,67,0.06) !important;
-  }
-
   /* Doc list items */
   .docs-list {
     gap: 9px !important;
@@ -883,8 +862,7 @@
   .theme-toggle:focus-visible,
   .nav-tab:focus-visible,
   .doc-item:focus-visible,
-  input.search-input:focus-visible,
-  .egate-input:focus-visible {
+  input.search-input:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--ui-accent) 72%, white 28%);
     outline-offset: 2px;
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--ui-accent) 18%, transparent);

@@ -169,6 +169,12 @@
           </svg>
           Document Library
         </a>
+        <a class="nav-item" id="navLinkGroups" href="/CST/misecure/groups/" style="text-decoration:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          Vessel Groups
+        </a>
         <div class="nav-sec" style="margin-top:18px">Quick Stats</div>
         <div class="side-mini">
           <div class="side-row"><span>Valid</span><span style="color:var(--teal)" id="svValid">—</span></div>
@@ -396,6 +402,15 @@
             <span class="analytics-pill" style="animation:pulse 3s ease-in-out infinite">● Live</span>
           </div>
           <div style="padding:4px 20px 20px;height:220px"><canvas id="expiryChart"></canvas></div>
+        </div>
+
+        <!-- ── QUARTERLY COMPLETIONS CHART ── -->
+        <div class="analytics-card" style="margin-bottom:14px">
+          <div class="analytics-head">
+            <div><div class="analytics-title">Quarterly Completions</div><div class="analytics-sub" id="quarterlyChartSub">Certificate completions by quarter — current year</div></div>
+            <span class="analytics-pill" style="animation:pulse 3s ease-in-out infinite">● Live</span>
+          </div>
+          <div style="padding:4px 20px 20px;height:220px"><canvas id="quarterlyChart"></canvas></div>
         </div>
 
         <!-- ── ALERT PANELS 2×2 GRID ── -->
@@ -1014,7 +1029,7 @@
                         <div style="font-size:.72rem;font-weight:700;color:var(--text-bright)">Credential Notification Email</div>
                         <div style="font-size:.6rem;color:var(--text-sec);margin-top:1px">Auto-generated · CST Certificate Registry</div>
                       </div>
-                      <span style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.2)">AWS SES</span>
+                      <span style="font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.2)">Secure Mail</span>
                     </div>
 
                     <!-- Email body -->

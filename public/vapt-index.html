@@ -147,22 +147,15 @@
 
 <div id="copyToast" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(17,34,64,.97);border:1px solid rgba(10,124,110,.3);color:var(--teal);font-size:.72rem;font-weight:600;letter-spacing:.1em;padding:10px 22px;border-radius:30px;z-index:9998;opacity:0;transition:opacity .25s;pointer-events:none;text-transform:uppercase" role="status" aria-live="polite"></div>
 
-<!-- Email Gate Overlay -->
-<div id="emailGateOverlay" role="dialog" aria-modal="true" aria-label="Identity verification" aria-hidden="true">
-  <div class="email-gate-card">
-    <div class="egate-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+<!-- Document Restricted Notice -->
+<div id="docRestrictedNotice" role="dialog" aria-modal="true" aria-label="Document access restricted" aria-hidden="true" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#0f1e35;border:1px solid rgba(212,168,67,.35);border-radius:16px;padding:30px 36px;max-width:400px;width:90%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6)">
+    <div style="width:52px;height:52px;border-radius:50%;background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.25);display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
     </div>
-    <div class="egate-title">Verify Your Identity</div>
-    <p class="egate-sub">PDF documents are restricted to the registered recipient. Enter your registered email address to access this document.</p>
-    <div class="egate-err" id="gateErr">Email does not match our records. Please try again.</div>
-    <label class="egate-label" for="gateEmailInput">Registered Email Address</label>
-    <input type="email" id="gateEmailInput" class="egate-input" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')verifyEmailGate()" />
-    <button class="egate-btn" id="gateProceedBtn" onclick="verifyEmailGate()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:6px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
-      Access Document
-    </button>
-    <button class="egate-cancel" onclick="closeEmailGate()">Cancel</button>
+    <div style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;color:#E6F1FF;margin-bottom:10px">Restricted Access</div>
+    <p style="font-family:'DM Sans',sans-serif;font-size:.78rem;color:#8892B0;line-height:1.65;margin-bottom:22px">Certificate documents are accessible only to authenticated Superintendent users. Please log in to the Superintendent Portal to view these documents.</p>
+    <button onclick="closeDocRestrictedNotice()" style="font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:600;color:#0a1628;background:#D4A843;border:none;border-radius:8px;padding:9px 24px;cursor:pointer">Close</button>
   </div>
 </div>
 

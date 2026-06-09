@@ -520,83 +520,21 @@
     if (triggerEl) triggerEl.focus();
   }
 
-  /* ── EMAIL GATE (CST) ───────────────────────────────────────────── */
-  let _pendingPdfUrl = null, _pendingPdfName = null, _currentCertId = '', _emailGateVerified = false, _downloadToken = null;
+  /* ── DOCUMENT ACCESS (CST) ──────────────────────────────────────── */
+  // Certificate attachments are restricted to authenticated Superintendent users only.
+  // No public / email-gate access is permitted from this portal.
 
-  function openPdfModal(url, name) {
-    requestPdfAccess(url, name);
+  function openPdfModal(url, name) { _showDocRestricted(); }
+  function requestPdfAccess(url, name) { _showDocRestricted(); }
+
+  function _showDocRestricted() {
+    const n = document.getElementById('docRestrictedNotice');
+    if (n) { n.style.display = 'flex'; n.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
   }
 
-  function requestPdfAccess(url, name) {
-    if (_emailGateVerified) { _doPdfOpen(url, name); return; }
-    _pendingPdfUrl = url; _pendingPdfName = name;
-    const ov = document.getElementById('emailGateOverlay');
-    ov.style.display = 'flex'; ov.setAttribute('aria-hidden', 'false');
-    document.getElementById('gateEmailInput').value = '';
-    document.getElementById('gateErr').style.display = 'none';
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => { try { document.getElementById('gateEmailInput').focus(); } catch(_) {} }, 80);
-  }
-
-  async function verifyEmailGate() {
-    const entered = (document.getElementById('gateEmailInput').value || '').trim();
-    const errEl   = document.getElementById('gateErr');
-    if (!entered) { errEl.textContent = 'Please enter your email address.'; errEl.style.display = 'block'; return; }
-    if (!_currentCertId) { errEl.textContent = 'No certificate loaded. Please search again.'; errEl.style.display = 'block'; return; }
-    const btn = document.getElementById('gateProceedBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
-    errEl.style.display = 'none';
-    try {
-      const res = await fetch('/api/verify-email/' + encodeURIComponent(_currentCertId), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: entered })
-      });
-      if (res.ok) {
-        const d = await res.json().catch(() => ({}));
-        _downloadToken = d && d.downloadToken ? d.downloadToken : null;
-        _emailGateVerified = true;
-        if (btn) { btn.textContent = '✓ Verified — Opening…'; }
-        setTimeout(() => {
-          closeEmailGate();
-          if (_pendingPdfUrl) _doPdfOpen(_pendingPdfUrl, _pendingPdfName);
-          _pendingPdfUrl = null; _pendingPdfName = null;
-        }, 700);
-      } else if (res.status === 403) {
-        errEl.textContent = 'Email does not match our records. Please try again.';
-        errEl.style.display = 'block';
-        if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Access Document'; }
-      } else if (res.status === 429) {
-        errEl.textContent = 'Too many attempts. Please wait before trying again.';
-        errEl.style.display = 'block';
-        if (btn) { btn.disabled = false; btn.textContent = 'Access Document'; }
-      } else {
-        errEl.textContent = 'Verification service unavailable. Please try again.';
-        errEl.style.display = 'block';
-        if (btn) { btn.disabled = false; btn.textContent = 'Access Document'; }
-      }
-    } catch {
-      errEl.textContent = 'Network error. Please check your connection and try again.';
-      errEl.style.display = 'block';
-      if (btn) { btn.disabled = false; btn.textContent = 'Access Document'; }
-    }
-  }
-
-  function closeEmailGate() {
-    const ov = document.getElementById('emailGateOverlay');
-    ov.style.display = 'none'; ov.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    const btn = document.getElementById('gateProceedBtn');
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Access Document'; }
-  }
-
-  function _doPdfOpen(url, name) {
-    // Append the short-lived server token so `/uploads/:file` can validate access.
-    if (_downloadToken && url && url.indexOf('?t=') === -1) {
-      const sep = url.includes('?') ? '&' : '?';
-      url = url + sep + 't=' + encodeURIComponent(_downloadToken);
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
+  function closeDocRestrictedNotice() {
+    const n = document.getElementById('docRestrictedNotice');
+    if (n) { n.style.display = 'none'; n.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
   }
 
   function closePdfModal() {
@@ -605,7 +543,7 @@
   }
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeLB(); closePdfModal(); closeEmailGate(); }
+    if (e.key === 'Escape') { closeLB(); closePdfModal(); closeDocRestrictedNotice(); }
   });
 
   // Auto-load from URL token
