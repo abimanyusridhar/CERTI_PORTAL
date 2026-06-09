@@ -561,10 +561,11 @@
               </select>
             </div>
           </div>
-          <div id="certSelBar" style="display:none;align-items:center;gap:12px;padding:9px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.2);border-radius:8px;margin:0 18px 10px">
-            <span id="certSelCount" style="font-size:.72rem;font-weight:600;color:var(--teal)">0 vessels selected</span>
+          <div id="certSelBar" style="display:none;align-items:center;gap:10px;padding:9px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.2);border-radius:8px;margin:0 18px 10px">
+            <span id="certSelCount" style="font-size:.72rem;font-weight:600;color:var(--teal)">0 certs selected</span>
             <button class="btn btn-primary btn-sm" onclick="openBulkAssign()">👥 Assign to Group</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearSelections()" style="font-size:.72rem">✕ Clear</button>
+            <button class="btn btn-danger btn-sm" onclick="bulkDeleteCerts()">🗑 Delete Selected</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearSelections()">✕ Clear</button>
           </div>
           <div id="allTbl"></div>
         </div>

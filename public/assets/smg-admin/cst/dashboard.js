@@ -842,7 +842,7 @@
         const safeEmail = escHtml(c.recipientEmail);
         const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
         const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
-        const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle;display:table-cell!important;visibility:visible!important"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" onchange="toggleRowSelect(this)" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
+        const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle;display:table-cell!important;visibility:visible!important"><input type="checkbox" class="row-sel-cb" data-id="${safeId}" data-imo="${safeIMO}" data-tbl="${id}" onchange="toggleRowSelect(this)" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.id||'')?'checked':''}></td>`;
         return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">${selCell}
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${safeId}">${safeId}</span></td>
       <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;cursor:pointer" title="View in public portal" onclick="viewCertNewTab('${safeId}',null)"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''} ${groupBadge}</td>
@@ -3066,10 +3066,10 @@ async function confirmAssignGroup() {
 
 // ── Row selection (multi-select / bulk assign) ──
 function toggleRowSelect(cb) {
-  const imo = cb.dataset.imo;
-  if (!imo) return;
-  if (cb.checked) _selectedRows.add(imo);
-  else _selectedRows.delete(imo);
+  const id = cb.dataset.id;
+  if (!id) return;
+  if (cb.checked) _selectedRows.add(id);
+  else _selectedRows.delete(id);
   updateSelToolbar();
 }
 
@@ -3077,8 +3077,8 @@ function toggleSelectAll(cb, tblId) {
   const scope = tblId ? document.getElementById(tblId) : document;
   (scope || document).querySelectorAll('input.row-sel-cb').forEach(c => {
     c.checked = cb.checked;
-    if (cb.checked) _selectedRows.add(c.dataset.imo);
-    else _selectedRows.delete(c.dataset.imo);
+    if (cb.checked) _selectedRows.add(c.dataset.id);
+    else _selectedRows.delete(c.dataset.id);
   });
   updateSelToolbar();
 }
@@ -3088,20 +3088,45 @@ function updateSelToolbar() {
   const countEl = document.getElementById('certSelCount');
   const n = _selectedRows.size;
   if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
-  if (countEl) countEl.textContent = n + ' vessel' + (n !== 1 ? 's' : '') + ' selected';
+  if (countEl) countEl.textContent = n + ' cert' + (n !== 1 ? 's' : '') + ' selected';
 }
 
 function clearSelections() {
   _selectedRows.clear();
-  document.querySelectorAll('#allTbl input.row-sel-cb').forEach(c => c.checked = false);
-  const allCb = document.getElementById('selAllCb');
-  if (allCb) allCb.checked = false;
+  document.querySelectorAll('#allTbl input.row-sel-cb, #dashTbl input.row-sel-cb').forEach(c => c.checked = false);
+  document.querySelectorAll('[id^="selAllCb_"]').forEach(c => c.checked = false);
   updateSelToolbar();
 }
 
+async function bulkDeleteCerts() {
+  if (!_selectedRows.size) { toast('Select at least one certificate first.', 'warn'); return; }
+  const ids = [..._selectedRows];
+  const msg = ids.length === 1
+    ? `Delete certificate ${ids[0]}?`
+    : `Delete ${ids.length} certificates? This cannot be undone.`;
+  if (!confirm(msg)) return;
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    try {
+      const r = await fetch(API + '/certs/' + encodeURIComponent(id), { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (r.ok) ok++; else fail++;
+    } catch { fail++; }
+  }
+  clearSelections();
+  await refreshStats();
+  renderTbl('dashTbl', '');
+  renderTbl('allTbl', '');
+  if (fail === 0) toast(`${ok} certificate${ok !== 1 ? 's' : ''} deleted.`, 'ok');
+  else toast(`${ok} deleted, ${fail} failed.`, fail > 0 ? 'err' : 'ok');
+}
+
 async function openBulkAssign() {
-  if (!_selectedRows.size) { toast('Select at least one vessel first.', 'warn'); return; }
-  const imoList = [..._selectedRows];
+  if (!_selectedRows.size) { toast('Select at least one certificate first.', 'warn'); return; }
+  // Extract unique vessel IMOs from selected cert IDs
+  const imoList = [...new Set(
+    [..._selectedRows].map(id => { const c = (CERTS||[]).find(x => x.id === id); return c ? (c.vesselIMO||'').toUpperCase() : ''; }).filter(Boolean)
+  )];
+  if (!imoList.length) { toast('No valid vessel IMOs found in selection.', 'warn'); return; }
   _bulkAssignIMOs = imoList;
   _assignGroupIMO = '';
   const label = document.getElementById('assignGroupVesselLabel');
