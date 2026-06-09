@@ -163,7 +163,7 @@
         document.getElementById('dispatchPending').textContent = a.emailPending;
         updateCharts(a);
         updateInsights(a);
-        renderAlertPanels(a);
+        renderAlertPanels(a);  // always show ALL in alert panels
         renderSentLog();
         // Update Internal Validity alert badge
         const ivBadge = document.getElementById('nbValidityAlert');
@@ -214,6 +214,7 @@
       _activeQ = q;
       document.querySelectorAll('.q-tab').forEach(t => t.classList.toggle('active', t.dataset.q === q));
       renderQuarterlyStats(q);
+      // Main charts always reflect the full portfolio — only the quarterly stats row is quarter-scoped
     }
 
     // ── Vessel Certificate History ─────────────────────────────────────────────
@@ -2603,6 +2604,10 @@ function applyConfig() {
   // Sidebar nav links
   var sbCST = document.getElementById("sbLinkCST");      if (sbCST)      sbCST.href      = C.routes.cst;
   var sbVPT = document.getElementById("sbLinkVPTAdmin"); if (sbVPT)      sbVPT.href      = C.routes.vptAdmin;
+  var adm = C.routes.cstAdmin || '/CST/misecure';
+  var navDocs  = document.getElementById('nav-documents');  if (navDocs)  navDocs.href  = adm + '/documents/';
+  var navGrps  = document.getElementById('navLinkGroups');  if (navGrps)  navGrps.href  = adm + '/groups/';
+  var navUsers = document.getElementById('navLinkUsers');   if (navUsers) navUsers.href = adm + '/users/';
   // Admin data notice from compliance config
   if (C.compliance && C.compliance.adminDataNotice) {
     var notice = document.getElementById("adminDataNotice");

@@ -164,9 +164,7 @@
   }
 
   function renderCert(c) {
-    // Reset email gate for new cert
     _currentCertId = c.id || '';
-    _emailGateVerified = false;
     _downloadToken = null;
     const now  = new Date(); now.setHours(0,0,0,0);
     const vu   = c.validUntil ? new Date(c.validUntil) : null;

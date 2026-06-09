@@ -3556,9 +3556,9 @@ async function handleAPI(req, res, parsed) {
     }));
     const vaptCerts = Object.values(vaptAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo).map(c => ({
       id: c.id, certId: c.certId, vesselName: c.vesselName, vesselIMO: c.vesselIMO,
-      assessmentType: c.assessmentType, riskLevel: c.riskLevel,
-      complianceQuarter: c.complianceQuarter, trainingMode: c.trainingMode,
-      issuedDate: c.issuedDate || c.issuedAt, validUntil: c.validUntil, status: c.status,
+      recipientName: c.recipientName, assessmentType: c.assessmentType, riskLevel: c.riskLevel,
+      assessmentDate: c.assessmentDate, issuedDate: c.issuedDate || c.issuedAt,
+      validUntil: c.validUntil, status: c.status,
     }));
     return sendJSON(res, 200, { cst: cstCerts, vapt: vaptCerts }, corsH);
   }

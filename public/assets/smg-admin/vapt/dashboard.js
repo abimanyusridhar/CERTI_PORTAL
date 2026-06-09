@@ -1884,6 +1884,10 @@ function applyConfig() {
   // Sidebar nav links
   var sbVPT = document.getElementById('sbLinkVPT');      if (sbVPT)     sbVPT.href     = C.routes.vpt;
   var sbCST = document.getElementById('sbLinkCSTAdmin'); if (sbCST)     sbCST.href     = C.routes.cstAdmin;
+  var adm = C.routes.cstAdmin || '/CST/misecure';
+  var navDocs  = document.getElementById('navLinkDocuments'); if (navDocs)  navDocs.href  = adm + '/documents/';
+  var navGrps  = document.getElementById('navLinkGroups');    if (navGrps)  navGrps.href  = adm + '/groups/';
+  var navUsers = document.getElementById('navLinkUsers');     if (navUsers) navUsers.href = adm + '/users/';
 }
   // Call immediately (fast path if config.js already loaded)
   applyConfig();

@@ -317,25 +317,6 @@
   </div>
 </div>
 
-<!-- MEMBERS MODAL -->
-<div class="modal-overlay" id="membersModal">
-  <div class="modal" style="max-width:440px">
-    <div class="modal-title">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-      <span id="membersModalTitle">Manage Members</span>
-    </div>
-    <div style="font-size:.73rem;color:var(--text-sec);margin:-10px 0 16px">Select which superintendents can access this group's vessels.</div>
-    <div class="modal-err" id="membersModalErr"></div>
-    <div id="membersModalList" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--navy)">
-      <div style="padding:12px;font-size:.75rem;color:var(--text-sec)">Loading…</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeMembersModal()">Cancel</button>
-      <button class="btn-save" id="saveMembersBtn" onclick="saveMembersModal()">Save Members</button>
-    </div>
-  </div>
-</div>
-
 <div id="toast"></div>
 
 <script>
@@ -434,14 +415,11 @@
     empty.style.display = 'none';
     const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     const escH  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-    const memberUsers = (gid) => allUsers.filter(u => (u.groupIds||[]).includes(gid));
     grid.innerHTML = list.map(g => {
-      const imos   = (g.vesselIMOs||[]).map(i => {
-        const name = vesselNames[i.toUpperCase()];
+      const imos = (g.vesselIMOs||[]).map(i => {
+        const name = vesselNames[i.toUpperCase()] || vesselNames[i];
         return `<span class="imo-chip" title="${escH(i)}">${name ? escH(name) : escH(i)}<span style="opacity:.55;font-size:.58rem;margin-left:4px">${name ? escH(i) : ''}</span></span>`;
       }).join('');
-      const members = memberUsers(g.id);
-      const mText = members.length ? members.map(u => escH(u.name)).join(', ') : '<span style="color:var(--text-sec);font-size:.68rem">No members</span>';
       return `<div class="group-card">
         <div class="group-card-head">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
@@ -451,25 +429,18 @@
         <div class="group-card-body">
           <div class="imo-chips">${imos||'<span style="color:var(--text-sec);font-size:.7rem">No vessels assigned</span>'}</div>
           ${g.notes ? `<div class="group-notes">${escH(g.notes)}</div>` : ''}
-          <div class="group-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <strong style="color:var(--text-bright)">Members:</strong> ${mText}
-            ${!members.length ? `<button class="btn-sm" onclick="openMembersModal('${escH(g.id)}')" style="font-size:.62rem;padding:3px 9px;background:rgba(212,168,67,.07);border-color:rgba(212,168,67,.2);color:var(--gold)">+ Assign</button>` : ''}
-          </div>
           <div class="group-meta" style="margin-bottom:12px">Created ${fmtDt(g.createdAt)}</div>
           <div class="group-actions">
             <button class="btn-sm" onclick="openEditModal('${escH(g.id)}')">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               Edit
             </button>
-            <button class="btn-sm" onclick="openMembersModal('${escH(g.id)}')" style="background:rgba(212,168,67,.07);border-color:rgba(212,168,67,.2);color:var(--gold)">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-              Members
-            </button>
             <button class="btn-sm danger" onclick="deleteGroup('${escH(g.id)}','${escH(g.name)}')">Delete</button>
           </div>
         </div>
       </div>`;
     }).join('');
+    qvPopulateSelect();
   }
   window.renderGroups = renderGroups;
 
@@ -648,79 +619,6 @@
   }
   window.deleteGroup = deleteGroup;
 
-  // ── MEMBERS MODAL ────────────────────────────────────────────────────────
-  let _membersGroupId = '';
-
-  function openMembersModal(groupId) {
-    const g = allGroups.find(x => x.id === groupId);
-    if (!g) return;
-    _membersGroupId = groupId;
-    document.getElementById('membersModalTitle').textContent = 'Members — ' + g.name;
-    document.getElementById('membersModalErr').classList.remove('show');
-    const currentMemberIds = allUsers.filter(u => (u.groupIds||[]).includes(groupId)).map(u => u.id);
-    const el = document.getElementById('membersModalList');
-    const supts = allUsers.filter(u => u.active || currentMemberIds.includes(u.id));
-    if (!supts.length) {
-      el.innerHTML = '<div style="padding:14px;font-size:.75rem;color:var(--text-sec)">No users yet. Superintendents appear here after their first AWS SSO sign-in.</div>';
-    } else {
-      el.innerHTML = supts.map(u => {
-        const checked = currentMemberIds.includes(u.id) ? 'checked' : '';
-        const inactive = !u.active ? ' <span style="font-size:.6rem;color:var(--invalid);margin-left:4px">(inactive)</span>' : '';
-        return `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(100,255,218,.06);cursor:pointer">
-          <input type="checkbox" value="${escHtml(u.id)}" ${checked} style="accent-color:#64FFDA;flex-shrink:0;width:15px;height:15px" />
-          <span style="min-width:0">
-            <strong style="font-size:.82rem;color:var(--text-bright)">${escHtml(u.name)}</strong>${inactive}
-            <div style="font-size:.68rem;color:var(--text-sec);font-family:'JetBrains Mono',monospace">${escHtml(u.email)}</div>
-          </span>
-        </label>`;
-      }).join('');
-    }
-    document.getElementById('membersModal').classList.add('open');
-  }
-  window.openMembersModal = openMembersModal;
-
-  function closeMembersModal() {
-    document.getElementById('membersModal').classList.remove('open');
-    _membersGroupId = '';
-  }
-  window.closeMembersModal = closeMembersModal;
-
-  async function saveMembersModal() {
-    if (!_membersGroupId) return;
-    const err = document.getElementById('membersModalErr');
-    err.classList.remove('show');
-    const btn = document.getElementById('saveMembersBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    try {
-      const selectedIds = Array.from(
-        document.querySelectorAll('#membersModalList input[type=checkbox]:checked')
-      ).map(c => c.value);
-      const updates = allUsers.map(u => {
-        const inGroup  = (u.groupIds || []).includes(_membersGroupId);
-        const shouldBe = selectedIds.includes(u.id);
-        if (inGroup === shouldBe) return null;
-        const newGroupIds = shouldBe
-          ? [...new Set([...(u.groupIds || []), _membersGroupId])]
-          : (u.groupIds || []).filter(gid => gid !== _membersGroupId);
-        return fetch(API + '/admin/users/' + u.id, {
-          method: 'PUT',
-          headers: { ...authHdr(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupIds: newGroupIds }),
-        });
-      }).filter(Boolean);
-      if (updates.length) {
-        const results = await Promise.all(updates);
-        const failed = results.filter(r => !r.ok).length;
-        if (failed) { err.textContent = failed + ' user update(s) failed.'; err.classList.add('show'); return; }
-      }
-      closeMembersModal();
-      toast('Members updated.');
-      await loadData();
-    } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
-    finally { if (btn) { btn.disabled = false; btn.textContent = 'Save Members'; } }
-  }
-  window.saveMembersModal = saveMembersModal;
-
   // ── CONFIRM DANGER ────────────────────────────────────────────────────────
   function confirmDanger(msg, confirmLabel) {
     return new Promise(resolve => {
@@ -799,7 +697,11 @@
     _qvGroupId = document.getElementById('qvGroup').value || null;
     const nameEl = document.getElementById('qvGroupName');
     const listEl = document.getElementById('qvVesselList');
-    if (!_qvGroupId || !listEl) return;
+    if (!_qvGroupId) {
+      if (nameEl) nameEl.textContent = '';
+      if (listEl) listEl.innerHTML = '<div style="color:var(--text-sec);font-size:.72rem;padding:20px 0;text-align:center">Select a group to view its vessels</div>';
+      return;
+    }
     const g = allGroups.find(x => x.id === _qvGroupId);
     if (!g) return;
     if (nameEl) nameEl.textContent = g.name;
@@ -816,7 +718,7 @@
       return;
     }
     listEl.innerHTML = imos.map(imo => {
-      const name = vesselNames[imo] || '';
+      const name = vesselNames[imo.toUpperCase()] || vesselNames[imo] || '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid rgba(255,255,255,.04)">
         <div style="flex:1;min-width:0">
           <div style="font-size:.72rem;font-weight:600;color:var(--text-bright)">${name || imo}</div>
@@ -853,12 +755,17 @@
 
   async function qvAddVessel() {
     if (!_qvGroupId) { alert('Please select a group first.'); return; }
-    const raw = (document.getElementById('qvImoInput').value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (!raw) { alert('Please enter a vessel IMO or name.'); return; }
+    const val = (document.getElementById('qvImoInput').value || '').trim();
+    if (!val) { alert('Please enter a vessel IMO or select from suggestions.'); return; }
+    // Resolve vessel name → IMO if user typed a name instead of picking from dropdown
+    const lv = val.toLowerCase();
+    const byName = Object.entries(vesselNames).find(([, n]) => n.toLowerCase() === lv);
+    const imo = byName ? byName[0] : val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!imo) { alert('Please enter a valid vessel IMO or name.'); return; }
     try {
       const r = await fetch(API + '/admin/groups/' + _qvGroupId + '/vessels', {
         method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vesselIMO: raw })
+        body: JSON.stringify({ vesselIMO: imo })
       });
       if (!r.ok) { const d = await r.json(); alert(d.error || 'Error'); return; }
       const updated = await r.json();
@@ -889,15 +796,6 @@
   }
   window.qvRemoveVessel = qvRemoveVessel;
 
-  // Re-populate quick vessel panel after groups load
-  const _origRender = typeof renderGroups === 'function' ? renderGroups : null;
-  if (_origRender) {
-    const __patchedRenderGroups = function() {
-      _origRender.apply(this, arguments);
-      qvPopulateSelect();
-    };
-    window.renderGroups = __patchedRenderGroups;
-  }
 })();
 </script>
 </body>

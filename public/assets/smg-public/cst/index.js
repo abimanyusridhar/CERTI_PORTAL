@@ -153,9 +153,7 @@
   }
 
   function renderCert(cert) {
-    // Reset email gate for new cert lookup
     _currentCertId = cert.id || '';
-    _emailGateVerified = false;
     _downloadToken = null;
     const valid   = isCertValid(cert);
     const expired = !valid && isCertExpired(cert);

@@ -659,16 +659,12 @@ function renderCstTable(certs) {
 }
 
 function renderVaptTable(certs) {
-  const filtered = filterByQuarter(certs, 'issuedDate');
   const el = document.getElementById('vaptContent');
-  if (!filtered.length) {
-    const sub = _activeQuarter
-      ? `No VAPT assessments found in Q${_activeQuarter} — try a different quarter or All`
-      : 'No VAPT assessment records found for this vessel';
+  if (!certs.length) {
     el.innerHTML = `<div class="empty-state">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       <div class="empty-title">No VAPT Assessments</div>
-      <div class="empty-sub">${sub}</div>
+      <div class="empty-sub">No VAPT assessment records found for this vessel</div>
     </div>`;
     return;
   }
@@ -678,14 +674,13 @@ function renderVaptTable(certs) {
         <th>Certificate ID</th>
         <th>Vessel / Recipient</th>
         <th>IMO</th>
-        <th>Assessment Type</th>
-        <th>Quarter</th>
+        <th>Assessed</th>
         <th>Risk Level</th>
         <th>Status</th>
         <th>Valid Until</th>
         <th>Open</th>
       </tr></thead>
-      <tbody>${filtered.map(c => {
+      <tbody>${certs.map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isExpired = c.status === 'VALID' && vu && vu < now;
         const effStatus = isExpired ? 'EXPIRED' : (c.status || 'PENDING');
@@ -695,8 +690,7 @@ function renderVaptTable(certs) {
         <td class="mono" style="font-size:.72rem">${escHtml(c.certId || c.id || '—')}</td>
         <td><div style="font-weight:600;color:var(--text-bright);font-size:.8rem">${escHtml(c.recipientName || c.vesselName || '—')}</div>${c.vesselName && c.recipientName ? `<div style="font-size:.65rem;color:var(--text-sec)">${escHtml(c.vesselName)}</div>` : ''}</td>
         <td class="mono" style="font-size:.7rem;color:var(--text-sec)">${escHtml(c.vesselIMO || '—')}</td>
-        <td style="font-size:.76rem">${escHtml(c.assessmentType || '—')}</td>
-        <td>${qBadge(c.complianceQuarter)}</td>
+        <td style="font-size:.73rem;color:var(--text-sec)">${fmtDate(c.assessmentDate || c.issuedDate)}</td>
         <td>${riskPill(c.riskLevel)}</td>
         <td>${statusPill(effStatus)}</td>
         <td style="white-space:nowrap;font-size:.73rem">${validStr}</td>
@@ -785,11 +779,11 @@ window.setQuarter = setQuarter;
 function filterByQuarter(certs, dateField) {
   if (!_activeQuarter) return certs;
   return certs.filter(c => {
-    const d = c[dateField];
+    if (c.complianceQuarter) return c.complianceQuarter === 'Q' + _activeQuarter;
+    const d = c[dateField] || c.complianceDate || c.issuedDate;
     if (!d) return false;
     const month = new Date(d).getMonth() + 1;
-    const q = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
-    return q === _activeQuarter;
+    return (month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4) === _activeQuarter;
   });
 }
 
@@ -805,7 +799,7 @@ function switchTab(tab) {
     pane.className = 'tab-pane' + (key === tab ? ' active' : '');
   });
   const qbar = document.getElementById('quarterFilterBar');
-  if (qbar) qbar.style.display = (tab === 'docs') ? 'none' : 'flex';
+  if (qbar) qbar.style.display = (tab === 'docs' || tab === 'vapt') ? 'none' : 'flex';
 }
 
 // ─── VIEWS ─────────────────────────────────────────────────────────────────────
