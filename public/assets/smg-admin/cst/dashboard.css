@@ -8,26 +8,37 @@
     }
 
     :root {
-      --navy: #0A1628;
-      --navy-mid: #112240;
-      --navy-light: #1D3557;
-      --gold: #D4A843;
-      --gold-light: #F0C96A;
-      --gold-dim: rgba(212, 168, 67, 0.10);
-      --teal: #64FFDA;
-      --teal-dim: rgba(100, 255, 218, 0.06);
-      --surface: #0F1E35;
-      --surface-hover: #152840;
-      --border: rgba(255, 255, 255, 0.07);
-      --border-gold: rgba(212, 168, 67, 0.22);
-      --text: #CCD6F6;
-      --text-sec: #8892B0;
-      --text-bright: #E6F1FF;
-      --valid: #64FFDA;
-      --invalid: #FF6B8A;
-      --warn: #FFB347;
-      --sent: #64FFDA;
-      --not-sent: #FF6B8A;
+      --navy:          #07101F;
+      --navy-mid:      #0C1A2E;
+      --navy-light:    #162844;
+      --surface:       #0C1A2E;
+      --surface-1:     #0F2038;
+      --surface-hover: #142438;
+      --gold:          #D4A843;
+      --gold-vivid:    #F2C84C;
+      --gold-deep:     #9A7314;
+      --gold-light:    #F0C96A;
+      --gold-dim:      rgba(212, 168, 67, 0.10);
+      --gold-glow:     rgba(212, 168, 67, 0.18);
+      --teal:          #64FFDA;
+      --teal-vivid:    #80FFE4;
+      --teal-deep:     #2ABBA0;
+      --teal-dim:      rgba(100, 255, 218, 0.07);
+      --teal-glow:     rgba(100, 255, 218, 0.14);
+      --border:        rgba(255, 255, 255, 0.07);
+      --border-mid:    rgba(255, 255, 255, 0.11);
+      --border-gold:   rgba(212, 168, 67, 0.24);
+      --border-teal:   rgba(100, 255, 218, 0.20);
+      --text:          #C4D4EE;
+      --text-sec:      #7689AE;
+      --text-bright:   #EBF1FF;
+      --valid:         #4DFFC9;
+      --invalid:       #FF5C7A;
+      --warn:          #FFAA2E;
+      --sent:          #4DFFC9;
+      --not-sent:      #FF5C7A;
+      --shadow-gold:   0 4px 20px rgba(212, 168, 67, 0.18);
+      --shadow-teal:   0 4px 20px rgba(100, 255, 218, 0.14);
     }
 
     html {
@@ -72,10 +83,10 @@
       z-index: 1;
       width: 400px;
       padding: 48px;
-      background: rgba(15, 30, 53, .95);
+      background: linear-gradient(160deg, var(--surface-1) 0%, var(--surface) 100%);
       border: 1px solid var(--border-gold);
       border-radius: 24px;
-      box-shadow: 0 40px 100px rgba(0, 0, 0, .6);
+      box-shadow: 0 40px 100px rgba(0, 0, 0, .7), var(--shadow-gold);
       backdrop-filter: blur(20px);
     }
 
@@ -83,7 +94,7 @@
       width: 64px;
       height: 64px;
       border-radius: 16px;
-      background: linear-gradient(135deg, var(--navy-mid), var(--navy-light));
+      background: linear-gradient(160deg, var(--surface-1), var(--navy-light));
       border: 1px solid var(--border-gold);
       display: flex;
       align-items: center;
@@ -149,7 +160,7 @@
       width: 38px;
       height: 38px;
       border-radius: 10px;
-      background: linear-gradient(135deg, var(--navy-mid), var(--navy-light));
+      background: linear-gradient(160deg, var(--surface-1), var(--navy-light));
       border: 1px solid var(--border-gold);
       display: flex;
       align-items: center;
@@ -258,7 +269,7 @@
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold), #8B6914);
+      background: linear-gradient(135deg, var(--gold-vivid), var(--gold-deep));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -403,7 +414,7 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--gold), #8B6914);
+      background: linear-gradient(135deg, var(--gold-vivid) 0%, var(--gold) 45%, var(--gold-deep) 100%);
       color: var(--navy);
     }
 

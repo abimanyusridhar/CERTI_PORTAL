@@ -1860,16 +1860,24 @@ function getCorsHeaders(origin) {
 }
 
 // ─── QUARTER HELPER ────────────────────────────────────────────────────────────────────────────
-// complianceQuarter is retained for analytics/display only.
-// Expiry is always 90 days from date of conduction (complianceDate).
+// validUntil = complianceDate + 90 days (technical expiry for status/radar)
+// validFor   = next-quarter label for display: Q1→"Q2 (APR–JUN)", Q2→"Q3 (JUL–SEP)", etc.
 function deriveQuarterFields(cert) {
-  if (cert.complianceDate) {
-    if (!cert.validUntil) {
-      const expiry = new Date(cert.complianceDate);
-      expiry.setDate(expiry.getDate() + 90);
-      cert.validUntil = expiry.toISOString().slice(0, 10);
-    }
-    if (!cert.validFor) cert.validFor = '90 Days';
+  const q        = (cert.complianceQuarter || '').toUpperCase().replace(/\s/g, '');
+  const baseYear = cert.complianceDate ? new Date(cert.complianceDate).getFullYear() : new Date().getFullYear();
+
+  if (!cert.validUntil && cert.complianceDate) {
+    const expiry = new Date(cert.complianceDate);
+    expiry.setDate(expiry.getDate() + 90);
+    cert.validUntil = expiry.toISOString().slice(0, 10);
+  }
+
+  if (!cert.validFor) {
+    if      (q === 'Q1') cert.validFor = `Q2 (APR–JUN)-${baseYear}`;
+    else if (q === 'Q2') cert.validFor = `Q3 (JUL–SEP)-${baseYear}`;
+    else if (q === 'Q3') cert.validFor = `Q4 (OCT–DEC)-${baseYear}`;
+    else if (q === 'Q4') cert.validFor = `Q1 (JAN–MAR)-${baseYear + 1}`;
+    else                 cert.validFor = '90 Days';
   }
 
   // Normalise recipientName → "<PREFIX> - <VESSEL>" when missing or bare

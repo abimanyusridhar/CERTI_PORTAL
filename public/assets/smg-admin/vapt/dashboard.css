@@ -2,14 +2,19 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth}
     :root{
-      --navy:#0A1628;--navy-mid:#112240;--navy-light:#1D3557;
-      --gold:#D4A843;--gold-light:#F0C96A;--gold-dim:rgba(212,168,67,0.10);
-      --teal:#64FFDA;--teal-dim:rgba(100,255,218,0.06);
-      --surface:#0F1E35;--surface-hover:#152840;
-      --border:rgba(255,255,255,0.07);--border-gold:rgba(212,168,67,0.22);
-      --text:#CCD6F6;--text-sec:#8892B0;--text-bright:#E6F1FF;
-      --valid:#64FFDA;--invalid:#FF6B8A;--warn:#FFB347;
-      --sent:#64FFDA;--not-sent:#FF6B8A;
+      --navy:#07101F;--navy-mid:#0C1A2E;--navy-light:#162844;
+      --surface:#0C1A2E;--surface-1:#0F2038;--surface-hover:#142438;
+      --gold:#D4A843;--gold-vivid:#F2C84C;--gold-deep:#9A7314;
+      --gold-light:#F0C96A;--gold-dim:rgba(212,168,67,0.10);--gold-glow:rgba(212,168,67,0.18);
+      --teal:#64FFDA;--teal-vivid:#80FFE4;--teal-deep:#2ABBA0;
+      --teal-dim:rgba(100,255,218,0.07);--teal-glow:rgba(100,255,218,0.14);
+      --border:rgba(255,255,255,0.07);--border-mid:rgba(255,255,255,0.11);
+      --border-gold:rgba(212,168,67,0.24);--border-teal:rgba(100,255,218,0.20);
+      --text:#C4D4EE;--text-sec:#7689AE;--text-bright:#EBF1FF;
+      --valid:#4DFFC9;--invalid:#FF5C7A;--warn:#FFAA2E;
+      --sent:#4DFFC9;--not-sent:#FF5C7A;
+      --shadow-gold:0 4px 20px rgba(212,168,67,0.18);
+      --shadow-teal:0 4px 20px rgba(100,255,218,0.14);
     }
     html,body{height:100%;overflow:hidden}
     body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text)}
@@ -17,7 +22,7 @@
     /* ── LOGIN ── */
     #loginWrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 30% 40%,rgba(212,168,67,.06) 0%,transparent 60%),radial-gradient(ellipse at 70% 70%,rgba(100,255,218,.04) 0%,transparent 60%),var(--navy);position:relative}
     .login-bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(100,255,218,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
-    .login-card{position:relative;z-index:1;width:400px;padding:48px;background:rgba(15,30,53,.95);border:1px solid var(--border-gold);border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,.6);backdrop-filter:blur(20px)}
+    .login-card{position:relative;z-index:1;width:400px;padding:48px;background:linear-gradient(160deg,var(--surface-1) 0%,var(--surface) 100%);border:1px solid var(--border-gold);border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,.7),var(--shadow-gold);backdrop-filter:blur(20px)}
     .login-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;margin:0 auto 24px}
     .login-title{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;text-align:center;color:var(--text-bright);margin-bottom:6px}
     .login-sub{font-size:.68rem;letter-spacing:.2em;color:var(--gold);text-align:center;text-transform:uppercase;margin-bottom:36px}
@@ -27,7 +32,7 @@
     #appWrap{display:none;height:100vh;flex-direction:row}
     .sidebar{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
     .sb-brand{padding:22px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-    .sb-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--navy-mid),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .sb-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(160deg,var(--surface-1),var(--navy-light));border:1px solid var(--border-gold);display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .sb-name{font-family:'Playfair Display',serif;font-size:1rem;color:var(--text-bright);line-height:1}
     .sb-sub{font-size:.55rem;letter-spacing:.18em;color:var(--gold);text-transform:uppercase;margin-top:3px}
     .sb-nav{flex:1;padding:14px 10px;overflow-y:auto}
@@ -41,7 +46,7 @@
     .side-row span:first-child{color:var(--text-sec)}
     .sb-foot{padding:12px 10px;border-top:1px solid var(--border)}
     .admin-tag{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--gold-dim);border:1px solid var(--border-gold);margin-bottom:8px}
-    .admin-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#8B6914);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--navy);flex-shrink:0}
+    .admin-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold-vivid),var(--gold-deep));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--navy);flex-shrink:0}
     .admin-nm{font-size:.8rem;font-weight:600;color:var(--text-bright)}
     .admin-rl{font-size:.6rem;color:var(--text-sec)}
     .logout-btn{width:100%;padding:9px;background:rgba(255,107,138,.07);border:1px solid rgba(255,107,138,.2);border-radius:9px;color:var(--invalid);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .15s}
@@ -76,7 +81,7 @@
 
     /* ── BUTTONS ── */
     .btn{padding:8px 16px;border-radius:9px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:1px solid transparent;transition:all .15s;display:inline-flex;align-items:center;gap:7px}
-    .btn-primary{background:linear-gradient(135deg,var(--gold),#8B6914);color:var(--navy)}
+    .btn-primary{background:linear-gradient(135deg,var(--gold-vivid) 0%,var(--gold) 45%,var(--gold-deep) 100%);color:var(--navy)}
     .btn-primary:hover{opacity:.88;transform:translateY(-1px)}
     .btn-ghost{background:var(--surface-hover);border-color:var(--border);color:var(--text-sec)}
     .btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.15)}
