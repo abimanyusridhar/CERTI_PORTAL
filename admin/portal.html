@@ -206,9 +206,34 @@
       </svg>
       Sign in with AWS SSO
     </a>
-    <p style="font-size:.62rem;color:var(--text-sec);text-align:center;margin:8px 0 16px;line-height:1.6">
+    <p style="font-size:.62rem;color:var(--text-sec);text-align:center;margin:8px 0 14px;line-height:1.6">
       Use your company AWS identity &mdash; no profile URL required
     </p>
+
+    <!-- Password login toggle -->
+    <div style="text-align:center;margin-bottom:10px">
+      <button id="pwToggleBtn" onclick="togglePwForm()" style="background:none;border:none;color:var(--text-sec);font-size:.7rem;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">
+        Or log in with email &amp; password
+      </button>
+    </div>
+
+    <div id="pwLoginForm" style="display:none;margin-bottom:14px">
+      <div id="pwLoginErr" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.3);color:#ff6b8a;border-radius:8px;font-size:.72rem;text-align:center"></div>
+      <div style="margin-bottom:10px">
+        <input id="pwEmail" type="email" placeholder="Email address" autocomplete="username"
+          style="width:100%;padding:11px 14px;border-radius:9px;border:1px solid rgba(212,168,67,.3);background:rgba(255,255,255,.04);color:var(--text-bright);font-size:.82rem;font-family:inherit;outline:none;box-sizing:border-box"
+          onkeydown="if(event.key==='Enter')document.getElementById('pwPassword').focus()" />
+      </div>
+      <div style="margin-bottom:12px">
+        <input id="pwPassword" type="password" placeholder="Password" autocomplete="current-password"
+          style="width:100%;padding:11px 14px;border-radius:9px;border:1px solid rgba(212,168,67,.3);background:rgba(255,255,255,.04);color:var(--text-bright);font-size:.82rem;font-family:inherit;outline:none;box-sizing:border-box"
+          onkeydown="if(event.key==='Enter')doPasswordLogin()" />
+      </div>
+      <button id="pwLoginBtn" onclick="doPasswordLogin()"
+        style="width:100%;padding:11px;border-radius:9px;background:rgba(212,168,67,.15);border:1px solid rgba(212,168,67,.4);color:var(--gold,#D4A843);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em">
+        Sign In
+      </button>
+    </div>
 
     <div class="login-badge">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -385,6 +410,53 @@ function showLogin() {
   document.getElementById('loginWrap').style.display = 'flex';
   applyPortalConfig();
   document.addEventListener('appconfigready', applyPortalConfig);
+}
+
+function togglePwForm() {
+  const form = document.getElementById('pwLoginForm');
+  const btn  = document.getElementById('pwToggleBtn');
+  const open = form.style.display === 'none';
+  form.style.display = open ? 'block' : 'none';
+  btn.textContent    = open ? 'Hide password login' : 'Or log in with email & password';
+  if (open) setTimeout(() => document.getElementById('pwEmail').focus(), 50);
+}
+
+async function doPasswordLogin() {
+  const email    = (document.getElementById('pwEmail').value    || '').trim().toLowerCase();
+  const password = (document.getElementById('pwPassword').value || '').trim();
+  const errEl    = document.getElementById('pwLoginErr');
+  const btn      = document.getElementById('pwLoginBtn');
+  errEl.style.display = 'none';
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  try {
+    const r = await fetch('/api/auth/user/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      errEl.textContent = d.error || 'Invalid email or password.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+      return;
+    }
+    saveSession(d.sessionToken, d.user.name || d.user.email || '');
+    enterApp(d.user.name || d.user.email || '');
+    loadDashboard();
+  } catch (e) {
+    errEl.textContent = 'Connection error. Please try again.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────

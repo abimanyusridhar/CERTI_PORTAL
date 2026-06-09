@@ -278,8 +278,12 @@
       <label class="mflabel" for="mEmail">Email Address <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(AWS SSO identity)</span></label>
       <input id="mEmail" type="email" class="mfcontrol" />
     </div>
+    <div class="mfgroup" id="mPasswordGroup">
+      <label class="mflabel" for="mPassword" id="mPasswordLabel">Set Password <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(optional — leave blank to use AWS SSO)</span></label>
+      <input id="mPassword" type="password" class="mfcontrol" placeholder="Min 8 characters" autocomplete="new-password" />
+    </div>
     <div id="mCognitoNote" style="display:none;margin-bottom:14px;padding:10px 13px;background:rgba(100,255,218,.05);border:1px solid rgba(100,255,218,.2);border-radius:8px;font-size:.71rem;color:var(--acc)">
-      This user will receive a welcome email from AWS Cognito to set their login password.
+      AWS Cognito will send a welcome email for SSO login. You can also set a direct password above so the user can log in immediately without waiting for Cognito.
     </div>
     <div class="mfgroup">
       <label class="mflabel">Assign to Groups</label>
@@ -442,6 +446,8 @@
     document.getElementById('mEmail').readOnly = false;
     document.getElementById('mEmail').style.opacity = '';
     document.getElementById('mEmail').style.cursor  = '';
+    document.getElementById('mPassword').value = '';
+    document.getElementById('mPasswordLabel').innerHTML = 'Set Password <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(optional — leave blank to use AWS SSO)</span>';
     document.getElementById('mActive').checked = true;
     document.getElementById('modalErr').classList.remove('show');
     document.getElementById('mCognitoNote').style.display = 'block';
@@ -460,6 +466,8 @@
     document.getElementById('mEmail').readOnly = true;
     document.getElementById('mEmail').style.opacity = '0.6';
     document.getElementById('mEmail').style.cursor  = 'default';
+    document.getElementById('mPassword').value = '';
+    document.getElementById('mPasswordLabel').innerHTML = 'Change Password <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(leave blank to keep existing)</span>';
     document.getElementById('mActive').checked = !!u.active;
     document.getElementById('modalErr').classList.remove('show');
     document.getElementById('mCognitoNote').style.display = 'none';
@@ -475,36 +483,44 @@
     const name     = document.getElementById('mName').value.trim();
     const email    = document.getElementById('mEmail').value.trim().toLowerCase();
     const active   = document.getElementById('mActive').checked;
+    const password = document.getElementById('mPassword').value;
     const groupIds = Array.from(document.querySelectorAll('#groupSelectList input[type=checkbox]:checked')).map(c => c.value);
     const err = document.getElementById('modalErr');
     const btn = document.getElementById('saveUserBtn');
     err.classList.remove('show');
     if (!name)  { err.textContent = 'Full name is required.';  err.classList.add('show'); document.getElementById('mName').focus();  return; }
     if (!editingId && !email) { err.textContent = 'Email address is required.'; err.classList.add('show'); document.getElementById('mEmail').focus(); return; }
+    if (password && password.length < 8) { err.textContent = 'Password must be at least 8 characters.'; err.classList.add('show'); document.getElementById('mPassword').focus(); return; }
 
     if (btn) { btn.disabled = true; btn.textContent = editingId ? 'Saving…' : 'Creating…'; }
     if (!editingId) {
       try {
-        const r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, role: 'superintendent', groupIds, active }) });
+        const payload = { name, email, role: 'superintendent', groupIds, active };
+        if (password) payload.password = password;
+        const r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const d = await r.json();
         if (!r.ok) { err.textContent = d.error || 'Could not create user. Please try again.'; err.classList.add('show'); return; }
         closeModal();
-        if (d.cognitoCreated) {
+        if (password) {
+          toast('User created with password. They can log in immediately via the superintendent portal.');
+        } else if (d.cognitoCreated) {
           toast('User created. ' + name + ' will receive a welcome email from AWS to set their login password.');
         } else if (d.cognitoError) {
           toast('User saved, but Cognito registration failed: ' + d.cognitoError, true);
         } else {
-          toast('User created locally. Configure COGNITO_ACCESS_KEY_ID in .env to auto-register in AWS.');
+          toast('User created. Set a password above or configure COGNITO_ACCESS_KEY_ID in .env for SSO.');
         }
         await loadData();
       } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     } else {
       try {
-        const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, active, groupIds }) });
+        const payload = { name, active, groupIds };
+        if (password) payload.password = password;
+        const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const d = await r.json();
         if (!r.ok) { err.textContent = d.error || 'Could not save changes. Please try again.'; err.classList.add('show'); return; }
         closeModal();
-        toast('User updated successfully.');
+        toast(password ? 'User updated and password changed.' : 'User updated successfully.');
         await loadData();
       } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     }
