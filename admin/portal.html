@@ -182,12 +182,13 @@
     .analytics-sect-hdr { font-size: .58rem; color: var(--text-sec); letter-spacing: .14em; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; padding-left: 2px; display: flex; align-items: center; gap: 8px; }
     .analytics-sect-hdr::after { content:''; flex:1; height:1px; background:var(--border); }
     .stats-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
-    .stats-row-8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+    .stats-row-8 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
     .stat-card-sm { background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 13px 15px; }
     .stat-card-sm .stat-num { font-size: 1.35rem; }
     .stat-card-sm .stat-lbl { font-size: .58rem; }
     .stat-num.red { color: #FF6B8A; }
     .stat-num.amber { color: #FFC100; }
+    .stat-num.blue { color: #4A9EFF; }
     .charts-grid { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 16px; margin-bottom: 16px; }
     .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
     .chart-card-title { font-size: .62rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
@@ -218,6 +219,52 @@
     .vapt-badge { padding: 2px 7px; border-radius: 20px; font-size: .6rem; font-weight: 700; background: rgba(212,168,67,.08); border: 1px solid rgba(212,168,67,.2); color: var(--sp-gold); }
     @media (max-width: 1100px) { .charts-grid { grid-template-columns: 1fr 1fr; } .charts-grid .chart-card:last-child { grid-column: 1/-1; } }
     @media (max-width: 760px) { .stats-row-4, .stats-row-8 { grid-template-columns: repeat(2, 1fr); } .charts-grid { grid-template-columns: 1fr; } }
+
+    /* ── LIGHT THEME OVERRIDES ─────────────────────────────────────────────────── */
+    html.light {
+      --sp-accent: #0A7C6E;
+      --sp-accent-dim: rgba(10,124,110,0.07);
+    }
+    html.light .login-bg-grid { background-image: linear-gradient(rgba(30,60,120,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(30,60,120,.02) 1px,transparent 1px) !important; }
+    html.light .login-card { box-shadow: 0 20px 60px rgba(30,60,120,.12) !important; }
+    html.light .login-err { background: rgba(220,38,38,.07) !important; border-color: rgba(220,38,38,.25) !important; color: #DC2626 !important; }
+    html.light .btn-login { background: linear-gradient(135deg, #0A7C6E, #0E9E8C) !important; color: #fff !important; }
+    html.light .sb-vessel-item:hover,
+    html.light .sb-vessel-item.active { border-color: rgba(10,124,110,.20) !important; }
+    html.light .q-btn.active { border-color: rgba(10,124,110,.3) !important; }
+    html.light .q-btn.all.active { border-color: rgba(181,134,10,.25) !important; }
+    html.light .page-hdr-icon { border-color: rgba(10,124,110,.25) !important; }
+    html.light .vc-icon { border-color: rgba(10,124,110,.2) !important; }
+    html.light .vc-pill.cst { background: rgba(10,124,110,.08) !important; border-color: rgba(10,124,110,.2) !important; }
+    html.light .vessel-card:hover { border-color: rgba(10,124,110,.35) !important; box-shadow: 0 8px 24px rgba(30,60,120,.12) !important; }
+    html.light .vessel-card:hover .vc-arrow { color: var(--sp-accent) !important; }
+    html.light .tab-btn.active-cst { border-color: rgba(10,124,110,.35) !important; }
+    html.light .vd-back:hover { border-color: rgba(10,124,110,.3) !important; }
+    html.light .status-pill.valid   { background: rgba(10,124,110,.10) !important; border-color: rgba(10,124,110,.25) !important; }
+    html.light .status-pill.expired { background: rgba(220,38,38,.08) !important; border-color: rgba(220,38,38,.25) !important; color: #DC2626 !important; }
+    html.light .status-pill.pending { background: rgba(217,119,6,.08) !important; border-color: rgba(217,119,6,.25) !important; color: #D97706 !important; }
+    html.light .risk-pill.low      { border-color: rgba(10,124,110,.2) !important; }
+    html.light .risk-pill.critical  { color: #DC2626 !important; background: rgba(220,38,38,.10) !important; border-color: rgba(220,38,38,.25) !important; }
+    html.light .risk-pill.high      { color: #C2540A !important; }
+    html.light .data-table th { background: #F7FAFF !important; }
+    html.light .data-table td { border-bottom-color: rgba(30,60,120,.06) !important; color: #0A1628 !important; }
+    html.light .data-table tr:hover td { background: rgba(10,124,110,.02) !important; }
+    html.light .btn-view      { background: rgba(10,124,110,.07) !important; border-color: rgba(10,124,110,.2) !important; }
+    html.light .btn-view:hover { background: rgba(10,124,110,.14) !important; border-color: rgba(10,124,110,.4) !important; }
+    html.light .spinner { border-color: rgba(10,124,110,.2) !important; border-top-color: var(--sp-accent) !important; }
+    html.light .chart-card { background: #fff !important; }
+    html.light .analytics-sect-hdr::after { background: rgba(30,60,120,.08) !important; }
+    html.light .alert-badge.ok  { background: rgba(10,124,110,.08) !important; border-color: rgba(10,124,110,.2) !important; }
+    html.light .alert-pill.ok   { background: rgba(10,124,110,.08) !important; border-color: rgba(10,124,110,.2) !important; }
+    html.light .alert-row       { border-bottom-color: rgba(30,60,120,.06) !important; }
+    html.light .alert-row:hover { background: rgba(10,124,110,.02) !important; }
+    html.light .alert-bar-bg    { background: rgba(30,60,120,.06) !important; }
+    html.light .alert-pill.bad  { color: #DC2626 !important; background: rgba(220,38,38,.08) !important; border-color: rgba(220,38,38,.2) !important; }
+    html.light .vapt-badge { background: rgba(181,134,10,.08) !important; border-color: rgba(181,134,10,.2) !important; }
+    html.light .doc-item:hover   { border-color: rgba(100,149,237,.4) !important; }
+    html.light .doc-icon         { background: rgba(100,149,237,.07) !important; border-color: rgba(100,149,237,.2) !important; }
+    html.light .doc-dl           { background: rgba(100,149,237,.07) !important; }
+    html.light .doc-dl:hover     { background: rgba(100,149,237,.14) !important; }
   </style>
 </head>
 <body>
@@ -355,6 +402,7 @@
         <div class="stats-row-8">
           <div class="stat-card stat-card-sm"><div class="stat-num teal" id="statCstValid">—</div><div class="stat-lbl">Valid</div></div>
           <div class="stat-card stat-card-sm"><div class="stat-num red" id="statCstExpired">—</div><div class="stat-lbl">Expired</div></div>
+          <div class="stat-card stat-card-sm"><div class="stat-num blue" id="statCstPending">—</div><div class="stat-lbl">Pending</div></div>
           <div class="stat-card stat-card-sm"><div class="stat-num amber" id="statCstExp30">—</div><div class="stat-lbl">Vessels Expiring Soon</div></div>
           <div class="stat-card stat-card-sm"><div class="stat-num amber" id="statCstExp90">—</div><div class="stat-lbl">Certs Expiring ≤ 90d</div></div>
         </div>
@@ -364,6 +412,7 @@
         <div class="stats-row-8">
           <div class="stat-card stat-card-sm"><div class="stat-num gold" id="statVaptValid">—</div><div class="stat-lbl">Valid</div></div>
           <div class="stat-card stat-card-sm"><div class="stat-num red" id="statVaptExpired">—</div><div class="stat-lbl">Expired</div></div>
+          <div class="stat-card stat-card-sm"><div class="stat-num blue" id="statVaptPending">—</div><div class="stat-lbl">Pending</div></div>
           <div class="stat-card stat-card-sm"><div class="stat-num teal" id="statVaptVessels">—</div><div class="stat-lbl">Vessels with VAPT</div></div>
           <div class="stat-card stat-card-sm"><div class="stat-num teal" id="statVaptCoverage">—%</div><div class="stat-lbl">Fleet Coverage</div></div>
         </div>
@@ -667,12 +716,14 @@ function renderDashboard(vessels) {
   const totCst      = vessels.reduce((a, v) => a + (v.cstCount  || 0), 0);
   const totVapt     = vessels.reduce((a, v) => a + (v.vaptCount || 0), 0);
   const totDocs     = vessels.reduce((a, v) => a + (v.docCount  || 0), 0);
-  const cstValid    = vessels.reduce((a, v) => a + (v.cstValid  || 0), 0);
-  const cstExpired  = totCst - cstValid;
+  const cstValid    = vessels.reduce((a, v) => a + (v.cstValid   || 0), 0);
+  const cstExpired  = vessels.reduce((a, v) => a + (v.cstExpired || 0), 0);
+  const cstPending  = vessels.reduce((a, v) => a + (v.cstPending || 0), 0);
   const cstExp90    = vessels.reduce((a, v) => a + (v.cstExpiring || 0), 0);
   const cstVesselsExpiring = vessels.filter(v => (v.cstExpiring || 0) > 0).length;
-  const vaptValid   = vessels.reduce((a, v) => a + (v.vaptValid || 0), 0);
-  const vaptExpired = totVapt - vaptValid;
+  const vaptValid   = vessels.reduce((a, v) => a + (v.vaptValid   || 0), 0);
+  const vaptExpired = vessels.reduce((a, v) => a + (v.vaptExpired || 0), 0);
+  const vaptPending = vessels.reduce((a, v) => a + (v.vaptPending || 0), 0);
   const vaptVessels = vessels.filter(v => (v.vaptCount || 0) > 0).length;
   const coverage    = vessels.length ? Math.round((vaptVessels / vessels.length) * 100) : 0;
 
@@ -684,21 +735,23 @@ function renderDashboard(vessels) {
 
   // Populate CST detail cards
   const el = id => document.getElementById(id);
-  if (el('statCstValid'))   el('statCstValid').textContent   = cstValid;
-  if (el('statCstExpired')) el('statCstExpired').textContent = cstExpired;
-  if (el('statCstExp30'))   el('statCstExp30').textContent   = cstVesselsExpiring;
-  if (el('statCstExp90'))   el('statCstExp90').textContent   = cstExp90;
+  if (el('statCstValid'))    el('statCstValid').textContent    = cstValid;
+  if (el('statCstExpired'))  el('statCstExpired').textContent  = cstExpired;
+  if (el('statCstPending'))  el('statCstPending').textContent  = cstPending;
+  if (el('statCstExp30'))    el('statCstExp30').textContent    = cstVesselsExpiring;
+  if (el('statCstExp90'))    el('statCstExp90').textContent    = cstExp90;
 
   // Populate VAPT detail cards
   if (el('statVaptValid'))     el('statVaptValid').textContent     = vaptValid;
   if (el('statVaptExpired'))   el('statVaptExpired').textContent   = vaptExpired;
+  if (el('statVaptPending'))   el('statVaptPending').textContent   = vaptPending;
   if (el('statVaptVessels'))   el('statVaptVessels').textContent   = vaptVessels;
   if (el('statVaptCoverage'))  el('statVaptCoverage').textContent  = coverage + '%';
 
-  sub.textContent = `${vessels.length} vessel${vessels.length !== 1 ? 's' : ''} · ${cstValid} valid CST · ${vaptValid} valid VAPT`;
+  sub.textContent = `${vessels.length} vessel${vessels.length !== 1 ? 's' : ''} · ${cstValid} valid CST · ${vaptValid} valid VAPT · ${cstPending + vaptPending} pending`;
 
   // Build charts after DOM settles
-  setTimeout(() => buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, totVapt, vaptValid, vaptExpired, cstVesselsExpiring), 50);
+  setTimeout(() => buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstPending, cstExp90, totVapt, vaptValid, vaptExpired, vaptPending, cstVesselsExpiring), 50);
   renderExpiryPanel(vessels);
   // Sidebar list
   const sbList = document.getElementById('sbVesselList');
@@ -754,14 +807,19 @@ function _chartDefaults() {
   };
 }
 
-function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, totVapt, vaptValid, vaptExpired, cstVesselsExpiring) {
+function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstPending, cstExp90, totVapt, vaptValid, vaptExpired, vaptPending, cstVesselsExpiring) {
   if (typeof Chart === 'undefined') return;
 
-  const TEAL  = 'rgba(100,255,218,0.85)';
-  const RED   = 'rgba(255,107,138,0.85)';
-  const GOLD  = 'rgba(212,168,67,0.85)';
-  const AMBER = 'rgba(255,193,0,0.80)';
-  const GREY  = 'rgba(255,255,255,0.08)';
+  const isLight = document.documentElement.classList.contains('light');
+  const TEAL  = isLight ? 'rgba(10,124,110,0.80)'  : 'rgba(100,255,218,0.85)';
+  const RED   = isLight ? 'rgba(220,38,38,0.75)'   : 'rgba(255,107,138,0.85)';
+  const GOLD  = isLight ? 'rgba(181,134,10,0.80)'  : 'rgba(212,168,67,0.85)';
+  const AMBER = isLight ? 'rgba(217,119,6,0.80)'   : 'rgba(255,193,0,0.80)';
+  const BLUE  = isLight ? 'rgba(37,99,235,0.75)'   : 'rgba(74,158,255,0.85)';
+  const GREY  = isLight ? 'rgba(30,60,120,0.08)'   : 'rgba(255,255,255,0.08)';
+  const tickColor  = isLight ? 'rgba(10,22,40,.45)' : 'rgba(255,255,255,.45)';
+  const gridColor  = isLight ? 'rgba(30,60,120,.06)' : 'rgba(255,255,255,.05)';
+  const legendColor = isLight ? 'rgba(10,22,40,.6)'  : 'rgba(255,255,255,.6)';
 
   // ── CST Status Donut ──────────────────────────────────────────────────────────
   const cstCtx = document.getElementById('cstStatusChart');
@@ -770,9 +828,9 @@ function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, t
     _chartCstStatus = new Chart(cstCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Valid', 'Expired', 'Expiring ≤90d'],
-        datasets: [{ data: [Math.max(0, cstValid - cstExp90), cstExpired, cstExp90],
-          backgroundColor: [TEAL, RED, AMBER], borderWidth: 0, hoverOffset: 4 }]
+        labels: ['Valid', 'Expiring ≤90d', 'Expired', 'Pending'],
+        datasets: [{ data: [Math.max(0, cstValid - cstExp90), cstExp90, cstExpired, cstPending],
+          backgroundColor: [TEAL, AMBER, RED, BLUE], borderWidth: 0, hoverOffset: 4 }]
       },
       options: { ..._chartDefaults(), cutout: '68%', maintainAspectRatio: false }
     });
@@ -781,6 +839,7 @@ function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, t
       [TEAL,  'Valid (stable)',    Math.max(0, cstValid - cstExp90)],
       [AMBER, 'Expiring ≤90 days', cstExp90],
       [RED,   'Expired',           cstExpired],
+      [BLUE,  'Pending',           cstPending],
     ].map(([c, l, n]) =>
       `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${c}"></span>${l}<span class="chart-legend-val">${n}</span></div>`
     ).join('');
@@ -790,12 +849,13 @@ function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, t
   const vaptCtx = document.getElementById('vaptStatusChart');
   if (vaptCtx) {
     if (_chartVaptStatus) _chartVaptStatus.destroy();
+    const noVapt = Math.max(0, vessels.length - vessels.filter(v => v.vaptCount > 0).length);
     _chartVaptStatus = new Chart(vaptCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Valid', 'Expired', 'No VAPT'],
-        datasets: [{ data: [vaptValid, vaptExpired, Math.max(0, vessels.length - vessels.filter(v => v.vaptCount > 0).length)],
-          backgroundColor: [GOLD, RED, GREY], borderWidth: 0, hoverOffset: 4 }]
+        labels: ['Valid', 'Expired', 'Pending', 'No VAPT'],
+        datasets: [{ data: [vaptValid, vaptExpired, vaptPending, noVapt],
+          backgroundColor: [GOLD, RED, BLUE, GREY], borderWidth: 0, hoverOffset: 4 }]
       },
       options: { ..._chartDefaults(), cutout: '68%', maintainAspectRatio: false }
     });
@@ -803,7 +863,8 @@ function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, t
     if (leg) leg.innerHTML = [
       [GOLD, 'Valid',    vaptValid],
       [RED,  'Expired',  vaptExpired],
-      [GREY, 'No VAPT',  Math.max(0, vessels.length - vessels.filter(v => v.vaptCount > 0).length)],
+      [BLUE, 'Pending',  vaptPending],
+      [GREY, 'No VAPT',  noVapt],
     ].map(([c, l, n]) =>
       `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${c}"></span>${l}<span class="chart-legend-val">${n}</span></div>`
     ).join('');
@@ -819,19 +880,20 @@ function buildAnalyticsCharts(vessels, totCst, cstValid, cstExpired, cstExp90, t
       data: {
         labels: top.map(v => v.vesselName.length > 14 ? v.vesselName.slice(0, 13) + '…' : v.vesselName),
         datasets: [
-          { label: 'CST Valid',    data: top.map(v => v.cstValid  || 0), backgroundColor: TEAL, borderRadius: 3 },
-          { label: 'CST Expired',  data: top.map(v => Math.max(0, (v.cstCount || 0) - (v.cstValid || 0))), backgroundColor: RED,  borderRadius: 3 },
-          { label: 'VAPT Valid',   data: top.map(v => v.vaptValid || 0), backgroundColor: GOLD, borderRadius: 3 },
+          { label: 'CST Valid',   data: top.map(v => v.cstValid   || 0), backgroundColor: TEAL, borderRadius: 3 },
+          { label: 'CST Expired', data: top.map(v => v.cstExpired || 0), backgroundColor: RED,  borderRadius: 3 },
+          { label: 'CST Pending', data: top.map(v => v.cstPending || 0), backgroundColor: BLUE, borderRadius: 3 },
+          { label: 'VAPT Valid',  data: top.map(v => v.vaptValid  || 0), backgroundColor: GOLD, borderRadius: 3 },
         ]
       },
       options: {
         ..._chartDefaults(),
         maintainAspectRatio: false,
         scales: {
-          x: { stacked: false, ticks: { color: 'rgba(255,255,255,.45)', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: 'rgba(255,255,255,.45)', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,.05)' } }
+          x: { stacked: false, ticks: { color: tickColor, font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: tickColor, font: { size: 10 }, precision: 0 }, grid: { color: gridColor } }
         },
-        plugins: { legend: { display: true, position: 'top', labels: { color: 'rgba(255,255,255,.6)', font: { size: 10 }, boxWidth: 10, padding: 12 } }, tooltip: {} }
+        plugins: { legend: { display: true, position: 'top', labels: { color: legendColor, font: { size: 10 }, boxWidth: 10, padding: 12 } }, tooltip: {} }
       }
     });
   }
@@ -843,8 +905,8 @@ function renderExpiryPanel(vessels) {
   if (!panel) return;
 
   const sorted = vessels.slice().sort((a, b) => {
-    const aScore = (a.cstExpiring || 0) * 10 + ((a.cstCount || 0) - (a.cstValid || 0));
-    const bScore = (b.cstExpiring || 0) * 10 + ((b.cstCount || 0) - (b.cstValid || 0));
+    const aScore = (a.cstExpiring || 0) * 10 + (a.cstExpired || 0);
+    const bScore = (b.cstExpiring || 0) * 10 + (b.cstExpired || 0);
     return bScore - aScore;
   });
 
@@ -858,9 +920,9 @@ function renderExpiryPanel(vessels) {
       ${count ? `<span class="alert-badge amber">⚠ ${count} vessel${count > 1 ? 's' : ''} expiring soon</span>` : '<span class="alert-badge ok">✓ No imminent expiries</span>'}
     </div>`
     + sorted.map(v => {
-      const cstTotal   = v.cstCount  || 0;
-      const cstValid   = v.cstValid  || 0;
-      const cstExpired = cstTotal - cstValid;
+      const cstTotal   = v.cstCount   || 0;
+      const cstValid   = v.cstValid   || 0;
+      const cstExpired = v.cstExpired || 0;
       const cstExpiring= v.cstExpiring || 0;
       const vaptTotal  = v.vaptCount || 0;
       const vaptValid  = v.vaptValid || 0;
@@ -939,11 +1001,13 @@ async function openVessel(imo) {
   // Populate vessel analytics bar
   const now  = Date.now();
   const soon = now + 90 * 24 * 60 * 60 * 1000;
+  const _st = c => (c.status || '').toUpperCase();
+  const _ts = c => c.validUntil ? new Date(c.validUntil).getTime() : Infinity;
   document.getElementById('vaTotal').textContent     = cstList.length;
-  document.getElementById('vaValid').textContent     = cstList.filter(c => (c.status || '').toUpperCase() === 'VALID').length;
-  document.getElementById('vaExpiring').textContent  = cstList.filter(c => (c.status || '').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil).getTime() <= soon).length;
+  document.getElementById('vaValid').textContent     = cstList.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
+  document.getElementById('vaExpiring').textContent  = cstList.filter(c => _st(c) === 'VALID' && _ts(c) > now && _ts(c) <= soon).length;
   document.getElementById('vaVapt').textContent      = vaptList.length;
-  document.getElementById('vaVaptValid').textContent = vaptList.filter(c => (c.status || '').toUpperCase() === 'VALID').length;
+  document.getElementById('vaVaptValid').textContent = vaptList.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
   // Load docs if not cached
   if (!_docCache[imo]) loadDocs(imo);
   else { renderDocList(_docCache[imo]); document.getElementById('vaDocs').textContent = _docCache[imo].length; }

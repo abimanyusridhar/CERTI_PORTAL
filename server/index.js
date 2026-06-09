@@ -3543,11 +3543,17 @@ async function handleAPI(req, res, parsed) {
       const certDocs  = collectCertAttachmentsForVessel(imo);
       const vesselName = (cstCerts[0] || vaptCerts[0] || {}).vesselName || imo;
       const now = Date.now();
-      const soon      = now + 90 * 24 * 60 * 60 * 1000;
-      const cstValid    = cstCerts.filter(c  => c.status === 'VALID' && (!c.validUntil  || new Date(c.validUntil).getTime()  > now)).length;
-      const vaptValid   = vaptCerts.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil).getTime() > now)).length;
-      const cstExpiring = cstCerts.filter(c  => c.status === 'VALID' && c.validUntil && new Date(c.validUntil).getTime() > now && new Date(c.validUntil).getTime() <= soon).length;
-      return { imo, vesselName, cstCount: cstCerts.length, vaptCount: vaptCerts.length, docCount: docs.length + certDocs.length, cstValid, vaptValid, cstExpiring };
+      const soon = now + 90 * 24 * 60 * 60 * 1000;
+      const _cstSt  = c => (c.status || '').toUpperCase();
+      const _vptSt  = c => (c.status || '').toUpperCase();
+      const cstValid    = cstCerts.filter(c  => _cstSt(c) === 'VALID'   && (!c.validUntil  || new Date(c.validUntil).getTime()  > now)).length;
+      const cstExpired  = cstCerts.filter(c  => _cstSt(c) === 'EXPIRED' || (_cstSt(c) === 'VALID' && c.validUntil && new Date(c.validUntil).getTime() <= now)).length;
+      const cstPending  = cstCerts.filter(c  => _cstSt(c) === 'PENDING').length;
+      const cstExpiring = cstCerts.filter(c  => _cstSt(c) === 'VALID'   && c.validUntil && new Date(c.validUntil).getTime() > now && new Date(c.validUntil).getTime() <= soon).length;
+      const vaptValid   = vaptCerts.filter(c => _vptSt(c) === 'VALID'   && (!c.validUntil || new Date(c.validUntil).getTime() > now)).length;
+      const vaptExpired = vaptCerts.filter(c => _vptSt(c) === 'EXPIRED' || (_vptSt(c) === 'VALID' && c.validUntil && new Date(c.validUntil).getTime() <= now)).length;
+      const vaptPending = vaptCerts.filter(c => _vptSt(c) === 'PENDING').length;
+      return { imo, vesselName, cstCount: cstCerts.length, vaptCount: vaptCerts.length, docCount: docs.length + certDocs.length, cstValid, cstExpired, cstPending, cstExpiring, vaptValid, vaptExpired, vaptPending };
     }).sort((a, b) => a.vesselName.localeCompare(b.vesselName));
     return sendJSON(res, 200, vessels, corsH);
   }
