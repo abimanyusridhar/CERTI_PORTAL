@@ -96,7 +96,7 @@
 
     async function initApp() {
       await refreshStats();
-      selectQuarter(_currentQuarter ? _currentQuarter() : 'Q1');
+      selectQuarter('ALL');
       await loadGroupsMap();
       renderTbl('dashTbl', '');
       updateRealTimeBadge();
@@ -205,7 +205,7 @@
         const r = await fetch(API + '/stats/quarterly?year=' + year, { headers: { Authorization: 'Bearer ' + TOKEN } });
         if (!r.ok) return;
         _qData = await r.json();
-        if (!_activeQ) _activeQ = _currentQuarter();
+        if (!_activeQ) _activeQ = 'ALL';
         renderQuarterlyStats(_activeQ);
       } catch { }
     }
