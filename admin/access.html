@@ -135,6 +135,87 @@
       .main-content { margin-left: 0; padding: 20px 16px; }
       .stats-row { grid-template-columns: 1fr 1fr; }
     }
+
+    /* ══════════════════════════════════
+       LIGHT THEME OVERRIDES
+       ══════════════════════════════════ */
+    html.light { --acc-accent: #0A7C6E; --acc-accent-dim: rgba(10,124,110,0.07); }
+    html.light body { background: #F5F7FA; color: #1A202C; }
+
+    /* Login */
+    html.light .login-bg-grid { background-image: linear-gradient(rgba(0,0,0,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.025) 1px,transparent 1px) !important; }
+    html.light #loginWrap { background: #F0F4FA; }
+    html.light .login-card { background: #fff !important; border-color: rgba(0,0,0,.10) !important; box-shadow: 0 8px 40px rgba(0,0,0,.10) !important; }
+    html.light .login-title { color: #111827 !important; }
+    html.light .login-sub { color: #6B7280 !important; }
+    html.light .fcontrol { background: #F7FAFF !important; border-color: rgba(30,60,120,.16) !important; color: #0A1628 !important; }
+    html.light .fcontrol:focus { border-color: rgba(181,134,10,.45) !important; box-shadow: 0 0 0 3px rgba(181,134,10,.10) !important; }
+
+    /* Sidebar */
+    html.light .sidebar { background: #fff !important; border-right-color: rgba(0,0,0,.08) !important; box-shadow: 2px 0 12px rgba(0,0,0,.04) !important; }
+    html.light .sb-brand { border-bottom-color: rgba(0,0,0,.07) !important; }
+    html.light .sb-name { color: #111827 !important; }
+    html.light .sb-sub { color: #6B7280 !important; }
+    html.light .nav-sec { color: #9CA3AF !important; }
+    html.light .nav-item { color: #4A5568 !important; }
+    html.light .nav-item:hover, html.light .nav-item.active { background: rgba(10,124,110,.08) !important; color: #0A7C6E !important; border-color: rgba(10,124,110,.22) !important; }
+    html.light .nav-item.gold-tab:hover { background: rgba(181,134,10,.08) !important; color: #7A5208 !important; border-color: rgba(181,134,10,.22) !important; }
+    html.light .badge-count { background: rgba(10,124,110,.10) !important; border-color: rgba(10,124,110,.25) !important; color: #0A7C6E !important; }
+    html.light .badge-count.warn { background: rgba(180,110,0,.09) !important; border-color: rgba(180,110,0,.25) !important; color: #8B6000 !important; }
+    html.light .sb-footer { border-top-color: rgba(0,0,0,.07) !important; }
+
+    /* Main content */
+    html.light .main-content { background: #F5F7FA !important; }
+    html.light .page-hdr { border-bottom-color: rgba(0,0,0,.08) !important; }
+    html.light .page-hdr-icon { background: rgba(10,124,110,.07) !important; border-color: rgba(10,124,110,.22) !important; }
+    html.light .page-title { color: #111827 !important; }
+    html.light .page-sub { color: #6B7280 !important; }
+
+    /* Stats row */
+    html.light .stat-card { background: #fff !important; border-color: rgba(0,0,0,.08) !important; box-shadow: 0 1px 6px rgba(0,0,0,.04) !important; }
+    html.light .stat-card:hover { border-color: rgba(10,124,110,.25) !important; }
+    html.light .stat-num { color: #111827 !important; }
+    html.light .stat-num.teal, html.light .stat-num.ok { color: #0A7C6E !important; }
+    html.light .stat-num.warn { color: #8B6000 !important; }
+    html.light .stat-num.bad  { color: #C0283C !important; }
+    html.light .stat-lbl { color: #6B7280 !important; }
+
+    /* Filter bar */
+    html.light .filter-search { background: #F7FAFF !important; border-color: rgba(0,0,0,.12) !important; color: #111827 !important; }
+    html.light .filter-search:focus { border-color: rgba(181,134,10,.45) !important; }
+    html.light .filter-select { background-color: #F7FAFF !important; border-color: rgba(0,0,0,.12) !important; color: #111827 !important; }
+    html.light .filter-select:focus { border-color: rgba(181,134,10,.45) !important; }
+    html.light .filter-count { color: #6B7280 !important; }
+
+    /* Request cards */
+    html.light .req-card { background: #fff !important; border-color: rgba(0,0,0,.08) !important; box-shadow: 0 1px 4px rgba(0,0,0,.04) !important; }
+    html.light .req-card:hover { border-color: rgba(10,124,110,.22) !important; box-shadow: 0 4px 16px rgba(0,0,0,.07) !important; }
+    html.light .req-captain { color: #111827 !important; }
+    html.light .req-vessel { color: #0A7C6E !important; }
+    html.light .req-email { color: #6B7280 !important; }
+    html.light .req-meta-item { color: #6B7280 !important; }
+
+    /* Badges & chips */
+    html.light .imo-chip { background: rgba(10,124,110,.08) !important; border-color: rgba(10,124,110,.25) !important; color: #0A7C6E !important; }
+    html.light .status-approved { background: rgba(10,124,110,.09) !important; border-color: rgba(10,124,110,.28) !important; color: #0A7C6E !important; }
+    html.light .perm-badge { background: rgba(10,124,110,.07) !important; border-color: rgba(10,124,110,.22) !important; color: #0A7C6E !important; }
+    html.light .email-sent-badge { background: rgba(10,124,110,.07) !important; border-color: rgba(10,124,110,.20) !important; color: #0A7C6E !important; }
+
+    /* Buttons */
+    html.light .btn-sm { background: #F7FAFF !important; border-color: rgba(0,0,0,.12) !important; color: #4A5568 !important; }
+    html.light .btn-sm:hover { border-color: rgba(10,124,110,.35) !important; color: #0A7C6E !important; background: rgba(10,124,110,.07) !important; }
+    html.light .btn-sm.approve { background: rgba(10,124,110,.08) !important; border-color: rgba(10,124,110,.25) !important; color: #0A7C6E !important; }
+    html.light .btn-sm.approve:hover { background: rgba(10,124,110,.15) !important; }
+
+    /* Access link box */
+    html.light .access-link-box { background: rgba(10,124,110,.04) !important; border-color: rgba(10,124,110,.15) !important; }
+    html.light .access-link-val { color: #0A7C6E !important; }
+    html.light .access-link-label { color: #6B7280 !important; }
+
+    /* Toast */
+    html.light .toast-item { background: #fff !important; border-color: rgba(0,0,0,.10) !important; color: #111827 !important; box-shadow: 0 4px 20px rgba(0,0,0,.08) !important; }
+    html.light .toast-item.ok  { border-color: rgba(10,124,110,.30) !important; }
+    html.light .toast-item.err { border-color: rgba(192,40,60,.28) !important; color: #C0283C !important; }
   </style>
 </head>
 <body>
