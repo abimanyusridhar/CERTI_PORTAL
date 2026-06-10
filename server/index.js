@@ -71,7 +71,6 @@ if (!TRUST_PROXY && (process.env.BASE_ORIGIN || '').startsWith('https://')) {
 }
 let DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
 let VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
-let TRACK_FILE       = path.join(__dirname, '..', 'data', 'tracking_events.jsonl');
 let UPLOADS_DIR      = path.join(__dirname, '..', 'uploads');
 let KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
 let DOCS_FILE        = path.join(__dirname, '..', 'data', 'documents.json');
@@ -104,7 +103,6 @@ if (TENANT_ID) {
   const TENANT_DATA_DIR = path.join(__dirname, '..', 'data', TENANT_ID);
   DATA_FILE      = path.join(TENANT_DATA_DIR, 'certificates.json');
   VAPT_DATA_FILE = path.join(TENANT_DATA_DIR, 'vapt_certificates.json');
-  TRACK_FILE     = path.join(TENANT_DATA_DIR, 'tracking_events.jsonl');
   UPLOADS_DIR       = path.join(__dirname, '..', 'uploads', TENANT_ID);
   KEYS_FILE         = path.join(TENANT_DATA_DIR, '.keys.json');
   DOCS_FILE         = path.join(TENANT_DATA_DIR, 'documents.json');
@@ -254,12 +252,15 @@ async function initialiseRuntimePrerequisites() {
   // Pre-load S3 stores before serving requests (prevents race on fresh EC2 start)
   if (s3.S3_ENABLED) {
     await Promise.all([
-      cstStore.init      && cstStore.init(),
-      vaptStore.init     && vaptStore.init(),
-      docsStore.init     && docsStore.init(),
-      docAccessStore.init && docAccessStore.init(),
-      usersStore.init    && usersStore.init(),
-      groupsStore.init   && groupsStore.init(),
+      cstStore.init          && cstStore.init(),
+      vaptStore.init         && vaptStore.init(),
+      docsStore.init         && docsStore.init(),
+      docAccessStore.init    && docAccessStore.init(),
+      usersStore.init        && usersStore.init(),
+      groupsStore.init       && groupsStore.init(),
+      cstEmailLogStore.init  && cstEmailLogStore.init(),
+      vaptEmailLogStore.init && vaptEmailLogStore.init(),
+      trackStore.init        && trackStore.init(),
     ]);
     log.info('S3 stores pre-loaded.');
   }
@@ -903,6 +904,29 @@ function loadGroups()      { _groupsCache = groupsStore.load(); return _groupsCa
 function saveGroups(data)  { _groupsCache = data; groupsStore.save(data); }
 
 
+// ─── OPERATIONAL LOG STORES (email audit + engagement — S3 backed) ───────────
+const cstEmailLogStore = _makeStore({
+  filePath: path.join(path.dirname(DATA_FILE), 'email_log.json'),
+  s3Key:    `data/${TENANT_ID || 'default'}/email_log.json`,
+  seedData: {},
+  onError: (err) => log.warn('Email log persist error:', err.message),
+  debounceMs: 2000,
+});
+const vaptEmailLogStore = _makeStore({
+  filePath: path.join(path.dirname(DATA_FILE), 'vapt_email_log.json'),
+  s3Key:    `data/${TENANT_ID || 'default'}/vapt_email_log.json`,
+  seedData: {},
+  onError: (err) => log.warn('VAPT email log persist error:', err.message),
+  debounceMs: 2000,
+});
+const trackStore = _makeStore({
+  filePath: path.join(path.dirname(DATA_FILE), 'tracking_events.json'),
+  s3Key:    `data/${TENANT_ID || 'default'}/tracking_events.json`,
+  seedData: {},
+  onError: (err) => log.warn('Track log persist error:', err.message),
+  debounceMs: 2000,
+});
+
 // ─── USER PASSWORD HELPERS (per-user PBKDF2 with random salt) ────────────────
 async function hashUserPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -1486,8 +1510,9 @@ ${trackingPixelUrl
   return emailLines.join('\r\n');
 }
 
-// ─── EMAIL LOG HELPER// ─── EMAIL LOG HELPER ─────────────────────────────────────────────────────────
-function logEmail(logFile, fields, sesResult) {
+// ─── EMAIL LOG HELPER ────────────────────────────────────────────────────────
+// Persists to S3-backed store (survives EC2 replacement). Falls back to disk.
+function logEmail(store, fields, sesResult) {
   const entry = {
     timestamp: new Date().toISOString(),
     ...(fields && typeof fields === 'object' ? fields : {}),
@@ -1495,8 +1520,12 @@ function logEmail(logFile, fields, sesResult) {
     messageId: sesResult.messageId || null,
     sesError:  sesResult.error     || null,
   };
-  fs.promises.appendFile(logFile, JSON.stringify(entry) + '\n', 'utf8')
-    .catch(() => { /* non-fatal */ });
+  try {
+    const logs = store.load();
+    const id = Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+    logs[id] = entry;
+    store.save(logs);
+  } catch (e) { log.warn('logEmail: failed to persist entry:', e.message); }
 }
 
 // ─── ENGAGEMENT TRACKING ─────────────────────────────────────────────────────
@@ -1507,13 +1536,12 @@ function logEmail(logFile, fields, sesResult) {
  * Append a tracking event to the JSONL log file (non-blocking, non-fatal).
  */
 function appendTrackEvent(certId, event, meta = {}) {
-  const entry = JSON.stringify({
-    t:      new Date().toISOString(),
-    certId,
-    event,
-    ...meta,
-  }) + '\n';
-  fs.promises.appendFile(TRACK_FILE, entry, 'utf8').catch(e => log.warn('appendTrackEvent failed:', e.message));
+  try {
+    const events = trackStore.load();
+    const id = Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+    events[id] = { t: new Date().toISOString(), certId, event, ...meta };
+    trackStore.save(events);
+  } catch (e) { log.warn('appendTrackEvent failed:', e.message); }
 }
 
 /**
@@ -1576,24 +1604,32 @@ async function sendCstEmail({ to, from, cert, verifyUrl, baseUrl }) {
   const subject          = `Congratulations! Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'cst');
 
-  // Load certificate image for attachment (if present)
+  // Load certificate image for attachment — try local disk first, then S3
   let certImageData = null, certImageName = null, certImageMime = null;
   if (cert.certificateImage) {
+    const imgFname = path.basename(cert.certificateImage);
+    const imgPath  = path.join(UPLOADS_DIR, imgFname);
+    const mimeMap  = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+    const imgExt   = path.extname(imgFname).toLowerCase();
     try {
-      const imgPath = path.join(UPLOADS_DIR, path.basename(cert.certificateImage));
       if (fs.existsSync(imgPath)) {
         certImageData = fs.readFileSync(imgPath);
-        const ext     = path.extname(imgPath).toLowerCase();
-        certImageMime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }[ext] || 'image/png';
-        certImageName = `certificate-${cert.id}${ext}`;
+        certImageMime = mimeMap[imgExt] || 'image/png';
+        certImageName = `certificate-${cert.id}${imgExt}`;
+      } else if (s3.S3_ENABLED) {
+        certImageData = await s3.downloadFile(s3FileKey(imgFname));
+        if (certImageData) {
+          certImageMime = mimeMap[imgExt] || 'image/png';
+          certImageName = `certificate-${cert.id}${imgExt}`;
+        }
       }
-    } catch (e) { log.warn('Could not load cert image for email attachment:', e.message); }
+    } catch (e) { log.warn('Could not load cert image for CST email attachment:', e.message); }
   }
 
   const raw     = buildRawEmail({ from, to, subject, body, replyTo: from, trackingPixelUrl, certImageData, certImageName, certImageMime });
   const result  = await sesSendRaw(raw, from, [to]);
   logEmail(
-    path.join(path.dirname(DATA_FILE), 'email_log.jsonl'),
+    cstEmailLogStore,
     { to, from, certId: cert.id, recipientName: cert.recipientName, subject, verifyUrl },
     result
   );
@@ -1612,24 +1648,32 @@ async function sendVaptEmail({ to, from, cert, verifyUrl, baseUrl }) {
   }
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'vapt');
 
-  // Load certificate image for attachment (if present)
+  // Load certificate image for attachment — try local disk first, then S3
   let certImageData = null, certImageName = null, certImageMime = null;
   if (cert.certificateImage) {
+    const imgFname = path.basename(cert.certificateImage);
+    const imgPath  = path.join(UPLOADS_DIR, imgFname);
+    const mimeMap  = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+    const imgExt   = path.extname(imgFname).toLowerCase();
     try {
-      const imgPath = path.join(UPLOADS_DIR, path.basename(cert.certificateImage));
       if (fs.existsSync(imgPath)) {
         certImageData = fs.readFileSync(imgPath);
-        const ext     = path.extname(imgPath).toLowerCase();
-        certImageMime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }[ext] || 'image/png';
-        certImageName = `certificate-${cert.id}${ext}`;
+        certImageMime = mimeMap[imgExt] || 'image/png';
+        certImageName = `certificate-${cert.id}${imgExt}`;
+      } else if (s3.S3_ENABLED) {
+        certImageData = await s3.downloadFile(s3FileKey(imgFname));
+        if (certImageData) {
+          certImageMime = mimeMap[imgExt] || 'image/png';
+          certImageName = `certificate-${cert.id}${imgExt}`;
+        }
       }
-    } catch (e) { log.warn('Could not load cert image for email attachment:', e.message); }
+    } catch (e) { log.warn('Could not load cert image for VAPT email attachment:', e.message); }
   }
 
   const raw    = buildRawEmail({ from, to, subject, body: cleanBody, replyTo: from, trackingPixelUrl, certImageData, certImageName, certImageMime });
   const result = await sesSendRaw(raw, from, [to]);
   logEmail(
-    path.join(path.dirname(DATA_FILE), 'vapt_email_log.jsonl'),
+    vaptEmailLogStore,
     { to, from, certId: cert.id, recipientName: cert.recipientName, subject, verifyUrl },
     result
   );
