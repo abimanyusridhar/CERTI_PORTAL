@@ -1146,7 +1146,7 @@
         <!-- Info Banner -->
         <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:rgba(255,179,71,.05);border:1px solid rgba(255,179,71,.22);border-radius:12px;font-size:.76rem;color:var(--warn);margin-bottom:18px;line-height:1.65">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span><strong>Internal Validity Window (90 Days):</strong> This view tracks an internal 3-month review deadline calculated from each certificate's Issue Date. The 90-day window is for internal reference only and does not affect the certificate's official validity period.</span>
+          <span><strong>Internal Validity Window (90 Days):</strong> This view tracks an internal 3-month review deadline calculated from each certificate's Compliance Date. The 90-day window is for internal reference only and does not affect the certificate's official validity period.</span>
         </div>
         <!-- KPI Cards -->
         <div id="ivKpiRow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"></div>
@@ -1161,7 +1161,7 @@
             <option value="valid">Within Window</option>
             <option value="expiring">Expiring ≤ 30d</option>
             <option value="expired">Passed Window</option>
-            <option value="nodate">No Issue Date</option>
+            <option value="nodate">No Compliance Date</option>
           </select>
           <button onclick="exportValidityCSV()" class="btn btn-ghost btn-sm" style="white-space:nowrap">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>

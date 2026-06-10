@@ -2821,7 +2821,7 @@ function applyConfig() {
 // ════════════════════════════════════════════════════
 
 function ivDeadline(cert) {
-  const base = cert.issuedAt || cert.complianceDate;
+  const base = cert.complianceDate;
   if (!base) return null;
   const d = new Date(base);
   if (isNaN(d)) return null;
@@ -2873,7 +2873,7 @@ function renderValidityPage(q) {
       { label: 'Within Window', count: stats.valid, color: 'var(--teal)', bg: 'rgba(100,255,218,.08)', border: 'rgba(100,255,218,.2)', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
       { label: 'Expiring ≤ 30d', count: stats.expiring, color: 'var(--warn)', bg: 'rgba(255,179,71,.08)', border: 'rgba(255,179,71,.22)', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
       { label: 'Passed 90-Day Window', count: stats.expired, color: 'var(--invalid)', bg: 'rgba(255,107,138,.07)', border: 'rgba(255,107,138,.2)', icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' },
-      { label: 'No Issue Date', count: stats.nodate, color: '#8892B0', bg: 'rgba(136,146,176,.06)', border: 'rgba(136,146,176,.18)', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+      { label: 'No Compliance Date', count: stats.nodate, color: '#8892B0', bg: 'rgba(136,146,176,.06)', border: 'rgba(136,146,176,.18)', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
     ].map(k => `
       <div class="stat-card" style="border-color:${k.border};background:${k.bg}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -2922,7 +2922,7 @@ function renderValidityPage(q) {
 
   wrap.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.75rem">
     <thead><tr style="border-bottom:1px solid var(--border)">
-      ${['Cert ID','Recipient / Vessel','Issue Date','90-Day Deadline','Days Left','Internal Status','Cert Status'].map(h =>
+      ${['Cert ID','Recipient / Vessel','Compliance Date','90-Day Deadline','Days Left','Internal Status','Cert Status'].map(h =>
         `<th style="padding:9px 12px;text-align:left;color:var(--text-sec);font-weight:600;font-size:.68rem;letter-spacing:.04em;white-space:nowrap">${h}</th>`
       ).join('')}
     </tr></thead>
@@ -2943,7 +2943,7 @@ function renderValidityPage(q) {
           <div style="color:var(--text-bright);font-weight:500">${c.recipientName || '—'}</div>
           <div style="font-size:.64rem;color:var(--text-sec);margin-top:1px">${c.vesselName || ''}${c.vesselIMO ? ' · IMO ' + c.vesselIMO : ''}</div>
         </td>
-        <td style="padding:9px 12px;color:var(--text-sec)">${fmtD(c.issuedAt || c.complianceDate)}</td>
+        <td style="padding:9px 12px;color:var(--text-sec)">${fmtD(c.complianceDate)}</td>
         <td style="padding:9px 12px;color:var(--text-sec)">${deadline ? fmtD(deadline.toISOString()) : '—'}</td>
         <td style="padding:9px 12px;font-weight:600;color:${daysColor}">${daysStr}</td>
         <td style="padding:9px 12px">
@@ -2965,13 +2965,13 @@ function renderValidityPage(q) {
 function exportValidityCSV() {
   const certs = (typeof CERTS !== 'undefined' ? CERTS : []);
   const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-  const rows = [['Cert ID','Recipient','Vessel','Vessel IMO','Issue Date','90-Day Deadline','Days Left','Internal Status','Cert Status']];
+  const rows = [['Cert ID','Recipient','Vessel','Vessel IMO','Compliance Date','90-Day Deadline','Days Left','Internal Status','Cert Status']];
   certs.forEach(c => {
     const dl = ivDaysLeft(c);
     const deadline = ivDeadline(c);
     rows.push([
       c.id, c.recipientName || '', c.vesselName || '', c.vesselIMO || '',
-      fmtD(c.issuedAt || c.complianceDate),
+      fmtD(c.complianceDate),
       deadline ? fmtD(deadline.toISOString()) : '',
       dl === null ? '' : dl < 0 ? `${Math.abs(dl)}d overdue` : `${dl}d left`,
       ivStatus(c).toUpperCase(),
