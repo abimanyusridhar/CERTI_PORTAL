@@ -425,7 +425,7 @@ const SECURITY_HEADERS = {
   'Permissions-Policy':               'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   'Cross-Origin-Opener-Policy':       'same-origin',
   'Cross-Origin-Resource-Policy':     'same-origin',
-  'Cross-Origin-Embedder-Policy':     'require-corp',
+  'Cross-Origin-Embedder-Policy':     'unsafe-none',
   ...(_isHttps ? { 'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload' } : {}),
   'Content-Security-Policy':
     "default-src 'self'; " +
@@ -1986,14 +1986,13 @@ const SERVER_START_TIME = Date.now();
 const healthRoute = createHealthRoute({
   sendJSON,
   corsHeadersForOrigin: getCorsHeaders,
-  getCstCerts: loadData,
-  getVaptCerts: loadVaptData,
   cfg: CFG,
   sesEnabled: SES_ENABLED,
   serverStartTime: SERVER_START_TIME,
   serverReadyRef: () => serverReady,
   shuttingDownRef: () => isShuttingDown,
   metricsSnapshot: () => metrics.snapshot(),
+  authCheck,
 });
 const authRoutes = createAuthRoutes({
   sendJSON,
@@ -2532,6 +2531,8 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/stats ── (public — aggregate cert stats for index page)
   if (route === '/stats' && method === 'GET') {
+    const rl = checkRateLimit(ip, 'default');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsH);
     const data  = loadData();
     const certs = Object.values(data);
     const now   = new Date();
@@ -2621,34 +2622,18 @@ async function handleAPI(req, res, parsed) {
   // ── GET /api/cognito-status ── (admin — Cognito configuration check)
   if (route === '/cognito-status' && method === 'GET') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
-    const hasPoolId    = !!COGNITO_USER_POOL_ID;
-    const hasClientId  = !!COGNITO_CLIENT_ID;
-    const hasSecret    = !!COGNITO_CLIENT_SECRET;
-    const hasDomain    = !!COGNITO_DOMAIN;
-    const hasIamKey    = !!COGNITO_IAM_ACCESS_KEY;
-    const hasIamSecret = !!COGNITO_IAM_SECRET_KEY;
-    const iamSource    = process.env.COGNITO_ACCESS_KEY_ID ? 'COGNITO_ACCESS_KEY_ID'
-                       : process.env.AWS_ACCESS_KEY_ID     ? 'AWS_ACCESS_KEY_ID (fallback)'
-                       : 'not set';
-    const keyHint = COGNITO_IAM_ACCESS_KEY ? COGNITO_IAM_ACCESS_KEY.slice(0, 4) + '...' + COGNITO_IAM_ACCESS_KEY.slice(-4) : null;
     const missing = [
-      !hasPoolId    && 'COGNITO_USER_POOL_ID',
-      !hasClientId  && 'COGNITO_CLIENT_ID',
-      !hasSecret    && 'COGNITO_CLIENT_SECRET',
-      !hasDomain    && 'COGNITO_DOMAIN',
-      !hasIamKey    && 'COGNITO_ACCESS_KEY_ID (or AWS_ACCESS_KEY_ID)',
-      !hasIamSecret && 'COGNITO_SECRET_ACCESS_KEY (or AWS_SECRET_ACCESS_KEY)',
+      !COGNITO_USER_POOL_ID  && 'COGNITO_USER_POOL_ID',
+      !COGNITO_CLIENT_ID     && 'COGNITO_CLIENT_ID',
+      !COGNITO_CLIENT_SECRET && 'COGNITO_CLIENT_SECRET',
+      !COGNITO_DOMAIN        && 'COGNITO_DOMAIN',
+      !COGNITO_IAM_ACCESS_KEY  && 'COGNITO_ACCESS_KEY_ID',
+      !COGNITO_IAM_SECRET_KEY  && 'COGNITO_SECRET_ACCESS_KEY',
     ].filter(Boolean);
     return sendJSON(res, 200, {
-      ssoEnabled:   COGNITO_ENABLED,
-      syncEnabled:  hasIamKey && hasIamSecret,
-      region:       COGNITO_REGION,
-      userPoolId:   COGNITO_USER_POOL_ID || null,
-      domain:       COGNITO_DOMAIN       || null,
-      clientId:     COGNITO_CLIENT_ID ? COGNITO_CLIENT_ID.slice(0, 6) + '...' : null,
-      hasClientSecret: hasSecret,
-      iamKeySource: iamSource,
-      iamKeyHint:   keyHint,
+      ssoEnabled:  COGNITO_ENABLED,
+      syncEnabled: !!(COGNITO_IAM_ACCESS_KEY && COGNITO_IAM_SECRET_KEY),
+      configured:  missing.length === 0,
       missing,
     }, corsH);
   }
@@ -2658,9 +2643,6 @@ async function handleAPI(req, res, parsed) {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     return sendJSON(res, 200, {
       enabled: s3.S3_ENABLED,
-      bucket:  s3.BUCKET  || null,
-      region:  s3.REGION  || null,
-      prefix:  s3.PREFIX  || null,
       missing: [
         !process.env.S3_BUCKET     && 'S3_BUCKET',
         !process.env.S3_ACCESS_KEY && !process.env.AWS_ACCESS_KEY_ID && 'S3_ACCESS_KEY',
@@ -2691,6 +2673,8 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/vapt/stats ── (public — aggregate VAPT cert stats)
   if (route === '/vapt/stats' && method === 'GET') {
+    const rl = checkRateLimit(ip, 'default');
+    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsH);
     const data  = loadVaptData();
     const certs = Object.values(data);
     const now   = new Date();
