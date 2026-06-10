@@ -1,4 +1,4 @@
-
+﻿
     // ════════════════════════════════════════════════════
     // MODULE: Security — HTML escape (XSS prevention)
     // ════════════════════════════════════════════════════
@@ -171,9 +171,9 @@
           const ivS = computeIVStats(CERTS);
           const alertCount = ivS.expiring + ivS.expired;
           ivBadge.textContent = alertCount;
-          ivBadge.style.background = alertCount > 0 ? 'rgba(255,107,138,.18)' : 'rgba(255,179,71,.12)';
+          ivBadge.style.background = alertCount > 0 ? 'rgba(255,107,138,.18)' : 'rgba(255,170,46,.12)';
           ivBadge.style.color = alertCount > 0 ? 'var(--invalid)' : 'var(--warn)';
-          ivBadge.style.borderColor = alertCount > 0 ? 'rgba(255,107,138,.3)' : 'rgba(255,179,71,.25)';
+          ivBadge.style.borderColor = alertCount > 0 ? 'rgba(255,107,138,.3)' : 'rgba(255,170,46,.25)';
         }
         if (window.PSP) PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'CST' });
         loadQuarterlyStats();
@@ -251,7 +251,7 @@
 
       list.innerHTML = matched.map(c => {
         const isExp = (c.status||'VALID').toUpperCase() === 'EXPIRED' || ((c.status||'VALID').toUpperCase() === 'VALID' && c.validUntil && new Date(c.validUntil) < now);
-        const statusColor = isExp ? 'var(--warn)' : (c.status||'VALID').toUpperCase() === 'PENDING' ? '#7EB8F7' : 'var(--teal)';
+        const statusColor = isExp ? 'var(--warn)' : (c.status||'VALID').toUpperCase() === 'PENDING' ? '#FFAA2E' : 'var(--teal)';
         const statusLabel = isExp ? 'EXPIRED' : (c.status||'VALID').toUpperCase();
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.04)">
           <div style="flex:1;min-width:0">
@@ -286,7 +286,7 @@
                 <td style="padding:8px 10px;text-align:right;font-weight:600">${d.total||0}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--teal)">${d.valid||0}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--warn)">${d.expired||0}</td>
-                <td style="padding:8px 10px;text-align:right;color:#7EB8F7">${d.pending||0}</td>
+                <td style="padding:8px 10px;text-align:right;color:#FFAA2E">${d.pending||0}</td>
                 <td style="padding:8px 10px;text-align:right;color:var(--invalid)">${d.revoked||0}</td>
               </tr>`;
             }).join('');
@@ -376,7 +376,7 @@
     // ════════════════════════════════════════════════════
     // MODULE: Charts  —  update-in-place (no flicker)
     // ════════════════════════════════════════════════════
-    const _CHART_LEGEND = { display: true, position: 'right', labels: { color: '#8892B0', boxWidth: 10, font: { size: 10 }, padding: 10 } };
+    const _CHART_LEGEND = { display: true, position: 'right', labels: { color: '#7689AE', boxWidth: 10, font: { size: 10 }, padding: 10 } };
 
     function _buildStatusChart(a) {
       return new Chart(document.getElementById('statusChart').getContext('2d'), {
@@ -384,8 +384,8 @@
         data: {
           labels: ['Valid', 'Expired', 'Revoked', 'Pending'],
           datasets: [{ data: [a.valid, a.expired, a.revoked, a.pending || 0],
-            backgroundColor: ['rgba(100,255,218,.55)', 'rgba(255,179,71,.5)', 'rgba(255,107,138,.5)', 'rgba(126,184,247,.45)'],
-            borderColor: ['#64FFDA', '#FFB347', '#FF6B8A', '#7EB8F7'], borderWidth: 1.5, hoverOffset: 6 }]
+            backgroundColor: ['rgba(100,255,218,.55)', 'rgba(255,170,46,.5)', 'rgba(255,107,138,.5)', 'rgba(255,170,46,.45)'],
+            borderColor: ['#64FFDA', '#FFAA2E', '#FF5C7A', '#FFAA2E'], borderWidth: 1.5, hoverOffset: 6 }]
         },
         options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
           plugins: { legend: _CHART_LEGEND, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${a.total > 0 ? Math.round(ctx.raw / a.total * 100) : 0}%)` } } } }
@@ -398,8 +398,8 @@
         data: {
           labels: ['Sent ✓', 'Not Sent', 'Pending Certs'],
           datasets: [{ data: [a.emailSent, a.emailPending, a.pending || 0],
-            backgroundColor: ['rgba(100,255,218,.55)', 'rgba(255,107,138,.5)', 'rgba(126,184,247,.4)'],
-            borderColor: ['#64FFDA', '#FF6B8A', '#7EB8F7'], borderWidth: 1.5, hoverOffset: 6 }]
+            backgroundColor: ['rgba(100,255,218,.55)', 'rgba(255,107,138,.5)', 'rgba(255,170,46,.4)'],
+            borderColor: ['#64FFDA', '#FF5C7A', '#FFAA2E'], borderWidth: 1.5, hoverOffset: 6 }]
         },
         options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
           plugins: { legend: _CHART_LEGEND, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } } } }
@@ -415,16 +415,16 @@
           datasets: [{
             label: 'Certificates',
             data: [bk.expiredPast || 0, bk.exp7 || 0, bk.exp8to30 || 0, bk.exp31to90 || 0, bk.healthy || 0, bk.noExpiry || 0],
-            backgroundColor: ['rgba(255,107,138,.65)', 'rgba(255,107,138,.45)', 'rgba(212,168,67,.55)', 'rgba(255,179,71,.45)', 'rgba(100,255,218,.48)', 'rgba(136,146,176,.38)'],
-            borderColor: ['#FF6B8A', '#FF6B8A', '#D4A843', '#FFB347', '#64FFDA', '#8892B0'],
+            backgroundColor: ['rgba(255,107,138,.65)', 'rgba(255,107,138,.45)', 'rgba(212,168,67,.55)', 'rgba(255,170,46,.45)', 'rgba(100,255,218,.48)', 'rgba(118,137,174,.38)'],
+            borderColor: ['#FF5C7A', '#FF5C7A', '#D4A843', '#FFAA2E', '#64FFDA', '#7689AE'],
             borderWidth: 1.5, borderRadius: 5
           }]
         },
         options: { responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} cert${ctx.raw !== 1 ? 's' : ''}` } } },
           scales: {
-            x: { ticks: { color: '#8892B0', font: { size: 11 }, maxRotation: 0 }, grid: { display: false } },
-            y: { ticks: { color: '#8892B0', font: { size: 10 }, callback: v => Number.isInteger(v) ? v : '' }, grid: { color: 'rgba(136,146,176,.12)' }, beginAtZero: true }
+            x: { ticks: { color: '#7689AE', font: { size: 11 }, maxRotation: 0 }, grid: { display: false } },
+            y: { ticks: { color: '#7689AE', font: { size: 10 }, callback: v => Number.isInteger(v) ? v : '' }, grid: { color: 'rgba(118,137,174,.12)' }, beginAtZero: true }
           }
         }
       });
@@ -440,16 +440,16 @@
           datasets: [{
             label: 'Completions',
             data: [qCounts.Q1, qCounts.Q2, qCounts.Q3, qCounts.Q4],
-            backgroundColor: ['rgba(100,255,218,.45)', 'rgba(212,168,67,.5)', 'rgba(126,184,247,.45)', 'rgba(255,179,71,.45)'],
-            borderColor: ['#64FFDA', '#D4A843', '#7EB8F7', '#FFB347'],
+            backgroundColor: ['rgba(100,255,218,.45)', 'rgba(212,168,67,.5)', 'rgba(255,170,46,.45)', 'rgba(255,170,46,.45)'],
+            borderColor: ['#64FFDA', '#D4A843', '#FFAA2E', '#FFAA2E'],
             borderWidth: 1.5, borderRadius: 6
           }]
         },
         options: { responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} cert${ctx.raw !== 1 ? 's' : ''}` } } },
           scales: {
-            x: { ticks: { color: '#8892B0', font: { size: 11 } }, grid: { display: false } },
-            y: { ticks: { color: '#8892B0', font: { size: 10 }, callback: v => Number.isInteger(v) ? v : '', stepSize: 1 }, grid: { color: 'rgba(136,146,176,.12)' }, beginAtZero: true }
+            x: { ticks: { color: '#7689AE', font: { size: 11 } }, grid: { display: false } },
+            y: { ticks: { color: '#7689AE', font: { size: 10 }, callback: v => Number.isInteger(v) ? v : '', stepSize: 1 }, grid: { color: 'rgba(118,137,174,.12)' }, beginAtZero: true }
           }
         }
       });
@@ -513,13 +513,13 @@
       chips.innerHTML = [
         `<span class="analytics-chip" style="background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.2)"><strong>${vp}%</strong> valid</span>`,
         `<span class="analytics-chip" style="background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.15)"><strong>${ep}%</strong> emailed</span>`,
-        a.pending > 0 ? `<span class="analytics-chip" style="background:rgba(126,184,247,.1);color:#7EB8F7;border:1px solid rgba(126,184,247,.25)">⏳ <strong>${a.pending}</strong> pending</span>` : '',
+        a.pending > 0 ? `<span class="analytics-chip" style="background:rgba(255,170,46,.1);color:#FFAA2E;border:1px solid rgba(255,170,46,.25)">⏳ <strong>${a.pending}</strong> pending</span>` : '',
         a.emailPending > 0 ? `<span class="analytics-chip" style="background:rgba(255,107,138,.08);color:var(--invalid);border:1px solid rgba(255,107,138,.2)">✉ <strong>${a.emailPending}</strong> unsent</span>` : '',
-        a.buckets.expSoon30 > 0 ? `<span class="analytics-chip" style="background:rgba(255,179,71,.08);color:var(--warn);border:1px solid rgba(255,179,71,.2)">⚠ <strong>${a.buckets.expSoon30}</strong> exp ≤30d</span>` : '',
+        a.buckets.expSoon30 > 0 ? `<span class="analytics-chip" style="background:rgba(255,170,46,.08);color:var(--warn);border:1px solid rgba(255,170,46,.2)">⚠ <strong>${a.buckets.expSoon30}</strong> exp ≤30d</span>` : '',
       ].filter(Boolean).join('');
       // Action items — priority ordered
       const items = [];
-      if (a.pending > 0) items.push(`<li style="color:#7EB8F7;border-left:2px solid #7EB8F7;padding-left:8px;margin-bottom:6px"><strong>${a.pending}</strong> cert(s) awaiting activation — open ⏳ panel below to activate.</li>`);
+      if (a.pending > 0) items.push(`<li style="color:#FFAA2E;border-left:2px solid #FFAA2E;padding-left:8px;margin-bottom:6px"><strong>${a.pending}</strong> cert(s) awaiting activation — open ⏳ panel below to activate.</li>`);
       if (a.emailPending > 0) items.push(`<li style="color:var(--invalid);border-left:2px solid var(--invalid);padding-left:8px;margin-bottom:6px"><strong>${a.emailPending}</strong> recipient(s) have not received their credential yet.</li>`);
       if ((a.nearExpiry||[]).filter(x=>x.daysLeft<=7).length > 0) items.push(`<li style="color:var(--invalid);border-left:2px solid var(--invalid);padding-left:8px;margin-bottom:6px"><strong>${(a.nearExpiry||[]).filter(x=>x.daysLeft<=7).length}</strong> cert(s) expire within <strong>7 days</strong> — urgent renewal required.</li>`);
       if (a.buckets.expSoon30 > 0) items.push(`<li style="color:var(--warn);border-left:2px solid var(--warn);padding-left:8px;margin-bottom:6px"><strong>${a.buckets.expSoon30}</strong> cert(s) expire within <strong>30 days</strong>.</li>`);
@@ -549,7 +549,7 @@
             </div>`).join('')}
           <div style="font-size:.56rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin:12px 0 10px">Training Mode</div>
           ${Object.entries(mC).map(([m,n]) => {
-            const col = m==='ONLINE' ? 'var(--teal)' : m==='OFFLINE' ? 'var(--warn)' : '#7EB8F7';
+            const col = m==='ONLINE' ? 'var(--teal)' : m==='OFFLINE' ? 'var(--warn)' : '#FFAA2E';
             return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               <div style="font-size:.65rem;font-weight:600;color:${col};min-width:50px">${m}</div>
               <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
@@ -602,11 +602,11 @@
           pendEl.innerHTML = pendingCerts.map(c => {
             const sId = escHtml(c.id), sName = escHtml(c.recipientName), sVessel = escHtml(c.vesselName);
             return `<div class="ne-item" onclick="editCert('${sId}')">
-              <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(126,184,247,.1);border:1px solid rgba(126,184,247,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
+              <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,170,46,.1);border:1px solid rgba(255,170,46,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
               <div style="flex:1;min-width:0">
                 <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
                 <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName || '—'}${sVessel ? ' · ' + sVessel : ''}</div>
-                <div style="font-size:.62rem;color:#7EB8F7">Not yet publicly verifiable — activate to enable</div>
+                <div style="font-size:.62rem;color:#FFAA2E">Not yet publicly verifiable — activate to enable</div>
               </div>
               <div style="display:flex;gap:5px">
                 <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">✓ Activate</button>
@@ -632,7 +632,7 @@
             const isPending = (c.status||'').toUpperCase() === 'PENDING';
             const hasEmail  = !!c.recipientEmail;
             const sId = escHtml(c.id), sName = escHtml(c.recipientName), sEmail = escHtml(c.recipientEmail);
-            const subColor  = isPending ? '#7EB8F7' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
+            const subColor  = isPending ? '#FFAA2E' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
             const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? sEmail : '⚠ No email address on record';
             return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="quickSend('${sId}')"`:''}>
               <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center">
@@ -821,11 +821,11 @@
         const engCell = engParts.length
           ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${engParts.join('')}</div>`
           : (emailSent
-          ? `<span class="eng-badge" style="background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
+          ? `<span class="eng-badge" style="background:rgba(255,170,46,.08);border:1px solid rgba(255,170,46,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
           : `<span style="color:var(--text-sec);font-size:.6rem;font-style:italic;opacity:.6">No activity</span>`);
         const qVal = (c.complianceQuarter || '').toUpperCase();
-        const qColors = { Q1: '#4A9EFF', Q2: '#64FFDA', Q3: '#FFB347', Q4: '#FF6B8A' };
-        const qBg    = { Q1: 'rgba(74,158,255,0.12)', Q2: 'rgba(100,255,218,0.10)', Q3: 'rgba(255,179,71,0.12)', Q4: 'rgba(255,107,138,0.12)' };
+        const qColors = { Q1: '#64FFDA', Q2: '#D4A843', Q3: '#FFAA2E', Q4: '#FF5C7A' };
+        const qBg    = { Q1: 'rgba(100,255,218,0.12)', Q2: 'rgba(212,168,67,0.12)', Q3: 'rgba(255,170,46,0.12)', Q4: 'rgba(255,92,122,0.12)' };
         const qBadge = qVal
           ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:700;letter-spacing:.1em;background:${qBg[qVal]||'rgba(255,255,255,.06)'};border:1px solid ${qColors[qVal]||'var(--border)'};color:${qColors[qVal]||'var(--text-sec)'};">${qVal}</span>`
           : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
@@ -1176,19 +1176,19 @@
         headerTitle.textContent = 'Pending Activation';
         headerTitle.style.color = done === 0 ? 'var(--text-sec)' : 'var(--warn)';
         headerSub.textContent = missing + ' required field' + (missing === 1 ? '' : 's') + ' missing — will save as PENDING';
-        headerIcon.style.cssText = 'width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;' + (done === 0 ? 'background:var(--surface);border:1px solid var(--border);color:var(--text-sec)' : 'background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.3);color:var(--warn)');
+        headerIcon.style.cssText = 'width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;' + (done === 0 ? 'background:var(--surface);border:1px solid var(--border);color:var(--text-sec)' : 'background:rgba(255,170,46,.12);border:1px solid rgba(255,170,46,.3);color:var(--warn)');
         headerIcon.textContent = done === 0 ? '○' : '!';
         bar.style.background = pct > 60 ? 'var(--warn)' : 'var(--invalid)';
-        badge.style.cssText = 'margin-left:auto;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(255,179,71,.1);border:1px solid rgba(255,179,71,.25);color:var(--warn)';
+        badge.style.cssText = 'margin-left:auto;font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(255,170,46,.1);border:1px solid rgba(255,170,46,.25);color:var(--warn)';
         cpHeader.style.background = '';
-        actionText.innerHTML = '· Fill missing fields above to auto-activate<br>· Will be saved as <strong style="color:#7EB8F7">PENDING</strong> — not publicly verifiable until all fields filled<br>· All 5 fields required: IMO, Email, Chief Engineer, Date, Image';
+        actionText.innerHTML = '· Fill missing fields above to auto-activate<br>· Will be saved as <strong style="color:#FFAA2E">PENDING</strong> — not publicly verifiable until all fields filled<br>· All 5 fields required: IMO, Email, Chief Engineer, Date, Image';
         // Force PENDING and lock dropdown (new certs only — don't override existing cert status on edit)
         if (!isEdit) {
           statusSel.value = 'PENDING';
           statusSel.disabled = true;
           statusSel.style.opacity = '0.5';
           statusHint.style.display = 'block';
-          saveBtn.setAttribute('style', 'flex:1;justify-content:center;padding:12px;background:rgba(126,184,247,.15);border-color:rgba(126,184,247,.35);color:#7EB8F7');
+          saveBtn.setAttribute('style', 'flex:1;justify-content:center;padding:12px;background:rgba(255,170,46,.15);border-color:rgba(255,170,46,.35);color:#FFAA2E');
           saveBtn.className = 'btn btn-primary';
           saveTxt.textContent = 'Save as Pending';
         }
@@ -1220,7 +1220,7 @@
       document.getElementById('pv-until').textContent = until ? new Date(until).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
       document.getElementById('pv-verifier').textContent = verif.split(',')[0] || verif;
       document.getElementById('pv-watermark').textContent = status === 'VALID' ? 'VALID' : status;
-      const wmColors = { VALID: 'rgba(212,168,67,.04)', PENDING: 'rgba(126,184,247,.06)', REVOKED: 'rgba(255,107,138,.05)', EXPIRED: 'rgba(255,107,138,.05)' };
+      const wmColors = { VALID: 'rgba(212,168,67,.04)', PENDING: 'rgba(255,170,46,.06)', REVOKED: 'rgba(255,107,138,.05)', EXPIRED: 'rgba(255,107,138,.05)' };
       document.getElementById('pv-watermark').style.color = wmColors[status] || 'rgba(255,107,138,.05)';
       // Trigger checklist update
       updateCompletionChecklistFull();
@@ -1273,7 +1273,7 @@
           <div class="issue-cert-meta" style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</span>
-              ${c.status === 'PENDING' ? `<span style="font-size:.52rem;background:rgba(126,184,247,.12);color:#7EB8F7;border:1px solid rgba(126,184,247,.25);border-radius:5px;padding:1px 5px">PENDING</span>` : ''}
+              ${c.status === 'PENDING' ? `<span style="font-size:.52rem;background:rgba(255,170,46,.12);color:#FFAA2E;border:1px solid rgba(255,170,46,.25);border-radius:5px;padding:1px 5px">PENDING</span>` : ''}
             </div>
             <div style="font-size:.78rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${c.recipientName || '—'}</div>
             <div style="font-size:.63rem;color:var(--text-sec);margin-top:1px;display:flex;align-items:center;gap:6px">
@@ -1408,7 +1408,7 @@
         } else {
           if (badge) {
             badge.style.background  = 'rgba(255,107,138,.08)';
-            badge.style.color       = '#ff6b8a';
+            badge.style.color       = '#ff5c7a';
             badge.style.borderColor = 'rgba(255,107,138,.2)';
           }
           if (dot)  { dot.style.background = 'var(--invalid)'; dot.style.animation = ''; }
@@ -1626,9 +1626,9 @@
       const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
       const isV = c.status === 'VALID' && (!vu || vu >= now);
       const isPending = (c.status || '').toUpperCase() === 'PENDING';
-      const statusColor = isV ? 'var(--teal)' : isPending ? '#7EB8F7' : 'var(--invalid)';
-      const statusBg = isV ? 'rgba(100,255,218,.08)' : isPending ? 'rgba(126,184,247,.08)' : 'rgba(255,107,138,.08)';
-      const statusBorder = isV ? 'rgba(100,255,218,.25)' : isPending ? 'rgba(126,184,247,.25)' : 'rgba(255,107,138,.25)';
+      const statusColor = isV ? 'var(--teal)' : isPending ? '#FFAA2E' : 'var(--invalid)';
+      const statusBg = isV ? 'rgba(100,255,218,.08)' : isPending ? 'rgba(255,170,46,.08)' : 'rgba(255,107,138,.08)';
+      const statusBorder = isV ? 'rgba(100,255,218,.25)' : isPending ? 'rgba(255,170,46,.25)' : 'rgba(255,107,138,.25)';
       const dl = vu ? Math.round((vu.setHours(0,0,0,0) - now.setHours(0,0,0,0)) / 86400000) : null;
       let dlText = '';
       if (dl !== null) { if (dl > 0) dlText = `${dl} days remaining`; else if (dl === 0) dlText = 'Expires today'; else dlText = `Expired ${Math.abs(dl)} days ago`; }
@@ -1770,7 +1770,7 @@
           if (eng.emailOpenedAt)
             events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened',
               sub: eng.emailOpenCount > 1 ? `${eng.emailOpenCount} times · most recently ${fmtDt(eng.emailLastOpenAt)}` : 'Once',
-              color: '#4A9EFF', count: eng.emailOpenCount });
+              color: '#64FFDA', count: eng.emailOpenCount });
           if (eng.certFirstViewedAt)
             events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed',
               sub: eng.certViewCount > 1 ? `${eng.certViewCount} times · last: ${fmtDt(eng.certLastViewedAt)}` : 'Once',
@@ -1785,11 +1785,11 @@
           // Always render the wrapper so async live-refresh can find it
           // Engagement summary chips
           const chips = [];
-          if (eng.emailOpenCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+          if (eng.emailOpenCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
           if (eng.certViewCount)     chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
           if (eng.docDownloadCount)  chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
           if (!hasAnyEngagement && emailSent)
-            chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+            chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
 
           return `
         <div id="viewEngagementSection" data-certid="${c.id}" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
@@ -1856,18 +1856,18 @@
           if (cachedC.emailSentAt)
             events.push({ ts: cachedC.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)', sub: cachedC.recipientEmail ? 'To: ' + cachedC.recipientEmail : null });
           if (eng.emailOpenedAt)
-            events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened', sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once', color: '#4A9EFF', count: eng.emailOpenCount });
+            events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened', sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once', color: '#64FFDA', count: eng.emailOpenCount });
           if (eng.certFirstViewedAt)
             events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed', sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once', color: 'var(--teal)', count: eng.certViewCount });
           if (eng.docFirstDownloadAt)
             events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded', sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''), color: 'var(--gold)', count: eng.docDownloadCount });
           events.sort((a, b) => a.ts < b.ts ? -1 : 1);
           const chips = [];
-          if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+          if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
           if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
           if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
           if (!hasAnyEngagement && emailSent)
-            chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+            chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
           actDiv.innerHTML = `
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
                 <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
@@ -1903,7 +1903,7 @@
           const wrap = document.getElementById('viewImgWrap');
           if (wrap) {
             wrap.innerHTML =
-              '<div style="padding:14px 18px;background:rgba(255,179,71,.06);border:1px dashed rgba(255,179,71,.3);' +
+              '<div style="padding:14px 18px;background:rgba(255,170,46,.06);border:1px dashed rgba(255,170,46,.3);' +
               'border-radius:10px;text-align:center;color:var(--warn);font-size:.78rem">' +
               '⚠ Certificate image could not be loaded.<br>' +
               '<span style="font-size:.68rem;color:var(--text-sec)">Ensure the server is running and the image file exists.</span></div>';
@@ -2113,7 +2113,7 @@
       el.innerHTML = all.map(a => {
         const fn = (a.name || '').toLowerCase();
         const icon = fn.endsWith('.pdf') ? '📋' : (fn.endsWith('.xls') || fn.endsWith('.xlsx')) ? '📊' : (fn.endsWith('.doc') || fn.endsWith('.docx')) ? '📝' : '📄';
-        const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,179,71,.09);color:var(--gold);border:1px solid rgba(255,179,71,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
+        const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,170,46,.09);color:var(--gold);border:1px solid rgba(255,170,46,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
         const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
         const rmBtn = a.saved
           ? `<button type="button" onclick="removeSavedAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
@@ -2370,7 +2370,7 @@
         const existing   = CERTS.find(x => x.id === c.id);
         const hasId      = !!c.id;
         const hasImo     = !!c.vesselIMO;
-        const rowBg      = existing ? 'background:rgba(255,179,71,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
+        const rowBg      = existing ? 'background:rgba(255,170,46,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
         const idColor    = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
         const statusTxt  = existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
         const statusColor= existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
@@ -2871,9 +2871,9 @@ function renderValidityPage(q) {
   if (kpiRow) {
     kpiRow.innerHTML = [
       { label: 'Within Window', count: stats.valid, color: 'var(--teal)', bg: 'rgba(100,255,218,.08)', border: 'rgba(100,255,218,.2)', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
-      { label: 'Expiring ≤ 30d', count: stats.expiring, color: 'var(--warn)', bg: 'rgba(255,179,71,.08)', border: 'rgba(255,179,71,.22)', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+      { label: 'Expiring ≤ 30d', count: stats.expiring, color: 'var(--warn)', bg: 'rgba(255,170,46,.08)', border: 'rgba(255,170,46,.22)', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
       { label: 'Passed 90-Day Window', count: stats.expired, color: 'var(--invalid)', bg: 'rgba(255,107,138,.07)', border: 'rgba(255,107,138,.2)', icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' },
-      { label: 'No Compliance Date', count: stats.nodate, color: '#8892B0', bg: 'rgba(136,146,176,.06)', border: 'rgba(136,146,176,.18)', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+      { label: 'No Compliance Date', count: stats.nodate, color: '#7689AE', bg: 'rgba(118,137,174,.06)', border: 'rgba(118,137,174,.18)', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
     ].map(k => `
       <div class="stat-card" style="border-color:${k.border};background:${k.bg}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -2916,7 +2916,7 @@ function renderValidityPage(q) {
     return;
   }
 
-  const statusLabel = { valid: ['Within Window', 'var(--teal)', 'rgba(100,255,218,.12)'], expiring: ['Expiring Soon', 'var(--warn)', 'rgba(255,179,71,.12)'], expired: ['Passed Window', 'var(--invalid)', 'rgba(255,107,138,.12)'], nodate: ['No Date', '#8892B0', 'rgba(136,146,176,.1)'] };
+  const statusLabel = { valid: ['Within Window', 'var(--teal)', 'rgba(100,255,218,.12)'], expiring: ['Expiring Soon', 'var(--warn)', 'rgba(255,170,46,.12)'], expired: ['Passed Window', 'var(--invalid)', 'rgba(255,107,138,.12)'], nodate: ['No Date', '#7689AE', 'rgba(118,137,174,.1)'] };
 
   const fmtD = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -2933,9 +2933,9 @@ function renderValidityPage(q) {
       const dl = ivDaysLeft(c);
       const deadline = ivDeadline(c);
       const daysStr = dl === null ? '—' : dl < 0 ? `${Math.abs(dl)}d overdue` : `${dl}d left`;
-      const daysColor = dl === null ? '#8892B0' : dl < 0 ? 'var(--invalid)' : dl <= 30 ? 'var(--warn)' : 'var(--teal)';
+      const daysColor = dl === null ? '#7689AE' : dl < 0 ? 'var(--invalid)' : dl <= 30 ? 'var(--warn)' : 'var(--teal)';
       const certSt = (c.status || 'VALID').toUpperCase();
-      const csBg = certSt === 'VALID' ? 'rgba(100,255,218,.1)' : certSt === 'REVOKED' ? 'rgba(255,107,138,.1)' : 'rgba(255,179,71,.1)';
+      const csBg = certSt === 'VALID' ? 'rgba(100,255,218,.1)' : certSt === 'REVOKED' ? 'rgba(255,107,138,.1)' : 'rgba(255,170,46,.1)';
       const csColor = certSt === 'VALID' ? 'var(--teal)' : certSt === 'REVOKED' ? 'var(--invalid)' : 'var(--warn)';
       return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background=''">
         <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;color:var(--gold);font-size:.68rem">${c.id}</td>

@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 (function () {
   var API = '/api';
@@ -124,7 +124,7 @@
         // Show error without redirect loop
         setStatsFallback();
         var hero = document.querySelector('.hub-hero-sub');
-        if (hero) { hero.textContent = 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#ff6b8a)'; }
+        if (hero) { hero.textContent = 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#FF5C7A)'; }
         return;
       }
       redirectToSso();

@@ -1,4 +1,4 @@
-
+﻿
   // ── Security: HTML escape (XSS prevention) ──
   function escHtml(s) {
     if (s == null) return '';
@@ -246,14 +246,14 @@
   }
 
   // ── CHARTS  —  update-in-place, no flicker ──
-  const _CHART_LEGEND = { display:true, position:'right', labels:{ color:'#8892B0', font:{ size:10 }, boxWidth:10, padding:8 } };
+  const _CHART_LEGEND = { display:true, position:'right', labels:{ color:'#7689AE', font:{ size:10 }, boxWidth:10, padding:8 } };
 
   function _buildStatusChart(a) {
     return new Chart(document.getElementById('statusChart').getContext('2d'), {
       type:'doughnut',
       data:{ labels:['Valid','Expired','Pending','Revoked'], datasets:[{ data:[a.valid,a.expired,a.pending||0,a.revoked||0],
-        backgroundColor:['rgba(100,255,218,.55)','rgba(255,179,71,.5)','rgba(126,184,247,.45)','rgba(255,107,138,.5)'],
-        borderColor:['#64FFDA','#FFB347','#7EB8F7','#FF6B8A'], borderWidth:1.5, hoverOffset:6 }] },
+        backgroundColor:['rgba(100,255,218,.55)','rgba(255,170,46,.5)','rgba(255,170,46,.45)','rgba(255,107,138,.5)'],
+        borderColor:['#64FFDA','#FFAA2E','#FFAA2E','#FF5C7A'], borderWidth:1.5, hoverOffset:6 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
         plugins:{ legend:_CHART_LEGEND, tooltip:{ callbacks:{ label:ctx=>` ${ctx.label}: ${ctx.raw} (${a.total>0?Math.round(ctx.raw/a.total*100):0}%)` } } } }
     });
@@ -262,8 +262,8 @@
     return new Chart(document.getElementById('emailChart').getContext('2d'), {
       type:'doughnut',
       data:{ labels:['Sent ✓','Not Sent','Pending Certs'], datasets:[{ data:[a.emailSent,a.emailPending,a.pending||0],
-        backgroundColor:['rgba(100,255,218,.55)','rgba(255,107,138,.5)','rgba(126,184,247,.4)'],
-        borderColor:['#64FFDA','#FF6B8A','#7EB8F7'], borderWidth:1.5, hoverOffset:6 }] },
+        backgroundColor:['rgba(100,255,218,.55)','rgba(255,107,138,.5)','rgba(255,170,46,.4)'],
+        borderColor:['#64FFDA','#FF5C7A','#FFAA2E'], borderWidth:1.5, hoverOffset:6 }] },
       options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
         plugins:{ legend:_CHART_LEGEND, tooltip:{ callbacks:{ label:ctx=>` ${ctx.label}: ${ctx.raw}` } } } }
     });
@@ -276,15 +276,15 @@
         labels:['Expired','≤7d','8–30d','31–90d','>90d','No Expiry'],
         datasets:[{ label:'Certificates',
           data:[bk.expiredPast||0, bk.exp7||0, bk.exp8to30||0, bk.exp31to90||0, bk.healthy||0, bk.noExpiry||0],
-          backgroundColor:['rgba(255,107,138,.65)','rgba(255,107,138,.45)','rgba(212,168,67,.55)','rgba(255,179,71,.45)','rgba(100,255,218,.48)','rgba(136,146,176,.38)'],
-          borderColor:['#FF6B8A','#FF6B8A','#D4A843','#FFB347','#64FFDA','#8892B0'],
+          backgroundColor:['rgba(255,107,138,.65)','rgba(255,107,138,.45)','rgba(212,168,67,.55)','rgba(255,170,46,.45)','rgba(100,255,218,.48)','rgba(118,137,174,.38)'],
+          borderColor:['#FF5C7A','#FF5C7A','#D4A843','#FFAA2E','#64FFDA','#7689AE'],
           borderWidth:1.5, borderRadius:5 }]
       },
       options:{ responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:ctx=>` ${ctx.raw} cert${ctx.raw!==1?'s':''}` } } },
         scales:{
-          x:{ ticks:{ color:'#8892B0', font:{ size:11 }, maxRotation:0 }, grid:{ display:false } },
-          y:{ ticks:{ color:'#8892B0', font:{ size:10 }, callback: v => Number.isInteger(v) ? v : '' }, grid:{ color:'rgba(136,146,176,.12)' }, beginAtZero:true }
+          x:{ ticks:{ color:'#7689AE', font:{ size:11 }, maxRotation:0 }, grid:{ display:false } },
+          y:{ ticks:{ color:'#7689AE', font:{ size:10 }, callback: v => Number.isInteger(v) ? v : '' }, grid:{ color:'rgba(118,137,174,.12)' }, beginAtZero:true }
         }
       }
     });
@@ -329,12 +329,12 @@
     chips.innerHTML = [
       `<span class="analytics-chip" style="background:rgba(100,255,218,.1);color:var(--teal);border:1px solid rgba(100,255,218,.2)"><strong>${vp}%</strong> valid</span>`,
       `<span class="analytics-chip" style="background:rgba(100,255,218,.07);color:var(--teal);border:1px solid rgba(100,255,218,.15)"><strong>${ep}%</strong> emailed</span>`,
-      (a.pending||0) > 0 ? `<span class="analytics-chip" style="background:rgba(126,184,247,.1);color:#7EB8F7;border:1px solid rgba(126,184,247,.25)">⏳ <strong>${a.pending}</strong> pending</span>` : '',
+      (a.pending||0) > 0 ? `<span class="analytics-chip" style="background:rgba(255,170,46,.1);color:#FFAA2E;border:1px solid rgba(255,170,46,.25)">⏳ <strong>${a.pending}</strong> pending</span>` : '',
       a.emailPending > 0 ? `<span class="analytics-chip" style="background:rgba(255,107,138,.08);color:var(--invalid);border:1px solid rgba(255,107,138,.2)">✉ <strong>${a.emailPending}</strong> unsent</span>` : '',
-      (a.nearExpiry||[]).length > 0 ? `<span class="analytics-chip" style="background:rgba(255,179,71,.08);color:var(--warn);border:1px solid rgba(255,179,71,.2)">⚠ <strong>${a.nearExpiry.length}</strong> exp ≤30d</span>` : '',
+      (a.nearExpiry||[]).length > 0 ? `<span class="analytics-chip" style="background:rgba(255,170,46,.08);color:var(--warn);border:1px solid rgba(255,170,46,.2)">⚠ <strong>${a.nearExpiry.length}</strong> exp ≤30d</span>` : '',
     ].filter(Boolean).join('');
     const items = [];
-    if ((a.pending||0) > 0) items.push(`<li style="color:#7EB8F7;border-left:2px solid #7EB8F7;padding-left:8px;margin-bottom:6px"><strong>${a.pending}</strong> VAPT cert(s) awaiting activation — open ⏳ panel below.</li>`);
+    if ((a.pending||0) > 0) items.push(`<li style="color:#FFAA2E;border-left:2px solid #FFAA2E;padding-left:8px;margin-bottom:6px"><strong>${a.pending}</strong> VAPT cert(s) awaiting activation — open ⏳ panel below.</li>`);
     if (a.emailPending > 0) items.push(`<li style="color:var(--invalid);border-left:2px solid var(--invalid);padding-left:8px;margin-bottom:6px"><strong>${a.emailPending}</strong> recipient(s) have not received their VAPT credential yet.</li>`);
     if ((a.nearExpiry||[]).filter(x=>x.daysLeft<=7).length > 0) items.push(`<li style="color:var(--invalid);border-left:2px solid var(--invalid);padding-left:8px;margin-bottom:6px"><strong>${a.nearExpiry.filter(x=>x.daysLeft<=7).length}</strong> VAPT cert(s) expire within <strong>7 days</strong>.</li>`);
     if ((a.nearExpiry||[]).length > 0) items.push(`<li style="color:var(--warn);border-left:2px solid var(--warn);padding-left:8px;margin-bottom:6px"><strong>${a.nearExpiry.length}</strong> cert(s) expire within 30 days.</li>`);
@@ -418,11 +418,11 @@
         pendEl.innerHTML = pendingCerts.map(c=>{
           const sId=escHtml(c.id), sName=escHtml(c.recipientName), sIMO=escHtml(c.vesselIMO);
           return `<div class="ne-item" onclick="editCert('${sId}')">
-            <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(126,184,247,.1);border:1px solid rgba(126,184,247,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
+            <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,170,46,.1);border:1px solid rgba(255,170,46,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
             <div style="flex:1;min-width:0">
               <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
               <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName||'—'}${sIMO?' · IMO '+sIMO:''}</div>
-              <div style="font-size:.62rem;color:#7EB8F7">Not yet publicly verifiable — activate to enable</div>
+              <div style="font-size:.62rem;color:#FFAA2E">Not yet publicly verifiable — activate to enable</div>
             </div>
             <div style="display:flex;gap:5px">
               <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">✓ Activate</button>
@@ -447,7 +447,7 @@
           const isPending = (c.status||'').toUpperCase() === 'PENDING';
           const hasEmail  = !!c.recipientEmail;
           const sId=escHtml(c.id), sName=escHtml(c.recipientName), sEmail=escHtml(c.recipientEmail);
-          const subColor  = isPending ? '#7EB8F7' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
+          const subColor  = isPending ? '#FFAA2E' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
           const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? sEmail : '⚠ No email address on record';
           return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="goIssue('${sId}')"`:''}>
             <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center">
@@ -559,7 +559,7 @@
       const engCell = engPartsV.length
         ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${engPartsV.join('')}</div>`
         : (emailSentV
-        ? `<span class="eng-badge" style="background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
+        ? `<span class="eng-badge" style="background:rgba(255,170,46,.08);border:1px solid rgba(255,170,46,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
         : `<span style="color:var(--text-sec);font-size:.6rem;font-style:italic;opacity:.6">No activity</span>`);
       const safeId    = escHtml(c.id);
       const safeName  = escHtml(c.recipientName || c.vesselName);
@@ -735,13 +735,13 @@
     cpBar.style.width=pct+'%';
     cpBar.style.background=allDone?'var(--teal)':doneCount>=3?'var(--gold)':'var(--warn)';
     document.getElementById('cpProgressBadge').textContent=`${doneCount}/${checks.length}`;
-    document.getElementById('cpProgressBadge').style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,179,71,.12)';
-    document.getElementById('cpProgressBadge').style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,179,71,.25)';
+    document.getElementById('cpProgressBadge').style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,170,46,.12)';
+    document.getElementById('cpProgressBadge').style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,170,46,.25)';
     document.getElementById('cpProgressBadge').style.color=allDone?'var(--teal)':'var(--warn)';
     const icon=document.getElementById('cpHeaderIcon');
     icon.textContent=allDone?'✓':'?';
-    icon.style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,179,71,.12)';
-    icon.style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,179,71,.3)';
+    icon.style.background=allDone?'rgba(100,255,218,.12)':'rgba(255,170,46,.12)';
+    icon.style.borderColor=allDone?'rgba(100,255,218,.3)':'rgba(255,170,46,.3)';
     icon.style.color=allDone?'var(--teal)':'var(--warn)';
     if (allDone) {
       document.getElementById('cpHeaderTitle').textContent=isEdit?'Ready to Update':'Ready to Activate';
@@ -769,7 +769,7 @@
         statusSel.value='PENDING';
         statusSel.disabled=true;
         statusSel.style.opacity='0.5';
-        if (saveBtn) saveBtn.setAttribute('style','flex:1;justify-content:center;padding:12px;background:rgba(126,184,247,.15);border-color:rgba(126,184,247,.35);color:#7EB8F7');
+        if (saveBtn) saveBtn.setAttribute('style','flex:1;justify-content:center;padding:12px;background:rgba(255,170,46,.15);border-color:rgba(255,170,46,.35);color:#FFAA2E');
         if (saveTxt) saveTxt.textContent='Save as Pending';
       }
     }
@@ -910,7 +910,7 @@
         if (eng.emailOpenedAt)
           events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened',
             sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once',
-            color: '#4A9EFF', count: eng.emailOpenCount });
+            color: '#64FFDA', count: eng.emailOpenCount });
         if (eng.certFirstViewedAt)
           events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed',
             sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once',
@@ -922,11 +922,11 @@
         events.sort((a,b) => a.ts < b.ts ? -1 : 1);
 
         const chips = [];
-        if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+        if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
         if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
         if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
         if (!hasAnyEngagement && emailSent)
-          chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+          chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
 
         return `<div id="viewEngagementSection" data-certid="${c.id}" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
@@ -985,18 +985,18 @@
       if (cachedC.emailSentAt)
         events.push({ ts: cachedC.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)', sub: cachedC.recipientEmail ? 'To: ' + cachedC.recipientEmail : null });
       if (eng.emailOpenedAt)
-        events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened', sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once', color: '#4A9EFF', count: eng.emailOpenCount });
+        events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened', sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once', color: '#64FFDA', count: eng.emailOpenCount });
       if (eng.certFirstViewedAt)
         events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed', sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once', color: 'var(--teal)', count: eng.certViewCount });
       if (eng.docFirstDownloadAt)
         events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded', sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''), color: 'var(--gold)', count: eng.docDownloadCount });
       events.sort((a, b) => a.ts < b.ts ? -1 : 1);
       const chips = [];
-      if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);color:#4A9EFF;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+      if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
       if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
       if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
       if (!hasAnyEngagement && emailSent)
-        chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,179,71,.07);border:1px solid rgba(255,179,71,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+        chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
       actDiv.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
           <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
@@ -1255,7 +1255,7 @@
         if (sbDot) sbDot.style.background = 'var(--teal)';
         if (lbl)   lbl.textContent = 'Mail On';
       } else {
-        if (badge) { badge.style.background='rgba(255,107,138,.08)'; badge.style.color='#ff6b8a'; badge.style.borderColor='rgba(255,107,138,.2)'; }
+        if (badge) { badge.style.background='rgba(255,107,138,.08)'; badge.style.color='#ff5c7a'; badge.style.borderColor='rgba(255,107,138,.2)'; }
         if (bdot)  { bdot.style.background='var(--invalid)'; bdot.style.animation=''; }
         if (btxt)  btxt.textContent = 'Email Offline';
         if (sbDot) sbDot.style.background = 'var(--invalid)';
@@ -1490,7 +1490,7 @@
     el.innerHTML = all.map(a => {
       const fn = (a.name || '').toLowerCase();
       const icon = fn.endsWith('.pdf') ? '📋' : (fn.endsWith('.xls') || fn.endsWith('.xlsx')) ? '📊' : (fn.endsWith('.doc') || fn.endsWith('.docx')) ? '📝' : '📄';
-      const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,179,71,.09);color:var(--gold);border:1px solid rgba(255,179,71,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
+      const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,170,46,.09);color:var(--gold);border:1px solid rgba(255,170,46,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
       const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
       const rmBtn = a.saved
         ? `<button type="button" onclick="removeSavedAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
@@ -1709,7 +1709,7 @@
     records.forEach((c, i) => {
       const existing    = CERTS.find(x => x.id === c.id);
       const hasId       = !!c.id;
-      const rowBg       = existing ? 'background:rgba(255,179,71,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
+      const rowBg       = existing ? 'background:rgba(255,170,46,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
       const idColor     = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
       const statusTxt   = existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
       const statusColor = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';

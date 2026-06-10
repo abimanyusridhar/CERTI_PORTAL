@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" class="light">
 <head>
   <meta charset="UTF-8" />
@@ -16,7 +16,7 @@
   <script src="/assets/shared-utils.js" defer></script>
   <script src="/assets/theme-toggle.js" defer></script>
   <style>
-    :root { --doc-accent: #B5860A; --doc-accent-dim: rgba(181,134,10,.07); --req-accent: #0097A7; --req-accent-dim: rgba(0,151,167,.06); }
+    :root { --doc-accent: #D4A843; --doc-accent-dim: rgba(212,168,67,.07); --req-accent: #2ABBA0; --req-accent-dim: rgba(42,187,160,.06); }
     body { min-height: 100vh; background: #F5F7FA; font-family: 'DM Sans', sans-serif; color: #1A202C; }
 
     /* ── LOGIN ── */
@@ -31,7 +31,7 @@
     .fgroup { margin-bottom: 14px; }
     .flabel { font-size: .65rem; color: #6B7280; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px; }
     .fcontrol { width: 100%; background: #F9FAFB; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; padding: 10px 14px; font-size: .82rem; color: #111827; font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
-    .fcontrol:focus { outline: none; border-color: #B5860A; }
+    .fcontrol:focus { outline: none; border-color: #D4A843; }
 
     /* ── APP LAYOUT ── */
     #appWrap { display: none; min-height: 100vh; }
@@ -42,26 +42,26 @@
     .sb-nav { padding: 0 10px; flex: 1; }
     .nav-sec { font-size: .58rem; color: #9CA3AF; letter-spacing: .14em; text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; margin-top: 14px; }
     .nav-item { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 9px; font-size: .74rem; color: #4A5568; cursor: pointer; transition: all .15s; border: 1px solid transparent; margin-bottom: 2px; text-decoration: none; }
-    .nav-item:hover, .nav-item.active { background: var(--doc-accent-dim); color: #7A5208; border-color: rgba(181,134,10,.22); }
-    .nav-item.req-tab:hover, .nav-item.req-tab.active { background: var(--req-accent-dim); color: #0097A7; border-color: rgba(0,151,167,.2); }
+    .nav-item:hover, .nav-item.active { background: var(--doc-accent-dim); color: #7A5208; border-color: rgba(212,168,67,.22); }
+    .nav-item.req-tab:hover, .nav-item.req-tab.active { background: var(--req-accent-dim); color: #2ABBA0; border-color: rgba(42,187,160,.2); }
     .sb-footer { padding: 14px 18px; border-top: 1px solid rgba(0,0,0,.07); }
     .sb-logout { font-size: .65rem; color: #6B7280; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .15s; }
     .sb-logout:hover { color: #DC2626; }
-    .badge-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; background: rgba(0,151,167,.1); border: 1px solid rgba(0,151,167,.25); color: #0097A7; font-size: .6rem; font-weight: 700; border-radius: 9px; margin-left: auto; }
-    .badge-count.gold { background: rgba(181,134,10,.09); border-color: rgba(181,134,10,.25); color: #92600B; }
+    .badge-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; background: rgba(42,187,160,.1); border: 1px solid rgba(42,187,160,.25); color: #2ABBA0; font-size: .6rem; font-weight: 700; border-radius: 9px; margin-left: auto; }
+    .badge-count.gold { background: rgba(212,168,67,.09); border-color: rgba(212,168,67,.25); color: #92600B; }
 
     /* ── MAIN ── */
     .main-content { margin-left: 220px; padding: 28px 32px; min-height: 100vh; background: #F5F7FA; }
     .page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid rgba(0,0,0,.08); }
-    .page-hdr-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--doc-accent-dim); border: 1px solid rgba(181,134,10,.25); flex-shrink: 0; }
+    .page-hdr-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--doc-accent-dim); border: 1px solid rgba(212,168,67,.25); flex-shrink: 0; }
     .page-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #111827; font-weight: 700; }
     .page-sub { font-size: .73rem; color: #6B7280; margin-top: 2px; }
 
     /* ── TABS ── */
     .tabs { display: flex; gap: 6px; margin-bottom: 22px; }
     .tab-btn { padding: 8px 18px; border-radius: 9px; font-size: .73rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,.1); background: #fff; color: #4A5568; transition: all .15s; font-family: 'DM Sans',sans-serif; letter-spacing: .05em; }
-    .tab-btn.active-docs { background: var(--doc-accent-dim); color: #7A5208; border-color: rgba(181,134,10,.35); }
-    .tab-btn.active-req { background: var(--req-accent-dim); color: #0097A7; border-color: rgba(0,151,167,.3); }
+    .tab-btn.active-docs { background: var(--doc-accent-dim); color: #7A5208; border-color: rgba(212,168,67,.35); }
+    .tab-btn.active-req { background: var(--req-accent-dim); color: #2ABBA0; border-color: rgba(42,187,160,.3); }
     .tab-pane { display: none; }
     .tab-pane.active { display: block; }
 
@@ -73,18 +73,18 @@
     .f-group { display: flex; flex-direction: column; gap: 5px; }
     .f-label { font-size: .63rem; color: #6B7280; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
     .f-inp { background: #F9FAFB; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; padding: 9px 13px; font-size: .82rem; color: #111827; font-family: 'DM Sans',sans-serif; transition: border-color .2s; width: 100%; box-sizing: border-box; }
-    .f-inp:focus { outline: none; border-color: #B5860A; }
+    .f-inp:focus { outline: none; border-color: #D4A843; }
     .f-inp::placeholder { color: #9CA3AF; }
     select.f-inp { cursor: pointer; }
     .file-drop { border: 2px dashed rgba(0,0,0,.14); border-radius: 11px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all .2s; position: relative; background: #FAFAFA; }
-    .file-drop:hover, .file-drop.drag-over { border-color: #B5860A; background: rgba(181,134,10,.04); }
+    .file-drop:hover, .file-drop.drag-over { border-color: #D4A843; background: rgba(212,168,67,.04); }
     .file-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
     .file-drop-icon { color: #9CA3AF; margin-bottom: 8px; }
     .file-drop-text { font-size: .78rem; color: #6B7280; }
-    .file-drop-text strong { color: #B5860A; }
-    .file-selected { font-size: .74rem; color: #0097A7; margin-top: 6px; }
-    .btn-upload { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 9px; font-size: .76rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; font-family: 'DM Sans',sans-serif; background: rgba(181,134,10,.1); color: #7A5208; border: 1.5px solid rgba(181,134,10,.4); transition: all .15s; margin-top: 12px; }
-    .btn-upload:hover { background: rgba(181,134,10,.18); border-color: #B5860A; }
+    .file-drop-text strong { color: #D4A843; }
+    .file-selected { font-size: .74rem; color: #2ABBA0; margin-top: 6px; }
+    .btn-upload { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 9px; font-size: .76rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; font-family: 'DM Sans',sans-serif; background: rgba(212,168,67,.1); color: #7A5208; border: 1.5px solid rgba(212,168,67,.4); transition: all .15s; margin-top: 12px; }
+    .btn-upload:hover { background: rgba(212,168,67,.18); border-color: #D4A843; }
     .btn-upload:disabled { opacity: .5; cursor: not-allowed; }
 
     /* ── DOCS CARDS ── */
@@ -92,7 +92,7 @@
     .docs-table-hdr { padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,.07); display: flex; align-items: center; justify-content: space-between; background: #fff; }
     .doc-card-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 14px; padding: 16px; }
     .doc-card { background: #F8FAFC; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .18s, border-color .18s; }
-    .doc-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.08); border-color: rgba(181,134,10,.25); }
+    .doc-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.08); border-color: rgba(212,168,67,.25); }
     .doc-card-top { display: flex; align-items: flex-start; gap: 12px; }
     .doc-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .doc-icon.pdf { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #DC2626; }
@@ -106,27 +106,27 @@
     .doc-card-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
     .doc-card-actions { display: flex; gap: 6px; align-items: center; border-top: 1px solid rgba(0,0,0,.06); padding-top: 10px; }
     .doc-type-badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 6px; font-size: .58rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
-    .badge-training { background: rgba(181,134,10,.09); color: #92600B; border: 1px solid rgba(181,134,10,.25); }
-    .badge-drill { background: rgba(0,151,167,.07); color: #0097A7; border: 1px solid rgba(0,151,167,.2); }
+    .badge-training { background: rgba(212,168,67,.09); color: #92600B; border: 1px solid rgba(212,168,67,.25); }
+    .badge-drill { background: rgba(42,187,160,.07); color: #2ABBA0; border: 1px solid rgba(42,187,160,.2); }
     .badge-audit { background: rgba(99,102,241,.07); color: #6366F1; border: 1px solid rgba(99,102,241,.2); }
     .badge-other { background: rgba(0,0,0,.04); color: #6B7280; border: 1px solid rgba(0,0,0,.1); }
-    .imo-chip { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: #0097A7; background: rgba(0,151,167,.07); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(0,151,167,.2); }
+    .imo-chip { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: #2ABBA0; background: rgba(42,187,160,.07); padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(42,187,160,.2); }
     .btn-sm { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 7px; font-size: .65rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,.12); background: none; color: #4A5568; transition: all .15s; font-family: 'DM Sans',sans-serif; }
     .btn-sm:hover { background: rgba(0,0,0,.04); color: #111827; border-color: rgba(0,0,0,.2); }
     .btn-sm.danger:hover { border-color: rgba(220,38,38,.35); color: #DC2626; background: rgba(220,38,38,.04); }
-    .btn-sm.primary { border-color: rgba(181,134,10,.3); color: #92600B; background: rgba(181,134,10,.07); }
-    .btn-sm.primary:hover { background: rgba(181,134,10,.14); border-color: #B5860A; }
-    .btn-sm.teal { border-color: rgba(0,151,167,.3); color: #0097A7; background: rgba(0,151,167,.06); }
-    .btn-sm.teal:hover { background: rgba(0,151,167,.12); border-color: #0097A7; }
-    .btn-open { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: .68rem; font-weight: 700; cursor: pointer; border: 1.5px solid rgba(181,134,10,.4); background: linear-gradient(135deg,rgba(181,134,10,.1),rgba(181,134,10,.04)); color: #7A5208; transition: all .15s; font-family: 'DM Sans',sans-serif; letter-spacing: .04em; }
-    .btn-open:hover { background: linear-gradient(135deg,rgba(181,134,10,.18),rgba(181,134,10,.1)); border-color: #B5860A; box-shadow: 0 2px 8px rgba(181,134,10,.15); }
+    .btn-sm.primary { border-color: rgba(212,168,67,.3); color: #92600B; background: rgba(212,168,67,.07); }
+    .btn-sm.primary:hover { background: rgba(212,168,67,.14); border-color: #D4A843; }
+    .btn-sm.teal { border-color: rgba(42,187,160,.3); color: #2ABBA0; background: rgba(42,187,160,.06); }
+    .btn-sm.teal:hover { background: rgba(42,187,160,.12); border-color: #2ABBA0; }
+    .btn-open { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: .68rem; font-weight: 700; cursor: pointer; border: 1.5px solid rgba(212,168,67,.4); background: linear-gradient(135deg,rgba(212,168,67,.1),rgba(212,168,67,.04)); color: #7A5208; transition: all .15s; font-family: 'DM Sans',sans-serif; letter-spacing: .04em; }
+    .btn-open:hover { background: linear-gradient(135deg,rgba(212,168,67,.18),rgba(212,168,67,.1)); border-color: #D4A843; box-shadow: 0 2px 8px rgba(212,168,67,.15); }
     .btn-open:disabled { opacity: .5; cursor: not-allowed; }
     .empty-state { padding: 48px 20px; text-align: center; color: #9CA3AF; font-size: .8rem; }
     .empty-state svg { opacity: .25; margin-bottom: 14px; }
 
     /* ── ACCESS REQUESTS ── */
     .req-card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; overflow: hidden; margin-bottom: 10px; transition: border-color .15s, box-shadow .15s; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-    .req-card:hover { border-color: rgba(0,151,167,.25); box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+    .req-card:hover { border-color: rgba(42,187,160,.25); box-shadow: 0 4px 16px rgba(0,0,0,.07); }
     .req-card-body { padding: 16px 20px; }
     .req-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
     .req-vessel { font-size: .9rem; font-weight: 700; color: #111827; }
@@ -138,8 +138,8 @@
     .status-pending { background: rgba(234,179,8,.08); color: #854D0E; border: 1px solid rgba(234,179,8,.3); }
     .status-approved { background: rgba(34,197,94,.07); color: #15803D; border: 1px solid rgba(34,197,94,.25); }
     .status-denied { background: rgba(220,38,38,.06); color: #DC2626; border: 1px solid rgba(220,38,38,.2); }
-    .token-box { background: #F0F9FF; border: 1px solid rgba(0,151,167,.2); border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; gap: 10px; }
-    .token-val { font-family: 'JetBrains Mono', monospace; font-size: .6rem; color: #0097A7; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .token-box { background: #F0F9FF; border: 1px solid rgba(42,187,160,.2); border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+    .token-val { font-family: 'JetBrains Mono', monospace; font-size: .6rem; color: #2ABBA0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .token-expiry { font-size: .6rem; color: #6B7280; flex-shrink: 0; }
 
     /* ── TOAST ── */
@@ -157,7 +157,7 @@
     /* ── FILTER BAR ── */
     .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
     .filter-inp { background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; padding: 8px 13px; font-size: .78rem; color: #111827; font-family: 'DM Sans',sans-serif; width: 220px; }
-    .filter-inp:focus { outline: none; border-color: #B5860A; }
+    .filter-inp:focus { outline: none; border-color: #D4A843; }
 
     /* ── CONFIRM MODAL ── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9000; align-items: center; justify-content: center; }
@@ -180,7 +180,7 @@
 <div id="sessionWarningBanner" role="alert" aria-live="assertive">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
   Your session will expire in <span id="sessionCountdown">5 minutes</span>.
-  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,179,71,0.2);border:1px solid rgba(255,179,71,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
+  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,170,46,0.2);border:1px solid rgba(255,170,46,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
 </div>
 <div id="idleWarningBanner" role="alert" aria-live="assertive">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
@@ -193,14 +193,14 @@
   <div class="login-bg-grid" aria-hidden="true"></div>
   <div class="login-card">
     <div class="login-icon">
-      <img src="/images/SYN.png" alt="Synergy" style="width:52px;height:52px;border-radius:50%;border:1px solid rgba(181,134,10,.3)" />
+      <img src="/images/SYN.png" alt="Synergy" style="width:52px;height:52px;border-radius:50%;border:1px solid rgba(212,168,67,.3)" />
     </div>
     <div class="login-title">Admin Access</div>
     <div class="login-sub">Document Library &amp; Access Management</div>
     <a id="ssoBtn" href="/auth/sso/login?next=/CST/misecure/documents/"
-      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#B5860A,#8A6508);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(181,134,10,.2);transition:opacity .18s,box-shadow .18s"
-      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(181,134,10,.3)'"
-      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(181,134,10,.2)'">
+      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#D4A843,#9A7314);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(212,168,67,.2);transition:opacity .18s,box-shadow .18s"
+      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(212,168,67,.3)'"
+      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(212,168,67,.2)'">
       <svg width="19" height="19" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(255,255,255,.25)"/>
         <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
@@ -349,7 +349,7 @@
       <div class="docs-wrap">
         <div class="docs-table-hdr">
           <span class="section-title" style="margin:0">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#B5860A" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             Uploaded Documents
           </span>
           <span id="docsCount" style="font-size:.65rem;color:#6B7280">0 documents</span>
@@ -633,7 +633,7 @@
               ${typeBadge(d.docType)}
               <span style="font-size:.62rem;color:#9CA3AF">${fmtSize(d.fileSize||0)}</span>
               <span style="font-size:.62rem;color:#9CA3AF">${fmtDt(d.uploadedAt)}</span>
-              ${d.linkedCertId ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:#B5860A;background:rgba(181,134,10,.07);padding:1px 6px;border-radius:4px;border:1px solid rgba(181,134,10,.2)">${escH(d.linkedCertId)}</span>` : ''}
+              ${d.linkedCertId ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:#D4A843;background:rgba(212,168,67,.07);padding:1px 6px;border-radius:4px;border:1px solid rgba(212,168,67,.2)">${escH(d.linkedCertId)}</span>` : ''}
             </div>
           </div>
         </div>

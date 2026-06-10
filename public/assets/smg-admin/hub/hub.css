@@ -1,4 +1,4 @@
-/* ── ADMIN PORTAL HUB STYLES ─────────────────────────────────────────────── */
+﻿/* ── ADMIN PORTAL HUB STYLES ─────────────────────────────────────────────── */
 body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
 
 .hub-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
@@ -85,26 +85,26 @@ body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
 /* ── Light theme overrides ── */
 html.light .hub-topbar { background: rgba(255,255,255,.97) !important; border-color: rgba(30,60,120,0.10) !important; box-shadow: 0 2px 12px rgba(30,60,120,0.07) !important; }
 html.light .hub-module { background: var(--surface); }
-html.light .hub-module:hover { border-color: rgba(181,134,10,.4); }
+html.light .hub-module:hover { border-color: rgba(212,168,67,.4); }
 html.light .hub-module-stats { background: rgba(30,60,120,0.02) !important; border-bottom-color: rgba(30,60,120,0.08) !important; }
 html.light .hub-portals { background: var(--surface); }
 html.light .hub-stat { background: var(--surface); }
-html.light .hub-stat:hover { border-color: rgba(181,134,10,0.35) !important; }
+html.light .hub-stat:hover { border-color: rgba(212,168,67,0.35) !important; }
 html.light .hub-btn-primary { color: #fff !important; }
 html.light .hub-btn-ghost { border-color: rgba(30,60,120,0.18) !important; color: #4A6080 !important; }
 html.light .hub-btn-ghost:hover { border-color: rgba(30,60,120,0.30) !important; color: #0A1628 !important; background: rgba(30,60,120,0.04) !important; }
 html.light .hub-btn-teal { border-color: rgba(10,124,110,0.30) !important; color: #0A7C6E !important; }
 html.light .hub-btn-teal:hover { background: rgba(10,124,110,0.10) !important; border-color: rgba(10,124,110,0.50) !important; }
 html.light .hub-grid { background-image: linear-gradient(rgba(30,60,120,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(30,60,120,0.04) 1px,transparent 1px) !important; }
-html.light .hub-orb-1 { background: radial-gradient(circle, rgba(181,134,10,0.07) 0%, transparent 65%) !important; }
+html.light .hub-orb-1 { background: radial-gradient(circle, rgba(212,168,67,0.07) 0%, transparent 65%) !important; }
 html.light .hub-orb-2 { background: radial-gradient(circle, rgba(10,124,110,0.05) 0%, transparent 65%) !important; }
-html.light .hub-hero-eyebrow { background: rgba(181,134,10,0.10) !important; border-color: rgba(181,134,10,0.30) !important; }
+html.light .hub-hero-eyebrow { background: rgba(212,168,67,0.10) !important; border-color: rgba(212,168,67,0.30) !important; }
 html.light .hub-hero-title { color: #0A1628 !important; }
 html.light .hub-hero-sub { color: #4A6080 !important; }
 html.light .hub-footer { border-top-color: rgba(30,60,120,0.10) !important; color: #5A7090 !important; }
 html.light .hub-portals-title { color: #4A6080 !important; }
 html.light .hub-portal-link { border-color: rgba(30,60,120,0.12) !important; }
-html.light .hub-portal-link:hover { border-color: rgba(181,134,10,0.35) !important; background: rgba(181,134,10,0.04) !important; }
+html.light .hub-portal-link:hover { border-color: rgba(212,168,67,0.35) !important; background: rgba(212,168,67,0.04) !important; }
 html.light .hub-portal-name { color: #0A1628 !important; }
 html.light .hub-health-sep { background: rgba(30,60,120,0.12) !important; }
 html.light .skel { background: linear-gradient(90deg, rgba(0,0,0,.04) 25%, rgba(0,0,0,.08) 50%, rgba(0,0,0,.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }

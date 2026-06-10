@@ -49,7 +49,7 @@
     .sb-logout { font-size: .65rem; color: var(--text-sec); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color .18s; }
     .sb-logout:hover { color: var(--invalid); }
     .badge-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; background: rgba(100,255,218,.14); border: 1px solid rgba(100,255,218,.3); color: var(--acc-accent); font-size: .6rem; font-weight: 700; border-radius: 9px; margin-left: auto; }
-    .badge-count.warn { background: rgba(255,193,0,.14); border-color: rgba(255,193,0,.3); color: #FFC100; }
+    .badge-count.warn { background: rgba(255,170,46,.14); border-color: rgba(255,170,46,.3); color: #FFAA2E; }
 
     /* ── MAIN ── */
     .main-content { margin-left: 220px; padding: 28px 32px; min-height: 100vh; }
@@ -64,7 +64,7 @@
     .stat-card:hover { border-color: rgba(100,255,218,.3); }
     .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--text-bright); }
     .stat-num.teal { color: var(--acc-accent); }
-    .stat-num.warn  { color: #FFC100; }
+    .stat-num.warn  { color: #FFAA2E; }
     .stat-num.ok    { color: #64FFDA; }
     .stat-num.bad   { color: var(--invalid); }
     .stat-lbl { font-size: .6rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; margin-top: 3px; }
@@ -83,7 +83,7 @@
     .req-list { display: flex; flex-direction: column; gap: 12px; }
     .req-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color .2s; }
     .req-card:hover { border-color: rgba(100,255,218,.2); }
-    .req-card.pending { border-left: 3px solid #FFC100; }
+    .req-card.pending { border-left: 3px solid #FFAA2E; }
     .req-card.approved { border-left: 3px solid #64FFDA; }
     .req-card.denied { border-left: 3px solid rgba(255,107,138,.6); }
     .req-card-body { padding: 16px 18px; }
@@ -97,7 +97,7 @@
     .imo-chip { background: rgba(100,255,218,.08); border: 1px solid rgba(100,255,218,.2); color: var(--acc-accent); border-radius: 6px; padding: 1px 7px; font-family: 'JetBrains Mono',monospace; font-size: .65rem; font-weight: 700; }
     .req-actions { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-start; justify-content: flex-end; flex-shrink: 0; }
     .status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: .6rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
-    .status-pending  { background: rgba(255,193,0,.1); color: #FFC100; border: 1px solid rgba(255,193,0,.3); }
+    .status-pending  { background: rgba(255,170,46,.1); color: #FFAA2E; border: 1px solid rgba(255,170,46,.3); }
     .status-approved { background: rgba(100,255,218,.08); color: var(--acc-accent); border: 1px solid rgba(100,255,218,.25); }
     .status-denied   { background: rgba(255,107,138,.08); color: var(--invalid); border: 1px solid rgba(255,107,138,.25); }
     .perm-badge { display: inline-flex; align-items: center; gap: 4px; font-size: .6rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; background: rgba(100,255,218,.06); color: var(--acc-accent); border: 1px solid rgba(100,255,218,.2); white-space: nowrap; }
@@ -121,7 +121,7 @@
 
     /* ── SESSION BANNERS ── */
     .session-banner { display: none; padding: 10px 20px; font-size: .74rem; text-align: center; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; }
-    .session-banner.warn { background: rgba(255,193,0,.12); border-bottom: 1px solid rgba(255,193,0,.3); color: #FFC100; }
+    .session-banner.warn { background: rgba(255,170,46,.12); border-bottom: 1px solid rgba(255,170,46,.3); color: #FFAA2E; }
     .session-banner.danger { background: rgba(255,107,138,.12); border-bottom: 1px solid rgba(255,107,138,.3); color: var(--invalid); }
 
     /* ── TOAST ── */
@@ -149,7 +149,7 @@
     html.light .login-title { color: #111827 !important; }
     html.light .login-sub { color: #6B7280 !important; }
     html.light .fcontrol { background: #F7FAFF !important; border-color: rgba(30,60,120,.16) !important; color: #0A1628 !important; }
-    html.light .fcontrol:focus { border-color: rgba(181,134,10,.45) !important; box-shadow: 0 0 0 3px rgba(181,134,10,.10) !important; }
+    html.light .fcontrol:focus { border-color: rgba(212,168,67,.45) !important; box-shadow: 0 0 0 3px rgba(212,168,67,.10) !important; }
 
     /* Sidebar */
     html.light .sidebar { background: #fff !important; border-right-color: rgba(0,0,0,.08) !important; box-shadow: 2px 0 12px rgba(0,0,0,.04) !important; }
@@ -159,7 +159,7 @@
     html.light .nav-sec { color: #9CA3AF !important; }
     html.light .nav-item { color: #4A5568 !important; }
     html.light .nav-item:hover, html.light .nav-item.active { background: rgba(10,124,110,.08) !important; color: #0A7C6E !important; border-color: rgba(10,124,110,.22) !important; }
-    html.light .nav-item.gold-tab:hover { background: rgba(181,134,10,.08) !important; color: #7A5208 !important; border-color: rgba(181,134,10,.22) !important; }
+    html.light .nav-item.gold-tab:hover { background: rgba(212,168,67,.08) !important; color: #7A5208 !important; border-color: rgba(212,168,67,.22) !important; }
     html.light .badge-count { background: rgba(10,124,110,.10) !important; border-color: rgba(10,124,110,.25) !important; color: #0A7C6E !important; }
     html.light .badge-count.warn { background: rgba(180,110,0,.09) !important; border-color: rgba(180,110,0,.25) !important; color: #8B6000 !important; }
     html.light .sb-footer { border-top-color: rgba(0,0,0,.07) !important; }
@@ -182,9 +182,9 @@
 
     /* Filter bar */
     html.light .filter-search { background: #F7FAFF !important; border-color: rgba(0,0,0,.12) !important; color: #111827 !important; }
-    html.light .filter-search:focus { border-color: rgba(181,134,10,.45) !important; }
+    html.light .filter-search:focus { border-color: rgba(212,168,67,.45) !important; }
     html.light .filter-select { background-color: #F7FAFF !important; border-color: rgba(0,0,0,.12) !important; color: #111827 !important; }
-    html.light .filter-select:focus { border-color: rgba(181,134,10,.45) !important; }
+    html.light .filter-select:focus { border-color: rgba(212,168,67,.45) !important; }
     html.light .filter-count { color: #6B7280 !important; }
 
     /* Request cards */
@@ -223,7 +223,7 @@
 <!-- SESSION BANNERS -->
 <div id="sessionWarningBanner" class="session-banner warn">
   Session expires in <strong><span id="sessionCountdown">5 minutes</span></strong>.
-  <button onclick="refreshSession()" style="margin-left:12px;padding:3px 11px;border-radius:6px;background:rgba(255,193,0,.12);border:1px solid rgba(255,193,0,.3);color:#FFC100;font-size:.7rem;cursor:pointer;font-family:'DM Sans',sans-serif">Extend</button>
+  <button onclick="refreshSession()" style="margin-left:12px;padding:3px 11px;border-radius:6px;background:rgba(255,170,46,.12);border:1px solid rgba(255,170,46,.3);color:#FFAA2E;font-size:.7rem;cursor:pointer;font-family:'DM Sans',sans-serif">Extend</button>
 </div>
 <div id="idleWarningBanner" class="session-banner danger">
   Idle timeout in <strong><span id="idleCountdown">2 minutes</span></strong>. Move your mouse or press a key to stay logged in.
@@ -234,15 +234,15 @@
   <div class="login-bg-grid"></div>
   <div class="login-card">
     <div class="login-icon" style="gap:10px;justify-content:center">
-      <img src="/images/SYN.png" alt="Synergy Marine Group" style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(181,134,10,.35);object-fit:contain" />
+      <img src="/images/SYN.png" alt="Synergy Marine Group" style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(212,168,67,.35);object-fit:contain" />
       <img src="/images/AFT.png" alt="AFT" style="width:38px;height:38px;border-radius:50%;border:1px solid rgba(0,0,0,.1);object-fit:contain" />
     </div>
     <div class="login-title">Access Control</div>
     <div class="login-sub">Admin authentication required</div>
     <a id="ssoBtn" href="/auth/sso/login?next=/CST/misecure/access/"
-      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#B5860A,#8A6508);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(181,134,10,.25);transition:opacity .18s,box-shadow .18s"
-      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(181,134,10,.35)'"
-      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(181,134,10,.25)'">
+      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#D4A843,#9A7314);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(212,168,67,.25);transition:opacity .18s,box-shadow .18s"
+      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(212,168,67,.35)'"
+      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(212,168,67,.25)'">
       <svg width="19" height="19" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(255,255,255,.25)"/>
         <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
@@ -262,7 +262,7 @@
 <div id="appWrap">
   <aside class="sidebar">
     <div class="sb-brand">
-      <img src="/images/SYN.png" alt="Synergy" style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(181,134,10,.3);object-fit:contain" />
+      <img src="/images/SYN.png" alt="Synergy" style="width:30px;height:30px;border-radius:50%;border:1px solid rgba(212,168,67,.3);object-fit:contain" />
       <img src="/images/AFT.png" alt="AFT" style="width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,.1);object-fit:contain" />
       <div>
         <div class="sb-name" id="sbBrandName">Synergy</div>
@@ -702,17 +702,17 @@
     return new Promise(resolve => {
       const ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
-      ov.innerHTML = `<div style="background:#1a2332;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      ov.innerHTML = `<div style="background:#0F2038;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
           <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B8A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
           </div>
-          <span style="font-size:.9rem;font-weight:700;color:#FF6B8A">Confirm Action</span>
+          <span style="font-size:.9rem;font-weight:700;color:#FF5C7A">Confirm Action</span>
         </div>
-        <p style="font-size:.82rem;color:#a0aec0;line-height:1.65;margin-bottom:22px">${msg}</p>
+        <p style="font-size:.82rem;color:#7689AE;line-height:1.65;margin-bottom:22px">${msg}</p>
         <div style="display:flex;gap:10px;justify-content:flex-end">
-          <button id="_cdCancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#a0aec0;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>
-          <button id="_cdConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:#FF6B8A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">${confirmLabel || 'Delete'}</button>
+          <button id="_cdCancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#7689AE;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>
+          <button id="_cdConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:#FF5C7A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">${confirmLabel || 'Delete'}</button>
         </div>
       </div>`;
       document.body.appendChild(ov);
