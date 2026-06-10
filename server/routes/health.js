@@ -13,6 +13,7 @@ function createHealthRoute(deps) {
     shuttingDownRef,
     metricsSnapshot,
     authCheck,
+    checkRateLimit,
   } = deps;
 
   function getMemoryStatus() {
@@ -24,10 +25,19 @@ function createHealthRoute(deps) {
     };
   }
 
-  return function handleHealth(req, res, route, method, origin) {
+  return function handleHealth(req, res, route, method, origin, ip) {
     if (method !== 'GET') return false;
     const isDetailed = route === '/health-detailed';
     if (route !== '/health' && !isDetailed) return false;
+
+    // Rate-limit the public health endpoint
+    if (checkRateLimit && ip) {
+      const rl = checkRateLimit(ip, 'default');
+      if (!rl.ok) {
+        sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsHeadersForOrigin(origin || ''));
+        return true;
+      }
+    }
 
     // Detailed endpoint requires admin auth
     if (isDetailed && authCheck && !authCheck(req)) {

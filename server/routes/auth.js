@@ -13,9 +13,12 @@ function createAuthRoutes(deps) {
     clearLoginFailures,
     hashPassword,
     issueToken,
+    verifyToken,
+    revokeToken,
     getAdminUser,
     getAdminPassHash,
     serverReadyRef,
+    isHttps,
   } = deps;
 
   async function handleLogin(req, res, method, route, ip, corsH) {
@@ -54,7 +57,13 @@ function createAuthRoutes(deps) {
       return true;
     }
     clearLoginFailures(ip);
-    sendJSON(res, 200, { token: issueToken(username) }, corsH);
+    const token = issueToken(username);
+    // Set httpOnly cookie (XSS-resistant) alongside body token (backward compat)
+    const secureFlag = isHttps ? '; Secure' : '';
+    sendJSON(res, 200, { token }, {
+      'Set-Cookie': `adminToken=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureFlag}`,
+      ...corsH,
+    });
     return true;
   }
 
@@ -68,10 +77,31 @@ function createAuthRoutes(deps) {
     return true;
   }
 
-  return {
-    handleLogin,
-    handleVerify,
-  };
+  async function handleLogout(req, res, method, route, corsH) {
+    if (!(route === '/auth/logout' && method === 'POST')) return false;
+    // Revoke current session token server-side
+    let token = null;
+    const auth = req.headers['authorization'] || '';
+    if (auth.startsWith('Bearer ')) token = auth.slice(7);
+    if (!token) {
+      const m = (req.headers.cookie || '').match(/(?:^|;\s*)adminToken=([^;]+)/);
+      if (m) token = decodeURIComponent(m[1]);
+    }
+    if (token && revokeToken) {
+      const payload = verifyToken(token);
+      if (payload && payload.jti) revokeToken(payload.jti, payload.exp * 1000);
+    }
+    sendJSON(res, 200, { ok: true }, {
+      'Set-Cookie': [
+        'adminToken=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
+        'sso_admin_token=; Path=/; SameSite=Strict; Max-Age=0',
+      ],
+      ...corsH,
+    });
+    return true;
+  }
+
+  return { handleLogin, handleVerify, handleLogout };
 }
 
 module.exports = { createAuthRoutes };

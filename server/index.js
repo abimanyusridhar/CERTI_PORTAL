@@ -225,9 +225,7 @@ if (!_cfgCheck.ok) {
   log.info(`[Cognito] SSO enabled — pool=${COGNITO_USER_POOL_ID} region=${COGNITO_REGION} domain=${COGNITO_DOMAIN}`);
   if (!COGNITO_CLIENT_SECRET) log.warn('[Cognito] COGNITO_CLIENT_SECRET not set — token exchange will fail if app client has a secret');
   if (COGNITO_IAM_ACCESS_KEY) {
-    const src = process.env.COGNITO_ACCESS_KEY_ID ? 'COGNITO_ACCESS_KEY_ID' : 'AWS_ACCESS_KEY_ID (fallback)';
-    const hint = COGNITO_IAM_ACCESS_KEY.slice(0, 4) + '...' + COGNITO_IAM_ACCESS_KEY.slice(-4);
-    log.info(`[Cognito] Admin API credentials: ${src} (${hint})`);
+    log.info('[Cognito] Admin API credentials configured.');
   } else {
     log.warn('[Cognito] Admin API credentials NOT set — Sync from AWS will fail. Add COGNITO_ACCESS_KEY_ID + COGNITO_SECRET_ACCESS_KEY to .env');
   }
@@ -357,8 +355,14 @@ const RATE_LIMITS = {
   verify:  { max: 30,  window: 60_000  },
   login:   { max: 5,   window: 300_000 },
   track:   { max: 200, window: 60_000  },
+  upload:  { max: 10,  window: 300_000 }, // 10 file uploads per 5 min per IP
   default: { max: 120, window: 60_000  },
 };
+
+// ─── TOKEN REVOCATION LIST ────────────────────────────────────────────────────
+// Maps jti → expiry timestamp (ms). Checked in authCheck after signature verify.
+// Allows immediate server-side logout without waiting for token natural expiry.
+const revokedTokens = new Map();
 const RATE_LIMIT_MAX_ENTRIES = 50_000;
 // Progressive lockout: each tier applies when failCount reaches threshold
 const LOGIN_LOCKOUT_TIERS = [
@@ -411,8 +415,9 @@ function clearLoginFailures(ip) {
 
 const _rlCleanup = setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of rateLimits)    if (now > v.resetAt)    rateLimits.delete(k);
-  for (const [k, v] of loginLockouts) if (now > v.lockedUntil) loginLockouts.delete(k);
+  for (const [k, v] of rateLimits)    if (now > v.resetAt)      rateLimits.delete(k);
+  for (const [k, v] of loginLockouts) if (now > v.lockedUntil)  loginLockouts.delete(k);
+  for (const [k, v] of revokedTokens) if (now > v)              revokedTokens.delete(k);
 }, 60_000);
 
 // ─── SECURITY HEADERS ────────────────────────────────────────────────────────
@@ -1660,12 +1665,23 @@ function s3FileKey(fname) { return TENANT_ID ? `uploads/${TENANT_ID}/${fname}` :
 function s3DocKey(fname)  { return TENANT_ID ? `uploads/${TENANT_ID}/documents/${fname}` : `uploads/documents/${fname}`; }
 function s3DeleteAsync(key) { if (s3.S3_ENABLED && key) s3.deleteFile(key).catch(e => log.warn('S3 delete failed: ' + e.message)); }
 
+// Per-extension upload size limits (enforced before disk write)
+const FILE_SIZE_LIMITS = {
+  '.jpg': 5 * 1024 * 1024, '.jpeg': 5 * 1024 * 1024,
+  '.png': 5 * 1024 * 1024, '.webp': 5 * 1024 * 1024, '.gif': 3 * 1024 * 1024,
+  '.pdf': 10 * 1024 * 1024,
+  '.doc': 5 * 1024 * 1024, '.docx': 5 * 1024 * 1024,
+  '.xls': 5 * 1024 * 1024, '.xlsx': 5 * 1024 * 1024,
+};
+
 function saveCertImageFile(files, prefix, existingPath) {
   const f = files && files.certificateImage;
   if (!f || !f.data || !f.data.length) return null;
   const origExt = path.extname(f.filename || '').toLowerCase();
   if (!ALLOWED_IMG_EXTS.includes(origExt)) throw new Error('Certificate image must be PNG, JPEG, WebP, or GIF.');
   if (!validateFileMagic(f.data, origExt)) throw new Error('Uploaded image content does not match its declared file type.');
+  const _imgMaxBytes = FILE_SIZE_LIMITS[origExt] || 5 * 1024 * 1024;
+  if (f.data.length > _imgMaxBytes) throw new Error(`Image exceeds ${Math.round(_imgMaxBytes / 1024 / 1024)}MB limit.`);
   if (existingPath) {
     const old = path.join(UPLOADS_DIR, path.basename(existingPath));
     if (fs.existsSync(old)) try { fs.unlinkSync(old); } catch { /* non-fatal */ }
@@ -1723,6 +1739,8 @@ function saveAttachmentFile(fileObj, prefix) {
   const origExt = path.extname(fileObj.filename || '').toLowerCase();
   if (!ALLOWED_ATTACHMENT_EXTS.includes(origExt)) throw new Error(`Attachment type '${origExt || 'unknown'}' is not allowed.`);
   if (!validateFileMagic(fileObj.data, origExt)) throw new Error('Attachment content does not match its declared file type.');
+  const _attMaxBytes = FILE_SIZE_LIMITS[origExt] || 5 * 1024 * 1024;
+  if (fileObj.data.length > _attMaxBytes) throw new Error(`Attachment exceeds ${Math.round(_attMaxBytes / 1024 / 1024)}MB limit.`);
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
   if (s3.S3_ENABLED) {
@@ -1786,6 +1804,20 @@ function sanitiseCertBody(obj) {
   }
   if (out.recipientEmail && !validation.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
   if (out.issuerEmail    && !validation.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
+
+  // Whitelist status values — reject anything not in the allowed set
+  const ALLOWED_STATUSES = ['VALID', 'PENDING', 'REVOKED', 'EXPIRED'];
+  if (out.status !== undefined) {
+    const s = String(out.status).toUpperCase().trim();
+    out.status = ALLOWED_STATUSES.includes(s) ? s : undefined;
+  }
+
+  // Cap attachments array to prevent memory exhaustion on bulk import
+  if (out.attachments !== undefined) {
+    if (!Array.isArray(out.attachments)) out.attachments = [];
+    if (out.attachments.length > 20) out.attachments = out.attachments.slice(0, 20);
+  }
+
   return out;
 }
 
@@ -1871,9 +1903,34 @@ function getBody(req, timeoutMs = 10_000) {
 }
 
 function authCheck(req) {
+  // 1. Authorization: Bearer header (admin panel fetch calls)
+  let token = null;
   const auth = req.headers['authorization'] || '';
-  if (!auth.startsWith('Bearer ')) return false;
-  return verifyToken(auth.slice(7)) !== null;
+  if (auth.startsWith('Bearer ')) token = auth.slice(7);
+
+  // 2. httpOnly adminToken cookie (set by login endpoint, XSS-resistant)
+  if (!token) {
+    const m = (req.headers.cookie || '').match(/(?:^|;\s*)adminToken=([^;]+)/);
+    if (m) token = decodeURIComponent(m[1]);
+  }
+
+  if (!token) return false;
+  const payload = verifyToken(token);
+  if (!payload) return false;
+  // Check server-side revocation list (populated on logout)
+  if (payload.jti && revokedTokens.has(payload.jti)) return false;
+  return true;
+}
+
+function getTokenPayload(req) {
+  let token = null;
+  const auth = req.headers['authorization'] || '';
+  if (auth.startsWith('Bearer ')) token = auth.slice(7);
+  if (!token) {
+    const m = (req.headers.cookie || '').match(/(?:^|;\s*)adminToken=([^;]+)/);
+    if (m) token = decodeURIComponent(m[1]);
+  }
+  return token ? verifyToken(token) : null;
 }
 
 // ─── CORS HELPER ─────────────────────────────────────────────────────────────
@@ -1993,6 +2050,7 @@ const healthRoute = createHealthRoute({
   shuttingDownRef: () => isShuttingDown,
   metricsSnapshot: () => metrics.snapshot(),
   authCheck,
+  checkRateLimit,
 });
 const authRoutes = createAuthRoutes({
   sendJSON,
@@ -2004,9 +2062,12 @@ const authRoutes = createAuthRoutes({
   clearLoginFailures,
   hashPassword,
   issueToken,
+  verifyToken,
+  revokeToken: (jti, expMs) => revokedTokens.set(jti, expMs),
   getAdminUser: () => ADMIN_USER,
   getAdminPassHash: () => ADMIN_PASS_HASH,
   serverReadyRef: () => serverReady,
+  isHttps: _isHttps,
 });
 
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
@@ -2043,9 +2104,10 @@ async function handleAPI(req, res, parsed) {
     return res.end();
   }
 
-  if (healthRoute(req, res, route, method, origin)) return;
+  if (healthRoute(req, res, route, method, origin, ip)) return;
   if (await authRoutes.handleLogin(req, res, method, route, ip, corsH)) return;
   if (authRoutes.handleVerify(req, res, method, route, corsH)) return;
+  if (await authRoutes.handleLogout(req, res, method, route, corsH)) return;
 
   // ── POST /api/auth/login ──────────────────────────────────────────────────
   if (route === '/auth/login' && method === 'POST') {
@@ -2264,6 +2326,8 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/certs ── (admin — create)
   if (route === '/certs' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    const _ulCst = checkRateLimit(ip, 'upload');
+    if (!_ulCst.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulCst.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
     let cert;
     try {
@@ -2829,6 +2893,8 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/vapt/certs ── (admin — create VAPT cert)
   if (route === '/vapt/certs' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    const _ulVapt = checkRateLimit(ip, 'upload');
+    if (!_ulVapt.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulVapt.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
     let cert;
     try {
@@ -3152,6 +3218,8 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/docs/upload ── (admin — upload a document for a vessel)
   if (route === '/docs/upload' && method === 'POST') {
     if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    const _ulDoc = checkRateLimit(ip, 'upload');
+    if (!_ulDoc.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulDoc.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
     if (!ct.includes('multipart/form-data')) return sendJSON(res, 400, { error: 'multipart/form-data required' }, corsH);
     let fields, files;
@@ -3895,6 +3963,12 @@ async function handleRequest(req, res) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');
     }
+    // Reject directory traversal to actual directories
+    if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
+      res.writeHead(403, SECURITY_HEADERS);
+      return res.end('Forbidden');
+    }
+
     if (!fs.existsSync(fpath)) {
       // Try S3 fallback (for files uploaded before local disk was available,
       // or after an instance replacement where the local uploads/ dir is empty)
@@ -3979,14 +4053,17 @@ async function handleRequest(req, res) {
 
     try {
       const content = fs.readFileSync(fpath);
+      // Images (cert thumbnails) served inline; all other files forced to download
+      // to prevent XSS via PDF JS injection or malicious office macros.
+      const serveInline = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
+      const disposition  = serveInline ? `inline; filename="${fname}"` : `attachment; filename="${fname}"`;
       res.writeHead(200, {
         ...SECURITY_HEADERS,
         'Content-Type':        mime,
         'Content-Length':      content.length,
-        'Cache-Control':       'private, max-age=3600',
-        // SAMEORIGIN allows inline PDF viewing in same-origin iframes; overrides DENY from SECURITY_HEADERS
-        'X-Frame-Options':     'SAMEORIGIN',
-        'Content-Disposition': isPdf ? `inline; filename="${fname}"` : 'inline',
+        'Cache-Control':       serveInline ? 'private, max-age=3600' : 'private, no-store',
+        'X-Frame-Options':     'DENY',
+        'Content-Disposition': disposition,
       });
       return res.end(content);
     } catch {
@@ -4200,19 +4277,6 @@ async function startServer() {
     console.log('  PUBLIC PORTALS');
     u('CST Portal',   BASE_ORIGIN + CFG.routes.cst);
     u('VAPT Portal',  BASE_ORIGIN + CFG.routes.vpt);
-    console.log('');
-    console.log('  CST ADMIN');
-    u('Dashboard',    cstA + '/');
-    u('Documents',    cstA + '/documents/');
-    u('Access Ctrl',  cstA + '/access/');
-    console.log('');
-    console.log('  VAPT ADMIN');
-    u('Dashboard',    vptA + '/');
-    console.log('');
-    console.log('  SUPER ADMIN');
-    u('Users',        cstA + '/users/');
-    u('Groups',       cstA + '/groups/');
-    u('Supt Portal',  cstA + '/portal/');
     console.log('');
     console.log('  HEALTH / STATUS');
     u('Health',       BASE_ORIGIN + '/api/health');
