@@ -1,208 +1,176 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * ONE-TIME MIGRATION SCRIPT
- * Reads existing JSON data files + uploads/ directory,
- * writes everything to DynamoDB tables and S3.
+ * ONE-TIME MIGRATION SCRIPT — pushes all existing data to S3.
  *
- * Run ONCE on EC2 after setting up AWS resources:
+ * Run this ONCE on your EC2 instance after setting environment variables.
+ * Uses the same zero-dependency S3 service already built into the app.
+ *
+ * Usage:
+ *   export S3_BUCKET=synergy-cert-portal-uploads
+ *   export S3_REGION=ap-south-1
+ *   export S3_ACCESS_KEY=AKIAxxxxxxxxxxxxxxxx
+ *   export S3_SECRET_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ *   export TENANT_ID=SYNCERT
  *   node scripts/migrate-to-aws.js
- *
- * Required environment variables (set before running):
- *   AWS_REGION      e.g.  ap-south-1
- *   AWS_ACCOUNT_ID  e.g.  123456789012  (only needed if using explicit creds)
- *   S3_BUCKET       e.g.  synergy-cert-portal-uploads
- *   TENANT_ID       e.g.  SYNCERT
- *
- * If running on EC2 with an IAM role attached, AWS credentials are
- * automatically available — no access keys needed.
  */
 
 const fs   = require('fs');
 const path = require('path');
 
-// ── Config ────────────────────────────────────────────────────────────────────
-const TENANT_ID  = process.env.TENANT_ID || 'SYNCERT';
-const S3_BUCKET  = process.env.S3_BUCKET;
-const AWS_REGION = process.env.AWS_REGION || 'ap-south-1';
-
-const ROOT       = path.resolve(__dirname, '..');
-const DATA_DIR   = path.join(ROOT, 'data', TENANT_ID);
-const DATA_ROOT  = path.join(ROOT, 'data');
-const UPLOADS    = path.join(ROOT, 'uploads');
-
-// DynamoDB table names — must match what you created in AWS console
-const TABLES = {
-  cst:       'synergy-cst-certs',
-  vapt:      'synergy-vapt-certs',
-  documents: 'synergy-documents',
-  docAccess: 'synergy-doc-access',
-  users:     'synergy-users',
-  groups:    'synergy-groups',
-};
-
-if (!S3_BUCKET) {
-  console.error('ERROR: S3_BUCKET environment variable is required.');
-  process.exit(1);
+// Bootstrap env from .env if present
+const envFile = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, 'utf8').split('\n')) {
+    const m = line.trim().match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+  }
 }
 
-// ── AWS SDK (installed via npm install) ───────────────────────────────────────
-const { DynamoDBClient }         = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient,
-        BatchWriteCommand }       = require('@aws-sdk/lib-dynamodb');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const TENANT_ID = process.env.TENANT_ID || 'SYNCERT';
+const ROOT      = path.resolve(__dirname, '..');
 
-const rawDdb = new DynamoDBClient({ region: AWS_REGION });
-const ddb    = DynamoDBDocumentClient.from(rawDdb, {
-  marshallOptions: { removeUndefinedValues: true },
-});
-const s3     = new S3Client({ region: AWS_REGION });
+// Validate S3 config before loading the module
+if (!process.env.S3_BUCKET)      { console.error('ERROR: S3_BUCKET is not set');      process.exit(1); }
+if (!process.env.S3_ACCESS_KEY && !process.env.AWS_ACCESS_KEY_ID) {
+  console.error('ERROR: S3_ACCESS_KEY (or AWS_ACCESS_KEY_ID) is not set'); process.exit(1);
+}
+if (!process.env.S3_SECRET_KEY && !process.env.AWS_SECRET_ACCESS_KEY) {
+  console.error('ERROR: S3_SECRET_KEY (or AWS_SECRET_ACCESS_KEY) is not set'); process.exit(1);
+}
+
+const s3 = require('../server/services/s3');
+const BUCKET = s3.BUCKET;
+const REGION = s3.REGION;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function loadJson(filePath) {
-  if (!fs.existsSync(filePath)) { console.log(`  (skip — not found: ${filePath})`); return {}; }
-  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-  catch (e) { console.warn(`  WARNING: could not parse ${filePath}:`, e.message); return {}; }
+function findFile(...paths) {
+  for (const p of paths) if (fs.existsSync(p)) return p;
+  return null;
 }
 
-async function batchPutDdb(tableName, tenantId, records) {
-  const ids = Object.keys(records);
-  if (!ids.length) { console.log(`  ${tableName}: 0 records — skip`); return; }
-  const chunks = [];
-  for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
-  let count = 0;
-  for (const chunk of chunks) {
-    await ddb.send(new BatchWriteCommand({
-      RequestItems: {
-        [tableName]: chunk.map(id => ({
-          PutRequest: { Item: { pk: tenantId, sk: id, ...records[id] } },
-        })),
-      },
-    }));
-    count += chunk.length;
-    process.stdout.write(`\r  ${tableName}: ${count}/${ids.length} records written`);
-  }
-  console.log(`\r  ${tableName}: ${ids.length} records migrated ✓`);
+function loadJson(fp) {
+  try { return JSON.parse(fs.readFileSync(fp, 'utf8')); }
+  catch { return null; }
 }
 
-function mimeFor(filename) {
-  const ext = path.extname(filename).toLowerCase();
-  return { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-           '.webp': 'image/webp', '.pdf': 'application/pdf',
-           '.doc': 'application/msword',
-           '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-           '.xls': 'application/vnd.ms-excel',
-           '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-         }[ext] || 'application/octet-stream';
+async function putJson(key, data) {
+  await s3.putJson(key, data);
 }
 
-async function uploadToS3(localPath, s3Key) {
+async function putFile(key, localPath) {
   const buf  = fs.readFileSync(localPath);
-  const mime = mimeFor(localPath);
-  await s3.send(new PutObjectCommand({
-    Bucket: S3_BUCKET, Key: s3Key,
-    Body: buf, ContentType: mime,
-    ServerSideEncryption: 'AES256',
-  }));
+  const ext  = path.extname(localPath).toLowerCase();
+  const mime = {
+    '.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp',
+    '.gif':'image/gif','.pdf':'application/pdf','.doc':'application/msword',
+    '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls':'application/vnd.ms-excel',
+    '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  }[ext] || 'application/octet-stream';
+  await s3.uploadFile(key, buf, mime);
 }
 
-// ── Walk all upload directories ───────────────────────────────────────────────
-function collectUploadFiles() {
-  const result = [];
-  function walk(dir, prefix) {
-    if (!fs.existsSync(dir)) return;
-    for (const name of fs.readdirSync(dir)) {
-      const full = path.join(dir, name);
-      const rel  = prefix ? `${prefix}/${name}` : name;
-      if (fs.statSync(full).isDirectory()) {
-        walk(full, rel);
-      } else {
-        result.push({ local: full, rel });
-      }
-    }
+function walk(dir) {
+  if (!fs.existsSync(dir)) return [];
+  const results = [];
+  for (const name of fs.readdirSync(dir)) {
+    const full = path.join(dir, name);
+    if (fs.statSync(full).isDirectory()) results.push(...walk(full));
+    else results.push(full);
   }
-  // uploads/<file> (flat) — tenant root files
-  walk(UPLOADS, TENANT_ID);
-  return result;
+  return results;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('');
-  console.log('═══════════════════════════════════════════════════');
-  console.log(' Synergy Cert Portal — AWS Migration Script');
-  console.log(`  Tenant   : ${TENANT_ID}`);
-  console.log(`  S3 Bucket: ${S3_BUCKET}`);
-  console.log(`  Region   : ${AWS_REGION}`);
-  console.log('═══════════════════════════════════════════════════');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log(' Synergy Cert Portal — S3 Migration');
+  console.log(`  Tenant : ${TENANT_ID}`);
+  console.log(`  Bucket : ${BUCKET}`);
+  console.log(`  Region : ${REGION}`);
+  console.log('═══════════════════════════════════════════════════════════');
   console.log('');
 
-  // ── STEP 1: Migrate JSON data to DynamoDB ──────────────────────────────────
-  console.log('STEP 1 — Migrating JSON data files → DynamoDB');
-  console.log('─────────────────────────────────────────────');
+  const tenantDataDir = path.join(ROOT, 'data', TENANT_ID);
+  const rootDataDir   = path.join(ROOT, 'data');
 
-  // Try tenant-specific dir first, fall back to root data dir
-  const dataDirs = [DATA_DIR, DATA_ROOT];
-  function findJson(filename) {
-    for (const d of dataDirs) {
-      const fp = path.join(d, filename);
-      if (fs.existsSync(fp)) return fp;
+  // ── STEP 1: Push JSON data files to S3 ──────────────────────────────────
+  console.log('STEP 1 — Uploading data files to S3');
+  console.log('─────────────────────────────────────────────────────────');
+
+  const dataFiles = [
+    { name: 'certificates.json',       s3Key: `data/${TENANT_ID}/certificates.json` },
+    { name: 'vapt_certificates.json',  s3Key: `data/${TENANT_ID}/vapt_certificates.json` },
+    { name: 'documents.json',          s3Key: `data/${TENANT_ID}/documents.json` },
+    { name: 'doc_access_requests.json',s3Key: `data/${TENANT_ID}/doc_access_requests.json` },
+    { name: 'users.json',              s3Key: `data/${TENANT_ID}/users.json` },
+    { name: 'groups.json',             s3Key: `data/${TENANT_ID}/groups.json` },
+  ];
+
+  for (const { name, s3Key } of dataFiles) {
+    const fp = findFile(path.join(tenantDataDir, name), path.join(rootDataDir, name));
+    if (!fp) {
+      console.log(`  [SKIP] ${name} — not found locally`);
+      continue;
     }
-    return null;
+    const data = loadJson(fp);
+    if (!data) { console.log(`  [SKIP] ${name} — could not parse`); continue; }
+    const count = Object.keys(data).length;
+    try {
+      await putJson(s3Key, data);
+      console.log(`  [OK]   ${name} → s3://${BUCKET}/${s3Key}  (${count} records)`);
+    } catch (e) {
+      console.error(`  [FAIL] ${name}: ${e.message}`);
+    }
   }
 
-  const cstPath  = findJson('certificates.json');
-  const vaptPath = findJson('vapt_certificates.json');
-  const docsPath = findJson('documents.json');
-  const daPath   = findJson('doc_access_requests.json');
-  const usrPath  = findJson('users.json');
-  const grpPath  = findJson('groups.json');
-
-  await batchPutDdb(TABLES.cst,       TENANT_ID, cstPath  ? loadJson(cstPath)  : {});
-  await batchPutDdb(TABLES.vapt,      TENANT_ID, vaptPath ? loadJson(vaptPath) : {});
-  await batchPutDdb(TABLES.documents, TENANT_ID, docsPath ? loadJson(docsPath) : {});
-  await batchPutDdb(TABLES.docAccess, TENANT_ID, daPath   ? loadJson(daPath)   : {});
-  await batchPutDdb(TABLES.users,     TENANT_ID, usrPath  ? loadJson(usrPath)  : {});
-  await batchPutDdb(TABLES.groups,    TENANT_ID, grpPath  ? loadJson(grpPath)  : {});
-
   console.log('');
 
-  // ── STEP 2: Migrate upload files to S3 ────────────────────────────────────
-  console.log('STEP 2 — Migrating upload files → S3');
-  console.log('─────────────────────────────────────');
+  // ── STEP 2: Push upload files to S3 ────────────────────────────────────
+  console.log('STEP 2 — Uploading cert images and attachments to S3');
+  console.log('─────────────────────────────────────────────────────────');
 
-  const files = collectUploadFiles();
-  if (!files.length) {
-    console.log('  No upload files found — skip');
+  const uploadsDir = path.join(ROOT, 'uploads');
+  const allFiles   = walk(uploadsDir);
+
+  if (!allFiles.length) {
+    console.log('  No files found in uploads/ — skip');
   } else {
-    let ok = 0, fail = 0;
-    for (const { local, rel } of files) {
+    let ok = 0, skip = 0, fail = 0;
+    for (const localPath of allFiles) {
+      // Build S3 key: uploads/SYNCERT/cert_xxx.png
+      const rel = path.relative(uploadsDir, localPath).replace(/\\/g, '/');
+      const s3Key = `uploads/${rel.startsWith(TENANT_ID + '/') ? rel : TENANT_ID + '/' + rel}`;
       try {
-        await uploadToS3(local, rel);
+        await putFile(s3Key, localPath);
         ok++;
-        process.stdout.write(`\r  Uploaded ${ok + fail}/${files.length}: ${path.basename(local)}`);
+        process.stdout.write(`\r  Uploaded ${ok + fail}/${allFiles.length}: ${path.basename(localPath)}        `);
       } catch (e) {
         fail++;
-        console.error(`\n  FAILED ${local}: ${e.message}`);
+        console.error(`\n  [FAIL] ${localPath}: ${e.message}`);
       }
     }
-    console.log(`\r  ${ok} files uploaded to s3://${S3_BUCKET}  (${fail} failed) ✓`);
+    console.log(`\r  ${ok} files uploaded to s3://${BUCKET}  (${fail} failed)           `);
   }
 
   console.log('');
-  console.log('═══════════════════════════════════════════════════');
+  console.log('═══════════════════════════════════════════════════════════');
   console.log(' Migration complete!');
   console.log('');
-  console.log(' Next steps:');
-  console.log('  1. Set environment variables in your EC2 process manager:');
-  console.log(`       AWS_REGION=${AWS_REGION}`);
-  console.log(`       S3_BUCKET=${S3_BUCKET}`);
-  console.log(`       STORAGE_BACKEND=dynamodb`);
-  console.log('  2. Restart the application: pm2 restart cert-portal');
-  console.log('  3. Verify data in AWS Console (DynamoDB → Tables → Items)');
-  console.log('  4. Verify files in S3 Console');
-  console.log('  5. After confirming everything works, backup and remove data/');
-  console.log('═══════════════════════════════════════════════════');
+  console.log(' NEXT: Set these env vars in your PM2 / systemd config,');
+  console.log(' then restart the app:');
+  console.log('');
+  console.log(`   S3_BUCKET=${BUCKET}`);
+  console.log(`   S3_REGION=${REGION}`);
+  console.log(`   S3_ACCESS_KEY=<your-access-key>`);
+  console.log(`   S3_SECRET_KEY=<your-secret-key>`);
+  console.log(`   TENANT_ID=${TENANT_ID}`);
+  console.log('');
+  console.log(' Verify in AWS Console:');
+  console.log(`   S3 → ${BUCKET} → data/ and uploads/`);
+  console.log('═══════════════════════════════════════════════════════════');
   console.log('');
 }
 

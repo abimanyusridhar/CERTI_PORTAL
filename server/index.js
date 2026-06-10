@@ -39,11 +39,18 @@ const crypto = require('crypto');
 const { log } = require('./logger');
 const { loadDotEnv, validateRuntimeConfig } = require('./config/env');
 const { createJsonStore } = require('./repositories/jsonStore');
+const { createS3JsonStore } = require('./repositories/s3JsonStore');
 const { createSecurityService, validation } = require('./services/security');
 const { createMetrics } = require('./ops/metrics');
 const { createHealthRoute } = require('./routes/health');
 const { createAuthRoutes } = require('./routes/auth');
 const s3 = require('./services/s3');
+
+// When S3_BUCKET + keys are set, use S3-backed stores; otherwise fall back to local JSON files.
+function _makeStore(opts) {
+  if (s3.S3_ENABLED && opts.s3Key) return createS3JsonStore(opts);
+  return createJsonStore(opts);
+}
 
 // ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
 let CFG = require('../config/app.config');
@@ -474,8 +481,9 @@ const SEED = {
 
 // ─── DATA STORE ──────────────────────────────────────────────────────────────
 let _certCache = null;
-const cstStore = createJsonStore({
+const cstStore = _makeStore({
   filePath: DATA_FILE,
+  s3Key:    `data/${TENANT_ID || 'default'}/certificates.json`,
   seedData: SEED,
   onError: (err) => log.error('Failed to persist certificate data:', err.message),
   debounceMs: 50,
@@ -519,8 +527,9 @@ const VAPT_SEED = {
 
 // ─── VAPT DATA STORE ─────────────────────────────────────────────────────────
 let _vaptCache = null;
-const vaptStore = createJsonStore({
+const vaptStore = _makeStore({
   filePath: VAPT_DATA_FILE,
+  s3Key:    `data/${TENANT_ID || 'default'}/vapt_certificates.json`,
   seedData: VAPT_SEED,
   onError: (err) => log.error('Failed to persist VAPT certificate data:', err.message),
   debounceMs: 50,
@@ -541,8 +550,9 @@ function buildVaptCertUrl(certId, baseUrl) {
 
 // ─── DOCUMENTS STORE ─────────────────────────────────────────────────────────
 let _docsCache = null;
-const docsStore = createJsonStore({
+const docsStore = _makeStore({
   filePath: DOCS_FILE,
+  s3Key:    `data/${TENANT_ID || 'default'}/documents.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist documents data:', err.message),
   debounceMs: 50,
@@ -682,8 +692,9 @@ function resolveCertificateAttachment(attId) {
 
 // ─── DOC ACCESS REQUESTS STORE ───────────────────────────────────────────────
 let _docAccessCache = null;
-const docAccessStore = createJsonStore({
+const docAccessStore = _makeStore({
   filePath: DOC_ACCESS_FILE,
+  s3Key:    `data/${TENANT_ID || 'default'}/doc_access_requests.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist doc access data:', err.message),
   debounceMs: 50,
@@ -693,8 +704,9 @@ function saveDocAccess(data) { _docAccessCache = data; docAccessStore.save(data)
 
 // ─── USERS STORE ─────────────────────────────────────────────────────────────
 let _usersCache = null;
-const usersStore = createJsonStore({
+const usersStore = _makeStore({
   filePath: USERS_FILE,
+  s3Key:    `data/${TENANT_ID || 'default'}/users.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist users data:', err.message),
   debounceMs: 50,
@@ -861,8 +873,9 @@ function cognitoAdminCreateUser(email, name) {
 
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
 let _groupsCache = null;
-const groupsStore = createJsonStore({
+const groupsStore = _makeStore({
   filePath: GROUPS_FILE,
+  s3Key:    `data/${TENANT_ID || 'default'}/groups.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist groups data:', err.message),
   debounceMs: 50,
@@ -3873,6 +3886,18 @@ async function handleRequest(req, res) {
       return res.end('Forbidden');
     }
     if (!fs.existsSync(fpath)) {
+      // Try S3 fallback (for files uploaded before local disk was available,
+      // or after an instance replacement where the local uploads/ dir is empty)
+      if (s3.S3_ENABLED) {
+        try {
+          const s3Key = TENANT_ID ? `uploads/${TENANT_ID}/${relPath}` : `uploads/${relPath}`;
+          const buf   = await s3.downloadFile(s3Key);
+          const ext2  = path.extname(relPath).toLowerCase();
+          const mime2 = MIME[ext2] || 'application/octet-stream';
+          res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': mime2, 'Cache-Control': 'public, max-age=86400' });
+          return res.end(buf);
+        } catch { /* not in S3 either — fall through to 404 */ }
+      }
       res.writeHead(404, SECURITY_HEADERS);
       return res.end('Not found');
     }

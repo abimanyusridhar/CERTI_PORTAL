@@ -1,99 +1,94 @@
-# AWS Migration Guide — Synergy Cert Portal
-## DynamoDB (data) + S3 (uploads)
+# AWS S3 Migration — Step by Step
+## Synergy Cert Portal (Live EC2 → S3 Backed Storage)
 
 ---
 
-## WHAT IS CHANGING
+## WHAT THIS DOES
 
-| Currently (EC2 disk)               | After migration (AWS managed)      |
-|------------------------------------|------------------------------------|
-| `data/SYNCERT/certificates.json`   | DynamoDB table `synergy-cst-certs` |
-| `data/SYNCERT/vapt_certificates.json` | DynamoDB table `synergy-vapt-certs` |
-| `data/SYNCERT/documents.json`      | DynamoDB table `synergy-documents` |
-| `data/SYNCERT/users.json`          | DynamoDB table `synergy-users`     |
-| `data/SYNCERT/groups.json`         | DynamoDB table `synergy-groups`    |
-| `data/SYNCERT/doc_access_requests.json` | DynamoDB table `synergy-doc-access` |
-| `uploads/` directory               | S3 bucket `synergy-cert-portal-uploads` |
+Your app currently saves data to files on the EC2 disk.
+After this migration, all data is saved to AWS S3 automatically.
 
-**Benefits after migration:**
-- Data survives EC2 instance replacement / AMI changes
-- No more risk of losing certs if the disk fills up or instance is terminated
-- S3 files are replicated across 3 availability zones (99.999999999% durability)
-- DynamoDB auto-scales, no storage limits
-- Enables running multiple EC2 instances (horizontal scaling) later
+```
+BEFORE:                          AFTER:
+EC2 Disk (disappears if          AWS S3 (permanent, replicated,
+instance is replaced)            survives any EC2 change)
+  data/SYNCERT/                    s3://your-bucket/data/SYNCERT/
+    certificates.json                certificates.json
+    vapt_certificates.json           vapt_certificates.json
+    users.json                       users.json
+    groups.json                      groups.json
+    ...                              ...
+  uploads/                         s3://your-bucket/uploads/SYNCERT/
+    cert_abc123.png                  cert_abc123.png
+    cert_xyz789.pdf                  cert_xyz789.pdf
+```
+
+**No code rewrite. No database server to manage. No npm packages.**
+The S3 integration is already built into the application — just needs to be switched on.
+
+**Downtime required: ZERO.** The app keeps working from local files during
+migration. S3 becomes the backup automatically. On restart, S3 is primary.
 
 ---
 
-## PART 1 — AWS CONSOLE SETUP (do this first)
+## PART 1 — AWS CONSOLE SETUP
 
-### STEP 1: Create the S3 Bucket
+### STEP 1 — Create the S3 Bucket
 
-1. Open **AWS Console → S3 → Create bucket**
-2. **Bucket name:** `synergy-cert-portal-uploads`  *(must be globally unique — add your account ID suffix if taken)*
-3. **Region:** same region as your EC2 instance (e.g. `ap-south-1`)
-4. **Block Public Access:** Keep ALL options CHECKED (private bucket — files served via app)
-5. **Versioning:** Enable (protects against accidental deletion)
-6. **Encryption:** Server-side encryption with Amazon S3 managed keys (SSE-S3)
-7. Click **Create bucket**
+1. Log in to **AWS Console** → go to **S3**
+2. Click **"Create bucket"**
+3. Fill in:
+   - **Bucket name:** `synergy-cert-portal-uploads`
+     *(must be globally unique — if taken, try `synergy-cert-portal-uploads-2024`)*
+   - **AWS Region:** choose the same region as your EC2 instance
+     *(check EC2 → Instances to see your region, e.g. `ap-south-1`)*
+4. Under **"Block Public Access settings for this bucket"**
+   - Keep **all 4 checkboxes CHECKED** (files stay private — app controls access)
+5. Under **"Bucket Versioning"** → click **Enable**
+   *(protects against accidental deletion — keeps old versions)*
+6. Under **"Default encryption"** → leave as is (SSE-S3 is default)
+7. Click **"Create bucket"**
 
-### STEP 2: Create DynamoDB Tables
+✅ Bucket created.
 
-Repeat the following for each table (6 total):
+---
 
-1. Open **AWS Console → DynamoDB → Tables → Create table**
-2. Use these exact settings for ALL tables:
+### STEP 2 — Create an IAM User for S3 Access
 
-| Table name               | Partition key | Sort key | Billing mode      |
-|--------------------------|---------------|----------|-------------------|
-| `synergy-cst-certs`      | `pk` (String) | `sk` (String) | On-demand    |
-| `synergy-vapt-certs`     | `pk` (String) | `sk` (String) | On-demand    |
-| `synergy-documents`      | `pk` (String) | `sk` (String) | On-demand    |
-| `synergy-doc-access`     | `pk` (String) | `sk` (String) | On-demand    |
-| `synergy-users`          | `pk` (String) | `sk` (String) | On-demand    |
-| `synergy-groups`         | `pk` (String) | `sk` (String) | On-demand    |
+> **Why a user and not a role?**
+> You already have access keys configured for SES email — we follow the same pattern
+> for simplicity. If you prefer, you can use an EC2 IAM role instead (no keys needed),
+> but that requires attaching the role to the instance in the AWS console.
 
-- **Billing mode:** On-demand (no capacity planning, pay per request)
-- **Encryption:** AWS owned key (default)
-- Leave all other settings as default
+1. Go to **AWS Console → IAM**
+2. Click **"Users"** in the left menu → **"Create user"**
+3. **Username:** `synergy-cert-portal-s3`
+4. Click **Next** (skip console access — this is a service account)
+5. On **"Set permissions"** → choose **"Attach policies directly"**
+6. Click **"Create policy"** (this opens in a new tab)
 
-### STEP 3: Create IAM Policy
+---
 
-1. Open **AWS Console → IAM → Policies → Create policy**
-2. Switch to **JSON** tab and paste:
+### STEP 3 — Create the IAM Policy
+
+*(You should be in the "Create policy" tab from Step 2)*
+
+1. Click the **"JSON"** tab at the top
+2. Delete everything in the box and paste this:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "DynamoDBAccess",
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:GetItem",
-        "dynamodb:PutItem",
-        "dynamodb:DeleteItem",
-        "dynamodb:BatchWriteItem",
-        "dynamodb:Scan",
-        "dynamodb:Query"
-      ],
-      "Resource": [
-        "arn:aws:dynamodb:ap-south-1:*:table/synergy-cst-certs",
-        "arn:aws:dynamodb:ap-south-1:*:table/synergy-vapt-certs",
-        "arn:aws:dynamodb:ap-south-1:*:table/synergy-documents",
-        "arn:aws:dynamodb:ap-south-1:*:table/synergy-doc-access",
-        "arn:aws:dynamodb:ap-south-1:*:table/synergy-users",
-        "arn:aws:dynamodb:ap-south-1:*:table/synergy-groups"
-      ]
-    },
-    {
-      "Sid": "S3Access",
+      "Sid": "S3CertPortal",
       "Effect": "Allow",
       "Action": [
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject",
-        "s3:HeadObject",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:HeadObject"
       ],
       "Resource": [
         "arn:aws:s3:::synergy-cert-portal-uploads",
@@ -104,67 +99,172 @@ Repeat the following for each table (6 total):
 }
 ```
 
-> **Replace `ap-south-1`** with your actual region if different.
+> **Important:** if you used a different bucket name in Step 1,
+> replace `synergy-cert-portal-uploads` in both Resource lines.
 
-3. **Policy name:** `SynergyCertPortalPolicy`
-4. Click **Create policy**
-
-### STEP 4: Create IAM Role and attach to EC2
-
-1. **IAM → Roles → Create role**
-2. **Trusted entity:** AWS service → EC2
-3. **Attach policy:** search and select `SynergyCertPortalPolicy`
-4. **Role name:** `SynergyCertPortalEC2Role`
-5. Click **Create role**
-
-6. **Attach role to EC2:**
-   - Go to **EC2 → Instances → select your instance**
-   - **Actions → Security → Modify IAM role**
-   - Select `SynergyCertPortalEC2Role` → **Update IAM role**
-
-> This lets the EC2 instance authenticate to AWS automatically.
-> **No access keys / secret keys needed in the application.**
+3. Click **"Next"**
+4. **Policy name:** `SynergyCertPortalS3Policy`
+5. Click **"Create policy"**
+6. **Close this tab** and go back to the Create User tab
 
 ---
 
-## PART 2 — APPLICATION SETUP (on your EC2 instance)
+### STEP 4 — Attach Policy to the User
 
-SSH into your EC2 instance and run these commands:
+*(Back in the "Create user" tab)*
 
-### STEP 5: Install Node.js dependencies
+1. Click the **refresh icon** next to "Search policies"
+2. Search for: `SynergyCertPortalS3Policy`
+3. Check the box next to it
+4. Click **Next** → **"Create user"**
+
+✅ User created.
+
+---
+
+### STEP 5 — Create Access Keys
+
+1. Click on the user `synergy-cert-portal-s3` you just created
+2. Click the **"Security credentials"** tab
+3. Scroll to **"Access keys"** → click **"Create access key"**
+4. **Use case:** select **"Application running outside AWS"** → Next
+5. Click **"Create access key"**
+6. **IMPORTANT:** You will see:
+   - **Access key ID** (looks like: `AKIAxxxxxxxxxxxxxxxx`)
+   - **Secret access key** (long string — only shown ONCE)
+7. **Copy both and save them somewhere safe** (e.g. a secure notes app)
+8. Click **Done**
+
+✅ AWS setup complete. Now go to your EC2 instance.
+
+---
+
+## PART 2 — EC2 INSTANCE SETUP
+
+SSH into your EC2 instance for all commands below.
+
+### STEP 6 — Pull Latest Code
 
 ```bash
-cd /path/to/synergy-cert-portal    # your app directory
-npm install
+cd /path/to/your/app        # e.g. cd /home/ec2-user/synergy-cert-portal
+
+git pull origin master
 ```
 
-This installs: `@aws-sdk/client-dynamodb`, `@aws-sdk/client-s3`, `@aws-sdk/lib-dynamodb`, `@aws-sdk/s3-request-presigner`
+This gets the new S3 store code.
 
-### STEP 6: Set environment variables
+---
 
-Add these to your process manager or `/etc/environment`:
+### STEP 7 — Back Up Your Data (Safety First)
 
-**If using PM2:**
+Before touching anything, create a backup:
+
 ```bash
-pm2 set cert-portal:AWS_REGION ap-south-1
-pm2 set cert-portal:S3_BUCKET synergy-cert-portal-uploads
-pm2 set cert-portal:STORAGE_BACKEND dynamodb
+# Create a timestamped backup of data and uploads
+cp -r data/ data_backup_$(date +%Y%m%d_%H%M%S)/
+cp -r uploads/ uploads_backup_$(date +%Y%m%d_%H%M%S)/
+
+echo "Backup created"
+ls -la data_backup_* uploads_backup_*
 ```
 
-**Or add to your `.env` file / ecosystem.config.js:**
+✅ You now have a safe copy. If anything goes wrong, your data is here.
+
+---
+
+### STEP 8 — Set Environment Variables
+
+Find how your app starts. Likely one of these:
+
+**Option A — PM2 (most common):**
 ```bash
-AWS_REGION=ap-south-1
+pm2 show cert-portal    # or whatever your app name is
+```
+
+**Option B — systemd:**
+```bash
+cat /etc/systemd/system/cert-portal.service
+```
+
+**Option C — .env file:**
+```bash
+cat /path/to/your/app/.env
+```
+
+Now add the S3 variables. **Use the method that matches how your app is started:**
+
+---
+
+**If using .env file:**
+```bash
+cd /path/to/your/app
+nano .env
+```
+
+Add these lines at the bottom:
+```
 S3_BUCKET=synergy-cert-portal-uploads
-STORAGE_BACKEND=dynamodb
+S3_REGION=ap-south-1
+S3_ACCESS_KEY=AKIAxxxxxxxxxxxxxxxx
+S3_SECRET_KEY=your-secret-key-here
+```
+*(Replace `ap-south-1` with your actual region, and use your real keys from Step 5)*
+
+Save: press `Ctrl+X`, then `Y`, then `Enter`
+
+---
+
+**If using PM2 ecosystem.config.js:**
+```bash
+cd /path/to/your/app
+nano ecosystem.config.js
 ```
 
-### STEP 7: Run the migration script
+Add to the `env` section:
+```javascript
+env: {
+  // ... existing variables ...
+  S3_BUCKET: 'synergy-cert-portal-uploads',
+  S3_REGION: 'ap-south-1',
+  S3_ACCESS_KEY: 'AKIAxxxxxxxxxxxxxxxx',
+  S3_SECRET_KEY: 'your-secret-key-here',
+}
+```
 
-**Do this ONCE to copy all existing data to AWS:**
+---
+
+**If using systemd:**
+```bash
+sudo nano /etc/systemd/system/cert-portal.service
+```
+
+Add to the `[Service]` section:
+```ini
+Environment="S3_BUCKET=synergy-cert-portal-uploads"
+Environment="S3_REGION=ap-south-1"
+Environment="S3_ACCESS_KEY=AKIAxxxxxxxxxxxxxxxx"
+Environment="S3_SECRET_KEY=your-secret-key-here"
+```
+
+Then reload:
+```bash
+sudo systemctl daemon-reload
+```
+
+---
+
+### STEP 9 — Run the Migration Script
+
+This pushes ALL your existing data and files to S3. Run it once:
 
 ```bash
-export AWS_REGION=ap-south-1
+cd /path/to/your/app
+
+# Set vars for this terminal session (same values as above)
 export S3_BUCKET=synergy-cert-portal-uploads
+export S3_REGION=ap-south-1
+export S3_ACCESS_KEY=AKIAxxxxxxxxxxxxxxxx
+export S3_SECRET_KEY=your-secret-key-here
 export TENANT_ID=SYNCERT
 
 node scripts/migrate-to-aws.js
@@ -172,151 +272,173 @@ node scripts/migrate-to-aws.js
 
 Expected output:
 ```
-═══════════════════════════════════════════════════
- Synergy Cert Portal — AWS Migration Script
-  Tenant   : SYNCERT
-  S3 Bucket: synergy-cert-portal-uploads
-  Region   : ap-south-1
-═══════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════
+ Synergy Cert Portal — S3 Migration
+  Tenant : SYNCERT
+  Bucket : synergy-cert-portal-uploads
+  Region : ap-south-1
+═══════════════════════════════════════════════════════════
 
-STEP 1 — Migrating JSON data files → DynamoDB
-─────────────────────────────────────────────
-  synergy-cst-certs: 12 records migrated ✓
-  synergy-vapt-certs: 3 records migrated ✓
-  ...
+STEP 1 — Uploading data files to S3
+─────────────────────────────────────────────────────────
+  [OK]   certificates.json → s3://synergy-cert-portal-uploads/data/SYNCERT/certificates.json  (12 records)
+  [OK]   vapt_certificates.json → s3://synergy-cert-portal-uploads/data/SYNCERT/vapt_certificates.json  (3 records)
+  [OK]   documents.json → s3://synergy-cert-portal-uploads/data/SYNCERT/documents.json  (5 records)
+  [SKIP] doc_access_requests.json — not found locally
+  [SKIP] users.json — not found locally
+  [SKIP] groups.json — not found locally
 
-STEP 2 — Migrating upload files → S3
-─────────────────────────────────────
-  16 files uploaded to s3://synergy-cert-portal-uploads ✓
+STEP 2 — Uploading cert images and attachments to S3
+─────────────────────────────────────────────────────────
+  16 files uploaded to s3://synergy-cert-portal-uploads  (0 failed)
+
+Migration complete!
 ```
 
-### STEP 8: Update server/index.js
+✅ All data is now in S3.
 
-In `server/index.js`, find the environment check near the top and add:
+---
 
-```javascript
-const STORAGE_BACKEND = process.env.STORAGE_BACKEND || 'file'; // 'file' or 'dynamodb'
-```
+### STEP 10 — Verify Data in S3
 
-Then swap the store implementations (see the diff in `server/index.js` below).
+Before restarting the app, confirm the files are in S3:
 
-### STEP 9: Restart the app
+1. Go to **AWS Console → S3 → synergy-cert-portal-uploads**
+2. You should see two folders: `data/` and `uploads/`
+3. Click `data/` → `SYNCERT/` → you should see `certificates.json`, etc.
+4. Click on `certificates.json` → **"Download"** → open it and verify your cert data is there
 
+✅ Data confirmed in S3.
+
+---
+
+### STEP 11 — Restart the Application
+
+**PM2:**
 ```bash
 pm2 restart cert-portal
-pm2 logs cert-portal   # watch for errors
+pm2 logs cert-portal --lines 50
 ```
 
-### STEP 10: Verify
+**systemd:**
+```bash
+sudo systemctl restart cert-portal
+sudo journalctl -u cert-portal -n 50 -f
+```
 
-1. Open the admin dashboard — check that all certificates are visible
-2. Add a test certificate with an image — confirm it uploads and shows
-3. Check **DynamoDB Console → Tables → synergy-cst-certs → Explore items** — new cert should appear
-4. Check **S3 Console → synergy-cert-portal-uploads** — image file should appear
+**Direct node:**
+```bash
+# Kill existing process
+pkill -f "node server/index.js"
+# Start again
+node server/index.js &
+```
+
+Watch the logs for:
+```
+S3 enabled — uploads and data stores will mirror to S3
+```
+
+If you see errors, check STEP 12.
 
 ---
 
-## PART 3 — SERVER CODE CHANGES
+### STEP 12 — Test the Application
 
-The files already created in this repo handle the AWS layer:
+1. Open your app in the browser — everything should work normally
+2. **Add a test certificate** with an image
+3. Go to **AWS Console → S3 → synergy-cert-portal-uploads → uploads/SYNCERT/**
+   → You should see the new image file appear within seconds
+4. **Edit an existing certificate** → change the status → Save
+5. Go to **S3 → data/SYNCERT/certificates.json** → Download and open it
+   → The change should be reflected
 
-- `server/lib/dynamo-store.js` — DynamoDB data store (replaces file JSON stores)
-- `server/lib/s3-uploads.js`   — S3 file upload/download (replaces disk writes)
-- `scripts/migrate-to-aws.js` — one-time migration script
-
-The `server/index.js` needs these changes (see code diffs in each section below).
-
-### 3a. Add at top of server/index.js (after existing requires)
-
-```javascript
-const STORAGE_BACKEND = process.env.STORAGE_BACKEND || 'file';
-const S3_BUCKET = process.env.S3_BUCKET || '';
-
-let dynamoStore, s3Store;
-if (STORAGE_BACKEND === 'dynamodb') {
-  dynamoStore = require('./lib/dynamo-store');
-  s3Store     = require('./lib/s3-uploads');
-}
-```
-
-### 3b. Replace createJsonStore calls
-
-Find each `createJsonStore({ filePath: ... })` call and replace with:
-
-```javascript
-// BEFORE (file-based):
-const cstStore = createJsonStore({ filePath: DATA_FILE, seedData: SEED, ... });
-
-// AFTER (DynamoDB):
-const cstStore = STORAGE_BACKEND === 'dynamodb'
-  ? dynamoStore.createDynamoStore({ tableName: 'synergy-cst-certs', tenantId: TENANT_ID, onError: ... })
-  : createJsonStore({ filePath: DATA_FILE, seedData: SEED, ... });
-```
-
-> Note: DynamoDB store methods are async — you will need to `await` them.
-> The existing `loadData()` / `saveData()` functions need to become async.
-
-### 3c. Replace saveCertImageFile with S3 upload
-
-```javascript
-// BEFORE:
-function saveCertImageFile(files, prefix, existingPath) {
-  // ... writes to UPLOADS_DIR
-}
-
-// AFTER:
-async function saveCertImageFile(files, prefix, existingPath) {
-  if (STORAGE_BACKEND === 'dynamodb') {
-    const f    = files[prefix] || files[Object.keys(files)[0]];
-    const ext  = path.extname(f.name || '.png');
-    const key  = s3Store.buildKey(TENANT_ID, `${prefix}${ext}`);
-    if (existingPath) await s3Store.deleteFile(existingPath).catch(() => {});
-    return await s3Store.uploadFile(f.data, key, f.mimetype || 'image/png');
-  }
-  // original file code below ...
-}
-```
-
-### 3d. Replace file-serving route with S3 proxy
-
-```javascript
-// BEFORE: app.get('/uploads/*', ...)
-// AFTER:
-app.get('/uploads/*', async (req, res) => {
-  if (STORAGE_BACKEND === 'dynamodb') {
-    const key = req.path.replace('/uploads/', '');
-    try {
-      const { buf, contentType } = await s3Store.getFileBuffer(`${TENANT_ID}/${key}`);
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      return res.end(buf);
-    } catch { return res.status(404).end(); }
-  }
-  // original static file serving below ...
-});
-```
+✅ S3 integration is live and working.
 
 ---
 
-## ROLLBACK PLAN
+## WHAT HAPPENS NOW (HOW IT WORKS)
 
-If anything goes wrong after switching to DynamoDB:
+```
+User saves a cert
+      │
+      ▼
+  App writes to local disk instantly  ──────────┐
+      │                                         │
+      │                                         ▼
+      │                              Mirrors to S3 async
+      │                              (within 50ms)
+      ▼
+  Response sent to user (fast)
 
-1. Set `STORAGE_BACKEND=file` in your environment
-2. Restart the app — it immediately falls back to reading from `data/` directory
-3. The JSON files are still intact (migration script only reads, never deletes them)
-4. Investigate the issue, then retry
+EC2 Instance is replaced / restarted
+      │
+      ▼
+  App starts, looks for local data/
+      │ Not found (fresh instance)
+      ▼
+  Pulls from S3 automatically
+      │
+      ▼
+  App continues with full data ✓
+```
+
+**The app is now disaster-proof:**
+- EC2 instance terminated → start a new one, data comes from S3
+- EC2 disk full → files already in S3, no data loss
+- Accidental delete → S3 versioning keeps old copies
 
 ---
 
-## COST ESTIMATE
+## ROLLBACK
 
-| Service   | Usage                    | Estimated monthly cost |
-|-----------|--------------------------|------------------------|
-| DynamoDB  | ~1000 reads/writes/day   | ~$0 (within free tier) |
-| S3        | 16 files, ~50MB          | ~$0.001 (< $1)         |
-| Data transfer | Serving cert images  | ~$0.01-$0.09           |
-| **Total** |                          | **~$0 – $1/month**     |
+If anything breaks, revert immediately:
 
-> DynamoDB free tier: 25GB storage, 200M requests/month — more than enough.
-> S3 free tier (first 12 months): 5GB storage, 20,000 GET requests.
+**PM2:**
+```bash
+# Remove S3 vars from ecosystem.config.js, then:
+pm2 restart cert-portal
+```
+
+**Or just rename .env line:**
+```bash
+# Comment out the S3 lines:
+# S3_BUCKET=synergy-cert-portal-uploads
+```
+
+Without `S3_BUCKET` set, the app falls back to 100% local files.
+Your backups from Step 7 are untouched.
+
+---
+
+## COST
+
+| What            | How much                         |
+|-----------------|----------------------------------|
+| S3 Storage      | ~50 MB data → **< $0.01/month** |
+| S3 Requests     | ~500/day → **< $0.01/month**   |
+| Data Transfer   | Serving images → **< $0.10/month** |
+| **Total**       | **Under $0.15/month**           |
+
+S3 free tier (first 12 months): 5GB storage, 20,000 GET, 2,000 PUT — **$0**.
+
+---
+
+## TROUBLESHOOTING
+
+**Error: "S3 PutObject → 403"**
+→ Access key doesn't have permission. Re-check Step 3 policy.
+→ Make sure the bucket name in the policy matches exactly.
+
+**Error: "S3 PutObject → 301 / redirect"**
+→ Wrong region. Check `S3_REGION` matches the bucket's region.
+
+**Error: "S3_BUCKET is not set"**
+→ Environment variables not loaded. Check Step 8.
+
+**App shows no data after restart**
+→ Temporary — first load pulls from S3 (async). Refresh the page in 2-3 seconds.
+
+**Files not appearing in S3**
+→ Check the app logs: `pm2 logs cert-portal | grep S3`
+→ Should show "S3 cert image mirror" lines.
