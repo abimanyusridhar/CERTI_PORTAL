@@ -3,20 +3,21 @@
  * s3JsonStore — S3-backed drop-in replacement for createJsonStore.
  *
  * Strategy:
- *   LOAD  → try local disk cache first (fast); if missing, pull from S3;
- *            if S3 also missing, fall back to seedData.
- *   SAVE  → write local disk immediately (debounced) AND mirror to S3 async.
+ *   LOAD  → use in-memory cache (no I/O per request); on cold start, try local
+ *            disk first, then pull from S3 if disk is empty.
+ *   SAVE  → update in-memory cache immediately, then debounce disk + S3 writes
+ *            in PARALLEL — a disk failure does NOT block the S3 write.
+ *   FLUSH → writes synchronously to disk and returns a Promise that resolves
+ *            once S3 confirms the write (used during graceful shutdown).
  *
- * This means:
- *   - Reads are fast (local disk cache, no S3 latency per request)
- *   - Writes are durable (both disk AND S3 — data survives instance replacement)
- *   - On fresh EC2 launch: data is pulled from S3 automatically on first load
- *
- * Activated automatically when s3.S3_ENABLED === true (S3_BUCKET + keys set).
+ * On fresh EC2 launch (empty ephemeral disk):
+ *   init() pulls the latest data from S3 and caches it locally, so the first
+ *   request sees the correct data without hitting S3 again.
  */
 
-const fs = require('fs');
-const s3 = require('../services/s3');
+const fs   = require('fs');
+const path = require('path');
+const s3   = require('../services/s3');
 
 function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50 }) {
   let cache = null;
@@ -27,7 +28,7 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
     try {
       if (fs.existsSync(filePath)) {
         let raw = fs.readFileSync(filePath, 'utf8');
-        if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
+        if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1); // strip UTF-8 BOM
         return JSON.parse(raw);
       }
     } catch { /* fall through */ }
@@ -36,7 +37,7 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
 
   function writeToDisk(data) {
     try {
-      const dir = require('path').dirname(filePath);
+      const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     } catch (e) {
@@ -48,43 +49,47 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
   async function pullFromS3() {
     try {
       const data = await s3.getJson(s3Key);
-      // Cache locally so next restart is fast
-      writeToDisk(data);
+      writeToDisk(data); // cache locally so next restart is fast
       return data;
     } catch {
-      return null; // S3 key doesn't exist yet — normal on first run
+      return null; // key doesn't exist yet — normal on first deploy
     }
   }
 
+  // Returns a Promise so callers can await durable S3 confirmation.
   function pushToS3(data) {
-    s3.putJson(s3Key, data).catch(err => {
+    return s3.putJson(s3Key, data).catch(err => {
       if (onError) onError(new Error('S3 sync failed for ' + s3Key + ': ' + err.message));
     });
   }
 
-  // ── Startup pre-load (call before server.listen) ─────────────────────────
+  // ── Startup pre-load ─────────────────────────────────────────────────────
+  // Call before server.listen() to ensure cache is warm before the first request.
   async function init() {
-    if (cache) return; // already loaded from disk at startup
+    if (cache) return; // already warmed (e.g. called twice)
     const fromDisk = readFromDisk();
     if (fromDisk) {
       cache = fromDisk;
       return;
     }
-    // Fresh instance — pull from S3 and cache locally
+    // Fresh instance — no local data, pull authoritative copy from S3
     const remote = await pullFromS3();
     cache = (remote && Object.keys(remote).length > 0) ? remote : { ...(seedData || {}) };
   }
 
-  // ── Public API (matches createJsonStore interface) ────────────────────────
+  // ── Public API (matches createJsonStore interface + init) ─────────────────
   function load() {
     if (cache) return cache;
-    // Fallback if init() was not awaited (should not happen in normal flow)
+
+    // Cold-start fallback (init() was not awaited — should not occur in normal flow)
     const fromDisk = readFromDisk();
     if (fromDisk) {
       cache = fromDisk;
-      pushToS3(cache);
+      pushToS3(cache); // mirror to S3 in background
       return cache;
     }
+
+    // Return seed immediately; overwrite if/when S3 pull succeeds
     cache = { ...(seedData || {}) };
     pullFromS3().then(remote => {
       if (remote && Object.keys(remote).length > 0) cache = remote;
@@ -94,22 +99,25 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
 
   function save(data) {
     cache = data;
-    // Write to disk (debounced)
     clearTimeout(timer);
     timer = setTimeout(() => {
-      fs.promises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8')
-        .then(() => { if (s3.S3_ENABLED) pushToS3(data); })
+      timer = null;
+      const serialized = JSON.stringify(data, null, 2);
+      // Disk and S3 writes are INDEPENDENT — disk failure does NOT block S3 sync.
+      fs.promises.writeFile(filePath, serialized, 'utf8')
         .catch(err => onError && onError(err));
+      if (s3.S3_ENABLED) pushToS3(data);
     }, debounceMs);
   }
 
+  // Flush any pending debounced save to disk (sync) and S3 (async, awaitable).
+  // Returns a Promise that resolves once S3 confirms the write — used during
+  // graceful shutdown to avoid losing the last few mutations.
   function flush() {
-    if (!timer) return;
-    clearTimeout(timer);
-    timer = null;
-    if (!cache) return;
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (!cache) return Promise.resolve();
     writeToDisk(cache);
-    if (s3.S3_ENABLED) pushToS3(cache);
+    return s3.S3_ENABLED ? pushToS3(cache) : Promise.resolve();
   }
 
   return { init, load, save, flush };

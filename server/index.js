@@ -239,17 +239,60 @@ let serverReady = false;
 let isShuttingDown = false;
 let _shutdownTimer = null;
 
+// ─── S3 KEY SYNC ─────────────────────────────────────────────────────────────
+// On a fresh EC2 instance, loadOrCreateKeys() generates NEW keys from scratch.
+// New keys would invalidate ALL existing encrypted cert URLs and active tokens.
+// This function restores the canonical keys from S3 if available, or persists
+// the current keys to S3 on first deploy — ensuring every instance uses the
+// same cryptographic material regardless of ephemeral disk state.
+//
+// Must be called BEFORE hashPassword(ADMIN_PASS) since it may mutate KEYS.pwdSalt.
+async function _syncKeysWithS3() {
+  const s3KeyPath = `data/${TENANT_ID || 'default'}/.keys.json`;
+  let s3Keys = null;
+  try {
+    s3Keys = await s3.getJson(s3KeyPath);
+  } catch { /* key not in S3 yet */ }
+
+  if (s3Keys && s3Keys.urlEncKey && s3Keys.urlMacKey && s3Keys.jwtSecret && s3Keys.pwdSalt) {
+    if (s3Keys.jwtSecret !== KEYS.jwtSecret || s3Keys.urlEncKey !== KEYS.urlEncKey) {
+      // S3 has the canonical keys; we generated fresh ones on this instance
+      // → swap KEYS in-place so all security closures see the correct values
+      Object.assign(KEYS, s3Keys);
+      try {
+        fs.writeFileSync(KEYS_FILE, JSON.stringify(KEYS, null, 2), { encoding: 'utf8', mode: 0o600 });
+      } catch (e) { log.warn('Could not write S3 keys to local disk:', e.message); }
+      log.info('[Keys] Restored canonical crypto keys from S3. Existing cert URLs remain valid.');
+    }
+    // else: local keys already match S3 — nothing to do
+  } else {
+    // S3 has no keys yet → push current local keys so future instances can recover
+    try {
+      await s3.putJson(s3KeyPath, KEYS);
+      log.info('[Keys] Crypto keys synced to S3 (first deploy).');
+    } catch (e) {
+      log.warn('[Keys] Failed to sync crypto keys to S3:', e.message);
+    }
+  }
+}
+
 async function initialiseRuntimePrerequisites() {
-  // Prepare auth hash before accepting requests.
+  // 1. Recover/sync crypto keys with S3 FIRST — must run before hashPassword
+  //    because S3 recovery may mutate KEYS.pwdSalt.
+  if (s3.S3_ENABLED) {
+    await _syncKeysWithS3();
+  }
+
+  // 2. Hash admin password with the now-confirmed canonical keys.
   ADMIN_PASS_HASH = await hashPassword(ADMIN_PASS);
 
-  // Warm caches and ensure writable runtime directories exist.
+  // 3. Ensure writable runtime directories exist.
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   fs.mkdirSync(path.dirname(VAPT_DATA_FILE), { recursive: true });
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   fs.mkdirSync(path.join(UPLOADS_DIR, 'documents'), { recursive: true });
 
-  // Pre-load S3 stores before serving requests (prevents race on fresh EC2 start)
+  // 4. Pre-load ALL S3 stores before serving requests (prevents race on fresh EC2 start)
   if (s3.S3_ENABLED) {
     await Promise.all([
       cstStore.init          && cstStore.init(),
@@ -265,6 +308,7 @@ async function initialiseRuntimePrerequisites() {
     log.info('S3 stores pre-loaded.');
   }
 
+  // 5. Warm in-memory caches so the first request hits no I/O.
   loadData();
   loadVaptData();
   loadDocs();
@@ -4307,17 +4351,36 @@ async function startServer() {
 startServer();
 
 // ─── GRACEFUL SHUTDOWN ────────────────────────────────────────────────────────
-function flushPendingSaves() {
-  try { cstStore.flush(); } catch (e) { log.error('Data flush on shutdown failed:', e.message); }
-  try { vaptStore.flush(); } catch (e) { log.error('Data flush on shutdown failed:', e.message); }
+// Flush ALL stores (not just cstStore/vaptStore) so pending user, group, doc,
+// email-log and tracking writes survive shutdown. Returns a Promise that
+// resolves once every store has completed its S3 write.
+async function flushPendingSaves() {
+  const stores = [
+    cstStore, vaptStore, docsStore, docAccessStore,
+    usersStore, groupsStore, cstEmailLogStore, vaptEmailLogStore, trackStore,
+  ];
+  const results = await Promise.allSettled(
+    stores.map(store => {
+      try {
+        const p = store.flush && store.flush();
+        return (p instanceof Promise) ? p : Promise.resolve();
+      } catch (e) {
+        log.error('Store flush error:', e.message);
+        return Promise.resolve();
+      }
+    })
+  );
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length) log.warn(`${failed.length} store(s) failed to flush during shutdown.`);
 }
 
-function gracefulShutdown(signal) {
+async function gracefulShutdown(signal) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   log.info(`${signal} received — shutting down gracefully…`);
   clearInterval(_rlCleanup);
-  flushPendingSaves();
+  // Await all pending disk + S3 writes before closing the HTTP server
+  await flushPendingSaves();
   server.close(err => {
     if (err) { log.error('Server close error:', err.message); process.exit(1); }
     if (_shutdownTimer) clearTimeout(_shutdownTimer);
@@ -4330,8 +4393,8 @@ function gracefulShutdown(signal) {
   }, 10_000);
   _shutdownTimer.unref();
 }
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM').catch(e => { log.error('Shutdown error:', e.message); process.exit(1); }));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT').catch(e => { log.error('Shutdown error:', e.message); process.exit(1); }));
 
 // ─── SAFETY NETS ─────────────────────────────────────────────────────────────
 process.on('unhandledRejection', (reason, promise) => {

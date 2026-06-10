@@ -33,11 +33,10 @@ function createJsonStore({ filePath, seedData, onError, debounceMs = 50 }) {
   }
 
   function flush() {
-    if (!timer) return;
-    clearTimeout(timer);
-    timer = null;
-    if (!cache) return;
-    fs.writeFileSync(filePath, JSON.stringify(cache, null, 2), 'utf8');
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (!cache) return Promise.resolve();
+    try { fs.writeFileSync(filePath, JSON.stringify(cache, null, 2), 'utf8'); } catch (e) { if (onError) onError(e); }
+    return Promise.resolve();
   }
 
   return { load, save, flush };
