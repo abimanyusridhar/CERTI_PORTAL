@@ -2153,43 +2153,6 @@ async function handleAPI(req, res, parsed) {
   if (authRoutes.handleVerify(req, res, method, route, corsH)) return;
   if (await authRoutes.handleLogout(req, res, method, route, corsH)) return;
 
-  // ── POST /api/auth/login ──────────────────────────────────────────────────
-  if (route === '/auth/login' && method === 'POST') {
-    if (!serverReady)
-      return sendJSON(res, 503, { error: 'Server is starting up, please try again in a moment.' }, corsH);
-    const lockout = checkLoginLockout(ip);
-    if (lockout.locked)
-      return sendJSON(res, 429, { error: 'Too many failed login attempts. Try again later.' },
-        { 'Retry-After': String(lockout.retryAfter), ...corsH });
-    const rl = checkRateLimit(ip, 'login');
-    if (!rl.ok)
-      return sendJSON(res, 429, { error: 'Too many login attempts. Try again later.' },
-        { 'Retry-After': String(rl.retryAfter), ...corsH });
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch {
-      return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH);
-    }
-    const { username, password }  = body;
-    const usernameMatch = typeof username === 'string' && username === ADMIN_USER;
-    const passwordHash  = await hashPassword(password || '');
-    const passwordMatch = crypto.timingSafeEqual(
-      Buffer.from(passwordHash), Buffer.from(ADMIN_PASS_HASH)
-    );
-    if (!usernameMatch || !passwordMatch) {
-      recordLoginFailure(ip);
-      await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
-      return sendJSON(res, 401, { error: 'Invalid credentials' }, corsH);
-    }
-    clearLoginFailures(ip);
-    return sendJSON(res, 200, { token: issueToken(username) }, corsH);
-  }
-
-  // ── GET /api/auth/verify ──────────────────────────────────────────────────
-  if (route === '/auth/verify' && method === 'GET') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    return sendJSON(res, 200, { ok: true }, corsH);
-  }
-
   // ── GET /api/certs ── (admin — list all)
   if (route === '/certs' && method === 'GET') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
@@ -2352,7 +2315,9 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
+    // Only allow base URLs in the configured allowlist to prevent phishing link generation
+    const _rawBase = parsed.searchParams.get('base') || '';
+    const base = ALLOWED_ORIGINS.includes(_rawBase) ? _rawBase : BASE_ORIGIN;
     return sendJSON(res, 200, { url: buildCertUrl(certId, base) }, corsH);
   }
 
@@ -2363,7 +2328,8 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
+    const _rawBase = parsed.searchParams.get('base') || '';
+    const base = ALLOWED_ORIGINS.includes(_rawBase) ? _rawBase : BASE_ORIGIN;
     return sendJSON(res, 200, { url: buildCertUrl(certId, base) }, corsH);
   }
 
@@ -2919,7 +2885,8 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
+    const _rawBaseV = parsed.searchParams.get('base') || '';
+    const base = ALLOWED_ORIGINS.includes(_rawBaseV) ? _rawBaseV : BASE_ORIGIN;
     return sendJSON(res, 200, { url: buildVaptCertUrl(certId, base) }, corsH);
   }
 
@@ -2930,7 +2897,8 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const base = parsed.searchParams.get('base') || BASE_ORIGIN;
+    const _rawBaseV2 = parsed.searchParams.get('base') || '';
+    const base = ALLOWED_ORIGINS.includes(_rawBaseV2) ? _rawBaseV2 : BASE_ORIGIN;
     return sendJSON(res, 200, { url: buildVaptCertUrl(certId, base) }, corsH);
   }
 
@@ -3474,7 +3442,7 @@ async function handleAPI(req, res, parsed) {
     const mime = doc.mimeType || 'application/octet-stream';
     const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
     const disp = isViewable ? `inline; filename="${doc.fileName.replace(/"/g,'_')}"` : `attachment; filename="${doc.fileName.replace(/"/g,'_')}"`;
-    res.writeHead(200, { 'Content-Type': mime, 'Content-Disposition': disp, 'Content-Length': data.length, 'Cache-Control': 'private, max-age=3600', ...SECURITY_HEADERS });
+    res.writeHead(200, { 'Content-Type': mime, 'Content-Disposition': disp, 'Content-Length': data.length, 'Cache-Control': 'private, no-store', ...SECURITY_HEADERS });
     return res.end(data);
   }
 
@@ -3884,7 +3852,14 @@ async function handleRequest(req, res) {
   // ── SSO: GET /auth/sso/login ─────────────────────────────────────────────
   if (p === '/auth/sso/login' && method === 'GET') {
     if (!COGNITO_ENABLED) { res.writeHead(302, { Location: '/' }); return res.end(); }
-    const next       = (parsed.searchParams.get('next') || '/').replace(/[<>"'`]/g, '');
+    // Rate-limit SSO initiation to prevent OAuth flow flooding
+    const _ssoRl = checkRateLimit(getClientIp(req), 'default');
+    if (!_ssoRl.ok) { res.writeHead(429, { ...SECURITY_HEADERS, 'Retry-After': String(_ssoRl.retryAfter) }); return res.end('Too many requests'); }
+    // Validate `next` is a same-origin relative path — reject absolute URLs and protocol-relative paths
+    const _rawNext = parsed.searchParams.get('next') || '/';
+    const next = (_rawNext.startsWith('/') && !_rawNext.startsWith('//') && !_rawNext.includes('://'))
+      ? _rawNext.replace(/[<>"'`]/g, '')
+      : '/';
     const nonce      = crypto.randomBytes(16).toString('base64url');
     const stateParam = Buffer.from(JSON.stringify({ next, ts: Date.now(), nonce })).toString('base64url');
     const loginUrl = `https://${COGNITO_DOMAIN}/login?response_type=code`
@@ -3904,7 +3879,9 @@ async function handleRequest(req, res) {
     let next = '/', expectedNonce = null;
     try {
       const s = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'));
-      next          = (s.next  || '/').replace(/[<>"'`]/g, '');
+      // Only allow same-origin relative paths — reject absolute/protocol-relative URLs
+      const _n = (s.next || '/').replace(/[<>"'`]/g, '');
+      next = (_n.startsWith('/') && !_n.startsWith('//') && !_n.includes('://')) ? _n : '/';
       expectedNonce = s.nonce  || null;
     } catch { /* use defaults */ }
     if (!code || !COGNITO_ENABLED) {
@@ -4040,12 +4017,11 @@ async function handleRequest(req, res) {
     //  1. Skip image files (jpg/png/webp/gif) — these are cert thumbnails rendered by
     //     the admin dashboard on every page load, NOT recipient downloads. Counting them
     //     would inflate the download counter with admin activity.
-    //  2. Skip requests whose Referer header originates from the admin panel — same reason.
+    //  2. Skip requests that are authenticated as admin — same reason.
     //  3. For PDFs and other attachments, record the engagement against the owning cert.
     const isImageExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
-    const referer    = (req.headers['referer'] || req.headers['referrer'] || '').toLowerCase();
-    const isAdminReferer = referer.includes('/misecure') || referer.includes('admin');
-    if (!isImageExt && !isAdminReferer) {
+    const _isAdminReq = authCheck(req);
+    if (!isImageExt && !_isAdminReq) {
       try {
         const fileUrl = '/uploads/' + relPath;
         // Check CST certs first
@@ -4072,9 +4048,8 @@ async function handleRequest(req, res) {
     }
 
     // Confidential PDF attachments are gated by a short-lived, server-issued token.
-    // Admin panel requests are temporarily allowed via referer allowance to avoid
-    // forcing token plumbing in legacy dashboard flows.
-    if (isPdf && !isAdminReferer) {
+    // Authenticated admins (cookie or Bearer) bypass the token requirement.
+    if (isPdf && !_isAdminReq) {
       const downloadToken = parsed.searchParams.get('t') || '';
       const payload = verifyDownloadToken(downloadToken);
       if (!payload) {
