@@ -62,27 +62,32 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
     });
   }
 
-  // ── Public API (matches createJsonStore interface) ────────────────────────
-  function load() {
-    if (cache) return cache;
-
-    // Try local disk first (fast path)
+  // ── Startup pre-load (call before server.listen) ─────────────────────────
+  async function init() {
+    if (cache) return; // already loaded from disk at startup
     const fromDisk = readFromDisk();
     if (fromDisk) {
       cache = fromDisk;
-      // Silently mirror to S3 if not there yet (first-time sync)
+      return;
+    }
+    // Fresh instance — pull from S3 and cache locally
+    const remote = await pullFromS3();
+    cache = (remote && Object.keys(remote).length > 0) ? remote : { ...(seedData || {}) };
+  }
+
+  // ── Public API (matches createJsonStore interface) ────────────────────────
+  function load() {
+    if (cache) return cache;
+    // Fallback if init() was not awaited (should not happen in normal flow)
+    const fromDisk = readFromDisk();
+    if (fromDisk) {
+      cache = fromDisk;
       pushToS3(cache);
       return cache;
     }
-
-    // No local file — try S3 synchronously via async init trick
-    // We return seed data immediately and trigger async S3 pull.
-    // On the next load() call (after init completes), real data will be returned.
     cache = { ...(seedData || {}) };
     pullFromS3().then(remote => {
-      if (remote && Object.keys(remote).length > 0) {
-        cache = remote;
-      }
+      if (remote && Object.keys(remote).length > 0) cache = remote;
     }).catch(() => {});
     return cache;
   }
@@ -107,7 +112,7 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
     if (s3.S3_ENABLED) pushToS3(cache);
   }
 
-  return { load, save, flush };
+  return { init, load, save, flush };
 }
 
 module.exports = { createS3JsonStore };

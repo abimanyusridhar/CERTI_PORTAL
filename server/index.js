@@ -252,6 +252,20 @@ async function initialiseRuntimePrerequisites() {
   fs.mkdirSync(path.dirname(VAPT_DATA_FILE), { recursive: true });
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   fs.mkdirSync(path.join(UPLOADS_DIR, 'documents'), { recursive: true });
+
+  // Pre-load S3 stores before serving requests (prevents race on fresh EC2 start)
+  if (s3.S3_ENABLED) {
+    await Promise.all([
+      cstStore.init      && cstStore.init(),
+      vaptStore.init     && vaptStore.init(),
+      docsStore.init     && docsStore.init(),
+      docAccessStore.init && docAccessStore.init(),
+      usersStore.init    && usersStore.init(),
+      groupsStore.init   && groupsStore.init(),
+    ]);
+    log.info('S3 stores pre-loaded.');
+  }
+
   loadData();
   loadVaptData();
   loadDocs();
@@ -1642,6 +1656,10 @@ function validateFileMagic(data, ext) {
   }
 }
 
+function s3FileKey(fname) { return TENANT_ID ? `uploads/${TENANT_ID}/${fname}` : `uploads/${fname}`; }
+function s3DocKey(fname)  { return TENANT_ID ? `uploads/${TENANT_ID}/documents/${fname}` : `uploads/documents/${fname}`; }
+function s3DeleteAsync(key) { if (s3.S3_ENABLED && key) s3.deleteFile(key).catch(e => log.warn('S3 delete failed: ' + e.message)); }
+
 function saveCertImageFile(files, prefix, existingPath) {
   const f = files && files.certificateImage;
   if (!f || !f.data || !f.data.length) return null;
@@ -1651,11 +1669,12 @@ function saveCertImageFile(files, prefix, existingPath) {
   if (existingPath) {
     const old = path.join(UPLOADS_DIR, path.basename(existingPath));
     if (fs.existsSync(old)) try { fs.unlinkSync(old); } catch { /* non-fatal */ }
+    s3DeleteAsync(s3FileKey(path.basename(existingPath)));
   }
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), f.data);
   if (s3.S3_ENABLED) {
-    s3.uploadFile('uploads/' + fname, f.data, f.contentType || 'application/octet-stream')
+    s3.uploadFile(s3FileKey(fname), f.data, f.contentType || 'application/octet-stream')
       .catch(err => log.warn('S3 cert image mirror failed: ' + err.message));
   }
   return '/uploads/' + fname;
@@ -1707,7 +1726,7 @@ function saveAttachmentFile(fileObj, prefix) {
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
   fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
   if (s3.S3_ENABLED) {
-    s3.uploadFile('uploads/' + fname, fileObj.data, fileObj.contentType || 'application/octet-stream')
+    s3.uploadFile(s3FileKey(fname), fileObj.data, fileObj.contentType || 'application/octet-stream')
       .catch(err => log.warn('S3 attachment mirror failed: ' + err.message));
   }
   return { name: fileObj.filename || fname, url: '/uploads/' + fname, size: fileObj.data.length };
@@ -2490,17 +2509,19 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    // Clean up certificate image from disk
+    // Clean up certificate image from disk + S3
     if (data[certId].certificateImage) {
       const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
       if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
+      s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
     }
-    // Clean up all attachments from disk
+    // Clean up all attachments from disk + S3
     if (Array.isArray(data[certId].attachments)) {
       for (const att of data[certId].attachments) {
         if (att && att.url) {
           const fp = path.join(UPLOADS_DIR, path.basename(att.url));
           if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
+          s3DeleteAsync(s3FileKey(path.basename(att.url)));
         }
       }
     }
@@ -3066,17 +3087,19 @@ async function handleAPI(req, res, parsed) {
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
     if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    // Clean up certificate image from disk
+    // Clean up certificate image from disk + S3
     if (data[certId].certificateImage) {
       const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
       if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
+      s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
     }
-    // Clean up all attachments from disk
+    // Clean up all attachments from disk + S3
     if (Array.isArray(data[certId].attachments)) {
       for (const att of data[certId].attachments) {
         if (att && att.url) {
           const fp = path.join(UPLOADS_DIR, path.basename(att.url));
           if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
+          s3DeleteAsync(s3FileKey(path.basename(att.url)));
         }
       }
     }
@@ -3100,6 +3123,7 @@ async function handleAPI(req, res, parsed) {
     if (removed && removed.url) {
       const fp = path.join(UPLOADS_DIR, path.basename(removed.url));
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      s3DeleteAsync(s3FileKey(path.basename(removed.url)));
     }
     data[certId].attachments = atts;
     data[certId].updatedAt   = new Date().toISOString();
@@ -3122,6 +3146,7 @@ async function handleAPI(req, res, parsed) {
     if (removed && removed.url) {
       const fp = path.join(UPLOADS_DIR, path.basename(removed.url));
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      s3DeleteAsync(s3FileKey(path.basename(removed.url)));
     }
     data[certId].attachments = atts;
     data[certId].updatedAt   = new Date().toISOString();
@@ -3168,7 +3193,7 @@ async function handleAPI(req, res, parsed) {
     const fpath = path.join(docsUploadDir, fname);
     fs.writeFileSync(fpath, fileObj.data);
     if (s3.S3_ENABLED) {
-      s3.uploadFile(`uploads/documents/${fname}`, fileObj.data, fileObj.contentType || 'application/octet-stream')
+      s3.uploadFile(s3DocKey(fname), fileObj.data, fileObj.contentType || 'application/octet-stream')
         .catch(err => log.warn('S3 doc mirror failed: ' + err.message));
     }
     const docs = loadDocs();
@@ -3212,6 +3237,7 @@ async function handleAPI(req, res, parsed) {
     if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
     const fp = docs[docId].filePath ? path.join(UPLOADS_DIR, 'documents', path.basename(docs[docId].filePath)) : null;
     if (fp && fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch { /* ignore */ }
+    if (docs[docId].filePath) s3DeleteAsync(s3DocKey(path.basename(docs[docId].filePath)));
     delete docs[docId];
     saveDocs(docs);
     return sendJSON(res, 200, { ok: true }, corsH);
