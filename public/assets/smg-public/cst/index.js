@@ -236,7 +236,7 @@
             Issued To
           </div>
           <div class="sdname">${escH(cert.recipientName)}</div>
-          <div class="sdsub">${escH(cert.vesselName)}${cert.vesselIMO ? ' · IMO ' + escH(cert.vesselIMO) : ''}${cert.chiefEngineer ? '<br>' + escH(cert.chiefEngineer) : ''}</div>
+          <div class="sdsub">${escH(cert.vesselName)}${cert.vesselIMO ? ' · IMO ' + escH(cert.vesselIMO) : ''}</div>
           <button class="btn-dl" id="dlBtn" onclick="downloadCertificate('${cert.id}')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Download Certificate
@@ -313,7 +313,6 @@
           <div class="info-grid">
             <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${escH(cert.vesselName)}</span></div>
             <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${escH(cert.vesselIMO)}</span></div>
-            <div class="ii"><span class="ilbl">Chief Engineer</span><span class="ival">${escH(cert.chiefEngineer)}</span></div>
             <div class="ii"><span class="ilbl">Compliance Date</span><span class="ival">${fmt(cert.complianceDate)}</span></div>
             <div class="ii"><span class="ilbl">Valid For Period</span><span class="ival">${escH(cert.validFor)}</span></div>
             <div class="ii"><span class="ilbl">Valid Until</span><span class="ival ${!valid && !pending ? 'red' : ''}">${fmt(cert.validUntil)}</span></div>
@@ -352,89 +351,17 @@
     if (_certImo) loadRelevantDocs(_certImo, _certVesselName);
   }
 
-  // ── RELEVANT DOCUMENTS — superintendent-only loader ──────────────────────────
-  function _userSession()      { try { return localStorage.getItem('userSessionToken') || ''; } catch { return ''; } }
-  function _userSessionName()  { try { return localStorage.getItem('userSessionName') || ''; } catch { return ''; } }
-  function _clearUserSession() { try { localStorage.removeItem('userSessionToken'); localStorage.removeItem('userSessionName'); } catch {} }
-
+  // ── RELEVANT DOCUMENTS ── superintendent-only; this public page has no login
+  // of its own, so the section is simply not shown (no client-side session/token
+  // handling lives here — see admin/portal.html for the superintendent portal).
   async function loadRelevantDocs(imo, vesselName) {
     const el = document.getElementById('relevantDocsSection');
     if (!el) return;
-    vesselName = vesselName || '';
-
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:10px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents</div>'
-      + '<div style="font-size:.74rem;color:var(--text-sec);padding:8px 2px">Checking access…</div>';
-
-    // Superintendent UserSession — sole access path
-    const storedSession = _userSession();
-    if (storedSession) {
-      try {
-        const me = await fetch('/api/auth/user/me', { headers: { Authorization: 'UserSession ' + storedSession } });
-        if (me.ok) {
-          const md = await me.json();
-          if (md.vessels && md.vessels.includes(imo)) {
-            const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: { Authorization: 'UserSession ' + storedSession } });
-            if (r.ok) { _renderDocList(el, await r.json(), storedSession, imo); return; }
-          }
-        } else if (me.status === 401) { _clearUserSession(); }
-      } catch { /* fall through */ }
-    }
-
-    // Not authenticated — hide section entirely
     el.innerHTML = '';
     el.style.display = 'none';
   }
 
-  function _renderDocList(el, docs, token, imo) {
-    const fmtSize = b => b > 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB';
-    const typeLbl = { TRAINING_REPORT: 'Training Report', DRILL_REPORT: 'Drill Report', AUDIT_REPORT: 'Audit Report', CERT_ATTACHMENT: 'Certificate Attachment', OTHER: 'Document' };
-    const name = _userSessionName();
-    el.innerHTML = '<div class="sect-title" style="display:flex;align-items:center;gap:7px;margin-bottom:12px">'
-      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-      + ' Relevant Documents'
-      + '<span style="margin-left:auto;font-size:.6rem;color:var(--gold);display:flex;align-items:center;gap:4px">'
-      + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>'
-      + (name ? 'Supt · ' + escH(name) : 'Superintendent Access') + '</span>'
-      + '</div>'
-      + (docs.length ? '' : '<div style="font-size:.76rem;color:var(--text-sec);text-align:center;padding:16px 0">No documents uploaded for this vessel yet.</div>')
-      + '<div class="docs-list">'
-      + docs.map(d => {
-          const ext  = (d.fileName || '').split('.').pop().toUpperCase() || 'FILE';
-          const lbl  = typeLbl[d.docType] || 'Document';
-          const size = fmtSize(d.fileSize || 0);
-          const escT = escH(d.title);
-          const mime = (d.mimeType || '').toLowerCase();
-          const canView = mime === 'application/pdf' || mime.startsWith('image/');
-          const actionLabel = canView ? 'View' : 'Download';
-          const actionIcon = canView
-            ? '<path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
-            : '<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>';
-          const dlHref = d.directUrl
-            ? d.directUrl
-            : '/api/docs/download/' + escH(d.id) + '?userSession=' + encodeURIComponent(token);
-          return '<div style="border:1px solid rgba(212,168,67,.2);border-radius:11px;margin-bottom:8px;background:rgba(212,168,67,.03)">'
-            + '<div style="display:flex;align-items:center;gap:10px;padding:11px 14px">'
-            + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'
-            + '<div style="flex:1;min-width:0">'
-            + '<div style="font-size:.78rem;color:var(--text-bright);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escT + '">' + escT + '</div>'
-            + '<div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">' + escH(lbl) + ' &bull; ' + escH(ext) + ' &bull; ' + escH(size) + '</div>'
-            + '</div>'
-            + '<a href="' + dlHref + '" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);color:#D4A843;font-size:.67rem;font-weight:700;text-decoration:none;white-space:nowrap;letter-spacing:.05em;transition:all .2s" onmouseover="this.style.background=\'rgba(212,168,67,.18)\'" onmouseout="this.style.background=\'rgba(212,168,67,.10)\'">'
-            + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + actionIcon + '</svg>'
-            + ' ' + actionLabel + '</a>'
-            + '</div>'
-            + '</div>';
-        }).join('')
-      + '</div>'
-      + '<div style="margin-top:10px;font-size:.64rem;color:var(--text-sec)">'
-      + 'Access is vessel-specific and authorised by Synergy Marine Group.'
-      + '</div>';
-  }
-
-  window.loadRelevantDocs   = loadRelevantDocs;
-  window._clearUserSession  = _clearUserSession;
+  window.loadRelevantDocs = loadRelevantDocs;
 
   async function downloadCertificate(certId) {
     const btn = document.getElementById('dlBtn');

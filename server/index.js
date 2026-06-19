@@ -1051,7 +1051,13 @@ function verifyUserSessionToken(token) {
 // Returns the active user object if the request carries a valid UserSession token, else null
 function getUserFromSession(req) {
   const auth  = req.headers['authorization'] || '';
-  const token = auth.startsWith('UserSession ') ? auth.slice(12) : '';
+  let token = auth.startsWith('UserSession ') ? auth.slice(12) : '';
+  // Fallback: httpOnly suptSession cookie (set by /api/auth/user/login and SSO callback),
+  // so a plain page navigation/fetch with no explicit header still resolves a session.
+  if (!token) {
+    const m = (req.headers.cookie || '').match(/(?:^|;\s*)suptSession=([^;]+)/);
+    if (m) token = decodeURIComponent(m[1]);
+  }
   const payload = verifyUserSessionToken(token);
   if (!payload) return null;
   const users = loadUsers();
@@ -1753,6 +1759,19 @@ function s3FileKey(fname) { return TENANT_ID ? `uploads/${TENANT_ID}/${fname}` :
 function s3DocKey(fname)  { return TENANT_ID ? `uploads/${TENANT_ID}/documents/${fname}` : `uploads/documents/${fname}`; }
 function s3DeleteAsync(key) { if (s3.S3_ENABLED && key) s3.deleteFile(key).catch(e => log.warn('S3 delete failed: ' + e.message)); }
 
+// Reads a previously-uploaded file for serving: local disk first, then S3 if this
+// instance's ephemeral disk doesn't have it (e.g. it was uploaded on a different
+// instance). Mirrors the fallback already used by the generic /uploads/* static
+// handler, applied here too since /api/docs/download and /api/docs/open read the
+// file directly instead of going through that handler.
+async function readUploadedFileWithS3Fallback(fp, s3Key) {
+  if (fs.existsSync(fp)) return fs.readFileSync(fp);
+  if (s3.S3_ENABLED && s3Key) {
+    try { return await s3.downloadFile(s3Key); } catch { /* not in S3 either */ }
+  }
+  return null;
+}
+
 // Per-extension upload size limits (enforced before disk write)
 const FILE_SIZE_LIMITS = {
   '.jpg': 5 * 1024 * 1024, '.jpeg': 5 * 1024 * 1024,
@@ -1786,7 +1805,7 @@ function saveCertImageFile(files, prefix, existingPath) {
 
 // ─── PUBLIC FIELD PROJECTORS ─────────────────────────────────────────────────
 function certPublicFields(cert) {
-  const { id, recipientName, vesselName, vesselIMO, chiefEngineer,
+  const { id, recipientName, vesselName, vesselIMO,
     trainingTitle, organizer, complianceDate, complianceQuarter,
     trainingMode, validFor, validUntil, verifiedBy, status,
     issuedAt, certificateImage, notes, attachments } = cert;
@@ -1795,7 +1814,9 @@ function certPublicFields(cert) {
   const isExpired = (status || 'VALID').toUpperCase() === 'VALID' && validUntil && new Date(validUntil) < now;
   const effectiveStatus = isExpired ? 'EXPIRED' : (status || 'VALID').toUpperCase();
   return {
-    id, recipientName, vesselName, vesselIMO, chiefEngineer,
+    // chiefEngineer (crew personnel name) intentionally omitted — public verification
+    // only needs to confirm the vessel/cert is valid, not disclose individual identities.
+    id, recipientName, vesselName, vesselIMO,
     trainingTitle, organizer, complianceDate, complianceQuarter,
     trainingMode, validFor, validUntil, verifiedBy, status,
     effectiveStatus,
@@ -3380,11 +3401,18 @@ async function handleAPI(req, res, parsed) {
     let accessGranted = false;
     // Admin direct access
     if (authCheck(req) || superAdminCheck(req)) { accessGranted = true; }
-    // Superintendent session (also via query param for <a> download links)
+    // Superintendent session — header, suptSession cookie (preferred for <a> downloads),
+    // or legacy query param (kept for backward compatibility, e.g. existing integration test).
     if (!accessGranted) {
+      const sessUser = getUserFromSession(req);
+      if (sessUser) {
+        const imoSet = getUserVesselIMOs(sessUser);
+        if (imoSet.has(normalizeVesselIMO(doc.vesselIMO))) accessGranted = true;
+      }
+    }
+    if (!accessGranted && !authHdr.startsWith('UserSession ')) {
       const qSession = parsed.searchParams.get('userSession') || '';
-      const sessToken = authHdr.startsWith('UserSession ') ? authHdr.slice(12) : qSession;
-      const sessPay = verifyUserSessionToken(sessToken);
+      const sessPay = verifyUserSessionToken(qSession);
       if (sessPay) {
         const users = loadUsers();
         const u = users[sessPay.sub];
@@ -3399,8 +3427,10 @@ async function handleAPI(req, res, parsed) {
       ? certAttachment.filePath
       : path.resolve(UPLOADS_DIR, 'documents', path.basename(doc.filePath || ''));
     const allowedRoot = certAttachment ? UPLOADS_DIR : path.join(UPLOADS_DIR, 'documents');
-    if ((!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) || !fs.existsSync(fp)) return sendJSON(res, 404, { error: 'File not found' }, corsH);
-    const data = fs.readFileSync(fp);
+    if (!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) return sendJSON(res, 404, { error: 'File not found' }, corsH);
+    const s3Key = certAttachment ? s3FileKey(path.basename(fp)) : s3DocKey(path.basename(fp));
+    const data = await readUploadedFileWithS3Fallback(fp, s3Key);
+    if (!data) return sendJSON(res, 404, { error: 'File not found' }, corsH);
     const mime = doc.mimeType || 'application/octet-stream';
     const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
     const disposition = isViewable
@@ -3481,8 +3511,10 @@ async function handleAPI(req, res, parsed) {
       ? certAttachment.filePath
       : path.resolve(UPLOADS_DIR, 'documents', path.basename(doc.filePath || ''));
     const allowedRoot = certAttachment ? UPLOADS_DIR : path.join(UPLOADS_DIR, 'documents');
-    if ((!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) || !fs.existsSync(fp)) return sendJSON(res, 404, { error: 'File not found on disk' }, corsH);
-    const data = fs.readFileSync(fp);
+    if (!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) return sendJSON(res, 404, { error: 'File not found on disk' }, corsH);
+    const s3Key = certAttachment ? s3FileKey(path.basename(fp)) : s3DocKey(path.basename(fp));
+    const data = await readUploadedFileWithS3Fallback(fp, s3Key);
+    if (!data) return sendJSON(res, 404, { error: 'File not found on disk' }, corsH);
     const mime = doc.mimeType || 'application/octet-stream';
     const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
     const disp = isViewable ? `inline; filename="${doc.fileName.replace(/"/g,'_')}"` : `attachment; filename="${doc.fileName.replace(/"/g,'_')}"`;
@@ -3525,7 +3557,9 @@ async function handleAPI(req, res, parsed) {
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many attempts.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const entered = (body.password || '').trim();
+    body = body || {};
+    if (typeof body.password !== 'string') return sendJSON(res, 400, { error: 'Invalid input' }, corsH);
+    const entered = body.password.trim();
     const hEntered  = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
     const hExpected = crypto.createHmac('sha256', KEYS.urlMacKey).update(SUPER_ADMIN_PASS).digest('hex');
     const eA = Buffer.from(hEntered), eB = Buffer.from(hExpected);
@@ -3546,8 +3580,12 @@ async function handleAPI(req, res, parsed) {
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many attempts.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    const email    = (body.email    || '').trim().toLowerCase();
-    const password = (body.password || '').trim();
+    body = body || {};
+    if (typeof body.email !== 'string' || typeof body.password !== 'string') {
+      return sendJSON(res, 400, { error: 'Invalid input' }, corsH);
+    }
+    const email    = body.email.trim().toLowerCase();
+    const password = body.password.trim();
     if (!email || !password) return sendJSON(res, 400, { error: 'Email and password are required.' }, corsH);
     const users = loadUsers();
     const user = Object.values(users).find(u => u.email.toLowerCase() === email && u.active);
@@ -3565,10 +3603,22 @@ async function handleAPI(req, res, parsed) {
     const userGroups = (user.groupIds || []).map(gid => groups[gid]).filter(Boolean).map(g => ({
       id: g.id, name: g.name, vesselIMOs: g.vesselIMOs || [],
     }));
+    const suptSecure = BASE_ORIGIN.startsWith('https') ? '; Secure' : '';
     return sendJSON(res, 200, {
       sessionToken,
       user: { id: user.id, name: user.name, email: user.email, role: user.role, groups: userGroups },
-    }, corsH);
+    }, {
+      'Set-Cookie': `suptSession=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${suptSecure}`,
+      ...corsH,
+    });
+  }
+
+  // ── POST /api/auth/user/logout ── (superintendent — clear the session cookie)
+  if (route === '/auth/user/logout' && method === 'POST') {
+    return sendJSON(res, 200, { ok: true }, {
+      'Set-Cookie': 'suptSession=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
+      ...corsH,
+    });
   }
 
   // ── GET /api/auth/user/me ── (verify session + return user info)
@@ -3899,9 +3949,10 @@ async function handleRequest(req, res) {
     // Rate-limit SSO initiation to prevent OAuth flow flooding
     const _ssoRl = checkRateLimit(getClientIp(req), 'default');
     if (!_ssoRl.ok) { res.writeHead(429, { ...SECURITY_HEADERS, 'Retry-After': String(_ssoRl.retryAfter) }); return res.end('Too many requests'); }
-    // Validate `next` is a same-origin relative path — reject absolute URLs and protocol-relative paths
+    // Validate `next` is a same-origin relative path — reject absolute URLs, protocol-relative
+    // paths, and backslash variants (Chromium normalises /\evil.com to //evil.com).
     const _rawNext = parsed.searchParams.get('next') || '/';
-    const next = (_rawNext.startsWith('/') && !_rawNext.startsWith('//') && !_rawNext.includes('://'))
+    const next = (_rawNext.startsWith('/') && !_rawNext.startsWith('//') && !_rawNext.includes('://') && !_rawNext.includes('\\'))
       ? _rawNext.replace(/[<>"'`]/g, '')
       : '/';
     const nonce      = crypto.randomBytes(16).toString('base64url');
@@ -3923,9 +3974,10 @@ async function handleRequest(req, res) {
     let next = '/', expectedNonce = null;
     try {
       const s = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'));
-      // Only allow same-origin relative paths — reject absolute/protocol-relative URLs
+      // Only allow same-origin relative paths — reject absolute/protocol-relative URLs and
+      // backslash variants (Chromium normalises /\evil.com to //evil.com).
       const _n = (s.next || '/').replace(/[<>"'`]/g, '');
-      next = (_n.startsWith('/') && !_n.startsWith('//') && !_n.includes('://')) ? _n : '/';
+      next = (_n.startsWith('/') && !_n.startsWith('//') && !_n.includes('://') && !_n.includes('\\')) ? _n : '/';
       expectedNonce = s.nonce  || null;
     } catch { /* use defaults */ }
     if (!code || !COGNITO_ENABLED) {
@@ -3972,9 +4024,20 @@ async function handleRequest(req, res) {
         cookieName   = 'sso_user_token';
       }
       const secure = BASE_ORIGIN.startsWith('https') ? '; Secure' : '';
+      // Alongside the short-lived, JS-readable handoff cookie (used by hub.js/portal.html to
+      // populate sessionStorage for Bearer-header API calls), also set a persistent HttpOnly
+      // cookie so a plain page navigation after SSO login is recognised server-side too —
+      // without this, an SSO-only session is invisible to authCheck()/getUserFromSession()
+      // the moment the 30s handoff cookie expires.
+      const persistentCookie = isAdmin
+        ? `adminToken=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secure}`
+        : `suptSession=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${secure}`;
       res.writeHead(302, {
         ...SECURITY_HEADERS,
-        'Set-Cookie': `${cookieName}=${sessionToken}; Path=/; Max-Age=30; SameSite=Strict${secure}`,
+        'Set-Cookie': [
+          `${cookieName}=${sessionToken}; Path=/; Max-Age=30; SameSite=Strict${secure}`,
+          persistentCookie,
+        ],
         Location: next,
       });
       return res.end();
@@ -4030,6 +4093,17 @@ async function handleRequest(req, res) {
     }
     // Reject directory traversal to actual directories
     if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
+      res.writeHead(403, SECURITY_HEADERS);
+      return res.end('Forbidden');
+    }
+
+    // Vessel training/compliance documents (uploads/documents/**) are never served
+    // as raw static files — the legitimate access paths are /api/docs/download/:id
+    // (superintendent, vessel-ownership checked) and /api/docs/open/:token (signed
+    // temp link), both of which read the file server-side themselves. Direct access
+    // to this subfolder bypasses those ownership checks entirely, so require admin
+    // auth here too (unlike cert images/attachments below, which are public by design).
+    if (relPath.startsWith('documents/') && !authCheck(req) && !superAdminCheck(req)) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');
     }
@@ -4157,6 +4231,21 @@ async function handleRequest(req, res) {
   const publicDir = path.resolve(__dirname, '..', 'public');
   const adminDir  = path.resolve(__dirname, '..', 'admin');
 
+  // Secondary admin pages — reachable only via in-app navigation after login,
+  // no login form of their own (unlike dashboard.html/vapt-dashboard.html/
+  // portal.html/super-admin.html, which embed their own login UI and must stay
+  // reachable unauthenticated). Gated on the resolved filename so it applies
+  // uniformly regardless of which routing block resolved the path.
+  const GATED_ADMIN_PAGES = new Set(['index.html', 'documents.html', 'groups.html', 'access.html', 'users.html']);
+  function gateAdminPage(filePath) {
+    if (GATED_ADMIN_PAGES.has(path.basename(filePath)) && !authCheck(req)) {
+      res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/' });
+      res.end();
+      return true;
+    }
+    return false;
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   //  CST — Cyber Security Training routes
   // ══════════════════════════════════════════════════════════════════════════
@@ -4181,6 +4270,7 @@ async function handleRequest(req, res) {
     if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
+    if (gateAdminPage(filePath)) return;
     return sendFile(res, filePath, req);
   }
 
@@ -4207,6 +4297,7 @@ async function handleRequest(req, res) {
     if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
+    if (gateAdminPage(filePath)) return;
     return sendFile(res, filePath, req);
   }
 
@@ -4242,6 +4333,12 @@ async function handleRequest(req, res) {
   if (p === '/vapt-admin' || p.startsWith('/vapt-admin/')) {
     res.writeHead(301, { Location: p.replace('/vapt-admin', CFG.routes.vptAdmin) });
     return res.end();
+  }
+
+  // Admin hub assets — exclusively used by the now-gated hub page (index.html);
+  // not shared with any of the ungated entry pages, so safe to gate directly.
+  if (p.startsWith('/assets/smg-admin/hub/') && !authCheck(req)) {
+    res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
   }
 
   // ── Static files & 404 ────────────────────────────────────────────────────

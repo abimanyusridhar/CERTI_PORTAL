@@ -44,8 +44,12 @@ function createAuthRoutes(deps) {
       sendJSON(res, 400, { error: 'Invalid JSON' }, corsH);
       return true;
     }
-    const { username, password } = body;
-    const usernameMatch = typeof username === 'string' && username === getAdminUser();
+    const { username, password } = body || {};
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      sendJSON(res, 400, { error: 'Invalid input' }, corsH);
+      return true;
+    }
+    const usernameMatch = username === getAdminUser();
     const passwordHash = await hashPassword(password || '');
     const hashA = Buffer.from(passwordHash);
     const hashB = Buffer.from(getAdminPassHash());

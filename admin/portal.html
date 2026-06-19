@@ -527,22 +527,13 @@
 
 <script>
 'use strict';
-// ─── SESSION STORAGE ───────────────────────────────────────────────────────────
-const LS_TOKEN = 'suptSessionToken';
-const LS_NAME  = 'suptSessionName';
-function getToken()     { return localStorage.getItem(LS_TOKEN) || ''; }
+// ─── SESSION (server-side httpOnly cookie is the source of truth; only the
+// display name — not a credential — is cached client-side for instant render) ──
+const LS_NAME = 'suptSessionName';
 function getName()      { return localStorage.getItem(LS_NAME) || ''; }
-function saveSession(t, n) { localStorage.setItem(LS_TOKEN, t); if (n) localStorage.setItem(LS_NAME, n); }
-function clearSession() { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_NAME); }
+function saveSession(n) { if (n) localStorage.setItem(LS_NAME, n); }
+function clearSession() { localStorage.removeItem(LS_NAME); }
 
-// ─── SSO HELPERS ───────────────────────────────────────────────────────────────
-function getCookie(name) {
-  const m = document.cookie.match('(?:^|;)\\s*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)');
-  return m ? decodeURIComponent(m[1]) : '';
-}
-function clearCookie(name) {
-  document.cookie = name + '=; Path=/; Max-Age=0; SameSite=Strict';
-}
 function applyPortalConfig() {
   const C = window.APP_CONFIG;
   if (!C) return;
@@ -606,7 +597,7 @@ async function doPasswordLogin() {
       btn.textContent = 'Sign In';
       return;
     }
-    saveSession(d.sessionToken, d.user.name || d.user.email || '');
+    saveSession(d.user.name || d.user.email || '');
     enterApp(d.user.name || d.user.email || '');
     loadDashboard();
   } catch (e) {
@@ -618,28 +609,22 @@ async function doPasswordLogin() {
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
+// Session lives in an httpOnly cookie (set by /api/auth/user/login or the SSO
+// callback) — the browser sends it automatically, so a single check here covers
+// both the password-login and SSO-login cases with no client-readable token.
 window.addEventListener('DOMContentLoaded', () => {
-  // Check for SSO token cookie placed by /auth/sso/callback for non-admin users
-  const ssoCookie = getCookie('sso_user_token');
-  if (ssoCookie) {
-    clearCookie('sso_user_token');
-    fetch('/api/auth/user/me', { headers: { Authorization: 'UserSession ' + ssoCookie } })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d && d.user) {
-          saveSession(ssoCookie, d.user.name || d.user.email || '');
-          enterApp(d.user.name || d.user.email || '');
-          loadDashboard();
-        } else {
-          showLogin();
-        }
-      })
-      .catch(() => showLogin());
-    return;
-  }
-  const tok = getToken();
-  if (tok) { enterApp(getName()); loadDashboard(); }
-  else { showLogin(); }
+  fetch('/api/auth/user/me')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (d && d.user) {
+        saveSession(d.user.name || d.user.email || '');
+        enterApp(d.user.name || d.user.email || '');
+        loadDashboard();
+      } else {
+        showLogin();
+      }
+    })
+    .catch(() => showLogin());
 });
 
 function enterApp(name) {
@@ -649,12 +634,13 @@ function enterApp(name) {
 }
 
 function doLogout() {
-  clearSession();
-  location.reload();
+  fetch('/api/auth/user/logout', { method: 'POST' }).catch(() => {}).finally(() => {
+    clearSession();
+    location.reload();
+  });
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
-function authHeaders() { return { 'Authorization': 'UserSession ' + getToken() }; }
 function fmtDate(d)    { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return d; } }
 function statusPill(s) {
   const v = (s || '').toUpperCase();
@@ -681,8 +667,8 @@ async function loadDashboard() {
   showView('dashboard');
   try {
     const [rVessels, rMe] = await Promise.all([
-      fetch('/api/supt/vessels',   { headers: authHeaders() }),
-      fetch('/api/auth/user/me',   { headers: authHeaders() }),
+      fetch('/api/supt/vessels'),
+      fetch('/api/auth/user/me'),
     ]);
     if (rVessels.status === 401) { clearSession(); location.reload(); return; }
     if (!rVessels.ok) throw new Error('Failed to load vessels');
@@ -983,7 +969,7 @@ async function openVessel(imo) {
     document.getElementById('cstContent').innerHTML  = '<div class="loading-center"><div class="spinner"></div> Loading…</div>';
     document.getElementById('vaptContent').innerHTML = '<div class="loading-center"><div class="spinner"></div> Loading…</div>';
     try {
-      const r = await fetch(`/api/supt/vessel/${encodeURIComponent(imo)}/certs`, { headers: authHeaders() });
+      const r = await fetch(`/api/supt/vessel/${encodeURIComponent(imo)}/certs`);
       if (r.status === 401) { clearSession(); location.reload(); return; }
       if (!r.ok) throw new Error('Failed to load cert data');
       _certCache[imo] = await r.json();
@@ -1127,7 +1113,7 @@ function renderVaptTable(certs) {
 async function loadDocs(imo) {
   document.getElementById('docsContent').innerHTML = '<div class="loading-center"><div class="spinner"></div> Loading documents…</div>';
   try {
-    const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`, { headers: authHeaders() });
+    const r = await fetch(`/api/docs/by-vessel/${encodeURIComponent(imo)}`);
     if (r.status === 401) { clearSession(); location.reload(); return; }
     if (!r.ok) throw new Error('Failed to load documents');
     _docCache[imo] = await r.json();
@@ -1151,12 +1137,13 @@ function renderDocList(docs) {
     </div>`;
     return;
   }
-  const token = getToken();
   el.innerHTML = `<div class="doc-list">${docs.map(d => {
     const isPdf  = (d.mimeType || '').includes('pdf');
     const isImg  = (d.mimeType || '').startsWith('image/');
     const isView = isPdf || isImg;
-    const url    = `/api/docs/download/${encodeURIComponent(d.id)}?userSession=${encodeURIComponent(token)}`;
+    // Auth is via the httpOnly suptSession cookie, sent automatically on this
+    // same-origin navigation — no token needs to be (or can be) put in the URL.
+    const url    = `/api/docs/download/${encodeURIComponent(d.id)}`;
     const icon   = isPdf
       ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`
       : isImg
