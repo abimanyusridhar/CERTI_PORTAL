@@ -7,7 +7,7 @@
     var m = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
     if (m) {
       sessionStorage.setItem('adminToken', decodeURIComponent(m[1]));
-      document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Strict';
+      document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Lax';
     }
   })();
   var TOKEN = sessionStorage.getItem('adminToken') || '';

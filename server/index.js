@@ -3483,7 +3483,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/auth/user/logout ── (superintendent — clear the session cookie)
   if (route === '/auth/user/logout' && method === 'POST') {
     return sendJSON(res, 200, { ok: true }, {
-      'Set-Cookie': 'suptSession=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
+      'Set-Cookie': 'suptSession=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
       ...corsH,
     });
   }
@@ -3897,18 +3897,25 @@ async function handleRequest(req, res) {
         cookieName   = 'sso_user_token';
       }
       const secure = BASE_ORIGIN.startsWith('https') ? '; Secure' : '';
-      // Alongside the short-lived, JS-readable handoff cookie (used by hub.js/portal.html to
-      // populate sessionStorage for Bearer-header API calls), also set a persistent HttpOnly
-      // cookie so a plain page navigation after SSO login is recognised server-side too —
-      // without this, an SSO-only session is invisible to authCheck()/getUserFromSession()
-      // the moment the 30s handoff cookie expires.
+      // Alongside the short-lived, JS-readable handoff cookie (used by hub.js to populate
+      // sessionStorage for Bearer-header API calls), also set a persistent HttpOnly cookie
+      // so a plain page navigation after SSO login is recognised server-side too — without
+      // this, an SSO-only session is invisible to authCheck()/getUserFromSession() the
+      // moment the 30s handoff cookie expires.
+      // SameSite=Lax (not Strict): this cookie is set during the Cognito → our callback →
+      // final destination redirect chain, which the browser treats as cross-site-initiated
+      // for SameSite purposes. A Strict cookie is stored but is NOT reliably sent on the
+      // very next request — invisible to JS via document.cookie too (HttpOnly) — so a page
+      // like portal.html that depends entirely on the browser auto-sending this cookie (no
+      // handoff-cookie fallback of its own) gets silently logged back out immediately after
+      // a successful SSO login. Lax still blocks cross-site POST/sub-resource use.
       const persistentCookie = isAdmin
-        ? `adminToken=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secure}`
-        : `suptSession=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${secure}`;
+        ? `adminToken=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800${secure}`
+        : `suptSession=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400${secure}`;
       res.writeHead(302, {
         ...SECURITY_HEADERS,
         'Set-Cookie': [
-          `${cookieName}=${sessionToken}; Path=/; Max-Age=30; SameSite=Strict${secure}`,
+          `${cookieName}=${sessionToken}; Path=/; Max-Age=30; SameSite=Lax${secure}`,
           persistentCookie,
         ],
         Location: next,
@@ -3936,10 +3943,16 @@ async function handleRequest(req, res) {
     const location  = COGNITO_ENABLED
       ? `https://${COGNITO_DOMAIN}/logout?client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}&logout_uri=${logoutUri}`
       : '/';
-    const clr = '; Path=/; Max-Age=0; SameSite=Strict';
+    const clr = '; Path=/; Max-Age=0; SameSite=Lax';
     res.writeHead(302, {
       ...SECURITY_HEADERS,
-      'Set-Cookie': [`sso_admin_token=${clr}`, `sso_user_token=${clr}`],
+      // Clear both the short-lived handoff cookies and the persistent session cookies —
+      // otherwise a leftover adminToken/suptSession cookie keeps the user recognised as
+      // logged in server-side even after they've gone through SSO logout.
+      'Set-Cookie': [
+        `sso_admin_token=${clr}`, `sso_user_token=${clr}`,
+        `adminToken=${clr}; HttpOnly`, `suptSession=${clr}; HttpOnly`,
+      ],
       Location: location,
     });
     return res.end();

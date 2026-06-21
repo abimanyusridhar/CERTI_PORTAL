@@ -1238,7 +1238,7 @@
   var match = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
   if (match) {
     sessionStorage.setItem('adminToken', decodeURIComponent(match[1]));
-    document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Strict';
+    document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Lax';
   }
   var ssoErr = new URLSearchParams(location.search).get('sso_error');
   if (ssoErr) {

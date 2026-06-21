@@ -41,8 +41,8 @@ function createAuthRoutes(deps) {
     }
     sendJSON(res, 200, { ok: true }, {
       'Set-Cookie': [
-        'adminToken=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
-        'sso_admin_token=; Path=/; SameSite=Strict; Max-Age=0',
+        'adminToken=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+        'sso_admin_token=; Path=/; SameSite=Lax; Max-Age=0',
       ],
       ...corsH,
     });
