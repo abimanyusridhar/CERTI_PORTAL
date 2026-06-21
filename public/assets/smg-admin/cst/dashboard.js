@@ -3044,7 +3044,7 @@ async function confirmAssignGroup() {
     const dashPage  = document.getElementById('page-dashboard');
     const certsPage = document.getElementById('page-certs');
     if (dashPage  && dashPage.style.display  !== 'none') renderTbl('dashTbl', '');
-    if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value||'', document.getElementById('allStatusSel')?.value||'');
+    if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value||'', document.getElementById('allStatus')?.value||'');
   } catch (e) {
     toast('Assign failed: ' + e.message, 'err');
   } finally {

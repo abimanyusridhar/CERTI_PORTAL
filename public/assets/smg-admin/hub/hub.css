@@ -27,7 +27,7 @@ body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
 .hub-hero-sub { font-size: .82rem; color: var(--text-sec); max-width: 520px; margin: 0 auto; line-height: 1.75; }
 
 /* ── Stats Row ── */
-.hub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+.hub-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
 .hub-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: center; transition: border-color .2s; }
 .hub-stat:hover { border-color: var(--border-gold); }
 .hub-stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text-bright); }

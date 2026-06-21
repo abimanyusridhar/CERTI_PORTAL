@@ -1057,7 +1057,7 @@
   }
 
   function openDocLibraryForVessel() {
-    const imo = (document.getElementById('fIMO') || {}).value || '';
+    const imo = (document.getElementById('fImo') || {}).value || '';
     const vessel = (document.getElementById('fVesselName') || {}).value || '';
     const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cstAdmin) || '/CST/misecure';
     let url = base + '/?tab=docs';
@@ -2091,7 +2091,7 @@ function updateSelToolbar() {
 function clearSelections() {
   _selectedRows.clear();
   document.querySelectorAll('#allTbl input.row-sel-cb').forEach(c => c.checked = false);
-  const allCb = document.getElementById('selAllCb');
+  const allCb = document.getElementById('selAllCb_allTbl');
   if (allCb) allCb.checked = false;
   updateSelToolbar();
 }
