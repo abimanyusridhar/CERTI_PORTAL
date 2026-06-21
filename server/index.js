@@ -4110,7 +4110,15 @@ async function handleRequest(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
 
   if (p === CFG.routes.cstAdmin || p === CFG.routes.cstAdmin + '/') {
-    if (p === CFG.routes.cstAdmin) { res.writeHead(301, { Location: CFG.routes.cstAdmin + '/' }); return res.end(); }
+    if (p === CFG.routes.cstAdmin) { res.writeHead(301, { Location: CFG.routes.cstAdmin + '/' + (parsed.search || '') }); return res.end(); }
+    // A bare admin root with ?tab=... means "open the hub on this tab"
+    // (sidebar nav links use this form) — without this check this branch
+    // always served dashboard.html and silently dropped the tab hint.
+    const hubPath = path.join(adminDir, 'index.html');
+    if (parsed.searchParams.has('tab')) {
+      if (gateAdminPage(hubPath)) return;
+      return sendFile(res, hubPath, req);
+    }
     return sendFile(res, path.join(adminDir, 'dashboard.html'), req);
   }
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
@@ -4122,7 +4130,9 @@ async function handleRequest(req, res) {
     const LEGACY_TAB_REDIRECTS = { users: 'users', groups: 'groups', documents: 'docs' };
     let filePath;
     if (!relative) {
-      filePath = path.join(adminDir, 'dashboard.html');
+      filePath = parsed.searchParams.has('tab')
+        ? path.join(adminDir, 'index.html')
+        : path.join(adminDir, 'dashboard.html');
     } else if (LEGACY_TAB_REDIRECTS[relative]) {
       // Preserve any existing query params (e.g. ?imo=...&vessel=... deep-links
       // into the Documents tab) alongside the tab hint.
