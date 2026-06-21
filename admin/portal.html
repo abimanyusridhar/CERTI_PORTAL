@@ -78,7 +78,8 @@
 
     /* ── STATS ROW ── */
     .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; transition: border-color .2s, box-shadow .2s, transform .2s; }
+    .stat-card:hover { border-color: rgba(100,255,218,.35); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
     .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; color: var(--text-bright); }
     .stat-num.teal { color: var(--sp-accent); }
     .stat-num.gold { color: var(--sp-gold); }
@@ -238,6 +239,7 @@
     html.light .vc-pill.cst { background: rgba(10,124,110,.08) !important; border-color: rgba(10,124,110,.2) !important; }
     html.light .vessel-card:hover { border-color: rgba(10,124,110,.35) !important; box-shadow: 0 8px 24px rgba(30,60,120,.12) !important; }
     html.light .vessel-card:hover .vc-arrow { color: var(--sp-accent) !important; }
+    html.light .stat-card:hover { border-color: rgba(10,124,110,.35) !important; box-shadow: 0 8px 24px rgba(30,60,120,.12) !important; }
     html.light .tab-btn.active-cst { border-color: rgba(10,124,110,.35) !important; }
     html.light .vd-back:hover { border-color: rgba(10,124,110,.3) !important; }
     html.light .status-pill.valid   { background: rgba(10,124,110,.10) !important; border-color: rgba(10,124,110,.25) !important; }

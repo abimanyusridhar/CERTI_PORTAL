@@ -30,8 +30,8 @@
     /* ── STATS / TOOLBAR (shared by Users + Groups) ── */
     .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
     .stats-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; transition: border-color .2s; }
-    .stat-card:hover { border-color: rgba(212,168,67,.3); }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; transition: border-color .2s, box-shadow .2s, transform .2s; }
+    .stat-card:hover { border-color: rgba(212,168,67,.3); box-shadow: 0 8px 24px rgba(0,0,0,.3); transform: translateY(-2px); }
     .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--text-bright); }
     .stat-num.gold { color: var(--gold); }
     .stat-num.ok, .stat-num.teal { color: var(--teal); }
@@ -196,6 +196,7 @@
     #idleWarningBanner { background: rgba(255,92,122,.12); border-bottom: 2px solid rgba(255,92,122,.35); color: var(--invalid); }
 
     /* ── LIGHT THEME ── */
+    html.light .stat-card:hover { border-color: rgba(181,128,10,.3) !important; box-shadow: 0 8px 24px rgba(30,60,120,.12) !important; }
     html.light .user-table td { border-bottom-color: rgba(0,0,0,.05); }
     html.light .user-table tr:hover td { background: rgba(0,0,0,.02); }
     html.light .role-badge { background: rgba(42,187,160,.09); border-color: rgba(42,187,160,.25); color: #2ABBA0; }
@@ -474,6 +475,11 @@
 
     <!-- ── DOCUMENTS PANE ── -->
     <div class="admin-tab-pane" id="paneDocs">
+      <div class="stats-row cols-3">
+        <div class="stat-card"><div class="stat-num gold" id="dStatTotal">—</div><div class="stat-lbl">Total Documents</div></div>
+        <div class="stat-card"><div class="stat-num teal" id="dStatVessels">—</div><div class="stat-lbl">Vessels Covered</div></div>
+        <div class="stat-card"><div class="stat-num" id="dStatSize">—</div><div class="stat-lbl">Total Storage</div></div>
+      </div>
       <div class="upload-card">
         <div class="section-title">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -1376,12 +1382,24 @@
     } catch { toast('Failed to load data', true); }
     renderDocs();
     updateBadges();
+    updateDocStats();
   }
   window.loadDocsData = loadDocsData;
 
   function updateBadges() {
     const b = document.getElementById('badgeDocsTab');
     if (b) b.textContent = allDocs.length;
+  }
+
+  function updateDocStats() {
+    const totalEl = document.getElementById('dStatTotal');
+    const vesselsEl = document.getElementById('dStatVessels');
+    const sizeEl = document.getElementById('dStatSize');
+    if (!totalEl) return;
+    totalEl.textContent = allDocs.length;
+    vesselsEl.textContent = new Set(allDocs.map(d => d.vesselIMO).filter(Boolean)).size;
+    const totalBytes = allDocs.reduce((sum, d) => sum + (d.fileSize || 0), 0);
+    sizeEl.textContent = totalBytes > 1048576 ? (totalBytes / 1048576).toFixed(1) + ' MB' : (totalBytes / 1024).toFixed(0) + ' KB';
   }
 
   function onFileSelect(input) {

@@ -290,14 +290,14 @@
           </div>
         </div>
         <!-- ── QUARTERLY ANALYTICS DASHBOARD ── -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:14px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
             <div>
               <div style="font-size:.85rem;font-weight:700;color:var(--text-bright);letter-spacing:.02em">Quarterly Analytics</div>
               <div style="font-size:.62rem;color:var(--text-sec);margin-top:2px">CST certificate activity by quarter</div>
             </div>
             <div style="display:flex;align-items:center;gap:10px">
-              <select id="qYear" onchange="loadQuarterlyStats()" style="background:var(--input);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:5px 10px;font-size:.72rem;font-family:inherit;cursor:pointer"></select>
+              <select id="qYear" onchange="loadQuarterlyStats()" style="background:var(--navy-mid);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:5px 10px;font-size:.72rem;font-family:inherit;cursor:pointer"></select>
               <div style="display:flex;gap:4px" id="qTabs">
                 <button class="q-tab" data-q="Q1" onclick="selectQuarter('Q1')">Q1</button>
                 <button class="q-tab" data-q="Q2" onclick="selectQuarter('Q2')">Q2</button>
@@ -442,8 +442,8 @@
             </div>
             <div style="padding:14px 16px">
               <div style="display:flex;gap:8px;margin-bottom:12px">
-                <input id="vesselHistorySearch" type="text" placeholder="Search by vessel name or IMO…" style="flex:1;background:var(--input);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 12px;font-size:.72rem;font-family:inherit" oninput="renderVesselHistory()" />
-                <select id="vesselHistoryFilter" onchange="renderVesselHistory()" style="background:var(--input);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.72rem;font-family:inherit;cursor:pointer">
+                <input id="vesselHistorySearch" type="text" placeholder="Search by vessel name or IMO…" style="flex:1;background:var(--navy-mid);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 12px;font-size:.72rem;font-family:inherit" oninput="renderVesselHistory()" />
+                <select id="vesselHistoryFilter" onchange="renderVesselHistory()" style="background:var(--navy-mid);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.72rem;font-family:inherit;cursor:pointer">
                   <option value="ALL">All Status</option>
                   <option value="VALID">Valid</option>
                   <option value="EXPIRED">Expired</option>
