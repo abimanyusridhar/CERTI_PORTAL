@@ -324,7 +324,7 @@
       background: var(--surface);
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       flex-shrink: 0;
     }
 
@@ -479,7 +479,7 @@
     .page {
       flex: 1;
       overflow-y: auto;
-      padding: 24px 28px;
+      padding: 22px 26px;
     }
 
     /* ── STATS ROW ── */
@@ -491,8 +491,11 @@
     }
 
     .stat-card {
-      padding: 18px 20px;
-      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 20px 20px;
+      border-radius: 15px;
       background: var(--surface);
       border: 1px solid var(--border);
       position: relative;
@@ -705,7 +708,7 @@
     .tbl-scroll-wrap::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
     .tbl-hdr {
-      padding: 14px 18px;
+      padding: 14px 18px 12px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -2509,13 +2512,6 @@
     background: rgba(212,168,67,0.04) !important;
   }
 
-  /* Table header filter row */
-  .tbl-hdr {
-    padding: 14px 18px !important;
-    gap: 10px !important;
-    align-items: center !important;
-  }
-
   /* Mini search input */
   .mini-search {
     border-radius: 9px !important;
@@ -2642,6 +2638,7 @@
   }
   html.light .stat-card:hover {
     box-shadow: 0 8px 32px rgba(30,60,120,0.12) !important;
+    transform: translateY(-2px) !important;
   }
   html.light .analytics-card {
     background: #fff !important;
@@ -2728,12 +2725,6 @@
   /* ═══ DASHBOARD COMPONENT ALIGNMENT POLISH ═══ */
 
   /* Topbar: right-align actions, left title block */
-  .topbar {
-    padding: 0 28px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-  }
   .topbar > .tb-title-group {
     flex: 1 1 auto;
     min-width: 0;
@@ -2747,10 +2738,6 @@
   }
 
   /* Sidebar bottom - always stick to bottom */
-  .sidebar {
-    display: flex !important;
-    flex-direction: column !important;
-  }
   .sb-nav {
     flex: 1 1 auto !important;
     overflow-y: auto !important;
@@ -2761,16 +2748,9 @@
     padding: 12px 10px !important;
   }
 
-  /* Stats row — equal height cards */
+  /* Stats row — equal height cards (padding/radius/flex now on the base .stat-card rule) */
   .stats-row {
     align-items: stretch !important;
-  }
-  .stat-card {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    padding: 20px 20px !important;
-    border-radius: 15px !important;
   }
 
   /* Analytics card head alignment */
@@ -2779,10 +2759,6 @@
     border-bottom: 1px solid var(--border) !important;
   }
 
-  /* Table card header consistent padding */
-  .tbl-hdr {
-    padding: 14px 18px 12px !important;
-  }
   .tbl-hdr-top {
     width: 100% !important;
     display: flex !important;
@@ -2850,11 +2826,6 @@
   }
   .admin-av:hover {
     transform: scale(1.08) !important;
-  }
-
-  /* Page header spacing */
-  .page {
-    padding: 22px 26px !important;
   }
 
   /* Near expiry badge alignment */
