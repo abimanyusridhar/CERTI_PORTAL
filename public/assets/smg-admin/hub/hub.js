@@ -35,10 +35,6 @@
     if (pubVaptUrl) pubVaptUrl.textContent = C.routes.vpt || '/VAPT';
     var ft = document.getElementById('hubFooterText');
     if (ft) ft.innerHTML = C.brand.name + ' &middot; Cyber Security &amp; Compliance Division';
-    var hubLinkSuperAdmin = document.getElementById('hubLinkSuperAdmin');
-    if (hubLinkSuperAdmin) hubLinkSuperAdmin.href = (C.routes.cstAdmin || '/CST/misecure') + '/superadmin/';
-    var hubLinkDocsEl = document.getElementById('hubLinkDocs');
-    if (hubLinkDocsEl) hubLinkDocsEl.href = (C.routes.cstAdmin || '/CST/misecure') + '/documents/';
   }
 
   document.addEventListener('appconfigready', applyConfig);
@@ -64,12 +60,12 @@
 
     var timeout2 = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
       ? AbortSignal.timeout(5000) : undefined;
-    fetch('/api/ses-status', { signal: timeout2 })
+    fetch('/api/ses-status', { signal: timeout2, headers: TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {} })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var dot = document.getElementById('mailDot');
         var lbl = document.getElementById('mailLabel');
-        var ok = d && d.configured;
+        var ok = d && d.enabled;
         if (dot) dot.style.background = ok ? 'var(--teal)' : 'var(--warn)';
         if (lbl) lbl.textContent = ok ? 'Mail Ready' : 'Mail Unconfigured';
       })
@@ -118,6 +114,12 @@
 
   var _ssoError = /[?&]sso_error=1/.test(window.location.search);
 
+  function doLogout() {
+    sessionStorage.removeItem('adminToken');
+    redirectToSso();
+  }
+  window.doLogout = doLogout;
+
   function loadStats() {
     if (!TOKEN) {
       if (_ssoError) {
@@ -165,20 +167,6 @@
       setText('vaptExpired', countExpired(vapt));
 
       setText('docTotal',    docs.length);
-    });
-
-    // User & group stats use the same Bearer admin token
-    Promise.all([
-      fetch(API + '/admin/users',  { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
-      fetch(API + '/admin/groups', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
-    ]).then(function(res) {
-      var uArr = Array.isArray(res[0]) ? res[0] : Object.values(res[0] || {});
-      var gArr = Array.isArray(res[1]) ? res[1] : Object.values(res[1] || {});
-      var vessels = new Set();
-      gArr.forEach(function(g) { (g.vesselIMOs || []).forEach(function(i) { vessels.add(i); }); });
-      setText('saUserCount',   uArr.length);
-      setText('saGroupCount',  gArr.length);
-      setText('saVesselCount', vessels.size);
     });
   }
 

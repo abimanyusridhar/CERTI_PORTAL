@@ -6,6 +6,7 @@ const http = require('node:http');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -146,7 +147,6 @@ test('server critical API flows', async () => {
       BASE_ORIGIN: `http://127.0.0.1:${port}`,
       ADMIN_USER: 'admin_test',
       ADMIN_PASS: 'Admin@Test_123!',        // meets: 12+ chars, upper, lower, digit, special
-      SUPER_ADMIN_PASS: 'Sup3r@Adm1n_Sec!', // HMAC-compared only, no strength gate
       TENANT_ID: tenantId,
       LOG_LEVEL: 'silent',
     },
@@ -161,12 +161,6 @@ test('server critical API flows', async () => {
     assert.equal(healthRes.status, 200);
     assert.ok(healthRes.json.ok);
     assert.ok(!('certs' in healthRes.json), 'health endpoint must not expose cert counts');
-
-    // ── Health detailed endpoint: filesystem + memory info present ────────
-    const healthDetailRes = await requestJson({ port, urlPath: '/api/health-detailed' });
-    assert.equal(healthDetailRes.status, 200);
-    assert.ok(healthDetailRes.json.detailed, 'health-detailed must return detailed block');
-    assert.ok(healthDetailRes.json.detailed.system, 'detailed must include system info');
 
     // ── CORS: unknown origin must not be reflected ────────────────────────
     const corsCheck = await requestBinary({
@@ -211,6 +205,12 @@ test('server critical API flows', async () => {
     assert.equal(login.status, 200);
     assert.ok(login.json && login.json.token);
     const token = login.json.token;
+
+    // ── Health detailed endpoint: filesystem + memory info present (admin-only) ──
+    const healthDetailRes = await requestJson({ port, urlPath: '/api/health-detailed', token });
+    assert.equal(healthDetailRes.status, 200);
+    assert.ok(healthDetailRes.json.detailed, 'health-detailed must return detailed block');
+    assert.ok(healthDetailRes.json.detailed.memory, 'detailed must include memory info');
 
     // CRUD create
     const certId = `CST-9999999-01-${String(Date.now() % 90 + 10)}`;
@@ -439,20 +439,11 @@ test('server critical API flows', async () => {
     assert.equal(captainWord.headers['content-type'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     assert.match(captainWord.headers['content-disposition'], /^attachment;/);
 
-    const superLogin = await requestJson({
-      method: 'POST',
-      port,
-      urlPath: '/api/superadmin/login',
-      body: { password: 'Sup3r@Adm1n_Sec!' },
-    });
-    assert.equal(superLogin.status, 200);
-    const superHeader = { Authorization: `SuperAdmin ${superLogin.json.token}` };
-
     const group = await requestJson({
       method: 'POST',
       port,
       urlPath: '/api/admin/groups',
-      headers: superHeader,
+      token,
       body: { name: 'Test Group', vesselIMOs: ['9999999'] },
     });
     assert.equal(group.status, 201);
@@ -461,24 +452,25 @@ test('server critical API flows', async () => {
       method: 'POST',
       port,
       urlPath: '/api/admin/users',
-      headers: superHeader,
+      token,
       body: {
         name: 'Test Superintendent',
         email: suptEmail,
-        password: 'supt_test_pw',
         groupIds: [group.json.id],
       },
     });
     assert.equal(user.status, 201);
 
-    const userLogin = await requestJson({
-      method: 'POST',
-      port,
-      urlPath: '/api/auth/user/login',
-      body: { email: suptEmail, password: 'supt_test_pw' },
-    });
-    assert.equal(userLogin.status, 200);
-    const userSession = userLogin.json.sessionToken;
+    // Superintendent login is SSO-only now (password login removed) — mint a
+    // UserSession token directly the same way the SSO callback does, using the
+    // spawned instance's own signing key, rather than going through a browser-only
+    // Cognito round-trip this test harness can't simulate.
+    const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
+    const { urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+    const sessionPayload = { kind: 'usersession', sub: user.json.id, iat: Date.now(), exp: Date.now() + 24 * 60 * 60 * 1000 };
+    const sessionB64 = Buffer.from(JSON.stringify(sessionPayload)).toString('base64url');
+    const sessionSig = crypto.createHmac('sha256', urlMacKey).update(sessionB64).digest('base64url');
+    const userSession = `${sessionB64}.${sessionSig}`;
 
     const suptVessels = await requestJson({
       port,

@@ -786,7 +786,7 @@ function getCognitoJWKS() {
   if (_cognitoJwksCache && Date.now() - _cognitoJwksCacheAt < 3600000) return Promise.resolve(_cognitoJwksCache);
   const issuer = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`;
   return new Promise((resolve, reject) => {
-    require('https').get(`${issuer}/.well-known/jwks.json`, r => {
+    const req = require('https').get(`${issuer}/.well-known/jwks.json`, r => {
       let buf = '';
       r.on('data', c => buf += c);
       r.on('end', () => {
@@ -797,6 +797,10 @@ function getCognitoJWKS() {
         } catch { reject(new Error('Invalid JWKS response')); }
       });
     }).on('error', reject);
+    // Without a timeout, a stalled connection to Cognito leaves this promise pending
+    // forever — the SSO callback's await never resolves, so the browser sits on a
+    // spinner indefinitely instead of seeing the existing sso_error redirect.
+    req.setTimeout(8000, () => req.destroy(new Error('Cognito JWKS request timed out')));
   });
 }
 
@@ -842,6 +846,10 @@ function exchangeCognitoCode(code) {
       r.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Token parse error')); } });
     });
     req.on('error', reject);
+    // Without a timeout, a stalled connection to Cognito's token endpoint leaves this
+    // promise pending forever — the SSO callback's await never resolves, so the browser
+    // sits on a spinner indefinitely instead of seeing the existing sso_error redirect.
+    req.setTimeout(8000, () => req.destroy(new Error('Cognito token exchange timed out')));
     req.write(body);
     req.end();
   });
@@ -996,34 +1004,6 @@ async function verifyUserPassword(password, stored) {
   });
 }
 
-// ─── SUPER ADMIN TOKEN ────────────────────────────────────────────────────────
-const SUPER_ADMIN_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
-function issueSuperAdminToken() {
-  const payload = { kind: 'superadmin', iat: Date.now(), exp: Date.now() + SUPER_ADMIN_TOKEN_TTL_MS };
-  const b64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig  = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
-  return b64 + '.' + sig;
-}
-function verifySuperAdminToken(token) {
-  if (!token || typeof token !== 'string') return null;
-  const parts = token.split('.');
-  if (parts.length !== 2) return null;
-  const [b64, sig] = parts;
-  const expected = crypto.createHmac('sha256', KEYS.urlMacKey).update(b64).digest('base64url');
-  const sBuf = Buffer.from(sig), eBuf = Buffer.from(expected);
-  if (sBuf.length !== eBuf.length || !crypto.timingSafeEqual(sBuf, eBuf)) return null;
-  try {
-    const p = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
-    if (!p || p.kind !== 'superadmin') return null;
-    if (Date.now() > p.exp) return null;
-    return p;
-  } catch { return null; }
-}
-function superAdminCheck(req) {
-  const auth = req.headers['authorization'] || '';
-  if (!auth.startsWith('SuperAdmin ')) return false;
-  return verifySuperAdminToken(auth.slice(11)) !== null;
-}
 
 // ─── USER SESSION TOKEN (24-hour, for superintendents on public pages) ────────
 const USER_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -3287,14 +3267,14 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/docs ── (admin — list all documents; scoped to training reports only)
   if (route === '/docs' && method === 'GET') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const allDocs = allDocumentLibraryRecords().filter(d => !d.docType || d.docType === 'TRAINING_REPORT');
     return sendJSON(res, 200, allDocs, corsH);
   }
 
   // ── POST /api/docs/upload ── (admin — upload a document for a vessel)
   if (route === '/docs/upload' && method === 'POST') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     const _ulDoc = checkRateLimit(ip, 'upload');
     if (!_ulDoc.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulDoc.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
@@ -3400,7 +3380,7 @@ async function handleAPI(req, res, parsed) {
 
     let accessGranted = false;
     // Admin direct access
-    if (authCheck(req) || superAdminCheck(req)) { accessGranted = true; }
+    if (authCheck(req)) { accessGranted = true; }
     // Superintendent session — header, suptSession cookie (preferred for <a> downloads),
     // or legacy query param (kept for backward compatibility, e.g. existing integration test).
     if (!accessGranted) {
@@ -3473,7 +3453,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/docs/temp-link/:id ── (admin — generates 24-hour signed URL; no auth needed to open it)
   if (route.match(/^\/docs\/temp-link\/(?:DOC-\d+|ATT_(?:CST|VAPT)_.+_\d+)$/) && method === 'GET') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Unauthorized' }, corsH);
     const docId = route.replace('/docs/temp-link/', '');
     const docs = loadDocs();
     const certAttachment = resolveCertificateAttachment(docId);
@@ -3549,68 +3529,19 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, { status: req_.status }, corsH);
   }
 
-  // ── POST /api/superadmin/login ── (super admin login — separate from regular admin)
+  // ── POST /api/superadmin/login ── DECOMMISSIONED (SuperAdmin system removed — use regular admin auth)
   if (route === '/superadmin/login' && method === 'POST') {
-    const SUPER_ADMIN_PASS = process.env.SUPER_ADMIN_PASS;
-    if (!SUPER_ADMIN_PASS) return sendJSON(res, 503, { error: 'Super admin not configured on this server.' }, corsH);
-    const rl = checkRateLimit(ip, 'login');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many attempts.' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    body = body || {};
-    if (typeof body.password !== 'string') return sendJSON(res, 400, { error: 'Invalid input' }, corsH);
-    const entered = body.password.trim();
-    const hEntered  = crypto.createHmac('sha256', KEYS.urlMacKey).update(entered).digest('hex');
-    const hExpected = crypto.createHmac('sha256', KEYS.urlMacKey).update(SUPER_ADMIN_PASS).digest('hex');
-    const eA = Buffer.from(hEntered), eB = Buffer.from(hExpected);
-    const match = eA.length === eB.length && crypto.timingSafeEqual(eA, eB);
-    if (!match) { await new Promise(r => setTimeout(r, 200 + Math.random() * 200)); return sendJSON(res, 401, { error: 'Invalid credentials.' }, corsH); }
-    return sendJSON(res, 200, { token: issueSuperAdminToken() }, corsH);
+    return sendJSON(res, 410, { error: 'Super admin login has been removed. Use the regular admin login.' }, corsH);
   }
 
-  // ── GET /api/superadmin/verify ── (check super admin token)
+  // ── GET /api/superadmin/verify ── DECOMMISSIONED (SuperAdmin system removed)
   if (route === '/superadmin/verify' && method === 'GET') {
-    if (!superAdminCheck(req)) return sendJSON(res, 401, { error: 'Invalid or expired super admin token.' }, corsH);
-    return sendJSON(res, 200, { ok: true }, corsH);
+    return sendJSON(res, 410, { error: 'Super admin login has been removed. Use the regular admin login.' }, corsH);
   }
 
-  // ── POST /api/auth/user/login ── (superintendent public login)
+  // ── POST /api/auth/user/login ── DECOMMISSIONED (superintendent portal is SSO-only now)
   if (route === '/auth/user/login' && method === 'POST') {
-    const rl = checkRateLimit(ip, 'login');
-    if (!rl.ok) return sendJSON(res, 429, { error: 'Too many attempts.' }, corsH);
-    let body;
-    try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
-    body = body || {};
-    if (typeof body.email !== 'string' || typeof body.password !== 'string') {
-      return sendJSON(res, 400, { error: 'Invalid input' }, corsH);
-    }
-    const email    = body.email.trim().toLowerCase();
-    const password = body.password.trim();
-    if (!email || !password) return sendJSON(res, 400, { error: 'Email and password are required.' }, corsH);
-    const users = loadUsers();
-    const user = Object.values(users).find(u => u.email.toLowerCase() === email && u.active);
-    if (!user) {
-      await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
-      return sendJSON(res, 401, { error: 'Invalid credentials.' }, corsH);
-    }
-    const ok = await verifyUserPassword(password, user.passwordHash);
-    if (!ok) {
-      await new Promise(r => setTimeout(r, 200 + Math.random() * 200));
-      return sendJSON(res, 401, { error: 'Invalid credentials.' }, corsH);
-    }
-    const sessionToken = issueUserSessionToken(user.id);
-    const groups = loadGroups();
-    const userGroups = (user.groupIds || []).map(gid => groups[gid]).filter(Boolean).map(g => ({
-      id: g.id, name: g.name, vesselIMOs: g.vesselIMOs || [],
-    }));
-    const suptSecure = BASE_ORIGIN.startsWith('https') ? '; Secure' : '';
-    return sendJSON(res, 200, {
-      sessionToken,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, groups: userGroups },
-    }, {
-      'Set-Cookie': `suptSession=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${suptSecure}`,
-      ...corsH,
-    });
+    return sendJSON(res, 410, { error: 'Password login has been removed. Sign in with AWS SSO.' }, corsH);
   }
 
   // ── POST /api/auth/user/logout ── (superintendent — clear the session cookie)
@@ -3638,7 +3569,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/admin/users ── (admin read-only, super admin full)
   if (route === '/admin/users' && method === 'GET') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const users = loadUsers();
     const safe = Object.values(users).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, groupIds: u.groupIds, active: u.active, createdAt: u.createdAt }));
     return sendJSON(res, 200, safe, corsH);
@@ -3647,7 +3578,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/admin/users ── (admin — create superintendent, password optional — SSO is primary auth)
   if (route === '/admin/users' && method === 'POST') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name     = (body.name     || '').trim().slice(0, 120);
@@ -3690,7 +3621,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── PUT /api/admin/users/:id ── (admin — update user)
   if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'PUT') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3716,7 +3647,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── DELETE /api/admin/users/:id ── (admin — remove user)
   if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'DELETE') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3781,9 +3712,9 @@ async function handleAPI(req, res, parsed) {
     return sendJSON(res, 200, { cst: cstCerts, vapt: vaptCerts }, corsH);
   }
 
-  // ── GET /api/vessels/names ── (admin or superadmin — IMO→name map from both CST+VAPT cert data)
+  // ── GET /api/vessels/names ── (admin — IMO→name map from both CST+VAPT cert data)
   if (route === '/vessels/names' && method === 'GET') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const cstCerts  = loadData();
     const vaptCerts = loadVaptData();
     const nameMap = {};
@@ -3794,14 +3725,14 @@ async function handleAPI(req, res, parsed) {
 
   // ── GET /api/admin/groups ── (admin — list groups)
   if (route === '/admin/groups' && method === 'GET') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const groups = loadGroups();
     return sendJSON(res, 200, Object.values(groups), corsH);
   }
 
   // ── POST /api/admin/groups ── (admin — create group)
   if (route === '/admin/groups' && method === 'POST') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name       = (body.name || '').trim().slice(0, 120);
@@ -3818,7 +3749,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── PUT /api/admin/groups/:id ── (admin — update group)
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'PUT') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -3834,7 +3765,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/admin/groups/:id/vessels ── (admin — add vessel IMO to group)
   if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels$/) && method === 'POST') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const groupId = route.replace('/admin/groups/', '').replace('/vessels', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -3853,7 +3784,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── DELETE /api/admin/groups/:id/vessels/:imo ── (admin — remove vessel from group)
   if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels\/[A-Z0-9]+$/) && method === 'DELETE') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const parts   = route.split('/');
     const groupId = parts[3];
     const imo     = parts[5].toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -3867,7 +3798,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── DELETE /api/admin/groups/:id ── (admin — remove group)
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'DELETE') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -3887,7 +3818,7 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/admin/cognito-sync ── (admin — pull users from Cognito User Pool)
   if (route === '/admin/cognito-sync' && method === 'POST') {
-    if (!authCheck(req) && !superAdminCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!COGNITO_ENABLED) return sendJSON(res, 503, { error: 'Cognito not configured.' }, corsH);
     if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) {
       return sendJSON(res, 503, { error: 'Cognito credentials not configured.' }, corsH);
@@ -4103,7 +4034,7 @@ async function handleRequest(req, res) {
     // temp link), both of which read the file server-side themselves. Direct access
     // to this subfolder bypasses those ownership checks entirely, so require admin
     // auth here too (unlike cert images/attachments below, which are public by design).
-    if (relPath.startsWith('documents/') && !authCheck(req) && !superAdminCheck(req)) {
+    if (relPath.startsWith('documents/') && !authCheck(req)) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');
     }
@@ -4233,10 +4164,10 @@ async function handleRequest(req, res) {
 
   // Secondary admin pages — reachable only via in-app navigation after login,
   // no login form of their own (unlike dashboard.html/vapt-dashboard.html/
-  // portal.html/super-admin.html, which embed their own login UI and must stay
-  // reachable unauthenticated). Gated on the resolved filename so it applies
-  // uniformly regardless of which routing block resolved the path.
-  const GATED_ADMIN_PAGES = new Set(['index.html', 'documents.html', 'groups.html', 'access.html', 'users.html']);
+  // portal.html, which embed their own login UI and must stay reachable
+  // unauthenticated). Gated on the resolved filename so it applies uniformly
+  // regardless of which routing block resolved the path.
+  const GATED_ADMIN_PAGES = new Set(['index.html', 'access.html']);
   function gateAdminPage(filePath) {
     if (GATED_ADMIN_PAGES.has(path.basename(filePath)) && !authCheck(req)) {
       res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/' });
@@ -4257,10 +4188,16 @@ async function handleRequest(req, res) {
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
     const relative = p.slice((CFG.routes.cstAdmin + '/').length).replace(/\/$/, '');
     // Known named admin pages — extensionless sub-paths resolved here.
-    const PAGE_MAP = { documents: 'documents.html', hub: 'index.html', users: 'users.html', groups: 'groups.html', portal: 'portal.html', superadmin: 'super-admin.html' };
+    const PAGE_MAP = { hub: 'index.html', portal: 'portal.html' };
+    // Users/Groups/Documents were merged into the hub as tabs — old bookmarked
+    // URLs redirect to the hub with a ?tab= hint instead of 404ing.
+    const LEGACY_TAB_REDIRECTS = { users: 'users', groups: 'groups', documents: 'docs' };
     let filePath;
     if (!relative) {
       filePath = path.join(adminDir, 'dashboard.html');
+    } else if (LEGACY_TAB_REDIRECTS[relative]) {
+      res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/?tab=' + LEGACY_TAB_REDIRECTS[relative] });
+      return res.end();
     } else if (PAGE_MAP[relative]) {
       filePath = path.join(adminDir, PAGE_MAP[relative]);
     } else {
