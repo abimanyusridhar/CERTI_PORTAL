@@ -40,37 +40,6 @@
     // ════════════════════════════════════════════════════
     // MODULE: Auth
     // ════════════════════════════════════════════════════
-    async function doLogin() {
-      const u = document.getElementById('lUser').value.trim();
-      const p = document.getElementById('lPass').value;
-      document.getElementById('lBtnTxt').textContent = 'Authenticating…';
-      try {
-        const r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
-        const d = await r.json();
-        if (!r.ok) {
-          const errEl = document.getElementById('loginErr');
-          errEl.textContent = r.status === 429
-            ? 'Too many attempts. Please wait a few minutes and try again.'
-            : 'Invalid credentials. Please try again.';
-          errEl.style.display = 'block';
-          return;
-        }
-        TOKEN = d.token;
-        sessionStorage.setItem('adminToken', TOKEN);
-        document.getElementById('loginWrap').style.display = 'none';
-        document.getElementById('appWrap').style.display = 'flex';
-        if (window.syncButtons) window.syncButtons();
-        if (window.PSP) PSP.setPrincipal({ username: u, certType: 'CST' });
-        scheduleTokenExpiryWarning();
-        // Start session expiry + idle timeout monitoring
-        if (window._startSessionTimers) window._startSessionTimers(Date.now());
-        initApp();
-      } catch {
-        document.getElementById('loginErr').textContent = 'Login failed. Check your connection and try again.';
-        document.getElementById('loginErr').style.display = 'block';
-      }
-      document.getElementById('lBtnTxt').textContent = 'Login to Admin Panel';
-    }
     function doLogout() {
       if (window.PSP) { PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'CST' }); PSP.setPrincipal(null); }
       sessionStorage.removeItem('adminToken'); TOKEN = '';

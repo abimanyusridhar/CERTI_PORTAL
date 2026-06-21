@@ -395,10 +395,8 @@ function buildCertUrl(certId, baseUrl) {
 
 // ─── RATE LIMITER ─────────────────────────────────────────────────────────────
 const rateLimits   = new Map();
-const loginLockouts = new Map(); // ip → { failCount, lockedUntil }
 const RATE_LIMITS = {
   verify:  { max: 30,  window: 60_000  },
-  login:   { max: 5,   window: 300_000 },
   track:   { max: 200, window: 60_000  },
   upload:  { max: 10,  window: 300_000 }, // 10 file uploads per 5 min per IP
   default: { max: 120, window: 60_000  },
@@ -409,12 +407,6 @@ const RATE_LIMITS = {
 // Allows immediate server-side logout without waiting for token natural expiry.
 const revokedTokens = new Map();
 const RATE_LIMIT_MAX_ENTRIES = 50_000;
-// Progressive lockout: each tier applies when failCount reaches threshold
-const LOGIN_LOCKOUT_TIERS = [
-  { afterFails: 10, lockMs: 60 * 60_000 },  // 10+ → 1 hour
-  { afterFails:  5, lockMs: 15 * 60_000 },  // 5+  → 15 min
-  { afterFails:  3, lockMs:  5 * 60_000 },  // 3+  → 5 min
-];
 
 function _rlEvictOne(now) {
   // Prefer evicting an already-expired entry; otherwise evict a random one
@@ -440,28 +432,9 @@ function checkRateLimit(ip, bucket) {
   return { ok: true, remaining: max - entry.count };
 }
 
-function checkLoginLockout(ip) {
-  const rec = loginLockouts.get(ip);
-  if (!rec || Date.now() >= rec.lockedUntil) return { locked: false };
-  return { locked: true, retryAfter: Math.ceil((rec.lockedUntil - Date.now()) / 1000) };
-}
-
-function recordLoginFailure(ip) {
-  const rec = loginLockouts.get(ip) || { failCount: 0, lockedUntil: 0 };
-  rec.failCount++;
-  const tier = LOGIN_LOCKOUT_TIERS.find(t => rec.failCount >= t.afterFails);
-  if (tier) rec.lockedUntil = Date.now() + tier.lockMs;
-  loginLockouts.set(ip, rec);
-}
-
-function clearLoginFailures(ip) {
-  loginLockouts.delete(ip);
-}
-
 const _rlCleanup = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of rateLimits)    if (now > v.resetAt)      rateLimits.delete(k);
-  for (const [k, v] of loginLockouts) if (now > v.lockedUntil)  loginLockouts.delete(k);
   for (const [k, v] of revokedTokens) if (now > v)              revokedTokens.delete(k);
 }, 60_000);
 
@@ -978,32 +951,6 @@ const trackStore = _makeStore({
   onError: (err) => log.warn('Track log persist error:', err.message),
   debounceMs: 2000,
 });
-
-// ─── USER PASSWORD HELPERS (per-user PBKDF2 with random salt) ────────────────
-async function hashUserPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  return new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, salt + KEYS.pwdSalt, 100000, 32, 'sha256', (err, derived) => {
-      if (err) reject(err);
-      else resolve(salt + ':' + derived.toString('hex'));
-    });
-  });
-}
-async function verifyUserPassword(password, stored) {
-  const [salt, hash] = (stored || '').split(':');
-  if (!salt || !hash) return false;
-  return new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, salt + KEYS.pwdSalt, 100000, 32, 'sha256', (err, derived) => {
-      if (err) reject(err);
-      else {
-        const a = Buffer.from(derived.toString('hex'));
-        const b = Buffer.from(hash);
-        resolve(a.length === b.length && crypto.timingSafeEqual(a, b));
-      }
-    });
-  });
-}
-
 
 // ─── USER SESSION TOKEN (24-hour, for superintendents on public pages) ────────
 const USER_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -2143,20 +2090,9 @@ const healthRoute = createHealthRoute({
 });
 const authRoutes = createAuthRoutes({
   sendJSON,
-  getBody,
   authCheck,
-  checkRateLimit,
-  checkLoginLockout,
-  recordLoginFailure,
-  clearLoginFailures,
-  hashPassword,
-  issueToken,
   verifyToken,
   revokeToken: (jti, expMs) => revokedTokens.set(jti, expMs),
-  getAdminUser: () => ADMIN_USER,
-  getAdminPassHash: () => ADMIN_PASS_HASH,
-  serverReadyRef: () => serverReady,
-  isHttps: _isHttps,
 });
 
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
@@ -3576,25 +3512,22 @@ async function handleAPI(req, res, parsed) {
   }
 
 
-  // ── POST /api/admin/users ── (admin — create superintendent, password optional — SSO is primary auth)
+  // ── POST /api/admin/users ── (admin — create superintendent; SSO is the only login path)
   if (route === '/admin/users' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name     = (body.name     || '').trim().slice(0, 120);
     const email    = (body.email    || '').trim().toLowerCase().slice(0, 200);
-    const password = (body.password || '').trim();
     const role     = (body.role     || 'superintendent').trim();
     const groupIds = Array.isArray(body.groupIds) ? body.groupIds.filter(g => typeof g === 'string') : [];
     if (!name || !email) return sendJSON(res, 400, { error: 'name and email are required.' }, corsH);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJSON(res, 400, { error: 'Invalid email.' }, corsH);
-    if (password && password.length < 8) return sendJSON(res, 400, { error: 'Password must be at least 8 characters.' }, corsH);
     const users = loadUsers();
     if (Object.values(users).some(u => u.email.toLowerCase() === email)) return sendJSON(res, 409, { error: 'Email already registered.' }, corsH);
     const id = nextSequentialId(users, 'USR');
-    const passwordHash = password ? await hashUserPassword(password) : '';
     const now = new Date().toISOString();
-    users[id] = { id, name, email, passwordHash, role, groupIds, active: body.active !== false, createdAt: now, updatedAt: now };
+    users[id] = { id, name, email, role, groupIds, active: body.active !== false, createdAt: now, updatedAt: now };
     saveUsers(users);
 
     // Mirror user into Cognito so they can SSO-login; Cognito sends welcome email with temp password
@@ -3615,8 +3548,7 @@ async function handleAPI(req, res, parsed) {
       }
     }
 
-    const { passwordHash: _ph, ...safeUser } = users[id];
-    return sendJSON(res, 201, { ...safeUser, cognitoCreated, cognitoError }, corsH);
+    return sendJSON(res, 201, { ...users[id], cognitoCreated, cognitoError }, corsH);
   }
 
   // ── PUT /api/admin/users/:id ── (admin — update user)
@@ -3635,14 +3567,10 @@ async function handleAPI(req, res, parsed) {
     }
     if (body.groupIds !== undefined) users[userId].groupIds = Array.isArray(body.groupIds) ? body.groupIds : [];
     if (body.active   !== undefined) users[userId].active   = Boolean(body.active);
-    if (body.password) {
-      if (body.password.length < 8) return sendJSON(res, 400, { error: 'Password must be at least 8 characters.' }, corsH);
-      users[userId].passwordHash = await hashUserPassword(body.password);
-    }
+    delete users[userId].passwordHash; // scrub legacy password-login field — SSO is the only login path now
     users[userId].updatedAt = new Date().toISOString();
     saveUsers(users);
-    const { passwordHash: _ph, ...safeUser } = users[userId];
-    return sendJSON(res, 200, safeUser, corsH);
+    return sendJSON(res, 200, users[userId], corsH);
   }
 
   // ── DELETE /api/admin/users/:id ── (admin — remove user)

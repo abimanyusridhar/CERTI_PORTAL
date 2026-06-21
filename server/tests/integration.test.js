@@ -177,14 +177,14 @@ test('server critical API flows', async () => {
     const unauth = await requestJson({ port, urlPath: '/api/certs' });
     assert.equal(unauth.status, 401, 'admin endpoint must require auth');
 
-    // ── Auth: wrong password must return 401 ─────────────────────────────
-    const badLogin = await requestJson({
+    // ── Auth: password login is decommissioned — admin panel is SSO-only now ──
+    const deadLogin = await requestJson({
       method: 'POST',
       port,
       urlPath: '/api/auth/login',
-      body: { username: 'admin_test', password: 'WrongPass@999!' },
+      body: { username: 'admin_test', password: 'Admin@Test_123!' },
     });
-    assert.equal(badLogin.status, 401);
+    assert.equal(deadLogin.status, 410, 'password login must be decommissioned');
 
     // ── Input validation: cert ID with illegal character → 400 ───────────
     // sanitiseCertId rejects chars outside [A-Za-z0-9-_]
@@ -195,16 +195,21 @@ test('server critical API flows', async () => {
     const traversal = await requestJson({ port, urlPath: '/api/verify-by-id/../../etc/passwd' });
     assert.equal(traversal.status, 404, 'path traversal attempt must not reach any data');
 
-    // Login
-    const login = await requestJson({
-      method: 'POST',
-      port,
-      urlPath: '/api/auth/login',
-      body: { username: 'admin_test', password: 'Admin@Test_123!' },
-    });
-    assert.equal(login.status, 200);
-    assert.ok(login.json && login.json.token);
-    const token = login.json.token;
+    // Admin login is SSO-only now (password login removed) — mint an admin JWT
+    // directly using the spawned instance's own signing key, the same way
+    // /auth/sso/callback does, rather than going through a browser-only Cognito
+    // round-trip this test harness can't simulate.
+    const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
+    const { jwtSecret, urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+    function mintAdminToken(username) {
+      const nowS = Math.floor(Date.now() / 1000);
+      const payload = { sub: username, iat: nowS, exp: nowS + 8 * 60 * 60, jti: crypto.randomBytes(16).toString('hex') };
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+      const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const sig = crypto.createHmac('sha256', jwtSecret).update(header + '.' + body).digest('base64url');
+      return `${header}.${body}.${sig}`;
+    }
+    const token = mintAdminToken('admin_test');
 
     // ── Health detailed endpoint: filesystem + memory info present (admin-only) ──
     const healthDetailRes = await requestJson({ port, urlPath: '/api/health-detailed', token });
@@ -463,10 +468,8 @@ test('server critical API flows', async () => {
 
     // Superintendent login is SSO-only now (password login removed) — mint a
     // UserSession token directly the same way the SSO callback does, using the
-    // spawned instance's own signing key, rather than going through a browser-only
-    // Cognito round-trip this test harness can't simulate.
-    const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-    const { urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+    // spawned instance's own signing key (already read above), rather than going
+    // through a browser-only Cognito round-trip this test harness can't simulate.
     const sessionPayload = { kind: 'usersession', sub: user.json.id, iat: Date.now(), exp: Date.now() + 24 * 60 * 60 * 1000 };
     const sessionB64 = Buffer.from(JSON.stringify(sessionPayload)).toString('base64url');
     const sessionSig = crypto.createHmac('sha256', urlMacKey).update(sessionB64).digest('base64url');

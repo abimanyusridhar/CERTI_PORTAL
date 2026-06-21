@@ -599,12 +599,8 @@
       <label class="mflabel" for="umEmail">Email Address <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(AWS SSO identity)</span></label>
       <input id="umEmail" type="email" class="mfcontrol" />
     </div>
-    <div class="mfgroup" id="umPasswordGroup">
-      <label class="mflabel" for="umPassword" id="umPasswordLabel">Set Password <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(optional — leave blank to use AWS SSO)</span></label>
-      <input id="umPassword" type="password" class="mfcontrol" placeholder="Min 8 characters" autocomplete="new-password" />
-    </div>
     <div id="umCognitoNote" style="display:none;margin-bottom:14px;padding:10px 13px;background:rgba(100,255,218,.05);border:1px solid rgba(100,255,218,.2);border-radius:8px;font-size:.71rem;color:var(--teal)">
-      AWS Cognito will send a welcome email for SSO login. You can also set a direct password above so the user can log in immediately without waiting for Cognito.
+      AWS Cognito will send a welcome email so the user can sign in via AWS SSO.
     </div>
     <div class="mfgroup">
       <label class="mflabel">Assign to Groups</label>
@@ -797,8 +793,6 @@
     document.getElementById('umEmail').readOnly = false;
     document.getElementById('umEmail').style.opacity = '';
     document.getElementById('umEmail').style.cursor  = '';
-    document.getElementById('umPassword').value = '';
-    document.getElementById('umPasswordLabel').innerHTML = 'Set Password <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(optional — leave blank to use AWS SSO)</span>';
     document.getElementById('umActive').checked = true;
     document.getElementById('userModalErr').classList.remove('show');
     document.getElementById('umCognitoNote').style.display = 'block';
@@ -817,8 +811,6 @@
     document.getElementById('umEmail').readOnly = true;
     document.getElementById('umEmail').style.opacity = '0.6';
     document.getElementById('umEmail').style.cursor  = 'default';
-    document.getElementById('umPassword').value = '';
-    document.getElementById('umPasswordLabel').innerHTML = 'Change Password <span style="font-size:.6rem;color:var(--text-sec);text-transform:none;letter-spacing:0">(leave blank to keep existing)</span>';
     document.getElementById('umActive').checked = !!u.active;
     document.getElementById('userModalErr').classList.remove('show');
     document.getElementById('umCognitoNote').style.display = 'none';
@@ -834,44 +826,38 @@
     const name     = document.getElementById('umName').value.trim();
     const email    = document.getElementById('umEmail').value.trim().toLowerCase();
     const active   = document.getElementById('umActive').checked;
-    const password = document.getElementById('umPassword').value;
     const groupIds = Array.from(document.querySelectorAll('#groupSelectList input[type=checkbox]:checked')).map(c => c.value);
     const err = document.getElementById('userModalErr');
     const btn = document.getElementById('saveUserBtn');
     err.classList.remove('show');
     if (!name)  { err.textContent = 'Full name is required.';  err.classList.add('show'); document.getElementById('umName').focus();  return; }
     if (!editingId && !email) { err.textContent = 'Email address is required.'; err.classList.add('show'); document.getElementById('umEmail').focus(); return; }
-    if (password && password.length < 8) { err.textContent = 'Password must be at least 8 characters.'; err.classList.add('show'); document.getElementById('umPassword').focus(); return; }
 
     if (btn) { btn.disabled = true; btn.textContent = editingId ? 'Saving…' : 'Creating…'; }
     if (!editingId) {
       try {
         const payload = { name, email, role: 'superintendent', groupIds, active };
-        if (password) payload.password = password;
         const r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const d = await r.json();
         if (!r.ok) { err.textContent = d.error || 'Could not create user. Please try again.'; err.classList.add('show'); return; }
         closeUserModal();
-        if (password) {
-          toast('User created with password. They can log in immediately via the superintendent portal.');
-        } else if (d.cognitoCreated) {
-          toast('User created. ' + name + ' will receive a welcome email from AWS to set their login password.');
+        if (d.cognitoCreated) {
+          toast('User created. ' + name + ' will receive a welcome email from AWS to sign in via SSO.');
         } else if (d.cognitoError) {
           toast('User saved, but Cognito registration failed: ' + d.cognitoError, true);
         } else {
-          toast('User created. Set a password above or configure COGNITO_ACCESS_KEY_ID in .env for SSO.');
+          toast('User created. Configure COGNITO_ACCESS_KEY_ID in .env to enable SSO enrollment.');
         }
         await loadUsersData();
       } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     } else {
       try {
         const payload = { name, active, groupIds };
-        if (password) payload.password = password;
         const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const d = await r.json();
         if (!r.ok) { err.textContent = d.error || 'Could not save changes. Please try again.'; err.classList.add('show'); return; }
         closeUserModal();
-        toast(password ? 'User updated and password changed.' : 'User updated successfully.');
+        toast('User updated successfully.');
         await loadUsersData();
       } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
     }

@@ -76,30 +76,6 @@
     <div id="ssoErrMsg" style="display:none;margin-top:10px;padding:9px 13px;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.22);border-radius:8px;font-size:.7rem;color:var(--invalid);text-align:center">
       SSO sign-in failed. Please check your AWS account or try again.
     </div>
-
-    <!-- Emergency password fallback (hidden by default) -->
-    <div style="text-align:center;margin-top:20px">
-      <button onclick="togglePwdForm(this)" style="background:none;border:none;font-size:.65rem;color:var(--text-sec);cursor:pointer;letter-spacing:.04em;padding:4px 8px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-sec)'">
-        Emergency password login ↓
-      </button>
-    </div>
-    <div id="pwdFallback" style="display:none;margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--navy-light)">
-      <div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);margin-bottom:12px">Admin Password Override</div>
-      <div class="login-err" id="loginErr" role="alert" style="margin-bottom:10px">Invalid credentials. Please try again.</div>
-      <div class="fgroup" style="margin-bottom:10px">
-        <label class="flabel" for="lUser" style="font-size:.68rem">Username</label>
-        <input type="text" id="lUser" class="fcontrol" placeholder="admin" autocomplete="username" aria-required="true" />
-      </div>
-      <div class="fgroup" style="margin-bottom:14px">
-        <label class="flabel" for="lPass" style="font-size:.68rem">Password</label>
-        <input type="password" id="lPass" class="fcontrol" placeholder="••••••••" autocomplete="current-password"
-          onkeydown="if(event.key==='Enter')doLogin()" aria-required="true" />
-      </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:.78rem"
-        onclick="doLogin()">
-        <span id="lBtnTxt">Login</span>
-      </button>
-    </div>
   </div>
 </div>
 
@@ -958,12 +934,6 @@
     }
   }
 })();
-function togglePwdForm(btn) {
-  var f = document.getElementById('pwdFallback');
-  var open = f.style.display !== 'none';
-  f.style.display = open ? 'none' : 'block';
-  btn.textContent = open ? 'Emergency password login ↓' : 'Hide password login ↑';
-}
 </script>
 <script>
 (function () {
