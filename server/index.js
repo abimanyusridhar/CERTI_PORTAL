@@ -3567,7 +3567,7 @@ async function handleAPI(req, res, parsed) {
     }, corsH);
   }
 
-  // ── GET /api/admin/users ── (admin read-only, super admin full)
+  // ── GET /api/admin/users ── (admin only)
   if (route === '/admin/users' && method === 'GET') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const users = loadUsers();
@@ -4162,12 +4162,12 @@ async function handleRequest(req, res) {
   const publicDir = path.resolve(__dirname, '..', 'public');
   const adminDir  = path.resolve(__dirname, '..', 'admin');
 
-  // Secondary admin pages — reachable only via in-app navigation after login,
-  // no login form of their own (unlike dashboard.html/vapt-dashboard.html/
+  // The admin hub — reachable only via in-app navigation after login, no
+  // login form of its own (unlike dashboard.html/vapt-dashboard.html/
   // portal.html, which embed their own login UI and must stay reachable
   // unauthenticated). Gated on the resolved filename so it applies uniformly
   // regardless of which routing block resolved the path.
-  const GATED_ADMIN_PAGES = new Set(['index.html', 'access.html']);
+  const GATED_ADMIN_PAGES = new Set(['index.html']);
   function gateAdminPage(filePath) {
     if (GATED_ADMIN_PAGES.has(path.basename(filePath)) && !authCheck(req)) {
       res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/' });
@@ -4196,7 +4196,10 @@ async function handleRequest(req, res) {
     if (!relative) {
       filePath = path.join(adminDir, 'dashboard.html');
     } else if (LEGACY_TAB_REDIRECTS[relative]) {
-      res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/?tab=' + LEGACY_TAB_REDIRECTS[relative] });
+      // Preserve any existing query params (e.g. ?imo=...&vessel=... deep-links
+      // into the Documents tab) alongside the tab hint.
+      const extra = parsed.search ? '&' + parsed.search.slice(1) : '';
+      res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/?tab=' + LEGACY_TAB_REDIRECTS[relative] + extra });
       return res.end();
     } else if (PAGE_MAP[relative]) {
       filePath = path.join(adminDir, PAGE_MAP[relative]);

@@ -2039,8 +2039,8 @@
       const imo = (document.getElementById('fIMO') || {}).value || '';
       const vessel = (document.getElementById('fVesselName') || {}).value || '';
       const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cstAdmin) || '/CST/misecure';
-      let url = base + '/documents/';
-      if (imo) url += '?imo=' + encodeURIComponent(imo.trim().toUpperCase()) + '&vessel=' + encodeURIComponent(vessel.trim());
+      let url = base + '/?tab=docs';
+      if (imo) url += '&imo=' + encodeURIComponent(imo.trim().toUpperCase()) + '&vessel=' + encodeURIComponent(vessel.trim());
       window.open(url, '_blank');
     }
 
@@ -2635,9 +2635,9 @@ function applyConfig() {
   var sbCST = document.getElementById("sbLinkCST");      if (sbCST)      sbCST.href      = C.routes.cst;
   var sbVPT = document.getElementById("sbLinkVPTAdmin"); if (sbVPT)      sbVPT.href      = C.routes.vptAdmin;
   var adm = C.routes.cstAdmin || '/CST/misecure';
-  var navDocs  = document.getElementById('nav-documents');  if (navDocs)  navDocs.href  = adm + '/documents/';
-  var navGrps  = document.getElementById('navLinkGroups');  if (navGrps)  navGrps.href  = adm + '/groups/';
-  var navUsers = document.getElementById('navLinkUsers');   if (navUsers) navUsers.href = adm + '/users/';
+  var navDocs  = document.getElementById('nav-documents');  if (navDocs)  navDocs.href  = adm + '/?tab=docs';
+  var navGrps  = document.getElementById('navLinkGroups');  if (navGrps)  navGrps.href  = adm + '/?tab=groups';
+  var navUsers = document.getElementById('navLinkUsers');   if (navUsers) navUsers.href = adm + '/?tab=users';
   // Admin data notice from compliance config
   if (C.compliance && C.compliance.adminDataNotice) {
     var notice = document.getElementById("adminDataNotice");

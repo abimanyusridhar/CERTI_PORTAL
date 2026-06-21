@@ -153,7 +153,7 @@
     const _vaptErrEmail = (window.APP_CONFIG && window.APP_CONFIG.contact)
       ? window.APP_CONFIG.contact.vaptEmail
       : '';
-    const detail = serverMsg ? `<br><code style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--warn);opacity:.75">${serverMsg}</code>` : '';
+    const detail = serverMsg ? `<br><code style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--warn);opacity:.75">${escH(serverMsg)}</code>` : '';
     document.getElementById('result').innerHTML = `
     <div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)" role="alert">
       <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>

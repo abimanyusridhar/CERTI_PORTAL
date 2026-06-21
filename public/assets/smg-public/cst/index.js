@@ -536,7 +536,6 @@
     if ((el=document.getElementById('searchHint')))   el.innerHTML   = C.cst.searchHint;
     if ((el=document.getElementById('footerCredit'))) el.innerHTML   = C.cst.footerCredit;
     if ((el=document.getElementById('footerEmail')))  el.textContent = C.contact.cstEmail;
-    if ((el=document.getElementById('notFoundEmail'))) el.textContent= C.contact.cstEmail;
     // Description block brand names
     if ((el=document.getElementById('descCstTeam')))    el.textContent = C.brand.cstTeam;
     if ((el=document.getElementById('descCompanyName'))) el.textContent = C.brand.name;
