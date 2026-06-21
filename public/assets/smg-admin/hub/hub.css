@@ -54,7 +54,7 @@ body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
 .hub-module-foot { padding: 12px 20px; display: flex; gap: 8px; }
 
 /* ── Hub Buttons ── */
-.hub-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-decoration: none; transition: all .18s; white-space: nowrap; cursor: pointer; border: none; }
+.hub-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-decoration: none; transition: all .18s; white-space: nowrap; cursor: pointer; border: none; }
 .hub-btn-primary { background: linear-gradient(135deg, var(--gold-vivid) 0%, var(--gold) 45%, var(--gold-deep) 100%); color: var(--navy); border: 1px solid transparent; }
 .hub-btn-primary:hover { opacity: .88; transform: translateY(-1px); }
 .hub-btn-teal { background: rgba(100,255,218,.06); color: var(--teal); border: 1px solid rgba(100,255,218,.22); }

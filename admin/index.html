@@ -231,6 +231,12 @@
     html.light .file-drop { background: #FAFBFE !important; border-color: rgba(30,60,120,.16) !important; }
     html.light #sessionWarningBanner { background: #FFFBEB !important; color: #854D0E !important; }
     html.light #idleWarningBanner { background: #FEF2F2 !important; color: #DC2626 !important; }
+
+    @media (max-width: 680px) {
+      .stats-row, .stats-row.cols-3 { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+      .groups-grid, .doc-card-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
