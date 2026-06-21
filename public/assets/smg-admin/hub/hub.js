@@ -107,12 +107,20 @@
 
   function redirectToSso() {
     var C = window.APP_CONFIG;
-    var next = window.location.pathname + window.location.search.replace(/[?&]sso_error=1/, '');
+    var next = window.location.pathname + window.location.search.replace(/[?&]sso_error=[^&]*/, '');
     if (!next || next === '/') next = (C && C.routes && C.routes.cstAdmin) ? C.routes.cstAdmin + '/' : '/CST/misecure/';
     window.location.replace('/auth/sso/login?next=' + encodeURIComponent(next));
   }
 
-  var _ssoError = /[?&]sso_error=1/.test(window.location.search);
+  // Same codes the admin dashboards' SSO_MSGS map — keep these in sync.
+  var SSO_MSGS = {
+    deactivated:     'Your account has been deactivated. Contact your administrator.',
+    not_enrolled:    'Your account is not registered in this portal. Ask your administrator to add you.',
+    auth_failed:     'Authentication failed. Please try again or contact your administrator.',
+    session_expired: 'Your login session expired. Please try again.'
+  };
+  var _ssoErrorCode = (window.location.search.match(/[?&]sso_error=([^&]*)/) || [])[1];
+  var _ssoError = !!_ssoErrorCode;
 
   function doLogout() {
     sessionStorage.removeItem('adminToken');
@@ -123,10 +131,10 @@
   function loadStats() {
     if (!TOKEN) {
       if (_ssoError) {
-        // Show error without redirect loop
+        // Show the specific reason without looping back into another SSO attempt
         setStatsFallback();
         var hero = document.querySelector('.hub-hero-sub');
-        if (hero) { hero.textContent = 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#FF5C7A)'; }
+        if (hero) { hero.textContent = SSO_MSGS[_ssoErrorCode] || 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#FF5C7A)'; }
         return;
       }
       redirectToSso();

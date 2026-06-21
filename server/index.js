@@ -3690,7 +3690,7 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/supt\/vessel\/[A-Z0-9]{1,20}\/certs$/) && method === 'GET') {
     const sessUser = getUserFromSession(req);
     if (!sessUser) return sendJSON(res, 401, { error: 'Session expired or invalid.' }, corsH);
-    const imo = route.replace('/supt/vessel/', '').replace('/certs', '').toUpperCase();
+    const imo = normalizeVesselIMO(route.replace('/supt/vessel/', '').replace('/certs', ''));
     const imoSet = getUserVesselIMOs(sessUser);
     if (!imoSet.has(imo)) return sendJSON(res, 403, { error: 'Vessel not in your group.' }, corsH);
     const cstAll  = loadData();
