@@ -63,9 +63,11 @@ function createHealthRoute(deps) {
         ses:    { configured: sesEnabled },
         memory: { heapUsed: memory.heapUsed, heapTotal: memory.heapTotal, heapOk: parseInt(memory.heapUsed) < 500 },
       };
+      // Route-level traffic metrics disclose internal route structure and live
+      // request volumes — only ever returned on the authenticated detailed view,
+      // never on the public /api/health endpoint.
+      if (metricsSnapshot) body.metrics = metricsSnapshot();
     }
-
-    if (metricsSnapshot) body.metrics = metricsSnapshot();
 
     sendJSON(res, 200, body, corsH);
     return true;

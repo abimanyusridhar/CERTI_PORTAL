@@ -496,7 +496,8 @@ test('server critical API flows', async () => {
 
     const suptWord = await requestBinary({
       port,
-      urlPath: `/api/docs/download/${drillDoc.json.id}?userSession=${encodeURIComponent(userSession)}`,
+      urlPath: `/api/docs/download/${drillDoc.json.id}`,
+      headers: { Authorization: `UserSession ${userSession}` },
     });
     assert.equal(suptWord.status, 200);
     assert.equal(suptWord.headers['content-type'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');

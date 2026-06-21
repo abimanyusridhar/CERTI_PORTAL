@@ -1860,8 +1860,14 @@ function sanitiseCertBody(obj) {
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function getClientIp(req) {
   if (TRUST_PROXY) {
-    const xff = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    if (xff) return xff;
+    // Trusted proxies (nginx/ALB/CloudFront) APPEND the IP they see to any
+    // existing X-Forwarded-For header rather than replacing it — so the
+    // left-most entry is whatever the client itself sent (attacker-controlled,
+    // trivially spoofable to bypass rate limiting) while the right-most entry
+    // is the one the nearest trusted hop actually observed. Must read from the
+    // right, not the left.
+    const parts = (req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
   }
   return req.socket.remoteAddress || '';
 }
@@ -3312,30 +3318,19 @@ async function handleAPI(req, res, parsed) {
     const certAttachment = resolveCertificateAttachment(docId);
     const doc = docs[docId] || certAttachment;
     if (!doc) return sendJSON(res, 404, { error: 'Document not found' }, corsH);
-    const authHdr = req.headers['authorization'] || '';
 
     let accessGranted = false;
     // Admin direct access
     if (authCheck(req)) { accessGranted = true; }
-    // Superintendent session — header, suptSession cookie (preferred for <a> downloads),
-    // or legacy query param (kept for backward compatibility, e.g. existing integration test).
+    // Superintendent session — header or suptSession cookie only. Session tokens
+    // are never accepted via URL query param: query strings end up in server
+    // access logs, browser history, and Referer headers, so a token passed that
+    // way persists and leaks far longer than the header/cookie it would replace.
     if (!accessGranted) {
       const sessUser = getUserFromSession(req);
       if (sessUser) {
         const imoSet = getUserVesselIMOs(sessUser);
         if (imoSet.has(normalizeVesselIMO(doc.vesselIMO))) accessGranted = true;
-      }
-    }
-    if (!accessGranted && !authHdr.startsWith('UserSession ')) {
-      const qSession = parsed.searchParams.get('userSession') || '';
-      const sessPay = verifyUserSessionToken(qSession);
-      if (sessPay) {
-        const users = loadUsers();
-        const u = users[sessPay.sub];
-        if (u && u.active) {
-          const imoSet = getUserVesselIMOs(u);
-          if (imoSet.has(normalizeVesselIMO(doc.vesselIMO))) accessGranted = true;
-        }
       }
     }
     if (!accessGranted) return sendJSON(res, 403, { error: 'Access denied.' }, corsH);
