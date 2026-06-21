@@ -3830,16 +3830,30 @@ async function handleRequest(req, res) {
   if (p === '/auth/sso/callback' && method === 'GET') {
     const code     = parsed.searchParams.get('code')  || '';
     const stateRaw = parsed.searchParams.get('state') || '';
-    let next = '/', expectedNonce = null;
+    // SSO is only ever initiated from admin-facing pages — if `next` can't be
+    // recovered (state missing/corrupted), land back on the admin login screen,
+    // never the bare public homepage, which looks like a silent failure with
+    // no way to see the sso_error banner or retry.
+    const ADMIN_FALLBACK = CFG.routes.cstAdmin + '/';
+    let next = ADMIN_FALLBACK, expectedNonce = null;
     try {
       const s = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'));
       // Only allow same-origin relative paths — reject absolute/protocol-relative URLs and
       // backslash variants (Chromium normalises /\evil.com to //evil.com).
-      const _n = (s.next || '/').replace(/[<>"'`]/g, '');
-      next = (_n.startsWith('/') && !_n.startsWith('//') && !_n.includes('://') && !_n.includes('\\')) ? _n : '/';
+      const _n = (s.next || ADMIN_FALLBACK).replace(/[<>"'`]/g, '');
+      next = (_n.startsWith('/') && !_n.startsWith('//') && !_n.includes('://') && !_n.includes('\\')) ? _n : ADMIN_FALLBACK;
       expectedNonce = s.nonce  || null;
-    } catch { /* use defaults */ }
+    } catch (stateErr) {
+      // If this fires, `next` falls back to the admin login screen — log enough
+      // to tell whether `state` never arrived (proxy/CDN stripping the query
+      // string) vs. arrived corrupted, since both look identical to the user.
+      log.warn('SSO callback: failed to parse state param —', stateErr.message,
+        '| stateRaw length:', stateRaw.length, '| query keys:', [...parsed.searchParams.keys()]);
+    }
     if (!code || !COGNITO_ENABLED) {
+      log.warn('SSO callback: missing code or Cognito disabled —', 'code present:', !!code,
+        '| cognitoEnabled:', COGNITO_ENABLED, '| error param:', parsed.searchParams.get('error'),
+        '| error_description:', parsed.searchParams.get('error_description'), '| next:', next);
       res.writeHead(302, { Location: next + (next.includes('?') ? '&' : '?') + 'sso_error=1' });
       return res.end();
     }
@@ -3909,7 +3923,7 @@ async function handleRequest(req, res) {
       else if (/nonce|replay/i.test(err.message))    ssoErrCode = 'auth_failed';
       else if (/expired/i.test(err.message))         ssoErrCode = 'session_expired';
       else                                            ssoErrCode = 'auth_failed';
-      const base = (next && next !== '/') ? next : '/';
+      const base = next || ADMIN_FALLBACK;
       const errDest = base + (base.includes('?') ? '&' : '?') + 'sso_error=' + ssoErrCode;
       res.writeHead(302, { Location: errDest });
       return res.end();
