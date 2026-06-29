@@ -41,7 +41,10 @@
     // MODULE: Auth
     // ════════════════════════════════════════════════════
     function doLogout() {
-      if (window.PSP) { PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'CST' }); PSP.setPrincipal(null); }
+      import('/assets/pubsub.js').then(PSP => {
+        PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'CST' });
+        PSP.setPrincipal(null);
+      }).catch(() => {});
       sessionStorage.removeItem('adminToken'); TOKEN = '';
       if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
       document.getElementById('loginWrap').style.display = 'flex';
@@ -144,7 +147,7 @@
           ivBadge.style.color = alertCount > 0 ? 'var(--invalid)' : 'var(--warn)';
           ivBadge.style.borderColor = alertCount > 0 ? 'rgba(255,107,138,.3)' : 'rgba(255,170,46,.25)';
         }
-        if (window.PSP) PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'CST' });
+        import('/assets/pubsub.js').then(PSP => PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'CST' })).catch(() => {});
         loadQuarterlyStats();
       } catch { }
     }

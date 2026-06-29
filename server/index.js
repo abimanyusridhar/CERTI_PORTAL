@@ -438,6 +438,49 @@ const _rlCleanup = setInterval(() => {
   for (const [k, v] of revokedTokens) if (now > v)              revokedTokens.delete(k);
 }, 60_000);
 
+// ─── CSP SCRIPT HASHES (replaces 'unsafe-inline' for script-src) ─────────────
+// All admin/public HTML is served as static files (see sendFile()) with no
+// per-request templating, so every inline <script> block and inline on*=""
+// event-handler attribute has fixed, known-in-advance content. Hashing that
+// content once at startup lets script-src allow exactly those known-good
+// snippets via CSP hash-sources instead of 'unsafe-inline' — which would also
+// execute any attacker-injected inline script (the actual XSS-impact finding
+// from the VAPT reports). 'unsafe-hashes' must accompany the hashes for the
+// event-handler-attribute matches to take effect (CSP3 requirement); it does
+// not by itself allow anything beyond these exact pre-computed hashes.
+// NOTE: editing any inline <script> block or on*="" attribute in the files
+// below changes its hash — this recomputes from disk on every server start,
+// so no manual regeneration step is needed.
+function _sha256Base64(str) { return crypto.createHash('sha256').update(str, 'utf8').digest('base64'); }
+function _collectInlineScriptHashes(absPath, into) {
+  let html;
+  try { html = fs.readFileSync(absPath, 'utf8'); } catch { return; }
+  // The HTML spec's input-stream preprocessing step normalises CR/CRLF to LF
+  // before tokenising, so a browser hashes inline-script/event-handler content
+  // with \n line endings regardless of what's on disk. These files are
+  // CRLF-terminated (Windows checkout), so without this normalisation every
+  // computed hash here would mismatch what the browser actually enforces.
+  html = html.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  // Bare `<script>...</script>` blocks — every inline block in this codebase
+  // uses exactly this literal opening tag; tags with a src attribute (the
+  // external <script src="..."> includes) don't match this string at all.
+  for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) into.add(`'sha256-${_sha256Base64(m[1])}'`);
+  // Inline event-handler attributes (onclick="...", onchange="...", etc).
+  for (const m of html.matchAll(/\son[a-z]+="([^"]*)"/gi)) into.add(`'sha256-${_sha256Base64(m[1])}'`);
+}
+const SCRIPT_HASH_SOURCES = (() => {
+  const hashes = new Set();
+  for (const f of [
+    path.resolve(__dirname, '..', 'admin', 'dashboard.html'),
+    path.resolve(__dirname, '..', 'admin', 'index.html'),
+    path.resolve(__dirname, '..', 'admin', 'portal.html'),
+    path.resolve(__dirname, '..', 'admin', 'vapt-dashboard.html'),
+    path.resolve(__dirname, '..', 'public', 'index.html'),
+    path.resolve(__dirname, '..', 'public', 'vapt-index.html'),
+  ]) _collectInlineScriptHashes(f, hashes);
+  return [...hashes].join(' ');
+})();
+
 // ─── SECURITY HEADERS ────────────────────────────────────────────────────────
 const _isHttps = BASE_ORIGIN.startsWith('https://');
 const SECURITY_HEADERS = {
@@ -452,7 +495,7 @@ const SECURITY_HEADERS = {
   ...(_isHttps ? { 'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload' } : {}),
   'Content-Security-Policy':
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+    `script-src 'self' 'unsafe-hashes' ${SCRIPT_HASH_SOURCES} https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; ` +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: blob:; " +

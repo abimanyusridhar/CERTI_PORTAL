@@ -24,7 +24,10 @@
 
   // ── AUTH ──
   function doLogout() {
-    if (window.PSP) { PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'VAPT' }); PSP.setPrincipal(null); }
+    import('/assets/pubsub.js').then(PSP => {
+      PSP.publish(PSP.TOPICS.AUTH_LOGOUT, { certType: 'VAPT' });
+      PSP.setPrincipal(null);
+    }).catch(() => {});
     sessionStorage.removeItem('adminToken'); TOKEN = '';
     if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
     document.getElementById('loginWrap').style.display = 'flex';
@@ -167,7 +170,7 @@
       updateCharts({valid,expired,pending,revoked,emailSent,emailPending,nearExpiry:nearExpiry.filter(x=>x.daysLeft<=30),total,buckets:expBuckets});
       updateInsights({valid,expired,pending,emailSent,emailPending,nearExpiry:nearExpiry.filter(x=>x.daysLeft<=30),total,buckets:expBuckets});
       updateRealTimeBadge();
-      if (window.PSP) PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'VAPT' });
+      import('/assets/pubsub.js').then(PSP => PSP.publish(PSP.TOPICS.CERTS_REFRESHED, { count: CERTS.length, certType: 'VAPT' })).catch(() => {});
     } catch {}
   }
 
