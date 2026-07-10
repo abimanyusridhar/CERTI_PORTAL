@@ -909,9 +909,19 @@
   </div>
 </div>
 
-<script src="/assets/smg-admin/vapt/dashboard.js"></script>
 <script>
 // ── SSO: read short-lived cookie set by /auth/sso/callback ─────────────────
+// Must run BEFORE dashboard.js, which reads sessionStorage.adminToken
+// synchronously at load time to decide whether to show the login screen or
+// the app. This previously ran AFTER dashboard.js's <script> tag, so on the
+// very first render following an SSO redirect, dashboard.js always saw an
+// empty token and rendered the login screen — a since-removed "recovery"
+// script then tried to patch this up with a bare `TOKEN = tok` assignment,
+// but because dashboard.js declares its own `let TOKEN` scoped to its own
+// <script> tag, that created a second, disconnected global TOKEN that none
+// of dashboard.js's fetch() calls ever saw. Every API call went out with an
+// empty Bearer token, 401'd, and the app fell back to the login screen no
+// matter how many times the user signed in via SSO.
 (function () {
   var match = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
   if (match) {
@@ -934,23 +944,6 @@
   }
 })();
 </script>
-<script>
-(function () {
-  var tok = sessionStorage.getItem('adminToken');
-  if (!tok) return;
-  try {
-    var parts = tok.split('.');
-    if (parts.length !== 3) return;
-    var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-    if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
-      sessionStorage.removeItem('adminToken'); return;
-    }
-    document.getElementById('loginWrap').style.display = 'none';
-    document.getElementById('appWrap').style.display = 'flex';
-    TOKEN = tok;
-    initApp();
-  } catch (e) { sessionStorage.removeItem('adminToken'); }
-})();
-</script>
+<script src="/assets/smg-admin/vapt/dashboard.js"></script>
 </body>
 </html>
