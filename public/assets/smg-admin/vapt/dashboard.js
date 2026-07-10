@@ -204,7 +204,7 @@
         <div class="ne-days-badge ${bc}">${dl===0?'TODAY':dl+'d'}</div>
         <div style="flex:1">
           <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
-          <div style="font-size:.76rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
+          <div style="font-size:.76rem;color:var(--text-bright)">${escHtml(c.recipientName||'—')}</div>
           <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)}</div>
         </div>
         <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();editCert('${c.id}')">Edit</button>
@@ -844,11 +844,11 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
         <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
           <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Vessel / Recipient</div>
-          <div style="color:var(--text-bright);font-weight:500">${c.recipientName||'—'}</div>
+          <div style="color:var(--text-bright);font-weight:500">${escHtml(c.recipientName||'—')}</div>
         </div>
         <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
           <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">IMO Number</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--gold)">${c.vesselIMO||'—'}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--gold)">${escHtml(c.vesselIMO||'—')}</div>
         </div>
         <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:12px">
           <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:4px">Status</div>
@@ -1111,8 +1111,8 @@
         <div class="issue-cert-check">${sel?'▶':done?'✓':''}</div>
         <div class="issue-cert-meta" style="flex:1">
           <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
-          <div style="font-size:.78rem;color:var(--text-bright)">${c.recipientName||'—'}</div>
-          <div style="font-size:.62rem;color:var(--text-sec)">${c.recipientEmail||'No email'} · IMO: ${c.vesselIMO||'—'}</div>
+          <div style="font-size:.78rem;color:var(--text-bright)">${escHtml(c.recipientName||'—')}</div>
+          <div style="font-size:.62rem;color:var(--text-sec)">${escHtml(c.recipientEmail||'No email')} · IMO: ${escHtml(c.vesselIMO||'—')}</div>
         </div>
         <span class="pill ${done?'sent':'not-sent'}">${done?'✓ Sent':'Pending'}</span>
       </div>`;
@@ -1407,11 +1407,11 @@
           <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)">${c.id}</span>
           <div style="display:flex;align-items:center;gap:4px">${engBadges.join('')}</div>
         </div>
-        <div style="font-size:.78rem;color:var(--text-bright);font-weight:500">${c.recipientName||'—'}</div>
-        <div style="font-size:.64rem;color:var(--text-sec);margin-top:2px">IMO: ${c.vesselIMO||'—'}</div>
+        <div style="font-size:.78rem;color:var(--text-bright);font-weight:500">${escHtml(c.recipientName||'—')}</div>
+        <div style="font-size:.64rem;color:var(--text-sec);margin-top:2px">IMO: ${escHtml(c.vesselIMO||'—')}</div>
         ${c.recipientEmail ? `<div style="font-size:.64rem;color:var(--teal);margin-top:2px;display:flex;align-items:center;gap:4px">
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          ${c.recipientEmail}</div>` : ''}
+          ${escHtml(c.recipientEmail)}</div>` : ''}
         <div style="font-size:.6rem;color:var(--text-sec);margin-top:7px;padding-top:7px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px">
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span style="color:var(--teal);font-weight:600">Sent</span>

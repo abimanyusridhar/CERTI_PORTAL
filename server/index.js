@@ -396,10 +396,14 @@ function buildCertUrl(certId, baseUrl) {
 // ─── RATE LIMITER ─────────────────────────────────────────────────────────────
 const rateLimits   = new Map();
 const RATE_LIMITS = {
-  verify:  { max: 30,  window: 60_000  },
-  track:   { max: 200, window: 60_000  },
-  upload:  { max: 10,  window: 300_000 }, // 10 file uploads per 5 min per IP
-  default: { max: 120, window: 60_000  },
+  verify:      { max: 30,  window: 60_000  },
+  track:       { max: 200, window: 60_000  },
+  // Split from a single shared 'upload' bucket: cert creation (CST+VAPT) and
+  // document upload no longer compete for the same 10-per-5min budget, so an
+  // admin doing both in one window doesn't get 429'd on the second action type.
+  'cert-create': { max: 20, window: 300_000 }, // cert creates (CST+VAPT combined) per 5 min per IP
+  'doc-upload':  { max: 10, window: 300_000 }, // document uploads per 5 min per IP
+  default:     { max: 120, window: 60_000  },
 };
 
 // ─── TOKEN REVOCATION LIST ────────────────────────────────────────────────────
@@ -2335,8 +2339,8 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/certs ── (admin — create)
   if (route === '/certs' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    const _ulCst = checkRateLimit(ip, 'upload');
-    if (!_ulCst.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulCst.retryAfter), ...corsH });
+    const _ulCst = checkRateLimit(ip, 'cert-create');
+    if (!_ulCst.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulCst.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
     let cert;
     try {
@@ -2575,31 +2579,36 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── DELETE /api/certs/:id ── (admin)
+  // FIX: Use explicit segment count so /certs/:id/attachments/:idx falls through
+  // to its own dedicated handler instead of being swallowed here.
   if (route.startsWith('/certs/') && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    const certId = sanitiseCertId(route.replace('/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    // Clean up certificate image from disk + S3
-    if (data[certId].certificateImage) {
-      const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-      if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
-      s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
-    }
-    // Clean up all attachments from disk + S3
-    if (Array.isArray(data[certId].attachments)) {
-      for (const att of data[certId].attachments) {
-        if (att && att.url) {
-          const fp = path.join(UPLOADS_DIR, path.basename(att.url));
-          if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
-          s3DeleteAsync(s3FileKey(path.basename(att.url)));
+    const segments = route.split('/').filter(Boolean);   // ['certs', '<id>']
+    if (segments.length === 2) {
+      if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+      const certId = sanitiseCertId(segments[1]);
+      if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+      const data = loadData();
+      if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+      // Clean up certificate image from disk + S3
+      if (data[certId].certificateImage) {
+        const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
+        if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
+        s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
+      }
+      // Clean up all attachments from disk + S3
+      if (Array.isArray(data[certId].attachments)) {
+        for (const att of data[certId].attachments) {
+          if (att && att.url) {
+            const fp = path.join(UPLOADS_DIR, path.basename(att.url));
+            if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
+            s3DeleteAsync(s3FileKey(path.basename(att.url)));
+          }
         }
       }
+      delete data[certId];
+      saveData(data);
+      return sendJSON(res, 200, { success: true }, corsH);
     }
-    delete data[certId];
-    saveData(data);
-    return sendJSON(res, 200, { success: true }, corsH);
   }
 
   // ── GET /api/stats ── (public — aggregate cert stats for index page)
@@ -2904,8 +2913,8 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/vapt/certs ── (admin — create VAPT cert)
   if (route === '/vapt/certs' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    const _ulVapt = checkRateLimit(ip, 'upload');
-    if (!_ulVapt.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulVapt.retryAfter), ...corsH });
+    const _ulVapt = checkRateLimit(ip, 'cert-create');
+    if (!_ulVapt.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulVapt.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
     let cert;
     try {
@@ -2972,7 +2981,7 @@ async function handleAPI(req, res, parsed) {
     let added = 0, skipped = 0, failed = 0;
     const results = [];
     const now = new Date().toISOString();
-    for (const cert of records) {
+    for (let cert of records) {
       const certId = sanitiseCertId(cert.id);
       if (!certId) {
         results.push({ id: cert.id || '(blank)', status: 'failed', reason: 'Invalid or missing certificate ID' });
@@ -3142,31 +3151,36 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── DELETE /api/vapt/certs/:id ── (admin)
+  // FIX: Use explicit segment count so /vapt/certs/:id/attachments/:idx falls
+  // through to its own dedicated handler instead of being swallowed here.
   if (route.startsWith('/vapt/certs/') && method === 'DELETE') {
-    if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
-    const data = loadVaptData();
-    if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    // Clean up certificate image from disk + S3
-    if (data[certId].certificateImage) {
-      const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-      if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
-      s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
-    }
-    // Clean up all attachments from disk + S3
-    if (Array.isArray(data[certId].attachments)) {
-      for (const att of data[certId].attachments) {
-        if (att && att.url) {
-          const fp = path.join(UPLOADS_DIR, path.basename(att.url));
-          if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
-          s3DeleteAsync(s3FileKey(path.basename(att.url)));
+    const segments = route.split('/').filter(Boolean);   // ['vapt', 'certs', '<id>']
+    if (segments.length === 3) {
+      if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+      const certId = sanitiseCertId(segments[2]);
+      if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
+      const data = loadVaptData();
+      if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
+      // Clean up certificate image from disk + S3
+      if (data[certId].certificateImage) {
+        const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
+        if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
+        s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
+      }
+      // Clean up all attachments from disk + S3
+      if (Array.isArray(data[certId].attachments)) {
+        for (const att of data[certId].attachments) {
+          if (att && att.url) {
+            const fp = path.join(UPLOADS_DIR, path.basename(att.url));
+            if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
+            s3DeleteAsync(s3FileKey(path.basename(att.url)));
+          }
         }
       }
+      delete data[certId];
+      saveVaptData(data);
+      return sendJSON(res, 200, { success: true }, corsH);
     }
-    delete data[certId];
-    saveVaptData(data);
-    return sendJSON(res, 200, { success: true }, corsH);
   }
 
   // ── DELETE /api/certs/:id/attachments/:idx ── (admin — remove one attachment)
@@ -3229,7 +3243,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/docs/upload ── (admin — upload a document for a vessel)
   if (route === '/docs/upload' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
-    const _ulDoc = checkRateLimit(ip, 'upload');
+    const _ulDoc = checkRateLimit(ip, 'doc-upload');
     if (!_ulDoc.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulDoc.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
     if (!ct.includes('multipart/form-data')) return sendJSON(res, 400, { error: 'multipart/form-data required' }, corsH);
@@ -3237,7 +3251,9 @@ async function handleAPI(req, res, parsed) {
     try { ({ fields, files } = await parseMultipart(req)); } catch (e) { return sendJSON(res, 400, { error: e.message || 'Upload failed' }, corsH); }
     const vesselIMO  = normalizeVesselIMO(fields.vesselIMO);
     const vesselName = (fields.vesselName || '').trim().slice(0, 120);
-    const docType    = 'TRAINING_REPORT';
+    const requestedDocType = (fields.docType || 'TRAINING_REPORT').trim().toUpperCase();
+    const allowedDocTypes = new Set(['TRAINING_REPORT', 'DRILL_REPORT', 'CERT_ATTACHMENT', 'OTHER']);
+    const docType = allowedDocTypes.has(requestedDocType) ? requestedDocType : 'TRAINING_REPORT';
     const title      = (fields.title || '').trim().slice(0, 200) || 'Untitled Document';
     const description = (fields.description || '').trim().slice(0, 500);
     const linkedCertId = (fields.linkedCertId || '').trim().slice(0, 60);

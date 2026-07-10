@@ -305,7 +305,7 @@
           <div>
             <div class="ib-label">Assessed By</div>
             <div class="ib-name">${escH(c.assessingOrg || (window.APP_CONFIG?window.APP_CONFIG.brand.vaptTeam:'Synergy Cybersecurity Team'))}</div>
-            <div class="ib-sub">${escH(c.verifiedBy || (window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh'))}${c.verifierTitle ? ' · ' + c.verifierTitle : ' · ' + (window.APP_CONFIG?window.APP_CONFIG.vapt.cisoDisplay:'CISO, Synergy Group')}</div>
+            <div class="ib-sub">${escH(c.verifiedBy || (window.APP_CONFIG?window.APP_CONFIG.vapt.verifiedBy:'Gaurav Singh'))}${c.verifierTitle ? ' · ' + escH(c.verifierTitle) : ' · ' + (window.APP_CONFIG?window.APP_CONFIG.vapt.cisoDisplay:'CISO, Synergy Group')}</div>
           </div>
           <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="rgba(100,255,218,0.15)" stroke-width="1.1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
         </div>
@@ -316,24 +316,24 @@
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div><div class="meta-lbl">Level</div><div class="meta-val">Advanced</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1"/></svg></div><div class="meta-lbl">Location</div><div class="meta-val">On-Vessel</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg></div><div class="meta-lbl">Validity</div><div class="meta-val">1 Year</div></div>
-          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div class="meta-lbl">IMO</div><div class="meta-val" style="color:var(--teal)">${c.vesselIMO || '—'}</div></div>
+          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div class="meta-lbl">IMO</div><div class="meta-val" style="color:var(--teal)">${escH(c.vesselIMO || '—')}</div></div>
         </div>
 
         <!-- Certificate Details -->
         <div class="info-card">
           <div class="sect-title">Assessment Details</div>
           <div class="info-grid">
-            <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${c.vesselName || '—'}</span></div>
-            <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${c.vesselIMO || '—'}</span></div>
+            <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${escH(c.vesselName || '—')}</span></div>
+            <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${escH(c.vesselIMO || '—')}</span></div>
             <div class="ii"><span class="ilbl">Assessment Date</span><span class="ival">${fmtLong(c.assessmentDate)}</span></div>
             <div class="ii"><span class="ilbl">Valid Until</span><span class="ival ${isExp ? '' : !isV && !isPend ? 'red' : ''}" style="${isExp ? 'color:var(--warn)' : ''}">${fmtLong(c.validUntil)}</span></div>
-            <div class="ii fw"><span class="ilbl">Frameworks / Standards</span><span class="ival">${c.frameworks || 'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013'}</span></div>
+            <div class="ii fw"><span class="ilbl">Frameworks / Standards</span><span class="ival">${escH(c.frameworks || 'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013')}</span></div>
             ${scopeList.length ? `<div class="ii fw">
               <span class="ilbl">Assessment Scope</span>
-              <div class="scope-tags">${scopeList.map(s => `<span class="scope-tag">${s}</span>`).join('')}</div>
+              <div class="scope-tags">${scopeList.map(s => `<span class="scope-tag">${escH(s)}</span>`).join('')}</div>
             </div>` : ''}
           </div>
-          ${c.notes ? `<div class="cert-notes">* ${c.notes}</div>` : ''}
+          ${c.notes ? `<div class="cert-notes">* ${escH(c.notes)}</div>` : ''}
         </div>
 
         <!-- VAPT Scope & Skills -->

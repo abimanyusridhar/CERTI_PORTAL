@@ -5,6 +5,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
+    "test": "node --test \"server/tests/**/*.test.js\"",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 \"server/tests/**/*.test.js\"",
     "migrate": "node scripts/migrate-to-aws.js"
   },
   "engines": {

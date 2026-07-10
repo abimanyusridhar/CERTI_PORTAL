@@ -2,7 +2,10 @@
 
 const test   = require('node:test');
 const assert = require('node:assert/strict');
-const { validateRuntimeConfig } = require('../../config/env');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { loadDotEnv, validateRuntimeConfig } = require('../../config/env');
 
 const BASE_CFG = {
   routes: {
@@ -114,4 +117,63 @@ test('validateRuntimeConfig — accumulates multiple errors', () => {
   const r = validateRuntimeConfig({ port: 0, adminUser: '', adminPass: '', cfg: null });
   assert.ok(!r.ok);
   assert.ok(r.errors.length >= 2);
+});
+
+test('loadDotEnv - loads key/value pairs from server .env and strips quotes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'synergy-env-test-'));
+  const key1 = `SYNERGY_ENV_TEST_${Date.now()}_A`;
+  const key2 = `SYNERGY_ENV_TEST_${Date.now()}_B`;
+  fs.writeFileSync(path.join(dir, '.env'), [
+    '# comment',
+    `${key1}=plain-value`,
+    `${key2}="quoted value"`,
+    'INVALID_LINE',
+    '',
+  ].join('\n'), 'utf8');
+
+  try {
+    delete process.env[key1];
+    delete process.env[key2];
+    const messages = [];
+    loadDotEnv({ info: (...args) => messages.push(args.join(' ')) }, dir);
+    assert.equal(process.env[key1], 'plain-value');
+    assert.equal(process.env[key2], 'quoted value');
+    assert.ok(messages.some(m => m.includes('.env')));
+  } finally {
+    delete process.env[key1];
+    delete process.env[key2];
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('loadDotEnv - does not overwrite existing process env values', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'synergy-env-test-'));
+  const key = `SYNERGY_ENV_TEST_${Date.now()}_KEEP`;
+  fs.writeFileSync(path.join(dir, '.env'), `${key}=from-file\n`, 'utf8');
+
+  try {
+    process.env[key] = 'existing';
+    loadDotEnv(null, dir);
+    assert.equal(process.env[key], 'existing');
+  } finally {
+    delete process.env[key];
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('loadDotEnv - searches parent .env when server .env is absent', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'synergy-env-root-'));
+  const serverDir = path.join(root, 'server');
+  fs.mkdirSync(serverDir);
+  const key = `SYNERGY_ENV_TEST_${Date.now()}_PARENT`;
+  fs.writeFileSync(path.join(root, '.env'), `${key}=from-parent\n`, 'utf8');
+
+  try {
+    delete process.env[key];
+    loadDotEnv(null, serverDir);
+    assert.equal(process.env[key], 'from-parent');
+  } finally {
+    delete process.env[key];
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

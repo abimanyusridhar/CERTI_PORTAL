@@ -405,44 +405,15 @@ test('server critical API flows', async () => {
         emailId: captainEmail,
       },
     });
-    assert.equal(docReq.status, 201);
-    assert.ok(docReq.json.requestId);
+    assert.equal(docReq.status, 410);
+    assert.match(docReq.json.error, /removed/i);
 
-    const approveDocReq = await requestJson({
-      method: 'PUT',
+    const accessRequests = await requestJson({
       port,
-      urlPath: `/api/docs/access-requests/${docReq.json.requestId}`,
+      urlPath: '/api/docs/access-requests',
       token,
-      body: { status: 'APPROVED' },
     });
-    assert.equal(approveDocReq.status, 200);
-    assert.ok(approveDocReq.json.accessToken);
-
-    const captainDocs = await requestJson({
-      port,
-      urlPath: '/api/docs/by-vessel/9999999',
-      headers: { Authorization: `DocAccess ${approveDocReq.json.accessToken}` },
-    });
-    assert.equal(captainDocs.status, 200);
-    assert.ok(captainDocs.json.some(d => d.id === trainingDoc.json.id && d.docType === 'TRAINING_REPORT'));
-    assert.ok(captainDocs.json.some(d => d.id === drillDoc.json.id && d.docType === 'DRILL_REPORT'));
-    assert.ok(captainDocs.json.some(d => d.id.startsWith('ATT_CST_') && d.docType === 'CERT_ATTACHMENT'));
-
-    const captainPdf = await requestBinary({
-      port,
-      urlPath: `/api/docs/download/${trainingDoc.json.id}?docToken=${encodeURIComponent(approveDocReq.json.accessToken)}`,
-    });
-    assert.equal(captainPdf.status, 200);
-    assert.equal(captainPdf.headers['content-type'], 'application/pdf');
-    assert.match(captainPdf.headers['content-disposition'], /^inline;/);
-
-    const captainWord = await requestBinary({
-      port,
-      urlPath: `/api/docs/download/${drillDoc.json.id}?docToken=${encodeURIComponent(approveDocReq.json.accessToken)}`,
-    });
-    assert.equal(captainWord.status, 200);
-    assert.equal(captainWord.headers['content-type'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    assert.match(captainWord.headers['content-disposition'], /^attachment;/);
+    assert.equal(accessRequests.status, 410);
 
     const group = await requestJson({
       method: 'POST',

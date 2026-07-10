@@ -1247,7 +1247,7 @@
               <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</span>
               ${c.status === 'PENDING' ? `<span style="font-size:.52rem;background:rgba(255,170,46,.12);color:#FFAA2E;border:1px solid rgba(255,170,46,.25);border-radius:5px;padding:1px 5px">PENDING</span>` : ''}
             </div>
-            <div style="font-size:.78rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${c.recipientName || '—'}</div>
+            <div style="font-size:.78rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500">${escHtml(c.recipientName || '—')}</div>
             <div style="font-size:.63rem;color:var(--text-sec);margin-top:1px;display:flex;align-items:center;gap:6px">
               <span>IMO ${c.vesselIMO || '—'}</span>
               ${hasEmail ? `<span style="color:var(--teal)">· ${c.recipientEmail}</span>` : `<span style="color:var(--warn)">· no email set</span>`}
@@ -1558,11 +1558,11 @@
             <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)">${c.id}</span>
             <div style="display:flex;align-items:center;gap:4px">${engBadges.join('')}</div>
           </div>
-          <div style="font-size:.78rem;color:var(--text-bright);font-weight:500">${c.recipientName || '—'}</div>
-          <div style="font-size:.64rem;color:var(--text-sec);margin-top:2px">IMO: ${c.vesselIMO || '—'}</div>
+          <div style="font-size:.78rem;color:var(--text-bright);font-weight:500">${escHtml(c.recipientName || '—')}</div>
+          <div style="font-size:.64rem;color:var(--text-sec);margin-top:2px">IMO: ${escHtml(c.vesselIMO || '—')}</div>
           ${c.recipientEmail ? `<div style="font-size:.64rem;color:var(--teal);margin-top:2px;display:flex;align-items:center;gap:4px">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            ${c.recipientEmail}</div>` : ''}
+            ${escHtml(c.recipientEmail)}</div>` : ''}
           <div style="font-size:.6rem;color:var(--text-sec);margin-top:7px;padding-top:7px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span style="color:var(--teal);font-weight:600">Sent</span>
@@ -1625,8 +1625,8 @@
         <!-- Recipient Hero Block -->
         <div style="background:linear-gradient(135deg,rgba(212,168,67,.06),rgba(10,22,40,.4));border:1px solid var(--border-gold);border-radius:12px;padding:16px 20px;margin-bottom:18px;text-align:center">
           <div style="font-size:.52rem;letter-spacing:.22em;color:var(--text-sec);text-transform:uppercase;margin-bottom:6px">Certificate Awarded To</div>
-          <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:800;color:var(--text-bright);margin-bottom:4px">${c.recipientName || '—'}</div>
-          ${c.vesselName ? `<div style="font-size:.72rem;color:var(--gold)">Vessel: ${c.vesselName}${c.vesselIMO ? ' &nbsp;·&nbsp; IMO ' + c.vesselIMO : ''}</div>` : ''}
+          <div style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:800;color:var(--text-bright);margin-bottom:4px">${escHtml(c.recipientName || '—')}</div>
+          ${c.vesselName ? `<div style="font-size:.72rem;color:var(--gold)">Vessel: ${escHtml(c.vesselName)}${c.vesselIMO ? ' &nbsp;·&nbsp; IMO ' + escHtml(c.vesselIMO) : ''}</div>` : ''}
         </div>
 
         <!-- Two Column Info Grid -->
@@ -1652,7 +1652,7 @@
         <!-- Verified By - full width -->
         <div style="background:var(--navy-mid);border:1px solid var(--border-gold);border-radius:9px;padding:10px 14px;margin-bottom:18px">
           <div style="font-size:.5rem;letter-spacing:.16em;color:var(--gold);text-transform:uppercase;margin-bottom:4px">Verified By</div>
-          <div style="font-size:.8rem;color:var(--text-bright);font-weight:500">${c.verifiedBy || '—'}</div>
+          <div style="font-size:.8rem;color:var(--text-bright);font-weight:500">${escHtml(c.verifiedBy || '—')}</div>
         </div>
 
         ${c.recipientEmail ? `
@@ -2355,9 +2355,9 @@
         html += `<tr style="${rowBg};border-bottom:1px solid var(--border)">
           <td style="padding:6px 10px;color:var(--text-sec);font-size:.63rem">${i+1}</td>
           <td style="padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.61rem;color:${idColor}">${c.id||'—'}</td>
-          <td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.recipientName}">${c.recipientName||'—'}</td>
-          <td style="padding:6px 10px;font-size:.65rem">${c.vesselIMO||'—'}</td>
-          <td style="padding:6px 10px;font-size:.63rem;color:var(--text-sec);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.chiefEngineer}">${c.chiefEngineer||'—'}</td>
+          <td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.recipientName)}">${escHtml(c.recipientName||'—')}</td>
+          <td style="padding:6px 10px;font-size:.65rem">${escHtml(c.vesselIMO||'—')}</td>
+          <td style="padding:6px 10px;font-size:.63rem;color:var(--text-sec);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.chiefEngineer)}">${escHtml(c.chiefEngineer||'—')}</td>
           <td style="padding:6px 10px;font-size:.63rem">${c.complianceDate||'—'}</td>
           <td style="padding:6px 10px;text-align:center">${emailChip}</td>
           <td style="padding:6px 10px;font-size:.63rem;color:${statusColor};white-space:nowrap">${statusTxt}</td></tr>`;
@@ -2912,8 +2912,8 @@ function renderValidityPage(q) {
       return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background=''">
         <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;color:var(--gold);font-size:.68rem">${c.id}</td>
         <td style="padding:9px 12px">
-          <div style="color:var(--text-bright);font-weight:500">${c.recipientName || '—'}</div>
-          <div style="font-size:.64rem;color:var(--text-sec);margin-top:1px">${c.vesselName || ''}${c.vesselIMO ? ' · IMO ' + c.vesselIMO : ''}</div>
+          <div style="color:var(--text-bright);font-weight:500">${escHtml(c.recipientName || '—')}</div>
+          <div style="font-size:.64rem;color:var(--text-sec);margin-top:1px">${escHtml(c.vesselName || '')}${c.vesselIMO ? ' · IMO ' + escHtml(c.vesselIMO) : ''}</div>
         </td>
         <td style="padding:9px 12px;color:var(--text-sec)">${fmtD(c.complianceDate)}</td>
         <td style="padding:9px 12px;color:var(--text-sec)">${deadline ? fmtD(deadline.toISOString()) : '—'}</td>
