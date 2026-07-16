@@ -282,6 +282,49 @@ test('verifyToken — returns null for malformed / empty inputs', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// createSecurityService — issueCsrfToken / verifyCsrfToken
+// ─────────────────────────────────────────────────────────────────────────────
+test('issueCsrfToken — returns a 2-part dot-separated string containing the jti', () => {
+  const token = sec.issueCsrfToken('abc123');
+  const parts = token.split('.');
+  assert.equal(parts.length, 2);
+  assert.equal(parts[0], 'abc123');
+});
+
+test('verifyCsrfToken — accepts a token issued for the matching jti', () => {
+  const token = sec.issueCsrfToken('abc123');
+  assert.ok(sec.verifyCsrfToken(token, 'abc123'));
+});
+
+test('verifyCsrfToken — rejects when jti does not match', () => {
+  const token = sec.issueCsrfToken('abc123');
+  assert.ok(!sec.verifyCsrfToken(token, 'different-jti'));
+});
+
+test('verifyCsrfToken — rejects a tampered signature', () => {
+  const token = sec.issueCsrfToken('abc123');
+  const [jti, sig] = token.split('.');
+  const sigBytes = Buffer.from(sig, 'base64url');
+  sigBytes[0] ^= 0xff;
+  assert.ok(!sec.verifyCsrfToken(`${jti}.${sigBytes.toString('base64url')}`, 'abc123'));
+});
+
+test('verifyCsrfToken — rejects malformed / empty inputs', () => {
+  assert.ok(!sec.verifyCsrfToken(null, 'abc123'));
+  assert.ok(!sec.verifyCsrfToken('', 'abc123'));
+  assert.ok(!sec.verifyCsrfToken('only-one-part', 'abc123'));
+  assert.ok(!sec.verifyCsrfToken('a.b.c', 'abc123'));
+  assert.ok(!sec.verifyCsrfToken(sec.issueCsrfToken('abc123'), null));
+});
+
+test('verifyCsrfToken — a token issued for a different jti under the same key does not verify', () => {
+  const tokenA = sec.issueCsrfToken('jti-a');
+  const tokenB = sec.issueCsrfToken('jti-b');
+  assert.ok(!sec.verifyCsrfToken(tokenA, 'jti-b'));
+  assert.ok(!sec.verifyCsrfToken(tokenB, 'jti-a'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // createSecurityService — encryptCertToken / decryptCertToken
 // ─────────────────────────────────────────────────────────────────────────────
 test('encryptCertToken + decryptCertToken — full round-trip', () => {

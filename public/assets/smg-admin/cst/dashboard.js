@@ -232,7 +232,7 @@
           </div>
           <div style="font-size:.6rem;font-weight:700;color:${statusColor};white-space:nowrap">${statusLabel}</div>
           <div style="font-size:.6rem;color:var(--text-sec);white-space:nowrap">${c.validUntil||'—'}</div>
-          <button onclick="openCertDetail('${escH(c.id)}')" style="padding:3px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:.6rem;cursor:pointer;white-space:nowrap" title="View certificate">View</button>
+          <button data-action="openCertDetail" data-id="${escH(c.id)}" style="padding:3px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:.6rem;cursor:pointer;white-space:nowrap" title="View certificate">View</button>
         </div>`;
       }).join('');
     }
@@ -547,7 +547,7 @@
             const badgeCls = dl <= 7 ? 'crit' : dl <= 20 ? 'warn' : 'ok';
             const badgeLabel = dl === 0 ? 'TODAY' : dl + 'd';
             const sId = escHtml(c.id), sName = escHtml(c.recipientName), sVessel = escHtml(c.vesselName);
-            return `<div class="ne-item" onclick="editCert('${sId}')">
+            return `<div class="ne-item" data-action="editCert" data-id="${sId}">
               <div class="ne-days-badge ${badgeCls}">${badgeLabel}</div>
               <div style="flex:1;min-width:0">
                 <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
@@ -555,7 +555,7 @@
                 <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)} · ${dl === 0 ? 'expires today' : dl + ' day' + (dl===1?'':'s') + ' left'}</div>
               </div>
               <div style="display:flex;gap:5px">
-                <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${sId}')">Edit</button>
+                <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" data-action="editCert" data-id="${sId}">Edit</button>
               </div>
             </div>`;
           }).join('');
@@ -573,7 +573,7 @@
         } else {
           pendEl.innerHTML = pendingCerts.map(c => {
             const sId = escHtml(c.id), sName = escHtml(c.recipientName), sVessel = escHtml(c.vesselName);
-            return `<div class="ne-item" onclick="editCert('${sId}')">
+            return `<div class="ne-item" data-action="editCert" data-id="${sId}">
               <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,170,46,.1);border:1px solid rgba(255,170,46,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
               <div style="flex:1;min-width:0">
                 <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
@@ -581,8 +581,8 @@
                 <div style="font-size:.62rem;color:#FFAA2E">Not yet publicly verifiable — activate to enable</div>
               </div>
               <div style="display:flex;gap:5px">
-                <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">✓ Activate</button>
-                <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${sId}')">Edit</button>
+                <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" data-action="activateCert" data-id="${sId}">✓ Activate</button>
+                <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" data-action="editCert" data-id="${sId}">Edit</button>
               </div>
             </div>`;
           }).join('');
@@ -606,7 +606,7 @@
             const sId = escHtml(c.id), sName = escHtml(c.recipientName), sEmail = escHtml(c.recipientEmail);
             const subColor  = isPending ? '#FFAA2E' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
             const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? sEmail : '⚠ No email address on record';
-            return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="quickSend('${sId}')"`:''}>
+            return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`data-action="quickSend" data-id="${sId}"`:''}>
               <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
@@ -617,13 +617,13 @@
               </div>
               <div style="display:flex;gap:5px;flex-shrink:0">
                 ${!isPending && hasEmail
-                  ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" onclick="event.stopPropagation();quickSend('${sId}')">
+                  ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" data-action="quickSend" data-id="${sId}">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                       Send
                     </button>`
                   : !isPending && !hasEmail
-                  ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" onclick="event.stopPropagation();editCert('${sId}')">+ Email</button>`
-                  : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">Activate</button>`
+                  ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" data-action="editCert" data-id="${sId}">+ Email</button>`
+                  : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" data-action="activateCert" data-id="${sId}">Activate</button>`
                 }
               </div>
             </div>`;
@@ -757,7 +757,7 @@
     ${!isDash ? '<col style="width:72px">' : ''}<!-- Image -->
     <col style="min-width:180px"><!-- Actions (fill rest) -->
   </colgroup><thead style="display:table-header-group!important;visibility:visible!important"><tr style="display:table-row!important;visibility:visible!important">
-    <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" onchange="toggleSelectAll(this,'${id}')" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
+    <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" data-change-action="toggleSelectAll" data-tbl="${id}" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Certificate ID</th><th>Vessel / Recipient</th><th>IMO</th><th>Chief Engineer</th><th>Quarter</th><th>Mode</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th>${!isDash ? '<th>Image</th>' : ''}<th>Actions</th>
   </tr></thead><tbody style="display:table-row-group!important;visibility:visible!important">`+ (isDash ? list.slice(0, 10) : list).map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
         const isV = c.status === 'VALID' && (!vu || vu >= now);
@@ -773,7 +773,7 @@
         }
         const imgSrc = imgUrl(c.certificateImage);
         const imgEl = c.certificateImage
-          ? `<img class="thumb" src="${imgSrc}" loading="lazy" data-haserr="1" onclick="openLB(this.src)" /><div class="no-img" style="display:none">—</div>`
+          ? `<img class="thumb" src="${imgSrc}" loading="lazy" data-haserr="1" data-action="openLB" /><div class="no-img" style="display:none">—</div>`
           : `<div class="no-img">—</div>`;
         const emailCls = c.emailStatus === 'SENT' ? 'sent' : 'not-sent';
         const emailLabel = c.emailStatus === 'SENT' ? '✓ Sent' : '—';
@@ -814,15 +814,15 @@
         const safeEmail = escHtml(c.recipientEmail);
         const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
         const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
-        const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle;display:table-cell!important;visibility:visible!important"><input type="checkbox" class="row-sel-cb" data-id="${safeId}" data-imo="${safeIMO}" data-tbl="${id}" onchange="toggleRowSelect(this)" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.id||'')?'checked':''}></td>`;
+        const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle;display:table-cell!important;visibility:visible!important"><input type="checkbox" class="row-sel-cb" data-id="${safeId}" data-imo="${safeIMO}" data-tbl="${id}" data-change-action="toggleRowSelect" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.id||'')?'checked':''}></td>`;
         return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">${selCell}
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${safeId}">${safeId}</span></td>
-      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;cursor:pointer" title="View in public portal" onclick="viewCertNewTab('${safeId}',null)"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''} ${groupBadge}</td>
+      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''} ${groupBadge}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO || '—'}</span></td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeCE || '—'}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${qBadge}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${modeBadge}</td>
-      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${safeId}" onchange="quickStatusChange('${safeId}',this.value,this)" title="Change status">
+      <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><select class="inline-status-sel status-${(c.status||'pending').toLowerCase()}" data-id="${safeId}" data-change-action="quickStatusChange" title="Change status">
         <option value="VALID" ${c.status==='VALID'?'selected':''}>✓ VALID</option>
         <option value="PENDING" ${c.status==='PENDING'?'selected':''}>⏳ PENDING</option>
         <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
@@ -833,12 +833,12 @@
       <td class="eng-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${engCell}</td>
       ${!isDash ? `<td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${imgEl}</td>` : ''}
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div class="act-grp">
-        <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${safeId}',this)">View</button>
-        <button class="btn btn-teal btn-sm" onclick="editCert('${safeId}')">Edit</button>
-        <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" onclick="copyEncUrl('${safeId}',this)" style="font-size:.58rem">🔒</button>
-        ${canSend ? `<button class="btn btn-issue btn-sm" onclick="quickSend('${safeId}')">✉</button>` : ''}
-        <button class="btn btn-ghost btn-sm" title="Assign vessel to group" onclick="openAssignGroup('${safeIMO}','${safeVessel||safeName}')">👥</button>
-        <button class="btn btn-danger btn-sm" onclick="askDelete('${safeId}')">Delete</button>
+        <button class="btn btn-ghost btn-sm" data-action="viewCertNewTab" data-id="${safeId}">View</button>
+        <button class="btn btn-teal btn-sm" data-action="editCert" data-id="${safeId}">Edit</button>
+        <button class="btn btn-ghost btn-sm" title="Copy encrypted verification URL" data-action="copyEncUrl" data-id="${safeId}" style="font-size:.58rem">🔒</button>
+        ${canSend ? `<button class="btn btn-issue btn-sm" data-action="quickSend" data-id="${safeId}">✉</button>` : ''}
+        <button class="btn btn-ghost btn-sm" title="Assign vessel to group" data-action="openAssignGroup" data-imo="${safeIMO}" data-name="${safeVessel||safeName}">👥</button>
+        <button class="btn btn-danger btn-sm" data-action="askDelete" data-id="${safeId}">Delete</button>
       </div></td>
     </tr>`;
       }).join('') + `</tbody></table></div>`;
@@ -1240,7 +1240,7 @@
         const hasEmail = !!c.recipientEmail;
         const rowCls = isSelected ? 'selected' : isSent ? 'done' : '';
         const checkContent = isSelected ? '●' : isSent ? '✓' : '';
-        return `<div class="issue-cert-row ${rowCls}" onclick="selectIssueCert('${c.id}')">
+        return `<div class="issue-cert-row ${rowCls}" data-action="selectIssueCert" data-id="${c.id}">
           <div class="issue-cert-check">${checkContent}</div>
           <div class="issue-cert-meta" style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
@@ -1553,7 +1553,7 @@
         if (eng.docDownloadCount)
           engBadges.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}×">⬇ ${eng.docDownloadCount}</span>`);
         return `
-        <div style="padding:12px 14px;border-radius:10px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div class="sent-log-row" style="padding:12px 14px;border-radius:10px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
             <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)">${c.id}</span>
             <div style="display:flex;align-items:center;gap:4px">${engBadges.join('')}</div>
@@ -1672,7 +1672,7 @@
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
               Unique Verification URL
             </div>
-            <button id="viewCopyUrlBtn" onclick="copyViewUrl(this)" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.6rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s">⎘ Copy Link</button>
+            <button id="viewCopyUrlBtn" data-action="copyViewUrl" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.6rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s">⎘ Copy Link</button>
           </div>
           <div id="viewPublicUrl" style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--text);word-break:break-all;background:var(--navy);border:1px solid var(--border);border-radius:7px;padding:8px 12px;user-select:all">${publicUrl}</div>
           <div style="margin-top:8px;font-size:.62rem;color:var(--text-sec)">Share this URL with recipients, auditors, or inspectors for instant certificate verification.</div>
@@ -1680,7 +1680,7 @@
 
         ${c.certificateImage ? `<div style="margin-top:2px;text-align:center" id="viewImgWrap">
           <div style="font-size:.55rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;margin-bottom:8px">Certificate Document</div>
-          <img id="viewCertImg" src="${imgUrl(c.certificateImage)}" style="max-height:220px;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;box-shadow:0 8px 32px rgba(0,0,0,.3)" loading="lazy" onclick="openLB(this.src)" />
+          <img id="viewCertImg" src="${imgUrl(c.certificateImage)}" style="max-height:220px;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;box-shadow:0 8px 32px rgba(0,0,0,.3)" loading="lazy" data-action="openLB" />
         </div>` : ''}
 
         ${false ? `
@@ -1697,25 +1697,25 @@
               const safeName = dn.replace(/'/g, "\\'");
               if (isPdf) {
                 return `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--navy-mid);display:flex;align-items:stretch">
-                  <button onclick="event.preventDefault();event.stopPropagation();window.open('${safeUrl}','_blank')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;flex:1;text-align:left;background:transparent;border:none;border-radius:8px 0 0 8px;color:var(--gold);font-size:.76rem;cursor:pointer">
+                  <button data-action="openUrlNewTab" data-url="${safeUrl}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;flex:1;text-align:left;background:transparent;border:none;border-radius:8px 0 0 8px;color:var(--gold);font-size:.76rem;cursor:pointer">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dn}</span>
                     <span style="font-size:.6rem;color:var(--gold);letter-spacing:.06em">${ext}</span>
                     <span style="font-size:.6rem;color:var(--teal);font-weight:600">👁 View</span>
                   </button>
-                  <a href="${safeUrl}" download="${safeName}" onclick="event.stopPropagation()" title="Download" style="display:flex;align-items:center;justify-content:center;padding:0 12px;background:rgba(100,255,218,.05);border-left:1px solid rgba(100,255,218,.12);border-radius:0 8px 8px 0;color:var(--teal);text-decoration:none;transition:background .18s;flex-shrink:0" onmouseover="this.style.background='rgba(100,255,218,.13)'" onmouseout="this.style.background='rgba(100,255,218,.05)'">
+                  <a class="attach-dl-link" href="${safeUrl}" download="${safeName}" title="Download" style="display:flex;align-items:center;justify-content:center;padding:0 12px;background:rgba(100,255,218,.05);border-left:1px solid rgba(100,255,218,.12);border-radius:0 8px 8px 0;color:var(--teal);text-decoration:none;transition:background .18s;flex-shrink:0">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                   </a>
                 </div>`;
               } else if (isImg) {
                 return `<div>
-                  <button onclick="openLB('${safeUrl}')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px 8px 0 0;background:var(--navy-mid);color:var(--teal);font-size:.76rem;cursor:pointer;text-align:left;width:100%;border-bottom:none">
+                  <button data-action="openLB" data-url="${safeUrl}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px 8px 0 0;background:var(--navy-mid);color:var(--teal);font-size:.76rem;cursor:pointer;text-align:left;width:100%;border-bottom:none">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dn}</span>
                     <span style="font-size:.6rem;color:var(--text-sec);letter-spacing:.06em">${ext}</span>
                     <span style="font-size:.6rem;color:var(--teal);font-weight:600">🔍 Zoom</span>
                   </button>
-                  <img src="${a.url}" onclick="openLB('${safeUrl}')" style="width:100%;max-height:140px;object-fit:cover;cursor:zoom-in;border:1px solid var(--border);border-radius:0 0 8px 8px;display:block" />
+                  <img src="${a.url}" data-action="openLB" data-url="${safeUrl}" style="width:100%;max-height:140px;object-fit:cover;cursor:zoom-in;border:1px solid var(--border);border-radius:0 0 8px 8px;display:block" />
                 </div>`;
               } else {
                 return `<a href="${a.url}" target="_blank" download="${dn}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--navy-mid);color:var(--gold);font-size:.76rem;text-decoration:none">
@@ -2088,8 +2088,8 @@
         const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,170,46,.09);color:var(--gold);border:1px solid rgba(255,170,46,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
         const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
         const rmBtn = a.saved
-          ? `<button type="button" onclick="removeSavedAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
-          : `<button type="button" onclick="removePendingAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
+          ? `<button type="button" data-action="removeSavedAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
+          : `<button type="button" data-action="removePendingAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
           <span style="font-size:.88rem;flex-shrink:0">${icon}</span>
           <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_he(a.name || 'Document')}${badge}</span>
@@ -2551,7 +2551,7 @@ function checkNearExpiryBanner(certs) {
         return `<span style="font-family:'JetBrains Mono',monospace;font-size:.75em">${c.id}</span> (${d}d)`;
       }).join(', ')}${nearExpiry.length > 3 ? ' …' : ''}
     </div>
-    <button onclick="this.parentElement.style.display='none'" style="margin-left:auto;background:none;border:none;color:currentColor;cursor:pointer;opacity:.6;font-size:1rem;padding:0 4px;line-height:1" aria-label="Dismiss">✕</button>
+    <button data-action="dismissParent" style="margin-left:auto;background:none;border:none;color:currentColor;cursor:pointer;opacity:.6;font-size:1rem;padding:0 4px;line-height:1" aria-label="Dismiss">✕</button>
   `;
 }
 
@@ -2909,7 +2909,7 @@ function renderValidityPage(q) {
       const certSt = (c.status || 'VALID').toUpperCase();
       const csBg = certSt === 'VALID' ? 'rgba(100,255,218,.1)' : certSt === 'REVOKED' ? 'rgba(255,107,138,.1)' : 'rgba(255,170,46,.1)';
       const csColor = certSt === 'VALID' ? 'var(--teal)' : certSt === 'REVOKED' ? 'var(--invalid)' : 'var(--warn)';
-      return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--surface-hover)'" onmouseout="this.style.background=''">
+      return `<tr class="iv-row" style="border-bottom:1px solid var(--border);transition:background .15s">
         <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;color:var(--gold);font-size:.68rem">${c.id}</td>
         <td style="padding:9px 12px">
           <div style="color:var(--text-bright);font-weight:500">${escHtml(c.recipientName || '—')}</div>

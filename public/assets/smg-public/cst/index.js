@@ -203,7 +203,7 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         Original Certificate Document &mdash; Click to enlarge
       </div>
-      <img src="${cert.certificateImage}" alt="Certificate Document" data-cert-img="true" onclick="openLB(this.src)" />
+      <img src="${cert.certificateImage}" alt="Certificate Document" data-cert-img="true" data-action="openLB" />
     </div>` : '';
 
     // ── RELEVANT DOCUMENTS — access-token gated, loaded async after render ──
@@ -237,7 +237,7 @@
           </div>
           <div class="sdname">${escH(cert.recipientName)}</div>
           <div class="sdsub">${escH(cert.vesselName)}${cert.vesselIMO ? ' · IMO ' + escH(cert.vesselIMO) : ''}</div>
-          <button class="btn-dl" id="dlBtn" onclick="downloadCertificate('${cert.id}')">
+          <button class="btn-dl" id="dlBtn" data-action="downloadCertificate" data-id="${cert.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Download Certificate
           </button>
@@ -264,12 +264,12 @@
               ${statusTxt}
             </span>
           </div>
-          <button class="btn-copy ${copyCls}" onclick="copyVerifyLink(this)">
+          <button class="btn-copy ${copyCls}" data-action="copyVerifyLink">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             Copy Verification Link
           </button>
-          <div class="vrow-lbl">Certificate ID <span style="font-size:.5rem;letter-spacing:.1em;color:var(--teal);margin-left:6px;cursor:pointer;opacity:.7" onclick="copyCertId('${cert.id}',this)" title="Click to copy">⧉ COPY</span></div>
-          <div class="cert-id-mono" onclick="copyCertId('${cert.id}',this)" title="Click to copy certificate ID" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')copyCertId('${cert.id}',this)">${cert.id}</div>
+          <div class="vrow-lbl">Certificate ID <span style="font-size:.5rem;letter-spacing:.1em;color:var(--teal);margin-left:6px;cursor:pointer;opacity:.7" data-action="copyCertId" data-id="${cert.id}" title="Click to copy">⧉ COPY</span></div>
+          <div class="cert-id-mono" data-action="copyCertId" data-id="${cert.id}" data-keydown-action="copyCertId" title="Click to copy certificate ID" style="cursor:pointer" role="button" tabindex="0">${cert.id}</div>
         </div>
       </div>
 

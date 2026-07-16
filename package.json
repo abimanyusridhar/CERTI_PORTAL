@@ -7,9 +7,21 @@
     "start": "node server/index.js",
     "test": "node --test \"server/tests/**/*.test.js\"",
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90 \"server/tests/**/*.test.js\"",
-    "migrate": "node scripts/migrate-to-aws.js"
+    "test:e2e": "playwright test",
+    "test:perf": "node server/tests/perf/smoke.js",
+    "migrate": "node scripts/migrate-to-aws.js",
+    "migrate:dynamo": "node scripts/migrate-to-dynamo.js",
+    "data:inspect": "node scripts/inspect-data-structure.js"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "autocannon": "^8.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1087.0",
+    "@aws-sdk/s3-request-presigner": "^3.1087.0"
   }
 }

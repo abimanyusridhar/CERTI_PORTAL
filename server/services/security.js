@@ -240,6 +240,26 @@ function createSecurityService({ keys, cfg }) {
     return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
   }
 
+  // Double-submit CSRF token, bound to the same `jti` as the admin session JWT so it is
+  // invalidated automatically when that session is revoked — no separate token store needed.
+  function issueCsrfToken(jti) {
+    const sig = crypto.createHmac('sha256', keys.urlMacKey).update('csrf:' + jti).digest('base64url');
+    return `${jti}.${sig}`;
+  }
+
+  function verifyCsrfToken(token, jti) {
+    if (!token || typeof token !== 'string' || !jti) return false;
+    const parts = token.split('.');
+    if (parts.length !== 2) return false;
+    const [tokenJti, sig] = parts;
+    if (tokenJti !== jti) return false;
+    const expected = crypto.createHmac('sha256', keys.urlMacKey).update('csrf:' + jti).digest('base64url');
+    const sigBuf = Buffer.from(sig);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
+  }
+
   function buildCertUrl(certId, baseUrl) {
     const token = encryptCertToken(certId);
     const sig = signCertUrl(token);
@@ -256,12 +276,16 @@ function createSecurityService({ keys, cfg }) {
     hashPassword,
     issueToken,
     verifyToken,
+    issueCsrfToken,
+    verifyCsrfToken,
     encryptCertToken,
     decryptCertToken,
     signCertUrl,
     verifyCertUrlSignature,
     buildCertUrl,
     buildVaptCertUrl,
+    issueCsrfToken,
+    verifyCsrfToken,
   };
 }
 

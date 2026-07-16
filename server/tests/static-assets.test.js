@@ -74,16 +74,22 @@ test('static pages - login and admin forms expose expected controls', () => {
   const cstAdminJs = read('public/assets/smg-admin/cst/dashboard.js');
   const vaptAdminJs = read('public/assets/smg-admin/vapt/dashboard.js');
   const hub = read('admin/index.html');
+  const usersTabJs = read('public/assets/smg-admin/hub/users-tab.js');
+  const groupsTabJs = read('public/assets/smg-admin/hub/groups-tab.js');
+  const documentsTabJs = read('public/assets/smg-admin/hub/documents-tab.js');
   const portal = read('admin/portal.html');
+  const portalJs = read('public/assets/smg-admin/portal/portal.js');
 
   assert.match(cstAdmin, /api\/auth\/verify|auth\/sso\/login/i);
   assert.match(cstAdminJs, /API\s*\+\s*['"`]\/certs|\/api\/certs/i);
   assert.match(vaptAdminJs, /API\s*\+\s*['"`]\/vapt\/certs|\/api\/vapt\/certs/i);
-  assert.match(hub, /admin\/users/i);
-  assert.match(hub, /admin\/groups/i);
-  assert.match(hub, /docs\/upload/i);
-  assert.match(portal, /api\/supt\/vessels/i);
-  assert.match(portal, /api\/docs\/by-vessel/i);
+  assert.match(hub, /adminTabBtnUsers/i);
+  assert.match(usersTabJs, /admin\/users/i);
+  assert.match(groupsTabJs, /admin\/groups/i);
+  assert.match(documentsTabJs, /docs\/upload/i);
+  assert.match(portal, /auth\/sso\/login/i);
+  assert.match(portalJs, /api\/supt\/vessels/i);
+  assert.match(portalJs, /api\/docs\/by-vessel/i);
 });
 
 test('static assets - shared utility scripts define expected browser helpers', () => {

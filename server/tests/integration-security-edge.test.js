@@ -209,6 +209,33 @@ test.after(() => {
 
 // ─── API-003: duplicate certificate ID rejected with 409 ────────────────────
 
+test('SEC-003: cookie-authenticated admin mutations reject hostile Origin', async () => {
+  const forged = await requestJson({
+    method: 'POST',
+    port: PORT,
+    urlPath: '/api/admin/users',
+    headers: {
+      Cookie: `adminToken=${adminToken}`,
+      Origin: 'https://attacker.example',
+    },
+    body: {
+      name: 'CSRF Blocked User',
+      email: 'csrf-blocked@example.com',
+    },
+  });
+
+  assert.equal(forged.status, 403);
+  assert.equal(forged.json.error, 'Cross-site request blocked.');
+
+  const users = await requestJson({ port: PORT, urlPath: '/api/admin/users', token: adminToken });
+  assert.equal(users.status, 200);
+  assert.equal(
+    users.json.some(u => u.email === 'csrf-blocked@example.com'),
+    false,
+    'blocked cross-site request must not create a user'
+  );
+});
+
 test('API-003: duplicate CST certificate ID is rejected with 409 and original data is preserved', async () => {
   const certId = `CST-DUPTEST-${String(Date.now() % 900000 + 100000)}`;
   // NOTE: recipientName is intentionally given an existing "MV - " prefix here.
@@ -551,4 +578,53 @@ test('API-007: burst of requests to /api/verify-by-id triggers 429 with Retry-Af
   const throttled = results.filter(r => r.status === 429);
   assert.ok(throttled.length > 0, 'the "verify" rate-limit bucket (30/min per server/index.js) must engage under a 35-request burst');
   assert.ok(throttled[0].headers['retry-after'], 'a 429 response must include a Retry-After header');
+});
+
+// ─── CSP report-only bake-in: POST /api/csp-report ───────────────────────────
+
+test('CSP: enforcing header keeps unsafe-inline while a strict Report-Only header is also sent', async () => {
+  const res = await requestBinary({ port: PORT, urlPath: '/CST' });
+  assert.match(res.headers['content-security-policy'] || '', /script-src[^;]*'unsafe-inline'/,
+    'enforcing CSP must be unchanged (still permissive) during the report-only bake-in');
+  assert.match(res.headers['content-security-policy'] || '', /report-uri \/api\/csp-report/);
+  const reportOnly = res.headers['content-security-policy-report-only'] || '';
+  assert.ok(reportOnly, 'a Content-Security-Policy-Report-Only header must be present during bake-in');
+  assert.doesNotMatch(reportOnly, /script-src[^;]*'unsafe-inline'/,
+    'the report-only policy must be the strict (no unsafe-inline) target policy');
+});
+
+test('CSP: POST /api/csp-report accepts a legacy report-uri payload and responds 204', async () => {
+  const res = await requestJson({
+    method: 'POST',
+    port: PORT,
+    urlPath: '/api/csp-report',
+    headers: { 'Content-Type': 'application/csp-report' },
+    body: { 'csp-report': { 'document-uri': 'http://example.test/', 'violated-directive': 'script-src-elem', 'blocked-uri': 'inline' } },
+  });
+  assert.equal(res.status, 204);
+});
+
+test('CSP: POST /api/csp-report tolerates a malformed body without erroring', async () => {
+  const res = await requestBinary({
+    method: 'POST',
+    port: PORT,
+    urlPath: '/api/csp-report',
+    headers: { 'Content-Type': 'application/csp-report' },
+    bodyBuffer: Buffer.from('not json at all'),
+  });
+  assert.equal(res.status, 204, 'a malformed report body must be dropped silently, not surfaced as a server error');
+});
+
+test('CSP: POST /api/csp-report is exempt from the CSRF/cross-site-cookie checks', async () => {
+  // A same-site request carrying the adminToken cookie but no X-CSRF-Token header
+  // and no matching Origin — this would fail csrfCheckFails() for a normal mutating
+  // route, but csp-report must be exempt (browsers send these with no CSRF header).
+  const res = await requestJson({
+    method: 'POST',
+    port: PORT,
+    urlPath: '/api/csp-report',
+    headers: { Cookie: `adminToken=${adminToken}`, Origin: 'http://evil.test' },
+    body: { 'csp-report': { 'document-uri': 'http://example.test/', 'violated-directive': 'style-src-elem', 'blocked-uri': 'inline' } },
+  });
+  assert.equal(res.status, 204, 'csp-report must not be blocked as a cross-site cookie mutation or CSRF failure');
 });

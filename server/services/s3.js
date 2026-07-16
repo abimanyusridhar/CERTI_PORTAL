@@ -22,6 +22,8 @@ const BUCKET     = process.env.S3_BUCKET      || '';
 const ACCESS_KEY = process.env.S3_ACCESS_KEY  || process.env.AWS_ACCESS_KEY_ID || '';
 const SECRET_KEY = process.env.S3_SECRET_KEY  || process.env.AWS_SECRET_ACCESS_KEY || '';
 const PREFIX     = process.env.S3_PREFIX      || '';
+const SSE        = process.env.S3_SSE         || '';
+const KMS_KEY_ID = process.env.S3_KMS_KEY_ID  || '';
 
 const S3_ENABLED = !!(BUCKET && ACCESS_KEY && SECRET_KEY);
 
@@ -74,6 +76,10 @@ function _s3Request({ method, key, body, contentType, extraHeaders }) {
       ...(contentType ? { 'content-type': contentType } : {}),
       ...(extraHeaders || {}),
     };
+    if (method === 'PUT' && SSE) {
+      hdrs['x-amz-server-side-encryption'] = SSE;
+      if (SSE === 'aws:kms' && KMS_KEY_ID) hdrs['x-amz-server-side-encryption-aws-kms-key-id'] = KMS_KEY_ID;
+    }
     if (method !== 'GET' && method !== 'HEAD' && method !== 'DELETE') {
       hdrs['content-length'] = String(Buffer.byteLength(payload));
     }

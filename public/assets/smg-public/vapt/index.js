@@ -160,7 +160,7 @@
       <h3 style="color:var(--warn)">Service Unavailable</h3>
       <p>Could not reach the VAPT verification service. Please try again in a moment.${detail}<br>
       If the issue persists, contact <strong style="color:var(--teal)">${_vaptErrEmail || 'the VAPT team'}</strong></p>
-      <button onclick="verify()" style="margin-top:14px;padding:9px 22px;background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.3);border-radius:20px;color:var(--warn);font-size:.72rem;font-weight:600;letter-spacing:.08em;cursor:pointer;text-transform:uppercase">↺ Retry</button>
+      <button data-action="verify" style="margin-top:14px;padding:9px 22px;background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.3);border-radius:20px;color:var(--warn);font-size:.72rem;font-weight:600;letter-spacing:.08em;cursor:pointer;text-transform:uppercase">↺ Retry</button>
     </div>`;
     scroll();
   }
@@ -213,7 +213,7 @@
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         Original VAPT Certificate &mdash; Click to enlarge
       </div>
-      <img src="${c.certificateImage}" alt="VAPT Certificate" data-cert-img="true" onclick="openLB(this.src)" />
+      <img src="${c.certificateImage}" alt="VAPT Certificate" data-cert-img="true" data-action="openLB" />
     </div>` : '';
 
     const scopeList = (c.scopeItems || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -249,7 +249,7 @@
           </div>
           <div class="sdname">${escH(c.recipientName)}</div>
           <div class="sdsub">${escH(c.vesselName || '')}${c.vesselIMO ? ' · IMO ' + escH(c.vesselIMO) : ''}</div>
-          <button class="btn-dl" id="dlBtn" onclick="downloadCertificate('${c.id}', this)">
+          <button class="btn-dl" id="dlBtn" data-action="downloadCertificate" data-id="${c.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Download Certificate
           </button>
@@ -276,7 +276,7 @@
               ${statusLabel}
             </span>
           </div>
-          <button class="btn-copy ${copyCls}" onclick="copyVerifyLink(this)">
+          <button class="btn-copy ${copyCls}" data-action="copyVerifyLink">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             Copy Verification Link
           </button>
@@ -466,7 +466,7 @@
       if (isPdf) {
         items +=
           '<div style="border:1px solid rgba(212,168,67,.2);border-radius:11px;overflow:hidden;background:rgba(212,168,67,.03)">' +
-            '<button class="doc-item" onclick="requestPdfAccess(\'' + safeUrl + '\',\'' + safeName + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(212,168,67,.04);border:none;border-radius:11px;color:#D4A843;font-size:.76rem;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'rgba(212,168,67,.09)\'" onmouseout="this.style.background=\'rgba(212,168,67,.04)\'">' +
+            '<button class="doc-item doc-item-pdf" data-action="requestPdfAccess" data-url="' + safeUrl + '" data-name="' + safeName + '" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(212,168,67,.04);border:none;border-radius:11px;color:#D4A843;font-size:.76rem;cursor:pointer;transition:background .2s">' +
               '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
               '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + safeName + '">' + name + '</span>' +
               '<span style="font-size:.54rem;letter-spacing:.1em;color:#D4A843;text-transform:uppercase;flex-shrink:0;background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.25);border-radius:4px;padding:2px 7px">' + ext + '</span>' +
@@ -476,17 +476,17 @@
       } else if (isImg) {
         items +=
           '<div style="border:1px solid rgba(255,255,255,.08);border-radius:11px;overflow:hidden;background:rgba(255,255,255,.03)">' +
-            '<button class="doc-item" onclick="openLB(\'' + safeUrl + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(255,255,255,.03);border:none;border-radius:11px;color:#64FFDA;font-size:.76rem;cursor:pointer;transition:background .2s" onmouseover="this.style.background=\'rgba(100,255,218,.04)\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
+            '<button class="doc-item doc-item-img-btn" data-action="openLB" data-url="' + safeUrl + '" style="display:flex;align-items:center;gap:10px;padding:10px 15px;width:100%;text-align:left;background:rgba(255,255,255,.03);border:none;border-radius:11px;color:#64FFDA;font-size:.76rem;cursor:pointer;transition:background .2s">' +
               '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
               '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + safeName + '">' + name + '</span>' +
               '<span style="font-size:.54rem;letter-spacing:.1em;color:#8892B0;text-transform:uppercase;flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 7px">' + ext + '</span>' +
               '<span style="font-size:.62rem;color:#64FFDA;font-weight:700;letter-spacing:.06em;flex-shrink:0;margin-left:4px">&#128269; Zoom</span>' +
             '</button>' +
-            '<img src="' + safeUrl + '" class="att-img-thumb" onclick="openLB(\'' + safeUrl + '\')" />' +
+            '<img src="' + safeUrl + '" class="att-img-thumb" data-action="openLB" data-url="' + safeUrl + '" />' +
           '</div>';
       } else {
         items +=
-          '<a href="' + safeUrl + '" target="_blank" class="doc-item" download="' + safeName + '" style="display:flex;align-items:center;gap:10px;padding:10px 15px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.03);color:#8892B0;font-size:.76rem;text-decoration:none;transition:border-color .2s,background .2s" onmouseover="this.style.borderColor=\'rgba(212,168,67,.3)\';this.style.background=\'rgba(212,168,67,.04)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\';this.style.background=\'rgba(255,255,255,.03)\'">' +
+          '<a href="' + safeUrl + '" target="_blank" class="doc-item doc-item-other" download="' + safeName + '" style="display:flex;align-items:center;gap:10px;padding:10px 15px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.03);color:#8892B0;font-size:.76rem;text-decoration:none;transition:border-color .2s,background .2s">' +
             '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="' + iconPath + '"/></svg>' +
             '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + safeName + '">' + name + '</span>' +
             '<span style="font-size:.54rem;letter-spacing:.1em;color:#8892B0;text-transform:uppercase;flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:2px 7px">' + ext + '</span>' +

@@ -9,7 +9,7 @@ const S3_PATH = require.resolve('../../services/s3');
 
 function withFreshS3(env) {
   const oldEnv = {};
-  for (const key of ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_PREFIX', 'AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY']) {
+  for (const key of ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_PREFIX', 'S3_SSE', 'S3_KMS_KEY_ID', 'AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY']) {
     oldEnv[key] = process.env[key];
     delete process.env[key];
   }
@@ -101,6 +101,32 @@ test('s3 service - enabled upload, download, putJson, getJson, and delete sign n
     await s3.deleteFile('uploads/a b.txt');
     assert.deepEqual(mock.calls.map(c => c.options.method), ['PUT', 'GET', 'PUT', 'GET', 'DELETE']);
     assert.ok(mock.calls.every(c => c.options.path.includes('tenant-a/')));
+  } finally {
+    mock.restore();
+    restoreEnv();
+  }
+});
+
+test('s3 service - adds optional server-side encryption headers on PUT', async () => {
+  const { s3, restore: restoreEnv } = withFreshS3({
+    S3_BUCKET: 'unit-bucket',
+    S3_ACCESS_KEY: 'AKIAUNITTEST',
+    S3_SECRET_KEY: 'unit-secret-key',
+    S3_SSE: 'aws:kms',
+    S3_KMS_KEY_ID: 'arn:aws:kms:us-east-1:123456789012:key/unit-test',
+  });
+  const mock = mockHttpsRequest(({ options }) => {
+    if (options.method === 'PUT') {
+      assert.equal(options.headers['x-amz-server-side-encryption'], 'aws:kms');
+      assert.equal(options.headers['x-amz-server-side-encryption-aws-kms-key-id'], 'arn:aws:kms:us-east-1:123456789012:key/unit-test');
+    }
+    return { statusCode: 200, body: '' };
+  });
+
+  try {
+    await s3.uploadFile('uploads/encrypted.txt', Buffer.from('hello'), 'text/plain');
+    await s3.putJson('data/encrypted.json', { ok: true });
+    assert.equal(mock.calls.length, 2);
   } finally {
     mock.restore();
     restoreEnv();

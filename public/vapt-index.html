@@ -59,7 +59,7 @@
     <a id="navTabVPT" href="#" class="nav-tab nav-tab-active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VAPT Assessment</span></a>
     <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Verification</div>
     <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
-    <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
+    <button class="theme-toggle" data-action="toggleTheme"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
     <img src="/images/AFT.png" class="nav-logo-circle aft-circle" alt="AFT"  />
   </div>
 </nav>
@@ -75,8 +75,8 @@
   <div class="search-container" role="search" aria-label="VAPT certificate verification">
     <div class="search-wrap" id="searchWrap">
       <div class="search-icon-wrap" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="VAPT certificate number" aria-describedby="searchHint" aria-required="true" />
-      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify VAPT certificate authenticity">
+      <input type="text" id="certInput" class="search-input" placeholder="Enter VAPT certificate number" data-keydown-enter-action="verify" autocomplete="off" spellcheck="false" maxlength="64" aria-label="VAPT certificate number" aria-describedby="searchHint" aria-required="true" />
+      <button id="verifyBtn" class="search-btn" data-action="verify" aria-label="Verify VAPT certificate authenticity">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
@@ -155,28 +155,29 @@
     </div>
     <div style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;color:#E6F1FF;margin-bottom:10px">Restricted Access</div>
     <p style="font-family:'DM Sans',sans-serif;font-size:.78rem;color:#8892B0;line-height:1.65;margin-bottom:22px">Certificate documents are accessible only to authenticated Superintendent users. Please log in to the Superintendent Portal to view these documents.</p>
-    <button onclick="closeDocRestrictedNotice()" style="font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:600;color:#0a1628;background:#D4A843;border:none;border-radius:8px;padding:9px 24px;cursor:pointer">Close</button>
+    <button data-action="closeDocRestrictedNotice" style="font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:600;color:#0a1628;background:#D4A843;border:none;border-radius:8px;padding:9px 24px;cursor:pointer">Close</button>
   </div>
 </div>
 
-<div id="lightbox" role="dialog" aria-modal="true" aria-label="Certificate image viewer" aria-hidden="true" onclick="if(event.target===this||event.target.classList.contains('lb-x'))closeLB()">
-  <span class="lb-x" role="button" aria-label="Close image viewer" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')closeLB()">&#x2715;</span>
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Certificate image viewer" aria-hidden="true" data-action="closeLBBackdropOrIcon">
+  <span class="lb-x" role="button" aria-label="Close image viewer" tabindex="0" data-keydown-action="closeLB">&#x2715;</span>
   <img id="lbImg" src="" alt="VAPT Certificate" loading="lazy" decoding="async" />
 </div>
 
 <!-- PDF / Document Viewer Modal -->
-<div id="pdfViewerOverlay" role="dialog" aria-modal="true" aria-label="Document viewer" aria-hidden="true" onclick="if(event.target===this)closePdfModal()">
+<div id="pdfViewerOverlay" role="dialog" aria-modal="true" aria-label="Document viewer" aria-hidden="true" data-action="closePdfModalBackdrop">
   <div class="pdf-modal">
     <div class="pdf-modal-bar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2" style="flex-shrink:0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span class="pdf-modal-title" id="pdfModalTitle"></span>
       <a class="pdf-modal-open" id="pdfModalLink" href="#" target="_blank" rel="noopener noreferrer">↗ Open in New Tab</a>
-      <button class="pdf-modal-close" onclick="closePdfModal()" aria-label="Close document viewer">✕</button>
+      <button class="pdf-modal-close" data-action="closePdfModal" aria-label="Close document viewer">✕</button>
     </div>
     <iframe class="pdf-modal-frame" id="pdfModalFrame" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" title="Document viewer" loading="lazy"></iframe>
   </div>
 </div>
 
 <script src="/assets/smg-public/vapt/index.js"></script>
+<script src="/assets/public-verify-actions.js"></script>
 </body>
 </html>

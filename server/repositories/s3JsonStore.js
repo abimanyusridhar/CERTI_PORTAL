@@ -19,6 +19,18 @@ const fs   = require('fs');
 const path = require('path');
 const s3   = require('../services/s3');
 
+function writeFileAtomicSync(filePath, data) {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpPath, data, 'utf8');
+  fs.renameSync(tmpPath, filePath);
+}
+
+async function writeFileAtomic(filePath, data) {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.promises.writeFile(tmpPath, data, 'utf8');
+  await fs.promises.rename(tmpPath, filePath);
+}
+
 function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50 }) {
   let cache = null;
   let timer = null;
@@ -39,7 +51,7 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
     try {
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+      writeFileAtomicSync(filePath, JSON.stringify(data, null, 2));
     } catch (e) {
       if (onError) onError(e);
     }
@@ -104,7 +116,7 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
       timer = null;
       const serialized = JSON.stringify(data, null, 2);
       // Disk and S3 writes are INDEPENDENT — disk failure does NOT block S3 sync.
-      fs.promises.writeFile(filePath, serialized, 'utf8')
+      writeFileAtomic(filePath, serialized)
         .catch(err => onError && onError(err));
       if (s3.S3_ENABLED) pushToS3(data);
     }, debounceMs);

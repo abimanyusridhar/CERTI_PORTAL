@@ -1,17 +1,21 @@
 # Synergy Certificate Portal
 ## QA Testing Assessment Report — Gap-Closing & Security Update
 
-**Re-test date:** 2026-07-10
+**Re-test date:** 2026-07-10 · **Re-verified unchanged:** 2026-07-13 · **UI/E2E gap closed:** 2026-07-13
 
-| Tests Passed | Line Coverage | Security Score |
-|:---:|:---:|:---:|
-| **153 / 153** | **98.60%** | **90 / 100** |
+| Tests Passed (`node:test`) | Line Coverage | Security Score | E2E Tests (Playwright) |
+|:---:|:---:|:---:|:---:|
+| **153 / 153** | **98.60%** | **90 / 100** | **10 / 10** |
 
 ---
 
 ## Executive Summary
 
 The project was re-tested on 2026-07-10 after a targeted gap-closing and adversarial-security pass, then re-tested again the same day after a follow-up remediation pass. The full `node:test` suite grew from 121 to **153 passing tests** (0 failing), closing every previously-untested route and every "manual candidate" item flagged in the prior test plan. Two real application defects were found and fixed directly in `server/index.js` — not masked by loosened assertions. Security testing is updated from an implicit baseline to a directly-evidenced **90 / 100**: cross-vessel broken access control was adversarially attacked and found secure, injection- and traversal-shaped payloads were fuzzed against the live HTTP layer, oversized-request handling was confirmed to leave the server healthy, and rate limiting was proven to engage under a real request burst rather than only in unit tests of the limiter's internal logic. The same-day follow-up then closed every item this report had originally tracked as residual: a real stored-XSS gap in the VAPT public verify page (and the same pattern in both admin dashboards), the shared upload rate-limit bucket, and the missing coverage-gate enforcement — all four are detailed in Security Remediation Evidence below and none remain open.
+
+> **2026-07-13 re-verification:** three commits have landed since this report's 2026-07-10 baseline (`905cd1b`) — a CSS-only styling fix, and an admin-SSO session-order fix that was applied then reverted the same day. Net diff against the baseline is empty (`git diff 905cd1b..HEAD` is clean), so `server/index.js` and the full test suite are byte-for-byte unchanged. The suite was re-run today and reproduced the exact same result: **153/153 passing, 98.60% line / 90.91% branch / 93.51% function coverage.** Every finding and remediation below still holds.
+
+> **2026-07-13 UI/E2E gap-closing pass:** the "UI testing" area was previously capped at static smoke tests because no browser driver existed in this project. `@playwright/test` (Chromium) was added as a dev dependency and a new `server/tests/e2e/` suite drives the real, spawned server through an actual browser: form input, button clicks, keyboard submission, and DOM result rendering on both public verify pages, plus the server-side SSO auth-gate on the admin hub. All 10 new tests pass (`npm run test:e2e`). This is a genuine but partial close of the UI-testing gap — see the Updated Scorecard and UI/E2E Test Evidence sections below for what is and isn't covered.
 
 > **Scoring methodology:** each area score below is a qualitative assessment grounded in the evidence in this report — test pass rate, coverage percentage, and named gaps — not a single automated formula.
 
@@ -26,6 +30,8 @@ The project was re-tested on 2026-07-10 after a targeted gap-closing and adversa
 | Coverage gate | **Enforced** — `--test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=90`, added in follow-up remediation; verified to genuinely fail the build on a regression (see Security Remediation Evidence) |
 | Total coverage | 98.60% line · 90.91% branch · 93.51% function (unit-testable modules) |
 | Generated artifacts | None written to disk — Node's built-in coverage reporter prints a text table to stdout only. No `htmlcov/` or `coverage.xml` equivalent exists; add `--test-reporter=lcov` if an HTML report is wanted. |
+| E2E command | `npm run test:e2e` (Playwright, added 2026-07-13) |
+| E2E outcome | 10 passed, 0 failed — real Chromium browser driven against the actual spawned `server/index.js`, not a mock DOM |
 
 ---
 
@@ -33,11 +39,11 @@ The project was re-tested on 2026-07-10 after a targeted gap-closing and adversa
 
 | Area | Before | After | Status | Key Finding |
 |---|---:|---:|---|---|
-| Architecture testability | 72 | 72 | Fair | All ~48 `/api/*` routes live inside one 4,416-line `handleAPI()` function in `server/index.js`; persistence, security, S3, health, auth, and metrics are cleanly separated into unit-testable modules, but the router itself has no per-route file boundaries. |
+| Architecture testability | 72 | 72 | Fair | All ~48 `/api/*` routes live inside one ~1,670-line `handleAPI()` function (lines 2142–3811 of the 4,430-line `server/index.js`); persistence, security, S3, health, auth, and metrics are cleanly separated into unit-testable modules, but the router itself has no per-route file boundaries. |
 | Unit testing | 88 | 90 | Strong | 120 unit cases across 9 files; 98.60% line / 90.91% branch / 93.51% function coverage on every unit-testable module. |
 | Integration testing | 78 | 88 | Improved | Grew from 1 file to 4, adding full route coverage, signed-URL tamper testing, and adversarial security cases — each spawning the real server as a child process. |
 | API testing | 76 | 85 | Improved | All ~48 routes now exercised for status code, auth gating, duplicate IDs, injection-shaped payloads, and oversized bodies. No `PATCH` exists anywhere in this API — confirmed by full route inventory, not a gap. |
-| UI testing | 45 | 45 | Partial | Static smoke only (entrypoints, first-party links, responsive/focus CSS presence). No real button/form/DOM interaction testing — needs a browser driver not present in this project. |
+| UI testing | 45 | **62** | Improved | Static smoke (5 cases) plus a new Playwright/Chromium suite (10 cases, see UI/E2E Test Evidence) driving real form input, button clicks, keyboard submission, and DOM result rendering on both public verify pages, and confirming the admin hub's server-side SSO auth-gate in an actual browser. Still partial: the login-gated admin CRUD flows (Users/Groups/Documents tabs, cert create/edit modals) require a live AWS Cognito session and are not exercised end-to-end — only their unauthenticated boundary is. |
 | Security testing | 76 | **90** | Improved | Cross-vessel broken access control adversarially tested with no bypass found. A same-day follow-up pass then found and fixed a real stored-XSS gap in the VAPT public page (and the same pattern in both admin dashboards) — see Security Remediation Evidence. CSRF protection remains architecture-reliant (SameSite cookies + strict CORS origin allowlist), not independently re-verified this pass. |
 | Performance testing | 20 | 20 | Not automated | No load/stress/spike tooling (k6/autocannon) exists in this project. Explicitly out of scope this pass, not silently skipped. |
 | Database / persistence testing | 78 | 78 | Good | No relational database — JSON file + optional S3-mirrored persistence. CRUD, disk-fallback, BOM handling, and S3 cold-start recovery are tested; constraints/indexes/triggers don't apply to this architecture. |
@@ -77,6 +83,27 @@ The project was re-tested on 2026-07-10 after a targeted gap-closing and adversa
 
 ---
 
+## UI / E2E Test Evidence (Playwright)
+
+Added 2026-07-13 to close the "no browser driver" gap noted in prior passes. `playwright.config.js` spawns the real `server/index.js` (fixed test tenant, Cognito unconfigured) and drives it with headless Chromium — these are genuine button-click/keyboard/DOM assertions, not JSDOM or static-string checks.
+
+| Test Case | Test File | Result | Purpose |
+|---|---|---|---|
+| Rejects a malformed certificate number with an inline error | `e2e/cst-public-verify.spec.js` | Passed | Types an invalid string into `#certInput`, clicks `#verifyBtn`, asserts the "Invalid Format" message renders in `#result`. |
+| Reports a well-formed but unknown certificate as not found | `e2e/cst-public-verify.spec.js` | Passed | Full round trip through the real `/api/verify-by-id` route to a live "Certificate Not Found" render. |
+| Renders a seeded certificate on successful verification | `e2e/cst-public-verify.spec.js` | Passed | Verifies seeded `CST-9623740-01-26`; asserts recipient/vessel data appears in the rendered DOM. |
+| Enter key in the search field submits the same as clicking Verify | `e2e/cst-public-verify.spec.js` | Passed | Confirms the `onkeydown` handler path, not just the button's `onclick`. |
+| Rejects a malformed certificate number with an inline error (VAPT) | `e2e/vapt-public-verify.spec.js` | Passed | Same contract as CST, on the VAPT public page. |
+| Reports a well-formed but unknown certificate as not found (VAPT) | `e2e/vapt-public-verify.spec.js` | Passed | Live round trip against `/api/vapt/verify-by-id`. |
+| Renders a seeded certificate on successful verification (VAPT) | `e2e/vapt-public-verify.spec.js` | Passed | Verifies seeded `VAP-9491666-1026`; asserts vessel data renders. |
+| Server-side redirects an unauthenticated hub request to the admin login page | `e2e/admin-hub-auth-gate.spec.js` | Passed | Confirms `gateAdminPage()` 302s a cookie-less browser away from `admin/index.html` before any client JS runs. |
+| Never renders hub content for an unauthenticated visitor | `e2e/admin-hub-auth-gate.spec.js` | Passed | Asserts hub-only DOM (`#uStatTotal`, `#userTbody`) is entirely absent from the redirected-to page. |
+| SSO sign-in link on the login page points at the real SSO route | `e2e/admin-hub-auth-gate.spec.js` | Passed | Confirms the visible "Sign in with AWS SSO" link's `href` targets `/auth/sso/login`. |
+
+**Scope note:** these tests exercise the two public verify pages fully and the admin auth boundary, but not authenticated admin CRUD (Users/Groups/Documents tabs, cert create/edit/delete modals) — that requires a live AWS Cognito session this test harness cannot simulate, matching the same constraint the existing `node:test` integration suite works around by minting JWTs directly rather than driving a real SSO login.
+
+---
+
 ## Coverage Summary
 
 | Metric | Result |
@@ -101,7 +128,7 @@ The project was re-tested on 2026-07-10 after a targeted gap-closing and adversa
 | `server/services/s3.js` | 100.00 | 100.00 | 100.00 | — |
 | `server/services/security.js` | 97.08 | 91.46 | 92.31 | 90–91, 201–202, 250–253 |
 
-> `server/index.js` (4,416 lines — the monolithic router carrying all ~48 API routes) is exercised by 4 integration test files that spawn it as a real child process. Node's coverage instrumentation cannot attribute child-process execution back to the parent test process, so it does not appear in this table despite being the most heavily route-tested file in the project. This is a tooling limitation, not a true coverage gap.
+> `server/index.js` (4,430 lines — the monolithic router carrying all ~48 API routes) is exercised by 4 integration test files that spawn it as a real child process. Node's coverage instrumentation cannot attribute child-process execution back to the parent test process, so it does not appear in this table despite being the most heavily route-tested file in the project. This is a tooling limitation, not a true coverage gap.
 
 ---
 
@@ -119,6 +146,7 @@ The project was re-tested on 2026-07-10 after a targeted gap-closing and adversa
 | Admin-dashboard stored XSS (same pattern, both CST + VAPT dashboards) | Remediated | `public/assets/smg-admin/cst/dashboard.js`, `public/assets/smg-admin/vapt/dashboard.js` |
 | Shared upload rate-limit bucket (cert-create + doc-upload) | Remediated | `server/index.js` — `RATE_LIMITS` (`cert-create` / `doc-upload`) |
 | No enforced coverage gate | Remediated | `package.json` — `test:coverage` script |
+| No real browser/DOM interaction testing | Partially remediated | `playwright.config.js`, `server/tests/e2e/*.spec.js` — public verify pages fully covered; authenticated admin CRUD still untested (requires live Cognito) |
 
 ---
 
@@ -140,12 +168,13 @@ The project was re-tested on 2026-07-10 after a targeted gap-closing and adversa
 | S3 service | `unit/s3Service.test.js` | 3 | SigV4-signed upload/download/put/get/delete, error propagation. |
 | Critical end-to-end flow (integration) | `integration.test.js` | 1 | Single comprehensive flow — CST+VAPT CRUD, attachments, email-gate, CSV import, superintendent doc access, cleanup — 30+ assertions in one spawned-server run. |
 | S3-enabled remote mode | `unit/s3JsonStoreRemote.test.js` | 1 | Cold-start pull from S3 and save-mirrors-to-S3 behavior when S3 is enabled. |
+| UI/E2E — public verify + admin auth-gate (Playwright, not `node:test`) | `e2e/*.spec.js` | 10 | Real-browser button/form/keyboard interaction on both public verify pages and the admin hub's SSO auth boundary — see UI / E2E Test Evidence. |
 
 ---
 
 ## Appendix — Detailed Test Case Inventory
 
-This appendix lists all 153 automated test cases used for this assessment, collected directly from the project test suite. It aligns exactly with the reported result of 153 passed tests and the coverage figures above.
+This appendix lists all 153 `node:test` cases used for this assessment, collected directly from the project test suite. It aligns exactly with the reported result of 153 passed tests and the coverage figures above. The 10 Playwright E2E cases run under a separate command (`npm run test:e2e`) and are listed in UI / E2E Test Evidence above rather than duplicated here.
 
 ### `server/tests/unit/security.test.js` (51 test cases)
 
@@ -378,4 +407,4 @@ A separate, read-only verification pass against the live domain `certify.misecur
 
 ---
 
-*Full test-plan detail and traceability matrix live in `docs/testing-analysis-and-test-plan.md`. This report reflects verified, currently-passing state as of 2026-07-10 — re-run `npm test` after any change to confirm it still holds.*
+*Full test-plan detail and traceability matrix live in `docs/testing-analysis-and-test-plan.md`. This report reflects verified, currently-passing state, confirmed unchanged as of 2026-07-13 — re-run `npm test` (`node:test` suite) and `npm run test:e2e` (Playwright) after any change to confirm it still holds.*

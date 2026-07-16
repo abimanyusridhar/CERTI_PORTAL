@@ -13,12 +13,14 @@
   <link rel="stylesheet" href="/assets/shared-styles.css" />
   <!-- CENTRALIZED CONFIG -->
   <script src="/config.js" defer></script>
+  <script src="/assets/csrf-fetch.js" defer></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- SHARED & RESPONSIVE STYLES -->
   <link rel="stylesheet" href="/assets/responsive-refinements.css" />
   <!-- PAGE-SPECIFIC STYLES -->
   <link rel="stylesheet" href="/assets/smg-admin/vapt/dashboard.css" />
+  <script src="/assets/csrf-fetch.js" defer></script>
   <script src="/assets/shared-utils.js" defer></script>
   <script src="/assets/dashboard-optimizations.js" defer></script>
   <script src="/assets/theme-toggle.js" defer></script>
@@ -32,15 +34,15 @@
 <div id="sessionWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9990;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,170,46,0.14);border-bottom:2px solid rgba(255,170,46,0.4);color:var(--warn);box-shadow:0 2px 16px rgba(0,0,0,.3)">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
   Your session will expire in <span id="sessionCountdown">5 minutes</span>.
-  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,170,46,0.2);border:1px solid rgba(255,170,46,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
-  <button onclick="document.getElementById('sessionWarningBanner').style.display='none'" style="margin-left:8px;padding:4px 10px;border-radius:6px;background:none;border:1px solid rgba(255,255,255,0.1);color:var(--text-sec);cursor:pointer;font-size:.72rem;font-family:'DM Sans',sans-serif">Dismiss</button>
+  <button data-action="refreshSession" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,170,46,0.2);border:1px solid rgba(255,170,46,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
+  <button data-action="dismissSessionBanner" style="margin-left:8px;padding:4px 10px;border-radius:6px;background:none;border:1px solid rgba(255,255,255,0.1);color:var(--text-sec);cursor:pointer;font-size:.72rem;font-family:'DM Sans',sans-serif">Dismiss</button>
 </div>
 
 <!-- IDLE WARNING -->
 <div id="idleWarningBanner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9991;padding:10px 28px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-align:center;background:rgba(255,107,138,0.14);border-bottom:2px solid rgba(255,107,138,0.4);color:var(--invalid);box-shadow:0 2px 16px rgba(0,0,0,.3)">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
   Inactivity detected — you will be logged out in <span id="idleCountdown">2 minutes</span>.
-  <button onclick="resetIdle()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
+  <button data-action="resetIdle" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
 </div>
 
 <!-- ══ LOGIN ══ -->
@@ -57,10 +59,8 @@
       VAPT records are classified RESTRICTED. All administrative actions are logged and audited.
     </div>
     <!-- Primary: AWS SSO -->
-    <a id="ssoBtn" href="/auth/sso/login?next=/VAPT/misecure/"
-      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#2ABBA0,#1A8C78);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(42,187,160,.25);transition:opacity .18s,box-shadow .18s"
-      onmouseover="this.style.opacity='.88';this.style.boxShadow='0 6px 24px rgba(42,187,160,.38)'"
-      onmouseout="this.style.opacity='1';this.style.boxShadow='0 4px 18px rgba(42,187,160,.25)'">
+    <a id="ssoBtn" class="vapt-sso-btn-hover" href="/auth/sso/login?next=/VAPT/misecure/"
+      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#2ABBA0,#1A8C78);color:#fff;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(42,187,160,.25);transition:opacity .18s,box-shadow .18s">
       <svg width="19" height="19" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(255,255,255,.25)"/>
         <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
@@ -80,7 +80,7 @@
 
 <!-- ══ APP ══ -->
 <div id="appWrap" style="display:none">
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay" data-action="closeSidebar"></div>
   <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navigation sidebar">
     <div class="sb-brand">
       <div class="nav-logo-wrap"><img src="/images/SYN.png" class="nav-logo-circle syn-circle sb-circle" alt="Synergy" /></div>
@@ -91,28 +91,28 @@
     </div>
     <nav class="sb-nav">
       <div class="nav-sec" style="margin-bottom:6px">Quick Access</div>
-      <a id="sbLinkVPT" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(212,168,67,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkVPT" class="sb-quicklink sb-quicklink-gold" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         VAPT Public Portal
       </a>
-      <a id="sbLinkCSTAdmin" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(100,255,218,.2)'" onmouseout="this.style.color='var(--text-sec)';this.style.borderColor='transparent'">
+      <a id="sbLinkCSTAdmin" class="sb-quicklink sb-quicklink-teal" href="#" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:2px;border-radius:8px;font-size:.72rem;color:var(--text-sec);text-decoration:none;border:1px solid transparent;transition:all .2s">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         Switch to CST
       </a>
       <div class="nav-sec">VAPT Management</div>
-      <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)">
+      <div class="nav-item active" id="nav-dashboard" data-action="showPage" data-page="dashboard">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard <span class="nav-badge" id="nbTotal">0</span>
       </div>
-      <div class="nav-item" id="nav-certs" onclick="showPage('certs',this)">
+      <div class="nav-item" id="nav-certs" data-action="showPage" data-page="certs">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
         All VAPT Certificates
       </div>
-      <div class="nav-item" id="nav-csv" onclick="showPage('csv',this)">
+      <div class="nav-item" id="nav-csv" data-action="showPage" data-page="csv">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
         Import CSV
       </div>
-      <div class="nav-item" id="nav-issue" onclick="showPage('issue',this)">
+      <div class="nav-item" id="nav-issue" data-action="showPage" data-page="issue">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
         Issue Credentials
       </div>
@@ -157,13 +157,13 @@
           <div class="admin-rl" id="adminRole"></div>
         </div>
       </div>
-      <button class="logout-btn" onclick="doLogout()">⎋ &nbsp;Logout</button>
+      <button class="logout-btn" data-action="doLogout">⎋ &nbsp;Logout</button>
     </div>
   </aside>
 
   <main class="main" id="main-content">
     <div class="topbar" style="gap:16px" role="banner">
-      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar" aria-expanded="false" id="hamburgerBtn">
+      <button class="hamburger-btn" data-action="toggleSidebar" aria-label="Toggle navigation sidebar" aria-expanded="false" id="hamburgerBtn">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <img src="/images/SYN.png" class="nav-logo-circle syn-circle tb-circle" alt="Synergy" />
@@ -176,15 +176,15 @@
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           VAPT Certificates
         </span>
-        <button class="btn btn-ghost btn-sm" onclick="window.open((window.APP_CONFIG?window.APP_CONFIG.routes.vpt:'/VAPT'),'_blank')">🌐 Public Portal</button>
-        <button class="btn btn-issue btn-sm" onclick="showPage('issue',document.getElementById('nav-issue'))">✉ Issue Credentials</button>
-        <button class="btn btn-primary btn-sm" onclick="showPage('csv',document.getElementById('nav-csv'))">+ Import Certificates</button>
+        <button class="btn btn-ghost btn-sm" data-action="openVaptPublicPortal">🌐 Public Portal</button>
+        <button class="btn btn-issue btn-sm" data-action="showPage" data-page="issue" data-nav="nav-issue">✉ Issue Credentials</button>
+        <button class="btn btn-primary btn-sm" data-action="showPage" data-page="csv" data-nav="nav-csv">+ Import Certificates</button>
         <div style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;background:rgba(100,255,218,0.06);border:1px solid rgba(100,255,218,0.2);font-size:.6rem;font-weight:600;letter-spacing:.1em;color:var(--teal)">
           <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s ease-in-out infinite;flex-shrink:0"></span>
           <span id="realtimeBadge">Live · –</span>
         </div>
         <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
-        <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
+        <button class="theme-toggle" data-action="toggleTheme"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
       </div>
       <img src="/images/AFT.png" class="nav-logo-circle aft-circle tb-circle" alt="AFT" style="flex-shrink:0" />
     </div>
@@ -195,7 +195,7 @@
       <div id="nearExpiryBanner" role="alert" style="display:none;align-items:center;gap:12px;padding:12px 18px;background:rgba(255,170,46,.06);border:1px solid rgba(255,170,46,.28);border-radius:12px;font-size:.75rem;color:var(--warn);margin-bottom:16px;line-height:1.6"></div>
       <!-- ROW 1: Key KPIs -->
       <div class="stats-row" style="grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
-        <div class="stat-card gold" style="cursor:pointer" onclick="showPage('certs',document.getElementById('nav-certs'))">
+        <div class="stat-card gold" style="cursor:pointer" data-action="showPage" data-page="certs" data-nav="nav-certs">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div class="slabel" style="margin:0">Total VAPT Certs</div>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" opacity=".5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -203,7 +203,7 @@
           <div class="snum" id="stTotal">0</div>
           <div style="font-size:.57rem;color:var(--text-sec);margin-top:4px" id="stTotalSub">—</div>
         </div>
-        <div class="stat-card green" style="cursor:pointer" onclick="showPage('certs',document.getElementById('nav-certs'))">
+        <div class="stat-card green" style="cursor:pointer" data-action="showPage" data-page="certs" data-nav="nav-certs">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div class="slabel" style="margin:0">Active &amp; Valid</div>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5" opacity=".5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -211,7 +211,7 @@
           <div class="snum" id="stValid">0</div>
           <div style="font-size:.57rem;color:rgba(100,255,218,.6);margin-top:4px" id="stValidPct">—% of total</div>
         </div>
-        <div class="stat-card" style="border-color:rgba(255,170,46,.3);cursor:pointer" onclick="document.getElementById('panelPending').scrollIntoView({behavior:'smooth'})">
+        <div class="stat-card" style="border-color:rgba(255,170,46,.3);cursor:pointer" data-action="scrollToPanel" data-panel="panelPending">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div class="slabel" style="margin:0;color:#FFAA2E">⏳ Pending Activation</div>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFAA2E" stroke-width="1.5" opacity=".6"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg>
@@ -219,7 +219,7 @@
           <div class="snum" id="stPending" style="color:#FFAA2E">0</div>
           <div style="font-size:.57rem;color:rgba(255,170,46,.55);margin-top:4px">Set to VALID to activate ↓</div>
         </div>
-        <div class="stat-card" style="border-color:rgba(255,107,138,.25);cursor:pointer" onclick="document.getElementById('panelEmailPending').scrollIntoView({behavior:'smooth'})">
+        <div class="stat-card" style="border-color:rgba(255,107,138,.25);cursor:pointer" data-action="scrollToPanel" data-panel="panelEmailPending">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div class="slabel" style="margin:0;color:var(--invalid)">✉ Emails Not Sent</div>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="1.5" opacity=".5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
@@ -246,7 +246,7 @@
           <div class="snum" id="stExpired">0</div>
           <div style="font-size:.57rem;color:var(--text-sec);margin-top:4px">Passed validity date</div>
         </div>
-        <div class="stat-card orange" style="cursor:pointer" onclick="document.getElementById('panelNearExpiry').scrollIntoView({behavior:'smooth'})">
+        <div class="stat-card orange" style="cursor:pointer" data-action="scrollToPanel" data-panel="panelNearExpiry">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div class="slabel" style="margin:0">Expiring ≤30 Days</div>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" opacity=".4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -357,9 +357,9 @@
           <div class="tbl-title">Recent VAPT Certificates</div>
           <div class="mini-search">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Search vessel, IMO, cert no…" oninput="renderTbl('dashTbl',this.value)" />
+            <input type="text" placeholder="Search vessel, IMO, cert no…" data-input-action="renderDashSearch" />
           </div>
-          <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="startAdd()">+ Add New</button>
+          <button class="btn btn-primary btn-sm" style="margin-left:auto" data-action="startAdd">+ Add New</button>
         </div>
         <div id="dashTbl"></div>
       </div>
@@ -374,10 +374,10 @@
             <div class="mini-search">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
               <input id="allQ" type="text" placeholder="Search vessel, IMO, cert no, recipient…"
-                oninput="renderTbl('allTbl',this.value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value,document.getElementById('allQuarterSel').value)" />
+                data-input-action="applyAllVaptFilters" />
             </div>
             <select id="allStatusSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,this.value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value,document.getElementById('allQuarterSel').value)">
+              data-change-action="applyAllVaptFilters">
               <option value="">All Status</option>
               <option value="VALID">✅ Valid</option>
               <option value="PENDING">⏳ Pending</option>
@@ -385,13 +385,13 @@
               <option value="REVOKED">🚫 Revoked</option>
             </select>
             <select id="allEmailSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,this.value,document.getElementById('allRiskSel').value,document.getElementById('allQuarterSel').value)">
+              data-change-action="applyAllVaptFilters">
               <option value="">All Email</option>
               <option value="SENT">✉ Sent</option>
               <option value="NOT_SENT">✉ Not Sent</option>
             </select>
             <select id="allRiskSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,this.value,document.getElementById('allQuarterSel').value)">
+              data-change-action="applyAllVaptFilters">
               <option value="">All Risk</option>
               <option value="CRITICAL">🔴 Critical</option>
               <option value="HIGH">🟠 High</option>
@@ -399,7 +399,7 @@
               <option value="LOW">🟢 Low</option>
             </select>
             <select id="allQuarterSel" class="filter-select"
-              onchange="renderTbl('allTbl',document.getElementById('allQ').value,document.getElementById('allStatusSel').value,document.getElementById('allEmailSel').value,document.getElementById('allRiskSel').value,this.value)">
+              data-change-action="applyAllVaptFilters">
               <option value="">All Quarters</option>
               <option value="1">Q1 Jan–Mar</option>
               <option value="2">Q2 Apr–Jun</option>
@@ -408,13 +408,13 @@
             </select>
             <span class="filter-count-badge" id="allCertCount"><strong>0</strong> records</span>
           </div>
-          <button class="btn btn-ghost btn-sm" id="allClearFilters" onclick="clearAllFilters()" style="display:none;white-space:nowrap">✕ Clear</button>
-          <button class="btn btn-primary btn-sm" onclick="startAdd()">+ Add New</button>
+          <button class="btn btn-ghost btn-sm" id="allClearFilters" data-action="clearAllFilters" style="display:none;white-space:nowrap">✕ Clear</button>
+          <button class="btn btn-primary btn-sm" data-action="startAdd">+ Add New</button>
         </div>
         <div id="certSelBar" style="display:none;align-items:center;gap:12px;padding:9px 16px;background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.2);border-radius:8px;margin:0 15px 10px">
           <span id="certSelCount" style="font-size:.72rem;font-weight:600;color:var(--teal)">0 vessels selected</span>
-          <button class="btn btn-primary btn-sm" onclick="openBulkAssign()">👥 Assign to Group</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearSelections()" style="font-size:.72rem">✕ Clear</button>
+          <button class="btn btn-primary btn-sm" data-action="openBulkAssign">👥 Assign to Group</button>
+          <button class="btn btn-ghost btn-sm" data-action="clearSelections" style="font-size:.72rem">✕ Clear</button>
         </div>
         <div id="allTbl"></div>
       </div>
@@ -430,42 +430,42 @@
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Certificate ID / Number *</label>
-                <input type="text" id="fId" class="fcontrol" placeholder="VAP-XXXXXXX-MMYY" oninput="updatePreview()" />
+                <input type="text" id="fId" class="fcontrol" placeholder="VAP-XXXXXXX-MMYY" data-input-action="updatePreview" />
                 <div class="field-hint" id="idHint"></div>
               </div>
               <div class="fgroup">
                 <label class="flabel">Vessel IMO *</label>
-                <input type="text" id="fImo" class="fcontrol" placeholder="IMO number" oninput="autoGenId();updatePreview()" />
+                <input type="text" id="fImo" class="fcontrol" placeholder="IMO number" data-input-action="autoGenIdAndPreview" />
               </div>
             </div>
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Vessel Name *</label>
-                <input type="text" id="fVesselName" class="fcontrol" placeholder="MV Efficiency OL" oninput="updatePreview()" />
+                <input type="text" id="fVesselName" class="fcontrol" placeholder="MV Efficiency OL" data-input-action="updatePreview" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Recipient Name *</label>
-                <input type="text" id="fRecipientName" class="fcontrol" placeholder="MV Efficiency OL" oninput="updatePreview()" />
+                <input type="text" id="fRecipientName" class="fcontrol" placeholder="MV Efficiency OL" data-input-action="updatePreview" />
               </div>
             </div>
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Date of Assessment *</label>
-                <input type="date" id="fAssessmentDate" class="fcontrol" oninput="autoSetValidUntil();updatePreview()" onchange="autoSetValidUntil();updatePreview()" />
+                <input type="date" id="fAssessmentDate" class="fcontrol" data-input-action="autoSetValidUntilAndPreview" data-change-action="autoSetValidUntilAndPreview" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Valid Until * <span style="color:var(--text-sec);font-size:.58rem">(auto: +1 year)</span></label>
-                <input type="date" id="fValidUntil" class="fcontrol" oninput="updatePreview()" />
+                <input type="date" id="fValidUntil" class="fcontrol" data-input-action="updatePreview" />
               </div>
             </div>
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Verified By</label>
-                <input type="text" id="fVerifiedBy" class="fcontrol" value="" oninput="updatePreview()" />
+                <input type="text" id="fVerifiedBy" class="fcontrol" value="" data-input-action="updatePreview" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Verifier Title</label>
-                <input type="text" id="fVerifierTitle" class="fcontrol" value="" oninput="updatePreview()" />
+                <input type="text" id="fVerifierTitle" class="fcontrol" value="" data-input-action="updatePreview" />
               </div>
             </div>
             <div class="form-grid">
@@ -475,7 +475,7 @@
               </div>
               <div class="fgroup">
                 <label class="flabel">Status</label>
-                <select id="fStatus" class="fcontrol" onchange="updatePreview()">
+                <select id="fStatus" class="fcontrol" data-change-action="updatePreview">
                   <option value="VALID">VALID</option>
                   <option value="PENDING">PENDING</option>
                   <option value="EXPIRED">EXPIRED</option>
@@ -494,7 +494,7 @@
             <div class="form-grid">
               <div class="fgroup">
                 <label class="flabel">Recipient Email</label>
-                <input type="email" id="fRecipientEmail" class="fcontrol" placeholder="master@vessel.com" oninput="updateCompletion()" />
+                <input type="email" id="fRecipientEmail" class="fcontrol" placeholder="master@vessel.com" data-input-action="updateCompletion" />
               </div>
               <div class="fgroup">
                 <label class="flabel">Issuer Email</label>
@@ -510,15 +510,15 @@
                 Certificate Image <span style="color:var(--teal);font-size:.58rem">(attach physical cert — shown on public portal)</span>
                 <span id="imgRequiredTag" style="font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:rgba(255,107,138,.06);color:var(--invalid);border:1px solid rgba(255,107,138,.15)">Required</span>
               </label>
-              <div class="upload-zone" id="dropZone" ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
-                <input type="file" accept="image/*" onchange="onFileSelect(this)" />
+              <div class="upload-zone" id="dropZone" data-dragover-action="onDragOver" data-dragleave-action="onDragLeave" data-drop-action="onDrop">
+                <input type="file" accept="image/*" data-change-action="onFileSelect" />
                 <div id="uploadDefault">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.4" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                   <div class="upload-text">Drag &amp; drop · click to browse · or paste screenshot</div>
                   <div class="upload-hint">PNG, JPG, WEBP — max 5MB &nbsp;·&nbsp; <kbd>Ctrl+V</kbd> pastes directly from clipboard</div>
                 </div>
                 <div id="uploadPrev" style="display:none">
-                  <div class="prev-wrap"><img id="prevImg" src="" alt="Preview" /><button class="rm-img" onclick="clearImg(event)">✕</button></div>
+                  <div class="prev-wrap"><img id="prevImg" src="" alt="Preview" /><button class="rm-img" data-action="clearImg">✕</button></div>
                   <div class="upload-hint" style="margin-top:6px" id="prevName"></div>
                 </div>
               </div>
@@ -530,21 +530,21 @@
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   Vessel Documents
                 </div>
-                <button type="button" onclick="document.getElementById('vaptAttachInput').click()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);color:var(--teal);font-size:.66rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.04em">
+                <button type="button" data-action="openElementPicker" data-target="vaptAttachInput" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);color:var(--teal);font-size:.66rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.04em">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                   Attach File
                 </button>
-                <input type="file" id="vaptAttachInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple onchange="pdfFileSelect(this)" />
+                <input type="file" id="vaptAttachInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple data-change-action="pdfFileSelect" />
               </div>
               <div id="attachList"></div>
             </div>
 
             <div style="display:flex;gap:10px;margin-top:14px">
-              <button class="btn btn-primary" id="saveBtn" style="flex:1;justify-content:center;padding:12px" onclick="saveCert()">
+              <button class="btn btn-primary" id="saveBtn" style="flex:1;justify-content:center;padding:12px" data-action="saveCert">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 <span id="saveTxt">Save Certificate</span>
               </button>
-              <button class="btn btn-ghost" onclick="showPage('certs',document.getElementById('nav-certs'))">Cancel</button>
+              <button class="btn btn-ghost" data-action="showPage" data-page="certs" data-nav="nav-certs">Cancel</button>
             </div>
           </div>
         </div>
@@ -651,9 +651,9 @@
             <div style="display:flex;gap:10px;margin-bottom:14px">
               <div class="mini-search" style="flex:1">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" id="issueSearch" placeholder="Search by vessel, IMO, cert ID…" style="width:100%" oninput="renderIssueList(this.value)" />
+                <input type="text" id="issueSearch" placeholder="Search by vessel, IMO, cert ID…" style="width:100%" data-input-action="renderIssueListFromSearch" />
               </div>
-              <select class="fcontrol" style="width:130px;padding:7px 12px;font-size:.75rem" id="issueFilter" onchange="renderIssueList(document.getElementById('issueSearch').value)">
+              <select class="fcontrol" style="width:130px;padding:7px 12px;font-size:.75rem" id="issueFilter" data-change-action="renderIssueListFromSearch">
                 <option value="">All</option>
                 <option value="NOT_SENT">Pending</option>
                 <option value="SENT">Sent</option>
@@ -682,7 +682,7 @@
               </div>
               <div class="fgroup" style="margin-bottom:14px">
                 <label class="flabel">Recipient Email <span style="color:var(--invalid);font-size:.6rem">Required to send</span></label>
-                <input id="issueRecipEmail" class="fcontrol" type="email" placeholder="master@vessel.com" oninput="updateIssueEmailPreview()" />
+                <input id="issueRecipEmail" class="fcontrol" type="email" placeholder="master@vessel.com" data-input-action="updateIssueEmailPreview" />
               </div>
               <div style="margin-bottom:14px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -690,7 +690,7 @@
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                     <span style="font-size:.65rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase;font-weight:600">Email Preview</span>
                   </div>
-                  <button onclick="copyMailBody()" style="display:inline-flex;align-items:center;gap:5px;background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:5px 13px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;letter-spacing:.08em;transition:all .18s" onmouseover="this.style.background='rgba(212,168,67,.22)';this.style.borderColor='var(--gold)'" onmouseout="this.style.background='var(--gold-dim)';this.style.borderColor='var(--border-gold)'">
+                  <button class="copy-mailbody-btn" data-action="copyMailBody" style="display:inline-flex;align-items:center;gap:5px;background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:5px 13px;font-size:.65rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;letter-spacing:.08em;transition:all .18s">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path stroke-linecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                     <span id="copyBtnTxt">Copy Body</span>
                   </button>
@@ -720,15 +720,15 @@
 
               <!-- Action buttons -->
               <div style="display:flex;gap:10px;margin-top:6px">
-                <button class="btn btn-issue" style="flex:1;justify-content:center;padding:13px;font-size:.75rem;border-radius:10px;letter-spacing:.06em;box-shadow:0 2px 12px rgba(100,255,218,.12);transition:all .2s" id="sendSesBtn" onclick="sendViaSES()" onmouseover="this.style.boxShadow='0 4px 20px rgba(100,255,218,.22)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(100,255,218,.12)';this.style.transform=''">
+                <button class="btn btn-issue" style="flex:1;justify-content:center;padding:13px;font-size:.75rem;border-radius:10px;letter-spacing:.06em;box-shadow:0 2px 12px rgba(100,255,218,.12);transition:all .2s" id="sendSesBtn" data-action="sendViaSES">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                   <span id="sendSesTxt">Send</span>
                 </button>
-                <button style="display:inline-flex;align-items:center;gap:7px;padding:13px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.08em;cursor:pointer;border:1px solid rgba(100,255,218,.22);background:rgba(100,255,218,.05);color:var(--teal);transition:all .18s;white-space:nowrap" id="markSentBtn" onclick="markAsSent()" title="Record as sent manually — use if you emailed directly" onmouseover="this.style.background='rgba(100,255,218,.12)';this.style.borderColor='rgba(100,255,218,.4)'" onmouseout="this.style.background='rgba(100,255,218,.05)';this.style.borderColor='rgba(100,255,218,.22)'">
+                <button style="display:inline-flex;align-items:center;gap:7px;padding:13px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.72rem;letter-spacing:.08em;cursor:pointer;border:1px solid rgba(100,255,218,.22);background:rgba(100,255,218,.05);color:var(--teal);transition:all .18s;white-space:nowrap" id="markSentBtn" data-action="markAsSent" title="Record as sent manually — use if you emailed directly">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                   <span id="markSentTxt">Mark Sent</span>
                 </button>
-                <button class="btn btn-ghost" style="padding:13px 14px;border-radius:10px" onclick="clearIssueSelection()">
+                <button class="btn btn-ghost" style="padding:13px 14px;border-radius:10px" data-action="clearIssueSelection">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </div>
@@ -809,12 +809,12 @@
         📋 <strong>VAPT CSV Format:</strong> Required: <code>imo_number</code>, <code>vessel_name</code>, <code>assessment_date</code> — Optional: <code>cert_number</code>, <code>recipient_email</code>, <code>notes</code>
                 &nbsp;·&nbsp; Also accepts: <code>vessel imo</code>, <code>ship name</code>, <code>issue date</code>, <code>email</code>
                 &nbsp;·&nbsp; Dates: <code>DD-Mon-YY</code>, <code>DD/MM/YYYY</code>, <code>YYYY-MM-DD</code>
-        &nbsp;·&nbsp; <button class="btn btn-ghost btn-sm" onclick="downloadSampleCsv()">Download Sample CSV</button>
+        &nbsp;·&nbsp; <button class="btn btn-ghost btn-sm" data-action="downloadSampleCsv">Download Sample CSV</button>
       </div>
       <div class="section-card">
         <div class="section-title">Upload VAPT CSV File</div>
-        <div class="csv-drop" id="csvDrop" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleCsvDrop(event)">
-          <input type="file" id="csvFileInput" accept=".csv,.txt" onchange="loadCsvFile(this.files[0])" />
+        <div class="csv-drop" id="csvDrop" data-dragover-action="csvDropOver" data-dragleave-action="csvDropLeave" data-drop-action="handleCsvDrop">
+          <input type="file" id="csvFileInput" accept=".csv,.txt" data-change-action="loadCsvFile" />
           <div id="csvUploadDefault">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <div class="upload-text">Drop VAPT CSV here or click to browse</div>
@@ -823,7 +823,7 @@
           <div id="csvUploadLoaded" style="display:none;align-items:center;gap:12px;justify-content:center">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span id="csvLoadedName" style="color:var(--text-bright);font-size:.82rem"></span>
-            <button class="btn btn-ghost btn-sm" onclick="clearCsvFile(event)">✕ Clear</button>
+            <button class="btn btn-ghost btn-sm" data-action="clearCsvFile">✕ Clear</button>
           </div>
         </div>
       </div>
@@ -833,7 +833,7 @@
             <div class="section-title" style="margin-bottom:0">Preview</div>
             <span id="csvPreviewCount" style="color:var(--teal);font-family:'JetBrains Mono',monospace;font-size:.75rem">0</span>
             <span style="color:var(--text-sec);font-size:.72rem">records</span>
-            <button class="btn btn-primary btn-sm" id="csvImportBtn" onclick="doImportCsv()" disabled style="margin-left:auto">
+            <button class="btn btn-primary btn-sm" id="csvImportBtn" data-action="doImportCsv" disabled style="margin-left:auto">
               <span id="csvImportTxt">Import All Records</span>
             </button>
           </div>
@@ -849,12 +849,12 @@
 </div>
 
 <!-- ══ VIEW MODAL ══ -->
-<div class="overlay" id="viewOverlay" style="display:none" onclick="if(event.target===this)closeView()">
+<div class="overlay" id="viewOverlay" style="display:none" data-action="closeViewBackdrop">
   <div class="modal">
     <div class="modal-hdr">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
       <div class="modal-title" id="viewTitle">VAPT Certificate</div>
-      <button class="btn btn-ghost btn-sm" onclick="closeView()" style="margin-left:auto">✕ Close</button>
+      <button class="btn btn-ghost btn-sm" data-action="closeView" style="margin-left:auto">✕ Close</button>
     </div>
     <div class="modal-body" id="viewBody"></div>
     <div class="modal-foot" id="viewFoot"></div>
@@ -872,30 +872,30 @@
       <p style="color:var(--text-sec);font-size:.85rem">Are you sure you want to permanently delete certificate <strong id="delId" style="color:var(--gold)"></strong>? This cannot be undone.</p>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeDel()">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDelete()">Delete Permanently</button>
+      <button class="btn btn-ghost" data-action="closeDel">Cancel</button>
+      <button class="btn btn-danger" data-action="confirmDelete">Delete Permanently</button>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
-<div id="lightbox" onclick="closeLB()"><span class="lb-x" onclick="closeLB()">✕</span><img id="lbImg" src="" alt="" /></div>
+<div id="lightbox" data-action="closeLB"><span class="lb-x" data-action="closeLB">✕</span><img id="lbImg" src="" alt="" /></div>
 
 <!-- PDF Viewer Modal -->
-<div id="pdfViewerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9500;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" onclick="if(event.target===this)closePdfViewer()">
+<div id="pdfViewerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9500;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" data-action="closePdfViewerBackdrop">
   <div style="width:100%;max-width:960px;background:var(--surface);border:1px solid var(--border-gold);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)">
     <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--navy-mid);border-bottom:1px solid var(--border)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span id="pdfViewerTitle" style="font-size:.84rem;font-weight:600;color:var(--text-bright);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <a id="pdfViewerLink" href="#" target="_blank" style="font-size:.65rem;color:var(--teal);text-decoration:none;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.25);border-radius:7px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.06em;white-space:nowrap;flex-shrink:0">↗ Open in New Tab</a>
-      <button onclick="closePdfViewer()" style="background:none;border:none;color:var(--text-sec);font-size:1.3rem;cursor:pointer;padding:0 6px;line-height:1;font-family:'DM Sans',sans-serif;margin-left:4px;flex-shrink:0">✕</button>
+      <button data-action="closePdfViewer" style="background:none;border:none;color:var(--text-sec);font-size:1.3rem;cursor:pointer;padding:0 6px;line-height:1;font-family:'DM Sans',sans-serif;margin-left:4px;flex-shrink:0">✕</button>
     </div>
     <iframe id="pdfViewerFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="PDF Viewer"></iframe>
   </div>
 </div>
 
 <!-- ══ ASSIGN TO GROUP MODAL ══ -->
-<div id="assignGroupMod" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;align-items:center;justify-content:center" onclick="if(event.target===this)closeAssignGroup()">
+<div id="assignGroupMod" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;align-items:center;justify-content:center" data-action="closeAssignGroupBackdrop">
   <div style="background:var(--surface);border:1px solid rgba(100,255,218,.25);border-radius:16px;padding:26px 28px 22px;width:100%;max-width:440px;box-shadow:0 24px 80px rgba(0,0,0,.6)">
     <div style="font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--text-bright);font-weight:700;margin-bottom:6px">Assign Vessel to Group</div>
     <div style="font-size:.73rem;color:var(--text-sec);margin-bottom:18px" id="assignGroupVesselLabel">—</div>
@@ -903,54 +903,15 @@
       <div style="padding:14px;font-size:.75rem;color:var(--text-sec)">Loading groups…</div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost" onclick="closeAssignGroup()">Cancel</button>
-      <button class="btn btn-primary" id="btnConfirmAssign" onclick="confirmAssignGroup()">Assign to Group</button>
+      <button class="btn btn-ghost" data-action="closeAssignGroup">Cancel</button>
+      <button class="btn btn-primary" id="btnConfirmAssign" data-action="confirmAssignGroup">Assign to Group</button>
     </div>
   </div>
 </div>
 
 <script src="/assets/smg-admin/vapt/dashboard.js"></script>
-<script>
-// ── SSO: read short-lived cookie set by /auth/sso/callback ─────────────────
-(function () {
-  var match = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
-  if (match) {
-    sessionStorage.setItem('adminToken', decodeURIComponent(match[1]));
-    document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Lax';
-  }
-  var ssoErr = new URLSearchParams(location.search).get('sso_error');
-  if (ssoErr) {
-    var el = document.getElementById('ssoErrMsg');
-    if (el) {
-      var SSO_MSGS = {
-        deactivated:     'Your account has been deactivated. Contact your administrator.',
-        not_enrolled:    'Your account is not registered in this portal. Ask your administrator to add you.',
-        auth_failed:     'Authentication failed. Please try again or contact your administrator.',
-        session_expired: 'Your login session expired. Please try again.'
-      };
-      el.textContent = SSO_MSGS[ssoErr] || 'SSO sign-in failed. Please check your AWS account or try again.';
-      el.style.display = 'block';
-    }
-  }
-})();
-</script>
-<script>
-(function () {
-  var tok = sessionStorage.getItem('adminToken');
-  if (!tok) return;
-  try {
-    var parts = tok.split('.');
-    if (parts.length !== 3) return;
-    var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-    if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
-      sessionStorage.removeItem('adminToken'); return;
-    }
-    document.getElementById('loginWrap').style.display = 'none';
-    document.getElementById('appWrap').style.display = 'flex';
-    TOKEN = tok;
-    initApp();
-  } catch (e) { sessionStorage.removeItem('adminToken'); }
-})();
-</script>
+<script src="/assets/dashboard-actions.js"></script>
+<script src="/assets/sso-handoff.js"></script>
+<script src="/assets/session-restore.js"></script>
 </body>
 </html>

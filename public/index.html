@@ -63,7 +63,7 @@
     <a id="navTabVPT" href="#" class="nav-tab"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <span id="vptTabLabel">VAPT Assessment</span></a>
     <div class="nav-secure-badge"><div class="pulse-dot"></div>Secure Verification</div>
     <div style="width:1px;height:24px;background:var(--border);margin:0 2px;flex-shrink:0"></div>
-    <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
+    <button class="theme-toggle" data-action="toggleTheme"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
     <img src="/images/AFT.png" class="nav-logo-circle aft-circle" alt="AFT" />
   </div>
 </nav>
@@ -79,8 +79,8 @@
   <div class="search-container" role="search" aria-label="Certificate verification">
     <div class="search-wrap" id="searchWrap">
       <div class="search-icon-wrap" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></div>
-      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" onkeydown="if(event.key==='Enter') verify()" autocomplete="off" spellcheck="false" maxlength="64" aria-label="Certificate number" aria-describedby="searchHint" aria-required="true" />
-      <button id="verifyBtn" class="search-btn" onclick="verify()" aria-label="Verify certificate authenticity">
+      <input type="text" id="certInput" class="search-input" placeholder="Enter CST certificate number" data-keydown-enter-action="verify" autocomplete="off" spellcheck="false" maxlength="64" aria-label="Certificate number" aria-describedby="searchHint" aria-required="true" />
+      <button id="verifyBtn" class="search-btn" data-action="verify" aria-label="Verify certificate authenticity">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Verify
       </button>
@@ -157,27 +157,28 @@
     </div>
     <div style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;color:#E6F1FF;margin-bottom:10px">Restricted Access</div>
     <p style="font-family:'DM Sans',sans-serif;font-size:.78rem;color:#8892B0;line-height:1.65;margin-bottom:22px">Certificate documents are accessible only to authenticated Superintendent users. Please log in to the Superintendent Portal to view these documents.</p>
-    <button onclick="closeDocRestrictedNotice()" style="font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:600;color:#0a1628;background:#D4A843;border:none;border-radius:8px;padding:9px 24px;cursor:pointer">Close</button>
+    <button data-action="closeDocRestrictedNotice" style="font-family:'DM Sans',sans-serif;font-size:.76rem;font-weight:600;color:#0a1628;background:#D4A843;border:none;border-radius:8px;padding:9px 24px;cursor:pointer">Close</button>
   </div>
 </div>
 
-<div id="lightbox" onclick="if(event.target===this)closeLB()" role="dialog" aria-modal="true" aria-label="Certificate image viewer">
-  <span class="lb-x" onclick="closeLB()" aria-label="Close viewer">&#x2715;</span>
+<div id="lightbox" data-action="closeLBBackdrop" role="dialog" aria-modal="true" aria-label="Certificate image viewer">
+  <span class="lb-x" data-action="closeLB" aria-label="Close viewer">&#x2715;</span>
   <img id="lbImg" src="" alt="Certificate" />
 </div>
 
-<div id="pdfViewerOverlay" onclick="if(event.target===this)closePdfModal()" role="dialog" aria-modal="true" aria-labelledby="pdfModalTitle" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+<div id="pdfViewerOverlay" data-action="closePdfModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="pdfModalTitle" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
   <div style="width:100%;max-width:960px;background:#0f1e35;border:1px solid rgba(212,168,67,.3);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.7)">
     <div style="display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(17,34,64,.98);border-bottom:1px solid rgba(255,255,255,.07)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A843" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span id="pdfModalTitle" style="font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;color:#E6F1FF;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <a id="pdfModalLink" href="#" target="_blank" style="font-size:.65rem;color:#D4A843;text-decoration:none;background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.25);border-radius:7px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.06em;white-space:nowrap">↗ Open in New Tab</a>
-      <button onclick="closePdfModal()" style="background:none;border:none;color:#8892B0;font-size:1.3rem;cursor:pointer;padding:0 4px;line-height:1;margin-left:6px">✕</button>
+      <button data-action="closePdfModal" style="background:none;border:none;color:#8892B0;font-size:1.3rem;cursor:pointer;padding:0 4px;line-height:1;margin-left:6px">✕</button>
     </div>
     <iframe id="pdfModalFrame" src="" style="width:100%;height:78vh;border:none;display:block;background:#fff" title="Document viewer" sandbox="allow-scripts allow-same-origin allow-forms" aria-label="Document viewer"></iframe>
   </div>
 </div>
 
 <script src="/assets/smg-public/cst/index.js"></script>
+<script src="/assets/public-verify-actions.js"></script>
 </body>
 </html>

@@ -2,6 +2,18 @@
 
 const fs = require('fs');
 
+function writeFileAtomicSync(filePath, data) {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpPath, data, 'utf8');
+  fs.renameSync(tmpPath, filePath);
+}
+
+async function writeFileAtomic(filePath, data) {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.promises.writeFile(tmpPath, data, 'utf8');
+  await fs.promises.rename(tmpPath, filePath);
+}
+
 function createJsonStore({ filePath, seedData, onError, debounceMs = 50 }) {
   let cache = null;
   let timer = null;
@@ -27,7 +39,7 @@ function createJsonStore({ filePath, seedData, onError, debounceMs = 50 }) {
     cache = data;
     clearTimeout(timer);
     timer = setTimeout(() => {
-      fs.promises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8')
+      writeFileAtomic(filePath, JSON.stringify(data, null, 2))
         .catch((err) => onError && onError(err));
     }, debounceMs);
   }
@@ -35,7 +47,7 @@ function createJsonStore({ filePath, seedData, onError, debounceMs = 50 }) {
   function flush() {
     if (timer) { clearTimeout(timer); timer = null; }
     if (!cache) return Promise.resolve();
-    try { fs.writeFileSync(filePath, JSON.stringify(cache, null, 2), 'utf8'); } catch (e) { if (onError) onError(e); }
+    try { writeFileAtomicSync(filePath, JSON.stringify(cache, null, 2)); } catch (e) { if (onError) onError(e); }
     return Promise.resolve();
   }
 

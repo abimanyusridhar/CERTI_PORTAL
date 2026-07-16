@@ -200,14 +200,14 @@
     el.innerHTML = list.map(c => {
       const dl=c.daysLeft;
       const bc=dl<=7?'crit':dl<=20?'warn':'ok';
-      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="editCert('${c.id}')">
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" data-action="editCert" data-id="${c.id}">
         <div class="ne-days-badge ${bc}">${dl===0?'TODAY':dl+'d'}</div>
         <div style="flex:1">
           <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
           <div style="font-size:.76rem;color:var(--text-bright)">${escHtml(c.recipientName||'—')}</div>
           <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)}</div>
         </div>
-        <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();editCert('${c.id}')">Edit</button>
+        <button class="btn btn-teal btn-sm" data-action="editCert" data-id="${c.id}">Edit</button>
       </div>`;
     }).join('');
   }
@@ -366,14 +366,14 @@
         neEl.innerHTML = a.nearExpiry.map(c => {
           const dl=c.daysLeft, bc=dl<=7?'crit':dl<=20?'warn':'ok', label=dl===0?'TODAY':dl+'d';
           const sId=escHtml(c.id), sName=escHtml(c.recipientName);
-          return `<div class="ne-item" onclick="editCert('${sId}')">
+          return `<div class="ne-item" data-action="editCert" data-id="${sId}">
             <div class="ne-days-badge ${bc}">${label}</div>
             <div style="flex:1;min-width:0">
               <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
               <div style="font-size:.76rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sName||'—'}</div>
               <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)} · ${dl===0?'expires today':dl+' day'+(dl===1?'':'s')+' left'}</div>
             </div>
-            <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${sId}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" data-action="editCert" data-id="${sId}">Edit</button>
           </div>`;
         }).join('');
       }
@@ -389,7 +389,7 @@
       } else {
         pendEl.innerHTML = pendingCerts.map(c=>{
           const sId=escHtml(c.id), sName=escHtml(c.recipientName), sIMO=escHtml(c.vesselIMO);
-          return `<div class="ne-item" onclick="editCert('${sId}')">
+          return `<div class="ne-item" data-action="editCert" data-id="${sId}">
             <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,170,46,.1);border:1px solid rgba(255,170,46,.25);display:flex;align-items:center;justify-content:center;font-size:.9rem">⏳</div>
             <div style="flex:1;min-width:0">
               <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${sId}</div>
@@ -397,8 +397,8 @@
               <div style="font-size:.62rem;color:#FFAA2E">Not yet publicly verifiable — activate to enable</div>
             </div>
             <div style="display:flex;gap:5px">
-              <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">✓ Activate</button>
-              <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" onclick="event.stopPropagation();editCert('${sId}')">Edit</button>
+              <button class="btn btn-sm" style="font-size:.58rem;padding:3px 7px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" data-action="activateCert" data-id="${sId}">✓ Activate</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:3px 7px" data-action="editCert" data-id="${sId}">Edit</button>
             </div>
           </div>`;
         }).join('');
@@ -421,7 +421,7 @@
           const sId=escHtml(c.id), sName=escHtml(c.recipientName), sEmail=escHtml(c.recipientEmail);
           const subColor  = isPending ? '#FFAA2E' : hasEmail ? 'var(--invalid)' : 'var(--warn)';
           const subText   = isPending ? '⏳ Cert pending — activate first' : hasEmail ? sEmail : '⚠ No email address on record';
-          return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`onclick="goIssue('${sId}')"`:''}>
+          return `<div class="ne-item" style="gap:10px;cursor:${(!isPending&&hasEmail)?'pointer':'default'}" ${(!isPending&&hasEmail)?`data-action="goIssue" data-id="${sId}"`:''}>
             <div style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.2);display:flex;align-items:center;justify-content:center">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--invalid)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             </div>
@@ -432,13 +432,13 @@
             </div>
             <div style="display:flex;gap:5px;flex-shrink:0">
               ${!isPending && hasEmail
-                ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" onclick="event.stopPropagation();goIssue('${sId}')">
+                ? `<button class="btn btn-issue btn-sm" style="font-size:.58rem;padding:4px 9px;white-space:nowrap;border-radius:7px" data-action="goIssue" data-id="${sId}">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                     Send
                   </button>`
                 : !isPending && !hasEmail
-                ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" onclick="event.stopPropagation();editCert('${sId}')">+ Email</button>`
-                : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" onclick="event.stopPropagation();activateCert('${sId}')">Activate</button>`
+                ? `<button class="btn btn-ghost btn-sm" style="font-size:.58rem;padding:4px 9px" data-action="editCert" data-id="${sId}">+ Email</button>`
+                : `<button class="btn btn-sm" style="font-size:.58rem;padding:4px 9px;background:rgba(100,255,218,.08);border:1px solid rgba(100,255,218,.22);color:var(--teal)" data-action="activateCert" data-id="${sId}">Activate</button>`
               }
             </div>
           </div>`;
@@ -503,7 +503,7 @@
       <col style="width:68px"> <!-- Image -->
       <col>                    <!-- Actions -->
     </colgroup><thead><tr>
-      <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" onchange="toggleSelectAll(this,'${id}')" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
+      <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" data-change-action="toggleSelectAll" data-tbl="${id}" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
     </tr></thead><tbody>` + (isDash?list.slice(0,10):list).map(c => {
       const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
       const isV=c.status==='VALID'&&(!vu||vu>=now);
@@ -513,7 +513,7 @@
       let vlColor='var(--text-sec)';
       if(dl!==null){if(dl<0){vlStr+=` · ${Math.abs(dl)}d ago`;vlColor='var(--invalid)';}else if(dl===0){vlStr+=' · today';vlColor='var(--warn)';}else if(dl<=30){vlStr+=` · ${dl}d`;vlColor='var(--warn)';}else{vlStr+=` · ${dl}d`;vlColor=isV?'var(--teal)':'var(--text-sec)';}}
       const imgEl = c.certificateImage
-        ? `<img class="thumb" src="${c.certificateImage}" loading="lazy" onclick="openLB(this.src)" onerror="this.style.display='none';this.nextSibling.style.display='inline-flex'" /><div class="no-img" style="display:none">—</div>`
+        ? `<img class="thumb" src="${c.certificateImage}" loading="lazy" data-action="openLB" data-onerror-action="hideImgShowSibling" /><div class="no-img" style="display:none">—</div>`
         : '<div class="no-img">—</div>';
       const emailCls=c.emailStatus==='SENT'?'sent':'not-sent';
       const canSend=c.recipientEmail&&c.emailStatus!=='SENT'&&c.status==='VALID';
@@ -540,13 +540,13 @@
       const safeEmail = escHtml(c.recipientEmail);
       const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
       const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
-      const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" onchange="toggleRowSelect(this)" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
+      const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" data-change-action="toggleRowSelect" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
       return `<tr>${selCell}
         <td><span class="cid" title="${safeId}">${safeId}</span></td>
-        <td class="name-cell" style="cursor:pointer" title="View in public portal" onclick="viewCertNewTab('${safeId}',null)"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''} ${groupBadge}</td>
+        <td class="name-cell" style="cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''} ${groupBadge}</td>
         <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO||'—'}</span></td>
         <td style="font-size:.76rem;color:var(--text-sec)">${fmt(c.assessmentDate)}</td>
-        <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${safeId}" onchange="quickStatusChange('${safeId}',this.value,this)" title="Change status">
+        <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${safeId}" data-change-action="quickStatusChange" title="Change status">
           <option value="VALID" ${c.status==='VALID'?'selected':''}>✓ VALID</option>
           <option value="PENDING" ${c.status==='PENDING'?'selected':''}>⏳ PENDING</option>
           <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
@@ -557,12 +557,12 @@
         <td class="eng-cell">${engCell}</td>
         <td>${imgEl}</td>
         <td><div class="act-grp">
-          <button class="btn btn-ghost btn-sm" onclick="viewCertNewTab('${safeId}',this)">View</button>
-          <button class="btn btn-teal btn-sm" onclick="editCert('${safeId}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" title="Copy verification URL" onclick="copyEncUrl('${safeId}',this)" style="font-size:.58rem">🔒</button>
-          ${canSend?`<button class="btn btn-issue btn-sm" onclick="goIssue('${safeId}')">✉</button>`:''}
-          <button class="btn btn-ghost btn-sm" title="Assign vessel to group" onclick="openAssignGroup('${safeIMO}','${safeVessel}')">👥</button>
-          <button class="btn btn-danger btn-sm" onclick="askDelete('${safeId}')">Delete</button>
+          <button class="btn btn-ghost btn-sm" data-action="viewCertNewTab" data-id="${safeId}">View</button>
+          <button class="btn btn-teal btn-sm" data-action="editCert" data-id="${safeId}">Edit</button>
+          <button class="btn btn-ghost btn-sm" title="Copy verification URL" data-action="copyEncUrl" data-id="${safeId}" style="font-size:.58rem">🔒</button>
+          ${canSend?`<button class="btn btn-issue btn-sm" data-action="goIssue" data-id="${safeId}">✉</button>`:''}
+          <button class="btn btn-ghost btn-sm" title="Assign vessel to group" data-action="openAssignGroup" data-imo="${safeIMO}" data-name="${safeVessel}">👥</button>
+          <button class="btn btn-danger btn-sm" data-action="askDelete" data-id="${safeId}">Delete</button>
         </div></td>
       </tr>`;
     }).join('') + '</tbody></table></div>';
@@ -867,7 +867,7 @@
           <span class="pill ${c.emailStatus==='SENT'?'sent':'not-sent'}">${c.emailStatus==='SENT'?'✓ Sent':'Pending'}</span>
         </div>
       </div>
-      ${c.certificateImage?`<img src="${c.certificateImage}" style="width:100%;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;margin-bottom:${atts.length?'14px':'0'}" onclick="openLB(this.src)" />`:''}
+      ${c.certificateImage?`<img src="${c.certificateImage}" style="width:100%;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;margin-bottom:${atts.length?'14px':'0'}" data-action="openLB" />`:''}
       ${buildViewAttachments(atts)}
       ${(function() {
         const eng = c.engagement || {};
@@ -928,11 +928,11 @@
       })()}
     `;
     document.getElementById('viewFoot').innerHTML=`
-      ${(c.status||'').toUpperCase()==='PENDING' ? `<button class="btn" style="background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:var(--teal);display:inline-flex;align-items:center;gap:7px" onclick="closeView();activateCert('${c.id}')"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> Activate</button>` : ''}
-      <button class="btn btn-teal btn-sm" onclick="closeView();editCert('${c.id}')">Edit</button>
-      <button class="btn btn-ghost btn-sm" onclick="copyEncUrl('${c.id}',this)">🔒 Copy URL</button>
-      <button class="btn" onclick="viewCertNewTab('${c.id}',this)" style="background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);color:var(--gold);display:inline-flex;align-items:center;gap:6px"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/></svg> New Tab</button>
-      ${c.recipientEmail&&c.emailStatus!=='SENT'?`<button class="btn btn-issue btn-sm" onclick="closeView();goIssue('${c.id}')">Send Credential</button>`:''}
+      ${(c.status||'').toUpperCase()==='PENDING' ? `<button class="btn" style="background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:var(--teal);display:inline-flex;align-items:center;gap:7px" data-action="closeViewActivate" data-id="${c.id}"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> Activate</button>` : ''}
+      <button class="btn btn-teal btn-sm" data-action="closeViewEdit" data-id="${c.id}">Edit</button>
+      <button class="btn btn-ghost btn-sm" data-action="copyEncUrl" data-id="${c.id}">🔒 Copy URL</button>
+      <button class="btn" data-action="viewCertNewTab" data-id="${c.id}" style="background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);color:var(--gold);display:inline-flex;align-items:center;gap:6px"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/></svg> New Tab</button>
+      ${c.recipientEmail&&c.emailStatus!=='SENT'?`<button class="btn btn-issue btn-sm" data-action="closeViewIssue" data-id="${c.id}">Send Credential</button>`:''}
     `;
     document.getElementById('viewOverlay').style.display='flex';
 
@@ -1107,7 +1107,7 @@
     el.innerHTML=list.slice(0,40).map(c=>{
       const done=c.emailStatus==='SENT';
       const sel=c.id===selectedIssueCertId;
-      return `<div class="issue-cert-row ${sel?'selected':done?'done':''}" onclick="selectIssueCert('${c.id}')">
+      return `<div class="issue-cert-row ${sel?'selected':done?'done':''}" data-action="selectIssueCert" data-id="${c.id}">
         <div class="issue-cert-check">${sel?'▶':done?'✓':''}</div>
         <div class="issue-cert-meta" style="flex:1">
           <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
@@ -1402,7 +1402,7 @@
       if (eng.docDownloadCount)
         engBadges.push(`<span class="eng-badge eng-dl" title="Downloaded ${eng.docDownloadCount}×">⬇ ${eng.docDownloadCount}</span>`);
       return `
-      <div style="padding:12px 14px;border-radius:10px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--border-gold)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div class="sent-log-row" style="padding:12px 14px;border-radius:10px;background:var(--navy-mid);border:1px solid var(--border);margin-bottom:8px;transition:border-color .15s">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
           <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--gold)">${c.id}</span>
           <div style="display:flex;align-items:center;gap:4px">${engBadges.join('')}</div>
@@ -1465,8 +1465,8 @@
       const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,170,46,.09);color:var(--gold);border:1px solid rgba(255,170,46,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
       const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
       const rmBtn = a.saved
-        ? `<button type="button" onclick="removeSavedAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
-        : `<button type="button" onclick="removePendingAttach(${a.idx})" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
+        ? `<button type="button" data-action="removeSavedAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
+        : `<button type="button" data-action="removePendingAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:.88rem;flex-shrink:0">${icon}</span>
         <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_he(a.name || 'Document')}${badge}</span>
@@ -1799,7 +1799,7 @@
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
       <div><strong>${near.length} VAPT certificate${near.length===1?'':'s'} expiring within 30 days</strong> —
       ${near.slice(0,3).map(c=>{const d=Math.round((new Date(c.validUntil).setHours(0,0,0,0)-new Date().setHours(0,0,0,0))/86400000);return `<span style="font-family:'JetBrains Mono',monospace;font-size:.75em">${c.id}</span> (${d}d)`;}).join(', ')}${near.length>3?' …':''}</div>
-      <button onclick="this.parentElement.style.display='none'" style="margin-left:auto;background:none;border:none;color:currentColor;cursor:pointer;opacity:.6;font-size:1rem;padding:0 4px;line-height:1" aria-label="Dismiss">✕</button>
+      <button data-action="dismissParent" style="margin-left:auto;background:none;border:none;color:currentColor;cursor:pointer;opacity:.6;font-size:1rem;padding:0 4px;line-height:1" aria-label="Dismiss">✕</button>
     `;
   }
 

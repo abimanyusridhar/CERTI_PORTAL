@@ -43,6 +43,7 @@ function createAuthRoutes(deps) {
       'Set-Cookie': [
         'adminToken=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
         'sso_admin_token=; Path=/; SameSite=Lax; Max-Age=0',
+        'csrfToken=; SameSite=Lax; Path=/; Max-Age=0',
       ],
       ...corsH,
     });

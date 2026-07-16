@@ -1186,6 +1186,34 @@
     border-radius: 6px !important;
   }
 
+  .sent-log-row:hover {
+    border-color: var(--border-gold) !important;
+  }
+  .vapt-sso-btn-hover:hover {
+    opacity: .88 !important;
+    box-shadow: 0 6px 24px rgba(42,187,160,.38) !important;
+  }
+  .sb-quicklink-gold:hover {
+    color: var(--gold) !important;
+    border-color: rgba(212,168,67,.2) !important;
+  }
+  .sb-quicklink-teal:hover {
+    color: var(--teal) !important;
+    border-color: rgba(100,255,218,.2) !important;
+  }
+  .copy-mailbody-btn:hover {
+    background: rgba(212,168,67,.22) !important;
+    border-color: var(--gold) !important;
+  }
+  #sendSesBtn:hover {
+    box-shadow: 0 4px 20px rgba(100,255,218,.22) !important;
+    transform: translateY(-1px);
+  }
+  #markSentBtn:hover {
+    background: rgba(100,255,218,.12) !important;
+    border-color: rgba(100,255,218,.4) !important;
+  }
+
   /* Thumb alignment */
   .thumb {
     border-radius: 6px !important;

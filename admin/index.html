@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/assets/shared-styles.css" />
   <link rel="stylesheet" href="/assets/smg-admin/hub/hub.css" />
   <script src="/config.js" defer></script>
+  <script src="/assets/csrf-fetch.js" defer></script>
   <script src="/assets/theme-toggle.js" defer></script>
   <style>
     /* ── ADMIN MANAGEMENT (Users / Groups / Documents tabs) ───────────────── */
@@ -135,6 +136,7 @@
     .vessel-suggest-item:hover { background: rgba(100,255,218,.06); }
     .vessel-suggest-item .vs-name { color: var(--text-bright); font-weight: 600; }
     .vessel-suggest-item .vs-imo { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: var(--text-sec); }
+    .qv-suggest-item:hover { background: rgba(100,255,218,.05) !important; }
     .imo-input-wrap { position: relative; flex: 1; }
 
     /* ── DOCUMENTS ── */
@@ -244,12 +246,12 @@
 <div id="sessionWarningBanner" role="alert" aria-live="assertive">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
   Your session will expire in <span id="sessionCountdown">5 minutes</span>.
-  <button onclick="refreshSession()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,170,46,0.2);border:1px solid rgba(255,170,46,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
+  <button data-action="refreshSession" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,170,46,0.2);border:1px solid rgba(255,170,46,0.4);color:var(--warn);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">Extend Session</button>
 </div>
 <div id="idleWarningBanner" role="alert" aria-live="assertive">
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:7px" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
   Inactivity detected — you will be logged out in <span id="idleCountdown">2 minutes</span>.
-  <button onclick="resetIdle()" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
+  <button data-action="resetIdle" style="margin-left:12px;padding:4px 14px;border-radius:6px;background:rgba(255,107,138,0.15);border:1px solid rgba(255,107,138,0.35);color:var(--invalid);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:.06em">I'm still here</button>
 </div>
 
 <div class="hub-bg" aria-hidden="true">
@@ -281,9 +283,9 @@
         <span class="hub-health-label" id="mailLabel">Mail</span>
       </div>
       <div class="hub-health-sep"></div>
-      <button class="theme-toggle" onclick="toggleTheme()"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
+      <button class="theme-toggle" data-action="toggleTheme"><span class="tt-icon">☀️</span><span class="tt-label">Light</span></button>
       <div class="hub-health-sep"></div>
-      <button class="hub-btn hub-btn-ghost" onclick="doLogout()" title="Sign out">
+      <button class="hub-btn hub-btn-ghost" data-action="doLogout" title="Sign out">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
         Logout
       </button>
@@ -376,9 +378,9 @@
         Admin Management
       </div>
       <div class="admin-tabs">
-        <button class="admin-tab-btn active" id="adminTabBtnUsers" onclick="switchAdminTab('users')">Users</button>
-        <button class="admin-tab-btn" id="adminTabBtnGroups" onclick="switchAdminTab('groups')">Groups</button>
-        <button class="admin-tab-btn" id="adminTabBtnDocs" onclick="switchAdminTab('docs')">Documents <span id="badgeDocsTab" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700;border-radius:9px;margin-left:4px">0</span></button>
+        <button class="admin-tab-btn active" id="adminTabBtnUsers" data-action="switchAdminTab" data-tab="users">Users</button>
+        <button class="admin-tab-btn" id="adminTabBtnGroups" data-action="switchAdminTab" data-tab="groups">Groups</button>
+        <button class="admin-tab-btn" id="adminTabBtnDocs" data-action="switchAdminTab" data-tab="docs">Documents <span id="badgeDocsTab" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700;border-radius:9px;margin-left:4px">0</span></button>
       </div>
     </div>
 
@@ -393,13 +395,13 @@
       <div class="toolbar">
         <div class="search-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-          <input type="search" id="userSearch" class="filter-search" placeholder="Search name or email…" oninput="renderUsers()" />
+          <input type="search" id="userSearch" class="filter-search" placeholder="Search name or email…" data-input-action="renderUsers" />
         </div>
-        <button class="btn-primary" onclick="openAddUserModal()">
+        <button class="btn-primary" data-action="openAddUserModal">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
           Add User
         </button>
-        <button class="btn-sm" onclick="loadUsersData()">
+        <button class="btn-sm" data-action="loadUsersData">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Refresh
         </button>
@@ -430,13 +432,13 @@
       <div class="toolbar">
         <div class="search-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-          <input type="search" id="groupSearch" class="filter-search" placeholder="Search group name or IMO…" oninput="renderGroups()" />
+          <input type="search" id="groupSearch" class="filter-search" placeholder="Search group name or IMO…" data-input-action="renderGroups" />
         </div>
-        <button class="btn-primary" onclick="openCreateGroupModal()">
+        <button class="btn-primary" data-action="openCreateGroupModal">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           New Group
         </button>
-        <button class="btn-sm" onclick="loadGroupsData()">
+        <button class="btn-sm" data-action="loadGroupsData">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Refresh
         </button>
@@ -457,14 +459,14 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
           <div style="padding:16px 18px;border-right:1px solid var(--border)">
             <label style="font-size:.68rem;font-weight:600;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:8px">Select Organisation Group</label>
-            <select id="qvGroup" onchange="qvLoadGroup()" style="width:100%;background:var(--navy);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.75rem;font-family:inherit;cursor:pointer">
+            <select id="qvGroup" data-change-action="qvLoadGroup" style="width:100%;background:var(--navy);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.75rem;font-family:inherit;cursor:pointer">
               <option value="">— Choose a group —</option>
             </select>
             <div style="margin-top:14px">
               <label style="font-size:.68rem;font-weight:600;color:var(--text-sec);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:8px">Add Vessel (IMO or Name)</label>
               <div style="display:flex;gap:6px">
-                <input id="qvImoInput" type="text" placeholder="e.g. 9623740 or vessel name" oninput="qvSearch(this.value)" style="flex:1;background:var(--navy);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.72rem;font-family:inherit" />
-                <button onclick="qvAddVessel()" style="padding:7px 14px;border-radius:8px;border:1px solid rgba(100,255,218,.3);background:rgba(100,255,218,.07);color:var(--teal);font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap">Add</button>
+                <input id="qvImoInput" type="text" placeholder="e.g. 9623740 or vessel name" data-input-action="qvSearch" style="flex:1;background:var(--navy);border:1px solid var(--border);color:var(--text-bright);border-radius:8px;padding:7px 10px;font-size:.72rem;font-family:inherit" />
+                <button data-action="qvAddVessel" style="padding:7px 14px;border-radius:8px;border:1px solid rgba(100,255,218,.3);background:rgba(100,255,218,.07);color:var(--teal);font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap">Add</button>
               </div>
               <div id="qvSuggest" style="display:none;margin-top:4px;background:var(--surface);border:1px solid rgba(100,255,218,.2);border-radius:8px;max-height:160px;overflow-y:auto"></div>
             </div>
@@ -521,7 +523,7 @@
           <input type="text" class="f-inp" id="uDesc" placeholder="Brief description of the document" maxlength="500" />
         </div>
         <div class="file-drop" id="fileDrop">
-          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx" onchange="onFileSelect(this)" />
+          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx" data-change-action="onFileSelect" />
           <div class="file-drop-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           </div>
@@ -530,7 +532,7 @@
           <div class="file-selected" id="fileSelected"></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px">
-          <button class="btn-upload" id="btnUpload" onclick="uploadDoc()">
+          <button class="btn-upload" id="btnUpload" data-action="uploadDoc">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
             Upload Document
           </button>
@@ -539,10 +541,10 @@
       </div>
 
       <div class="filter-bar">
-        <input type="text" class="filter-inp" id="docSearch" placeholder="Search by vessel, title…" oninput="renderDocs()" />
+        <input type="text" class="filter-inp" id="docSearch" placeholder="Search by vessel, title…" data-input-action="renderDocs" />
         <span style="font-size:.68rem;color:var(--text-sec);padding:6px 10px;border:1px solid var(--border);border-radius:8px;white-space:nowrap">Training Reports</span>
         <input type="hidden" id="docTypeFilter" value="TRAINING_REPORT" />
-        <button class="btn-sm primary" onclick="loadDocsData()">
+        <button class="btn-sm primary" data-action="loadDocsData">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           Refresh
         </button>
@@ -628,8 +630,8 @@
       <label class="toggle"><input type="checkbox" id="umActive" checked /><span class="toggle-slider"></span></label>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeUserModal()">Cancel</button>
-      <button class="btn-save" id="saveUserBtn" onclick="saveUser()">Save User</button>
+      <button class="btn-cancel" data-action="closeUserModal">Cancel</button>
+      <button class="btn-save" id="saveUserBtn" data-action="saveUser">Save User</button>
     </div>
   </div>
 </div>
@@ -651,12 +653,11 @@
       <div class="imo-input-row">
         <div class="imo-input-wrap">
           <input id="gmImoInput" type="text" class="mfcontrol" placeholder="Search vessel name or type IMO…"
-            oninput="onVesselSearch(this.value)"
-            onkeydown="if(event.key==='Escape'){closeSuggest();}else if(event.key==='Enter'||event.key===','){event.preventDefault();addImoFromInput();}"
+            data-input-action="onVesselSearch"
             autocomplete="off" />
           <div id="vesselSuggest" class="vessel-suggest"></div>
         </div>
-        <button type="button" class="btn-sm" onclick="addImoFromInput()" style="flex-shrink:0;padding:9px 14px">Add</button>
+        <button type="button" class="btn-sm" data-action="addImoFromInput" style="flex-shrink:0;padding:9px 14px">Add</button>
       </div>
       <div class="imo-hint">Search by vessel name or enter a raw IMO number</div>
       <div class="imo-tag-list" id="imoTagList"></div>
@@ -673,8 +674,8 @@
       <div style="font-size:.64rem;color:var(--text-sec);margin-top:5px">Select which superintendents can access this group's vessels</div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeGroupModal()">Cancel</button>
-      <button class="btn-save" id="saveGroupBtn" onclick="saveGroup()">Save Group</button>
+      <button class="btn-cancel" data-action="closeGroupModal">Cancel</button>
+      <button class="btn-save" id="saveGroupBtn" data-action="saveGroup">Save Group</button>
     </div>
   </div>
 </div>
@@ -685,7 +686,7 @@
     <div class="modal-title" id="confirmTitle"></div>
     <div class="modal-body" id="confirmBody"></div>
     <div class="modal-actions">
-      <button class="btn-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-sm" data-action="closeConfirm">Cancel</button>
       <button class="btn-sm danger" id="confirmOk" style="background:rgba(255,107,138,.07);border:1px solid rgba(255,107,138,.3);color:var(--invalid)">Confirm</button>
     </div>
   </div>
@@ -695,925 +696,13 @@
 
 <script src="/assets/smg-admin/hub/hub.js"></script>
 
-<!-- Admin tab switcher -->
-<script>
-(function () {
-  'use strict';
-  function switchAdminTab(tab) {
-    var map = { users: 'Users', groups: 'Groups', docs: 'Docs' };
-    Object.keys(map).forEach(function (t) {
-      var pane = document.getElementById('pane' + map[t]);
-      var btn  = document.getElementById('adminTabBtn' + map[t]);
-      if (pane) pane.classList.toggle('active', t === tab);
-      if (btn) btn.classList.toggle('active', t === tab);
-    });
-  }
-  window.switchAdminTab = switchAdminTab;
+<script src="/assets/smg-admin/hub/admin-tab-switcher.js"></script>
+<script src="/assets/smg-admin/hub/hub-actions.js"></script>
 
-  var requestedTab = new URLSearchParams(window.location.search).get('tab');
-  if (requestedTab && ['users','groups','docs'].includes(requestedTab)) switchAdminTab(requestedTab);
-})();
-</script>
+<script src="/assets/smg-admin/hub/users-tab.js"></script>
 
-<!-- Users tab logic -->
-<script>
-(function() {
-  'use strict';
-  const API = '/api';
-  let TOKEN = sessionStorage.getItem('adminToken') || '';
-  let allUsers  = [];
-  let allGroups = [];
-  let editingId = null;
+<script src="/assets/smg-admin/hub/groups-tab.js"></script>
 
-  const authHdr = () => ({ Authorization: 'Bearer ' + TOKEN });
-  function checkUnauth(r) { if (r.status === 401) { window.doLogout(); return true; } return false; }
-
-  async function loadUsersData() {
-    try {
-      const [rU, rG] = await Promise.all([
-        fetch(API + '/admin/users',  { headers: authHdr() }),
-        fetch(API + '/admin/groups', { headers: authHdr() }),
-      ]);
-      if (checkUnauth(rU)) return;
-      if (!rU.ok || !rG.ok) { toast('Failed to load data', true); return; }
-      allUsers  = await rU.json();
-      allGroups = await rG.json();
-      updateStats();
-      renderUsers();
-    } catch { toast('Connection failed. Check your internet and try again.', true); }
-  }
-  window.loadUsersData = loadUsersData;
-
-  function updateStats() {
-    document.getElementById('uStatTotal').textContent      = allUsers.length;
-    document.getElementById('uStatActive').textContent     = allUsers.filter(u => u.active).length;
-    document.getElementById('uStatSuperint').textContent   = allUsers.filter(u => u.role === 'superintendent').length;
-    document.getElementById('uStatGroupsAvail').textContent = allGroups.length;
-  }
-
-  function renderUsers() {
-    const q = (document.getElementById('userSearch').value || '').toLowerCase();
-    const list = allUsers.filter(u => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-    const tbody = document.getElementById('userTbody');
-    const empty = document.getElementById('userEmpty');
-    if (!list.length) {
-      tbody.innerHTML = '';
-      const msgEl = empty.querySelector('div');
-      if (msgEl) msgEl.textContent = q ? 'No users match your search.' : 'No users yet. Click "Add User" to create your first superintendent.';
-      empty.style.display = 'block';
-      return;
-    }
-    empty.style.display = 'none';
-    const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-    const escH = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-    const groupMap = Object.fromEntries(allGroups.map(g => [g.id, g]));
-    tbody.innerHTML = list.map(u => {
-      const chips = (u.groupIds||[]).map(gid => groupMap[gid] ? `<span class="group-chip" title="${(groupMap[gid].vesselIMOs||[]).length} vessel(s)">${escH(groupMap[gid].name)}</span>` : '').join('');
-      const vesselCount = new Set((u.groupIds||[]).flatMap(gid => (groupMap[gid] && groupMap[gid].vesselIMOs)||[])).size;
-      return `<tr>
-        <td><div class="user-name">${escH(u.name)}</div><div class="user-email">${escH(u.email)}</div></td>
-        <td><span class="role-badge">${escH(u.role||'superintendent')}</span></td>
-        <td><div class="group-chips">${chips||'<span style="color:var(--text-sec);font-size:.68rem">No groups</span>'}</div></td>
-        <td><span style="font-family:'JetBrains Mono',monospace;font-size:.82rem;color:${vesselCount?'var(--teal)':'var(--text-sec)'};font-weight:700">${vesselCount||'—'}</span></td>
-        <td><span class="active-pill ${u.active?'on':'off'}">${u.active?'Active':'Inactive'}</span></td>
-        <td style="font-size:.7rem;color:var(--text-sec)">${fmtDt(u.createdAt)}</td>
-        <td style="text-align:right">
-          <div style="display:flex;gap:6px;justify-content:flex-end">
-            <button class="btn-sm" onclick="openUserEditModal('${escH(u.id)}')">Edit</button>
-            <button class="btn-sm danger" onclick="deleteUser('${escH(u.id)}','${escH(u.name)}')">Delete</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-  }
-  window.renderUsers = renderUsers;
-
-  function buildGroupList(selectedIds) {
-    const el = document.getElementById('groupSelectList');
-    if (!allGroups.length) { el.innerHTML = '<div style="padding:12px;font-size:.75rem;color:var(--text-sec)">No groups created yet.</div>'; return; }
-    el.innerHTML = allGroups.map(g => {
-      const checked = (selectedIds||[]).includes(g.id) ? 'checked' : '';
-      return `<label class="group-select-item"><input type="checkbox" value="${g.id}" ${checked} /><span><strong style="color:var(--text-bright)">${g.name}</strong><span style="color:var(--text-sec);font-size:.66rem;margin-left:8px">${(g.vesselIMOs||[]).length} vessel${(g.vesselIMOs||[]).length!==1?'s':''}</span></span></label>`;
-    }).join('');
-  }
-
-  function openAddUserModal() {
-    editingId = null;
-    document.getElementById('userModalTitle').textContent = 'Add User';
-    document.getElementById('umName').value  = '';
-    document.getElementById('umEmail').value = '';
-    document.getElementById('umEmail').readOnly = false;
-    document.getElementById('umEmail').style.opacity = '';
-    document.getElementById('umEmail').style.cursor  = '';
-    document.getElementById('umActive').checked = true;
-    document.getElementById('userModalErr').classList.remove('show');
-    document.getElementById('umCognitoNote').style.display = 'block';
-    buildGroupList([]);
-    document.getElementById('userModal').classList.add('open');
-  }
-  window.openAddUserModal = openAddUserModal;
-
-  function openUserEditModal(id) {
-    const u = allUsers.find(x => x.id === id);
-    if (!u) return;
-    editingId = id;
-    document.getElementById('userModalTitle').textContent = 'Edit User';
-    document.getElementById('umName').value  = u.name;
-    document.getElementById('umEmail').value = u.email;
-    document.getElementById('umEmail').readOnly = true;
-    document.getElementById('umEmail').style.opacity = '0.6';
-    document.getElementById('umEmail').style.cursor  = 'default';
-    document.getElementById('umActive').checked = !!u.active;
-    document.getElementById('userModalErr').classList.remove('show');
-    document.getElementById('umCognitoNote').style.display = 'none';
-    buildGroupList(u.groupIds || []);
-    document.getElementById('userModal').classList.add('open');
-  }
-  window.openUserEditModal = openUserEditModal;
-
-  function closeUserModal() { document.getElementById('userModal').classList.remove('open'); }
-  window.closeUserModal = closeUserModal;
-
-  async function saveUser() {
-    const name     = document.getElementById('umName').value.trim();
-    const email    = document.getElementById('umEmail').value.trim().toLowerCase();
-    const active   = document.getElementById('umActive').checked;
-    const groupIds = Array.from(document.querySelectorAll('#groupSelectList input[type=checkbox]:checked')).map(c => c.value);
-    const err = document.getElementById('userModalErr');
-    const btn = document.getElementById('saveUserBtn');
-    err.classList.remove('show');
-    if (!name)  { err.textContent = 'Full name is required.';  err.classList.add('show'); document.getElementById('umName').focus();  return; }
-    if (!editingId && !email) { err.textContent = 'Email address is required.'; err.classList.add('show'); document.getElementById('umEmail').focus(); return; }
-
-    if (btn) { btn.disabled = true; btn.textContent = editingId ? 'Saving…' : 'Creating…'; }
-    if (!editingId) {
-      try {
-        const payload = { name, email, role: 'superintendent', groupIds, active };
-        const r = await fetch(API + '/admin/users', { method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const d = await r.json();
-        if (!r.ok) { err.textContent = d.error || 'Could not create user. Please try again.'; err.classList.add('show'); return; }
-        closeUserModal();
-        if (d.cognitoCreated) {
-          toast('User created. ' + name + ' will receive a welcome email from AWS to sign in via SSO.');
-        } else if (d.cognitoError) {
-          toast('User saved, but Cognito registration failed: ' + d.cognitoError, true);
-        } else {
-          toast('User created. Configure COGNITO_ACCESS_KEY_ID in .env to enable SSO enrollment.');
-        }
-        await loadUsersData();
-      } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
-    } else {
-      try {
-        const payload = { name, active, groupIds };
-        const r = await fetch(API + '/admin/users/' + editingId, { method: 'PUT', headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const d = await r.json();
-        if (!r.ok) { err.textContent = d.error || 'Could not save changes. Please try again.'; err.classList.add('show'); return; }
-        closeUserModal();
-        toast('User updated successfully.');
-        await loadUsersData();
-      } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
-    }
-    if (btn) { btn.disabled = false; btn.textContent = 'Save User'; }
-  }
-  window.saveUser = saveUser;
-
-  async function deleteUser(id, name) {
-    const confirmed = await confirmDanger('Delete user <strong>' + name + '</strong>?<br><span style="font-size:.75rem;opacity:.7">This will remove their portal access. Their AWS Cognito account is not affected.</span>');
-    if (!confirmed) return;
-    try {
-      const r = await fetch(API + '/admin/users/' + id, { method: 'DELETE', headers: authHdr() });
-      if (!r.ok) { toast('Could not delete user. Please try again.', true); return; }
-      toast('User deleted.');
-      await loadUsersData();
-    } catch { toast('Connection failed. Check your internet and try again.', true); }
-  }
-  window.deleteUser = deleteUser;
-
-  function confirmDanger(msg, confirmLabel) {
-    return new Promise(resolve => {
-      const ov = document.createElement('div');
-      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
-      ov.innerHTML = `<div style="background:#0F2038;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-          </div>
-          <span style="font-size:.9rem;font-weight:700;color:#FF5C7A">Confirm Delete</span>
-        </div>
-        <p style="font-size:.82rem;color:#7689AE;line-height:1.65;margin-bottom:22px">${msg}</p>
-        <div style="display:flex;gap:10px;justify-content:flex-end">
-          <button id="_cdCancel" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#7689AE;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>
-          <button id="_cdConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:#FF5C7A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">${confirmLabel || 'Delete'}</button>
-        </div>
-      </div>`;
-      document.body.appendChild(ov);
-      ov.querySelector('#_cdConfirm').onclick = () => { ov.remove(); resolve(true); };
-      ov.querySelector('#_cdCancel').onclick  = () => { ov.remove(); resolve(false); };
-      ov.onclick = e => { if (e.target === ov) { ov.remove(); resolve(false); } };
-    });
-  }
-
-  function toast(msg, isErr) {
-    const el = document.createElement('div');
-    el.className = 'toast-msg ' + (isErr ? 'err' : 'ok');
-    el.textContent = msg;
-    document.getElementById('toast').appendChild(el);
-    setTimeout(() => el.remove(), 3200);
-  }
-
-  if (TOKEN) loadUsersData();
-})();
-</script>
-
-<!-- Groups tab logic -->
-<script>
-(function() {
-  'use strict';
-  const API = '/api';
-  let TOKEN = sessionStorage.getItem('adminToken') || '';
-  let allGroups = [];
-  let allUsers  = [];
-  let editingId = null;
-  let currentIMOs = [];
-  let vesselNames = {};
-  let _qvGroupId = null;
-
-  const authHdr = () => ({ Authorization: 'Bearer ' + TOKEN });
-  function checkUnauth(r) { if (r.status === 401) { window.doLogout(); return true; } return false; }
-
-  async function loadGroupsData() {
-    try {
-      const [rG, rU, rV] = await Promise.all([
-        fetch(API + '/admin/groups',   { headers: authHdr() }),
-        fetch(API + '/admin/users',    { headers: authHdr() }),
-        fetch(API + '/vessels/names',  { headers: authHdr() }),
-      ]);
-      if (checkUnauth(rG)) return;
-      if (!rG.ok || !rU.ok) { toast('Failed to load data', true); return; }
-      allGroups   = await rG.json();
-      allUsers    = await rU.json();
-      vesselNames = rV.ok ? await rV.json() : {};
-      updateStats();
-      renderGroups();
-    } catch { toast('Connection failed. Check your internet and try again.', true); }
-  }
-  window.loadGroupsData = loadGroupsData;
-
-  function updateStats() {
-    const totalVessels = new Set(allGroups.flatMap(g => g.vesselIMOs || [])).size;
-    document.getElementById('gStatGroups').textContent  = allGroups.length;
-    document.getElementById('gStatVessels').textContent = totalVessels;
-    document.getElementById('gStatUsers').textContent   = allUsers.filter(u => u.active).length;
-  }
-
-  function renderGroups() {
-    const q = (document.getElementById('groupSearch').value || '').toLowerCase();
-    const list = allGroups.filter(g => !q || g.name.toLowerCase().includes(q) || (g.vesselIMOs||[]).some(i => i.toLowerCase().includes(q)));
-    const grid  = document.getElementById('groupsGrid');
-    const empty = document.getElementById('groupsEmpty');
-    if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; qvPopulateSelect(); return; }
-    empty.style.display = 'none';
-    const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-    const escH  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-    grid.innerHTML = list.map(g => {
-      const imos = (g.vesselIMOs||[]).map(i => {
-        const name = vesselNames[i.toUpperCase()] || vesselNames[i];
-        return `<span class="imo-chip" title="${escH(i)}">${name ? escH(name) : escH(i)}<span style="opacity:.55;font-size:.58rem;margin-left:4px">${name ? escH(i) : ''}</span></span>`;
-      }).join('');
-      return `<div class="group-card">
-        <div class="group-card-head">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          <span class="group-name">${escH(g.name)}</span>
-          <span class="vessel-count">${(g.vesselIMOs||[]).length} vessel${(g.vesselIMOs||[]).length!==1?'s':''}</span>
-        </div>
-        <div class="group-card-body">
-          <div class="imo-chips">${imos||'<span style="color:var(--text-sec);font-size:.7rem">No vessels assigned</span>'}</div>
-          ${g.notes ? `<div class="group-notes">${escH(g.notes)}</div>` : ''}
-          <div class="group-meta" style="margin-bottom:12px">Created ${fmtDt(g.createdAt)}</div>
-          <div class="group-actions">
-            <button class="btn-sm" onclick="openGroupEditModal('${escH(g.id)}')">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              Edit
-            </button>
-            <button class="btn-sm danger" onclick="deleteGroup('${escH(g.id)}','${escH(g.name)}')">Delete</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-    qvPopulateSelect();
-  }
-  window.renderGroups = renderGroups;
-
-  function renderImoTags() {
-    const el = document.getElementById('imoTagList');
-    el.innerHTML = currentIMOs.map((imo, idx) => {
-      const name = vesselNames[imo.toUpperCase()];
-      const label = name ? `${name} <span style="opacity:.6;font-size:.6rem">${imo}</span>` : imo;
-      return `<span class="imo-tag">${label}<button onclick="removeImo(${idx})" title="Remove">×</button></span>`;
-    }).join('');
-  }
-
-  function addImoRaw(imo) {
-    const raw = imo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (!raw) return;
-    if (!currentIMOs.includes(raw)) { currentIMOs.push(raw); renderImoTags(); }
-    document.getElementById('gmImoInput').value = '';
-    closeSuggest();
-  }
-  window.addImoRaw = addImoRaw;
-
-  function addImoFromInput() {
-    const val = document.getElementById('gmImoInput').value.trim();
-    if (!val) return;
-    const raw = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (raw) addImoRaw(raw);
-  }
-  window.addImoFromInput = addImoFromInput;
-
-  function removeImo(idx) { currentIMOs.splice(idx, 1); renderImoTags(); }
-  window.removeImo = removeImo;
-
-  function onVesselSearch(q) {
-    const suggest = document.getElementById('vesselSuggest');
-    if (!q || !q.trim()) { closeSuggest(); return; }
-    const lower = q.toLowerCase();
-    const entries = Object.entries(vesselNames);
-    const matches = entries.filter(([imo, name]) =>
-      name.toLowerCase().includes(lower) || imo.toLowerCase().includes(lower)
-    ).slice(0, 12);
-    if (!matches.length) { closeSuggest(); return; }
-    suggest.innerHTML = matches.map(([imo, name]) =>
-      `<div class="vessel-suggest-item" onclick="addImoRaw('${imo}')">
-        <span class="vs-name">${escHtml(name)}</span>
-        <span class="vs-imo">${imo}</span>
-      </div>`
-    ).join('');
-    suggest.classList.add('open');
-  }
-  window.onVesselSearch = onVesselSearch;
-
-  function closeSuggest() {
-    const s = document.getElementById('vesselSuggest');
-    if (s) { s.classList.remove('open'); s.innerHTML = ''; }
-  }
-  window.closeSuggest = closeSuggest;
-  document.addEventListener('click', e => {
-    if (!e.target.closest('#vesselSuggest') && !e.target.closest('#gmImoInput')) closeSuggest();
-  });
-
-  const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-  function buildMemberList(selectedIds) {
-    const el = document.getElementById('memberSelectList');
-    const supts = allUsers.filter(u => u.active || (selectedIds||[]).includes(u.id));
-    if (!supts.length) {
-      el.innerHTML = '<div style="padding:12px;font-size:.75rem;color:var(--text-sec)">No users yet. Superintendents appear here after their first AWS SSO sign-in.</div>';
-      return;
-    }
-    el.innerHTML = supts.map(u => {
-      const checked = (selectedIds||[]).includes(u.id) ? 'checked' : '';
-      const inactive = !u.active ? ' <span style="font-size:.6rem;color:var(--invalid);margin-left:4px">(inactive)</span>' : '';
-      return `<label style="display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid rgba(100,255,218,.06);cursor:pointer;font-size:.78rem;color:var(--text-sec)">
-        <input type="checkbox" value="${escHtml(u.id)}" ${checked} style="accent-color:var(--teal);flex-shrink:0" />
-        <span style="min-width:0">
-          <strong style="color:var(--text-bright)">${escHtml(u.name)}</strong>${inactive}
-          <span style="color:var(--text-sec);font-size:.65rem;margin-left:7px;display:block">${escHtml(u.email)}</span>
-        </span>
-      </label>`;
-    }).join('');
-  }
-
-  function openCreateGroupModal() {
-    editingId = null;
-    currentIMOs = [];
-    document.getElementById('groupModalTitle').textContent = 'New Group';
-    document.getElementById('gmName').value   = '';
-    document.getElementById('gmNotes').value  = '';
-    document.getElementById('gmImoInput').value = '';
-    document.getElementById('groupModalErr').classList.remove('show');
-    renderImoTags();
-    buildMemberList([]);
-    document.getElementById('groupModal').classList.add('open');
-  }
-  window.openCreateGroupModal = openCreateGroupModal;
-
-  function openGroupEditModal(id) {
-    const g = allGroups.find(x => x.id === id);
-    if (!g) return;
-    editingId = id;
-    currentIMOs = [...(g.vesselIMOs || [])];
-    document.getElementById('groupModalTitle').textContent = 'Edit Group';
-    document.getElementById('gmName').value   = g.name;
-    document.getElementById('gmNotes').value  = g.notes || '';
-    document.getElementById('gmImoInput').value = '';
-    document.getElementById('groupModalErr').classList.remove('show');
-    renderImoTags();
-    const currentMemberIds = allUsers.filter(u => (u.groupIds||[]).includes(id)).map(u => u.id);
-    buildMemberList(currentMemberIds);
-    document.getElementById('groupModal').classList.add('open');
-  }
-  window.openGroupEditModal = openGroupEditModal;
-
-  function closeGroupModal() { document.getElementById('groupModal').classList.remove('open'); }
-  window.closeGroupModal = closeGroupModal;
-
-  async function saveGroup() {
-    const name  = document.getElementById('gmName').value.trim();
-    const notes = document.getElementById('gmNotes').value.trim();
-    const err   = document.getElementById('groupModalErr');
-    err.classList.remove('show');
-    if (!name) { err.textContent = 'Group name is required.'; err.classList.add('show'); return; }
-    const body = { name, vesselIMOs: currentIMOs, notes };
-    const btn = document.getElementById('saveGroupBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    try {
-      const url    = editingId ? API + '/admin/groups/' + editingId : API + '/admin/groups';
-      const method = editingId ? 'PUT' : 'POST';
-      const r = await fetch(url, { method, headers: { ...authHdr(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const d = await r.json();
-      if (!r.ok) { err.textContent = d.error || 'Save failed.'; err.classList.add('show'); return; }
-      const savedGroupId = d.id || editingId;
-
-      const selectedMemberIds = Array.from(
-        document.querySelectorAll('#memberSelectList input[type=checkbox]:checked')
-      ).map(c => c.value);
-
-      const memberUpdates = allUsers.map(u => {
-        const inGroup    = (u.groupIds || []).includes(savedGroupId);
-        const shouldBe   = selectedMemberIds.includes(u.id);
-        if (inGroup === shouldBe) return null;
-        const newGroupIds = shouldBe
-          ? [...new Set([...(u.groupIds || []), savedGroupId])]
-          : (u.groupIds || []).filter(gid => gid !== savedGroupId);
-        return fetch(API + '/admin/users/' + u.id, {
-          method: 'PUT',
-          headers: { ...authHdr(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupIds: newGroupIds }),
-        });
-      }).filter(Boolean);
-
-      if (memberUpdates.length) await Promise.all(memberUpdates);
-
-      closeGroupModal();
-      toast(editingId ? 'Group updated.' : 'Group created.');
-      await loadGroupsData();
-    } catch (e) { err.textContent = 'Connection failed. Check your internet and try again.'; err.classList.add('show'); }
-    finally { if (btn) { btn.disabled = false; btn.textContent = 'Save Group'; } }
-  }
-  window.saveGroup = saveGroup;
-
-  async function deleteGroup(id, name) {
-    const ok = await confirmDanger('Delete group <strong>' + name + '</strong>?<br><span style="font-size:.75rem;opacity:.7">Superintendents in this group will lose vessel access. This cannot be undone.</span>');
-    if (!ok) return;
-    try {
-      const r = await fetch(API + '/admin/groups/' + id, { method: 'DELETE', headers: authHdr() });
-      if (!r.ok) { toast('Could not delete group. Please try again.', true); return; }
-      toast('Group deleted.');
-      await loadGroupsData();
-    } catch { toast('Connection failed. Check your internet and try again.', true); }
-  }
-  window.deleteGroup = deleteGroup;
-
-  function confirmDanger(msg, confirmLabel) {
-    return new Promise(resolve => {
-      const ov = document.createElement('div');
-      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
-      ov.innerHTML = `<div style="background:#0F2038;border:1px solid rgba(255,107,138,.3);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6)">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5C7A" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-          </div>
-          <span style="font-size:.9rem;font-weight:700;color:#FF5C7A">Confirm Delete</span>
-        </div>
-        <p style="font-size:.82rem;color:#7689AE;line-height:1.65;margin-bottom:22px">${msg}</p>
-        <div style="display:flex;gap:10px;justify-content:flex-end">
-          <button id="_cdCancel2" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#7689AE;font-size:.8rem;cursor:pointer;font-family:inherit">Cancel</button>
-          <button id="_cdConfirm2" style="padding:8px 18px;border-radius:8px;border:none;background:#FF5C7A;color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:inherit">${confirmLabel || 'Delete'}</button>
-        </div>
-      </div>`;
-      document.body.appendChild(ov);
-      ov.querySelector('#_cdConfirm2').onclick = () => { ov.remove(); resolve(true); };
-      ov.querySelector('#_cdCancel2').onclick  = () => { ov.remove(); resolve(false); };
-      ov.onclick = e => { if (e.target === ov) { ov.remove(); resolve(false); } };
-    });
-  }
-
-  function toast(msg, isErr) {
-    const el = document.createElement('div');
-    el.className = 'toast-msg ' + (isErr ? 'err' : 'ok');
-    el.textContent = msg;
-    document.getElementById('toast').appendChild(el);
-    setTimeout(() => el.remove(), 3200);
-  }
-
-  function qvPopulateSelect() {
-    const sel = document.getElementById('qvGroup');
-    if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">— Choose a group —</option>';
-    for (const g of allGroups) {
-      const opt = document.createElement('option');
-      opt.value = g.id; opt.textContent = g.name;
-      sel.appendChild(opt);
-    }
-    if (cur) sel.value = cur;
-  }
-
-  function qvLoadGroup() {
-    _qvGroupId = document.getElementById('qvGroup').value || null;
-    const nameEl = document.getElementById('qvGroupName');
-    const listEl = document.getElementById('qvVesselList');
-    if (!_qvGroupId) {
-      if (nameEl) nameEl.textContent = '';
-      if (listEl) listEl.innerHTML = '<div style="color:var(--text-sec);font-size:.72rem;padding:20px 0;text-align:center">Select a group to view its vessels</div>';
-      return;
-    }
-    const g = allGroups.find(x => x.id === _qvGroupId);
-    if (!g) return;
-    if (nameEl) nameEl.textContent = g.name;
-    qvRenderVessels(g);
-  }
-  window.qvLoadGroup = qvLoadGroup;
-
-  function qvRenderVessels(g) {
-    const listEl = document.getElementById('qvVesselList');
-    if (!listEl) return;
-    const imos = g.vesselIMOs || [];
-    if (!imos.length) {
-      listEl.innerHTML = '<div style="color:var(--text-sec);font-size:.72rem;padding:14px 0;text-align:center">No vessels in this group yet</div>';
-      return;
-    }
-    listEl.innerHTML = imos.map(imo => {
-      const name = vesselNames[imo.toUpperCase()] || vesselNames[imo] || '';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid rgba(255,255,255,.04)">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.72rem;font-weight:600;color:var(--text-bright)">${name || imo}</div>
-          ${name ? `<div style="font-size:.6rem;color:var(--text-sec);font-family:monospace">${imo}</div>` : ''}
-        </div>
-        <button onclick="qvRemoveVessel('${imo}')" style="padding:3px 9px;border-radius:6px;border:1px solid rgba(255,107,138,.25);background:rgba(255,107,138,.05);color:var(--invalid);font-size:.6rem;cursor:pointer" title="Remove from group">Remove</button>
-      </div>`;
-    }).join('');
-  }
-
-  function qvSearch(q) {
-    const sug = document.getElementById('qvSuggest');
-    if (!sug) return;
-    if (!q || q.length < 2) { sug.style.display = 'none'; return; }
-    const matches = Object.entries(vesselNames)
-      .filter(([imo, name]) => imo.includes(q.toUpperCase()) || name.toLowerCase().includes(q.toLowerCase()))
-      .slice(0, 8);
-    if (!matches.length) { sug.style.display = 'none'; return; }
-    sug.style.display = 'block';
-    sug.innerHTML = matches.map(([imo, name]) =>
-      `<div onclick="qvPickVessel('${imo}')" style="padding:7px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between" onmouseover="this.style.background='rgba(100,255,218,.05)'" onmouseout="this.style.background=''">
-        <span style="color:var(--text-bright);font-weight:600">${name}</span>
-        <span style="font-family:monospace;font-size:.6rem;color:var(--text-sec)">${imo}</span>
-      </div>`
-    ).join('');
-  }
-  window.qvSearch = qvSearch;
-
-  function qvPickVessel(imo) {
-    document.getElementById('qvImoInput').value = imo;
-    document.getElementById('qvSuggest').style.display = 'none';
-  }
-  window.qvPickVessel = qvPickVessel;
-
-  async function qvAddVessel() {
-    if (!_qvGroupId) { alert('Please select a group first.'); return; }
-    const val = (document.getElementById('qvImoInput').value || '').trim();
-    if (!val) { alert('Please enter a vessel IMO or select from suggestions.'); return; }
-    const lv = val.toLowerCase();
-    const byName = Object.entries(vesselNames).find(([, n]) => n.toLowerCase() === lv);
-    const imo = byName ? byName[0] : val.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (!imo) { alert('Please enter a valid vessel IMO or name.'); return; }
-    try {
-      const r = await fetch(API + '/admin/groups/' + _qvGroupId + '/vessels', {
-        method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vesselIMO: imo })
-      });
-      if (!r.ok) { const d = await r.json(); alert(d.error || 'Error'); return; }
-      const updated = await r.json();
-      document.getElementById('qvImoInput').value = '';
-      document.getElementById('qvSuggest').style.display = 'none';
-      const idx = allGroups.findIndex(g => g.id === _qvGroupId);
-      if (idx >= 0) allGroups[idx] = updated;
-      qvRenderVessels(updated);
-      renderGroups();
-    } catch { alert('Network error'); }
-  }
-  window.qvAddVessel = qvAddVessel;
-
-  async function qvRemoveVessel(imo) {
-    if (!_qvGroupId) return;
-    if (!confirm('Remove ' + imo + ' from this group?')) return;
-    try {
-      const r = await fetch(API + '/admin/groups/' + _qvGroupId + '/vessels/' + imo, {
-        method: 'DELETE', headers: authHdr()
-      });
-      if (!r.ok) { const d = await r.json(); alert(d.error || 'Error'); return; }
-      const updated = await r.json();
-      const idx = allGroups.findIndex(g => g.id === _qvGroupId);
-      if (idx >= 0) allGroups[idx] = updated;
-      qvRenderVessels(updated);
-      renderGroups();
-    } catch { alert('Network error'); }
-  }
-  window.qvRemoveVessel = qvRemoveVessel;
-
-  if (TOKEN) loadGroupsData();
-})();
-</script>
-
-<!-- Documents tab logic -->
-<script>
-(function() {
-  'use strict';
-  const API = '/api';
-  let TOKEN = sessionStorage.getItem('adminToken') || '';
-  let allDocs = [];
-  let _confirmCb = null;
-
-  // ── SESSION MANAGEMENT (page-wide idle/expiry banners) ──────────────
-  const SESSION_MAX_MS   = 8 * 60 * 60 * 1000;
-  const SESSION_WARN_MS  = 5 * 60 * 1000;
-  const IDLE_WARN_MS     = 28 * 60 * 1000;
-  const IDLE_OUT_MS      = 30 * 60 * 1000;
-  let _sessionStart = Date.now();
-  let _lastActivity = Date.now();
-
-  function resetIdle() {
-    _lastActivity = Date.now();
-    document.getElementById('idleWarningBanner').style.display = 'none';
-  }
-  function refreshSession() {
-    _sessionStart = Date.now();
-    document.getElementById('sessionWarningBanner').style.display = 'none';
-  }
-  window.resetIdle = resetIdle;
-  window.refreshSession = refreshSession;
-  ['click','keydown','mousemove','touchstart'].forEach(e => document.addEventListener(e, resetIdle, { passive: true }));
-
-  function tickSession() {
-    const remaining = SESSION_MAX_MS - (Date.now() - _sessionStart);
-    const idle      = Date.now() - _lastActivity;
-    const swb = document.getElementById('sessionWarningBanner');
-    const iwb = document.getElementById('idleWarningBanner');
-    const sc  = document.getElementById('sessionCountdown');
-    const ic  = document.getElementById('idleCountdown');
-    if (remaining <= 0 || idle >= IDLE_OUT_MS) { window.doLogout(); return; }
-    if (remaining <= SESSION_WARN_MS) {
-      swb.style.display = 'block';
-      const m = Math.ceil(remaining / 60000);
-      if (sc) sc.textContent = m + ' minute' + (m !== 1 ? 's' : '');
-    } else { swb.style.display = 'none'; }
-    if (idle >= IDLE_WARN_MS) {
-      iwb.style.display = 'block';
-      const m = Math.ceil((IDLE_OUT_MS - idle) / 60000);
-      if (ic) ic.textContent = m + ' minute' + (m !== 1 ? 's' : '');
-    } else { iwb.style.display = 'none'; }
-  }
-  setInterval(tickSession, 30000);
-
-  const authHdr = () => ({ Authorization: 'Bearer ' + TOKEN });
-  function checkUnauth(r) { if (r.status === 401) { window.doLogout(); return true; } return false; }
-
-  async function loadDocsData() {
-    const loadingHtml = '<div style="text-align:center;padding:40px;color:var(--text-sec);font-size:.78rem">Loading…</div>';
-    document.getElementById('docsTableBody').innerHTML = loadingHtml;
-    try {
-      const docsRes = await fetch(API + '/docs', { headers: authHdr() });
-      if (checkUnauth(docsRes)) return;
-      if (docsRes.ok) allDocs = await docsRes.json();
-    } catch { toast('Failed to load data', true); }
-    renderDocs();
-    updateBadges();
-    updateDocStats();
-  }
-  window.loadDocsData = loadDocsData;
-
-  function updateBadges() {
-    const b = document.getElementById('badgeDocsTab');
-    if (b) b.textContent = allDocs.length;
-  }
-
-  function updateDocStats() {
-    const totalEl = document.getElementById('dStatTotal');
-    const vesselsEl = document.getElementById('dStatVessels');
-    const sizeEl = document.getElementById('dStatSize');
-    if (!totalEl) return;
-    totalEl.textContent = allDocs.length;
-    vesselsEl.textContent = new Set(allDocs.map(d => d.vesselIMO).filter(Boolean)).size;
-    const totalBytes = allDocs.reduce((sum, d) => sum + (d.fileSize || 0), 0);
-    sizeEl.textContent = totalBytes > 1048576 ? (totalBytes / 1048576).toFixed(1) + ' MB' : (totalBytes / 1024).toFixed(0) + ' KB';
-  }
-
-  function onFileSelect(input) {
-    const f = input.files[0];
-    const sel = document.getElementById('fileSelected');
-    sel.textContent = f ? `${f.name} (${(f.size / 1024).toFixed(1)} KB)` : '';
-  }
-  window.onFileSelect = onFileSelect;
-
-  const drop = document.getElementById('fileDrop');
-  if (drop) {
-    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
-    drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
-    drop.addEventListener('drop', e => {
-      e.preventDefault();
-      drop.classList.remove('drag-over');
-      const fi = document.getElementById('fileInput');
-      fi.files = e.dataTransfer.files;
-      onFileSelect(fi);
-    });
-  }
-
-  async function uploadDoc() {
-    const imo    = document.getElementById('uImo').value.trim();
-    const vessel = document.getElementById('uVessel').value.trim();
-    const type   = document.getElementById('uTypeValue').value;
-    const certId = document.getElementById('uCertId').value.trim();
-    const title  = document.getElementById('uTitle').value.trim();
-    const desc   = document.getElementById('uDesc').value.trim();
-    const fi     = document.getElementById('fileInput');
-    const msg    = document.getElementById('uploadMsg');
-    const btn    = document.getElementById('btnUpload');
-
-    if (!imo || !vessel || !title) { toast('Vessel IMO, Vessel Name and Title are required', true); return; }
-    if (!fi.files.length) { toast('Please select a file to upload', true); return; }
-
-    const fd = new FormData();
-    fd.append('vesselIMO', imo);
-    fd.append('vesselName', vessel);
-    fd.append('docType', type);
-    fd.append('title', title);
-    fd.append('description', desc);
-    fd.append('linkedCertId', certId);
-    fd.append('file', fi.files[0]);
-
-    btn.disabled = true;
-    msg.textContent = 'Uploading…';
-
-    try {
-      const r = await fetch(API + '/docs/upload', { method: 'POST', headers: authHdr(), body: fd });
-      const d = await r.json();
-      if (!r.ok) { toast(d.error || 'Upload failed', true); msg.textContent = ''; btn.disabled = false; return; }
-      toast('Document uploaded successfully');
-      msg.textContent = '';
-      ['uImo','uVessel','uCertId','uTitle','uDesc'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('fileInput').value = '';
-      document.getElementById('fileSelected').textContent = '';
-      await loadDocsData();
-    } catch { toast('Network error', true); msg.textContent = ''; }
-    btn.disabled = false;
-  }
-  window.uploadDoc = uploadDoc;
-
-  function renderDocs() {
-    const q    = (document.getElementById('docSearch').value || '').toLowerCase();
-    const tf   = document.getElementById('docTypeFilter').value;
-    const body = document.getElementById('docsTableBody');
-    const IMAGE_EXTS = /\.(png|jpg|jpeg|gif|bmp|webp|tiff|svg)$/i;
-    let filtered = allDocs.filter(d => {
-      const mime = (d.mimeType || '').toLowerCase();
-      const fname = (d.fileName || d.title || '').toLowerCase();
-      if (mime.startsWith('image/') || IMAGE_EXTS.test(fname)) return false;
-      const match = !q || (d.vesselName||'').toLowerCase().includes(q) || (d.vesselIMO||'').toLowerCase().includes(q) || (d.title||'').toLowerCase().includes(q);
-      const tMatch = !tf || d.docType === tf;
-      return match && tMatch;
-    });
-    document.getElementById('docsCount').textContent = filtered.length + ' document' + (filtered.length !== 1 ? 's' : '');
-    if (!filtered.length) {
-      const hasFilters = q || tf;
-      const emptyMsg = hasFilters ? 'No documents match the current filter.' : 'No documents uploaded yet. Use the form above to upload the first document.';
-      body.innerHTML = `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><p style="margin-top:10px">${emptyMsg}</p></div>`;
-      return;
-    }
-    const escH = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-    const typeBadge = t => {
-      const m = { TRAINING_REPORT: ['badge-training','Training Report'], DRILL_REPORT: ['badge-drill','Drill Report'], AUDIT_REPORT: ['badge-audit','Audit Report'], CERT_ATTACHMENT: ['badge-audit','Certificate Attachment'], OTHER: ['badge-other','Other'] };
-      const [cls, lbl] = m[t] || m.OTHER;
-      return `<span class="doc-type-badge ${cls}">${lbl}</span>`;
-    };
-    const fmtSize = b => b > 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB';
-    const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '—';
-    const docIcon = (mime, name) => {
-      const m = (mime||'').toLowerCase(); const n = (name||'').toLowerCase();
-      if (m === 'application/pdf' || n.endsWith('.pdf')) return ['pdf', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>`];
-      if (m.startsWith('image/')) return ['img', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`];
-      if (m.includes('excel') || m.includes('spreadsheet') || n.match(/\.xlsx?$/)) return ['xls', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`];
-      if (m.includes('word') || n.match(/\.docx?$/)) return ['doc', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`];
-      return ['other', `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>`];
-    };
-    body.innerHTML = `<div class="doc-card-grid">${filtered.map(d => {
-      const safeId = escH(d.id);
-      const [iconCls, iconSvg] = docIcon(d.mimeType, d.fileName);
-      const canDelete = !d.isCertificateAttachment;
-      return `<div class="doc-card">
-        <div class="doc-card-top">
-          <div class="doc-icon ${iconCls}">${iconSvg}</div>
-          <div class="doc-card-info">
-            <div class="doc-card-title" title="${escH(d.title)}">${escH(d.title)}</div>
-            <div class="doc-card-vessel">
-              <span>${escH(d.vesselName||'—')}</span>
-              ${d.vesselIMO ? `<span class="imo-chip">${escH(d.vesselIMO)}</span>` : ''}
-            </div>
-            <div class="doc-card-meta">
-              ${typeBadge(d.docType)}
-              <span style="font-size:.62rem;color:var(--text-sec)">${fmtSize(d.fileSize||0)}</span>
-              <span style="font-size:.62rem;color:var(--text-sec)">${fmtDt(d.uploadedAt)}</span>
-              ${d.linkedCertId ? `<span style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--gold);background:rgba(212,168,67,.08);padding:1px 6px;border-radius:4px;border:1px solid rgba(212,168,67,.25)">${escH(d.linkedCertId)}</span>` : ''}
-            </div>
-          </div>
-        </div>
-        ${d.description ? `<div style="font-size:.72rem;color:var(--text-sec);line-height:1.55;padding:0 2px">${escH(d.description)}</div>` : ''}
-        <div class="doc-card-actions">
-          <button class="btn-open" id="btnOpen_${safeId}" onclick="openDocDirect('${safeId}',this)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-            Open
-          </button>
-          <button class="btn-sm teal" onclick="copyDocLink('${safeId}',this)" title="Copy shareable link for superintendents">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-            Share Link
-          </button>
-          ${canDelete ? `<button class="btn-sm danger" onclick="deleteDoc('${safeId}','${escH(d.title)}')" style="margin-left:auto">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            Delete
-          </button>` : `<span style="margin-left:auto;font-size:.62rem;color:var(--text-sec)">Managed from certificate</span>`}
-        </div>
-      </div>`;
-    }).join('')}</div>`;
-  }
-  window.renderDocs = renderDocs;
-
-  async function openDocDirect(id, btn) {
-    const orig = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
-    try {
-      const r = await fetch(`/api/docs/temp-link/${id}`, { headers: authHdr() });
-      if (!r.ok) { toast('Could not generate link: ' + ((await r.json()).error || r.status), true); return; }
-      const { url } = await r.json();
-      window.open(url, '_blank');
-    } catch { toast('Open failed — check connection', true); }
-    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
-  }
-  window.openDocDirect = openDocDirect;
-
-  async function copyDocLink(id, btn) {
-    const orig = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; }
-    try {
-      const r = await fetch(`/api/docs/temp-link/${id}`, { headers: authHdr() });
-      if (!r.ok) { toast('Could not generate link', true); return; }
-      const { url } = await r.json();
-      await navigator.clipboard.writeText(url);
-      toast('Shareable link copied — valid for 24 hours. Send to superintendent.');
-    } catch { toast('Copy failed', true); }
-    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
-  }
-  window.copyDocLink = copyDocLink;
-
-  async function deleteDoc(id, title) {
-    openConfirm(`Delete "${title}"?`, 'This will permanently delete the document file. This action cannot be undone.', async () => {
-      try {
-        const r = await fetch(API + '/docs/' + id, { method: 'DELETE', headers: authHdr() });
-        if (!r.ok) { toast((await r.json()).error || 'Delete failed', true); return; }
-        toast('Document deleted');
-        await loadDocsData();
-      } catch { toast('Network error', true); }
-    });
-  }
-  window.deleteDoc = deleteDoc;
-
-  function openConfirm(title, body, cb) {
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmBody').textContent = body;
-    _confirmCb = cb;
-    document.getElementById('confirmModal').classList.add('show');
-  }
-  function closeConfirm() { document.getElementById('confirmModal').classList.remove('show'); _confirmCb = null; }
-  window.closeConfirm = closeConfirm;
-  document.getElementById('confirmOk').addEventListener('click', () => { if (_confirmCb) _confirmCb(); closeConfirm(); });
-  document.getElementById('confirmModal').addEventListener('click', e => { if (e.target === document.getElementById('confirmModal')) closeConfirm(); });
-
-  function toast(msg, isErr) {
-    const el = document.createElement('div');
-    el.className = 'toast-msg ' + (isErr ? 'err' : 'ok');
-    el.textContent = msg;
-    document.getElementById('toast').appendChild(el);
-    setTimeout(() => el.remove(), 3500);
-  }
-
-  (function initFromUrl() {
-    const sp = new URLSearchParams(window.location.search);
-    const imo    = sp.get('imo')    || '';
-    const vessel = sp.get('vessel') || '';
-    if (imo)    { const el = document.getElementById('uImo');    if (el) el.value = imo;    }
-    if (vessel) { const el = document.getElementById('uVessel'); if (el) el.value = vessel; }
-  })();
-
-  if (TOKEN) loadDocsData();
-})();
-</script>
+<script src="/assets/smg-admin/hub/documents-tab.js"></script>
 </body>
 </html>
