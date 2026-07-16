@@ -497,13 +497,14 @@
       <col style="width:80px"> <!-- IMO -->
       <col style="width:110px"><!-- Assessment Date -->
       <col style="width:110px"><!-- Status -->
+      <col style="width:90px"> <!-- Risk -->
       <col style="width:120px"><!-- Valid Until -->
       <col style="width:70px"> <!-- Email -->
       <col style="width:130px"><!-- Engagement -->
       <col style="width:68px"> <!-- Image -->
       <col>                    <!-- Actions -->
     </colgroup><thead><tr>
-      <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" data-change-action="toggleSelectAll" data-tbl="${id}" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
+      <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" data-change-action="toggleSelectAll" data-tbl="${id}" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Risk</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
     </tr></thead><tbody>` + (isDash?list.slice(0,10):list).map(c => {
       const now=new Date(),vu=c.validUntil?new Date(c.validUntil):null;
       const isV=c.status==='VALID'&&(!vu||vu>=now);
@@ -541,6 +542,16 @@
       const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
       const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
       const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" data-change-action="toggleRowSelect" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
+      const RISK_STYLE = {
+        CRITICAL: { emoji: '🔴', color: 'var(--invalid)' },
+        HIGH:     { emoji: '🟠', color: 'var(--warn)' },
+        MEDIUM:   { emoji: '🟡', color: 'var(--warn)' },
+        LOW:      { emoji: '🟢', color: 'var(--teal)' },
+      };
+      const riskInfo = RISK_STYLE[(c.riskLevel || '').toUpperCase()];
+      const riskCell = riskInfo
+        ? `<span style="font-size:.7rem;color:${riskInfo.color}">${riskInfo.emoji} ${escHtml(c.riskLevel)}</span>`
+        : '<span style="color:var(--text-sec);font-size:.68rem">—</span>';
       return `<tr>${selCell}
         <td><span class="cid" title="${safeId}">${safeId}</span></td>
         <td class="name-cell" style="cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''} ${groupBadge}</td>
@@ -552,6 +563,7 @@
           <option value="EXPIRED" ${c.status==='EXPIRED'?'selected':''}>⏰ EXPIRED</option>
           <option value="REVOKED" ${c.status==='REVOKED'?'selected':''}>🚫 REVOKED</option>
         </select></td>
+        <td>${riskCell}</td>
         <td style="color:${vlColor};font-size:.76rem">${vlStr}</td>
         <td><span class="pill ${emailCls}" title="${safeEmail||'no email'}">${c.emailStatus==='SENT'?'✓ Sent':'—'}</span></td>
         <td class="eng-cell">${engCell}</td>
@@ -627,6 +639,7 @@
     document.getElementById('fVerifierTitle').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group');
     document.getElementById('fAssessingOrg').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.assessingOrg:'Synergy Cybersecurity Team');
     document.getElementById('fStatus').value='VALID';
+    document.getElementById('fRiskLevel').value='';
     document.getElementById('fFrameworks').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.frameworks:'Cybersecurity Framework / OWASP / IMO Framework / ISO 27001:2013');
     document.getElementById('fScopeItems').value=(window.APP_CONFIG?window.APP_CONFIG.vapt.scopeItems:'Access Control (USB/Data/Login/Domain/Email/Assets),IT/OT Risk analysis,Vessel Cyber security awareness,Software Version Control (IT/OT),Backups & Disaster Recovery,IT Drills & Internal Audits');
     document.getElementById('fIssuerEmail').value=(window.APP_CONFIG?window.APP_CONFIG.contact.vaptEmail:'vapt@synergyship.com');
@@ -652,6 +665,7 @@
     document.getElementById('fVerifierTitle').value=c.verifierTitle||(window.APP_CONFIG?window.APP_CONFIG.vapt.verifierTitle:'CISO — Synergy Group');
     document.getElementById('fAssessingOrg').value=c.assessingOrg||(window.APP_CONFIG?window.APP_CONFIG.vapt.assessingOrg:'Synergy Cybersecurity Team');
     document.getElementById('fStatus').value=c.status||'VALID';
+    document.getElementById('fRiskLevel').value=c.riskLevel||'';
     document.getElementById('fFrameworks').value=c.frameworks||'';
     document.getElementById('fScopeItems').value=c.scopeItems||'';
     document.getElementById('fRecipientEmail').value=c.recipientEmail||'';
@@ -772,6 +786,7 @@
       fd.append('verifierTitle', v('fVerifierTitle'));
       fd.append('assessingOrg', v('fAssessingOrg'));
       fd.append('status', v('fStatus'));
+      fd.append('riskLevel', v('fRiskLevel'));
       fd.append('frameworks', v('fFrameworks'));
       fd.append('scopeItems', v('fScopeItems'));
       fd.append('recipientEmail', v('fRecipientEmail'));
