@@ -364,14 +364,26 @@
   }
   window.qvPickVessel = qvPickVessel;
 
+  // Matches vesselName loosely — strips the MV/MT/M-V prefix (same convention
+  // dashboard.js's CSV import already applies) and collapses whitespace — so
+  // "MV Nord Kudu" and "Nord  Kudu" both resolve to the same stored vessel
+  // instead of silently falling through to the raw-IMO branch below.
+  function _canonicalVesselName(n) {
+    return String(n || '').replace(/^(MV|MT|M\/V)\s*[-–]?\s*/i, '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
   async function qvAddVessel() {
     if (!_qvGroupId) { alert('Please select a group first.'); return; }
     const val = (document.getElementById('qvImoInput').value || '').trim();
     if (!val) { alert('Please enter a vessel IMO or select from suggestions.'); return; }
-    const lv = val.toLowerCase();
-    const byName = Object.entries(vesselNames).find(([, n]) => n.toLowerCase() === lv);
-    const imo = byName ? byName[0] : val.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (!imo) { alert('Please enter a valid vessel IMO or name.'); return; }
+    const lv = _canonicalVesselName(val);
+    const byName = Object.entries(vesselNames).find(([, n]) => _canonicalVesselName(n) === lv);
+    // A real IMO always contains at least one digit — if the name lookup missed
+    // AND the input has no digit, it's almost certainly a misspelled vessel name,
+    // not an IMO, so don't silently add it as one.
+    const looksLikeImo = /\d/.test(val);
+    const imo = byName ? byName[0] : (looksLikeImo ? val.toUpperCase().replace(/[^A-Z0-9]/g, '') : '');
+    if (!imo) { alert('No vessel found matching that name, and it doesn\'t look like a valid IMO. Check the spelling or pick from the suggestions list.'); return; }
     try {
       const r = await fetch(API + '/admin/groups/' + _qvGroupId + '/vessels', {
         method: 'POST', headers: { ...authHdr(), 'Content-Type': 'application/json' },

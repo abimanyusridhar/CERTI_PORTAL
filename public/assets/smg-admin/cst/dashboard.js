@@ -2275,7 +2275,11 @@
     }
 
     function buildCertFromRow(row, quarter, mode) {
-      const imo          = getRowVal(row, 'vesselIMO');
+      // Normalize the same way the server does (server/index.js normalizeVesselIMO) —
+      // otherwise a raw cell like "imo 9877858" builds a certId containing a space
+      // (rejected by the server's cert-ID whitelist) and a vesselIMO that won't match
+      // the normalized value groups/vessel filters compare against.
+      const imo          = getRowVal(row, 'vesselIMO').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
       const rawDate      = getRowVal(row, 'complianceDate');
       const chiefName    = getRowVal(row, 'chiefEngineer');
       const recipientName= getRowVal(row, 'recipientName');
@@ -2776,7 +2780,11 @@ function applyConfig() {
       var parts = _tok.split('.');
       if (parts.length === 3) {
         var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload && payload.iat) { _sessionStart = payload.iat; }
+        // payload.iat is JWT-standard seconds-since-epoch; _sessionStart/Date.now()
+        // arithmetic elsewhere in this file (scheduleSessionTimers) is milliseconds —
+        // without *1000 here, elapsed comes out ~56 years too large, remaining clamps
+        // to 0, and the session timer fires doLogout() within moments of every reload.
+        if (payload && payload.iat) { _sessionStart = payload.iat * 1000; }
       }
     } catch (e) { /* use now */ }
     if (!_sessionStart) _sessionStart = Date.now();

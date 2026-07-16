@@ -1947,6 +1947,12 @@ function sanitiseCertBody(obj) {
   if (out.recipientEmail && !validation.isValidEmail(out.recipientEmail)) out.recipientEmail = '';
   if (out.issuerEmail    && !validation.isValidEmail(out.issuerEmail))    out.issuerEmail    = '';
 
+  // Same normalization POST /certs and POST /vapt/certs already apply on create —
+  // without this, editing a cert's vesselIMO stores it verbatim (just trimmed),
+  // silently diverging from the normalized IMO used by groups/vessel filters and
+  // orphaning the cert from group-based access (docs/qa-assessment-report.md audit).
+  if (out.vesselIMO != null) out.vesselIMO = normalizeVesselIMO(out.vesselIMO);
+
   // Whitelist status values — reject anything not in the allowed set
   const ALLOWED_STATUSES = ['VALID', 'PENDING', 'REVOKED', 'EXPIRED'];
   if (out.status !== undefined) {
@@ -3828,8 +3834,8 @@ async function handleAPI(req, res, parsed) {
     const vaptAll  = loadVaptData();
     const docsAll  = loadDocs();
     const vessels  = Array.from(imoSet).map(imo => {
-      const cstCerts  = Object.values(cstAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo);
-      const vaptCerts = Object.values(vaptAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo);
+      const cstCerts  = Object.values(cstAll).filter(c => normalizeVesselIMO(c.vesselIMO) === imo);
+      const vaptCerts = Object.values(vaptAll).filter(c => normalizeVesselIMO(c.vesselIMO) === imo);
       const docs      = Object.values(docsAll).filter(d => normalizeVesselIMO(d.vesselIMO) === imo);
       const certDocs  = collectCertAttachmentsForVessel(imo);
       const vesselName = (cstCerts[0] || vaptCerts[0] || {}).vesselName || imo;
@@ -3858,7 +3864,7 @@ async function handleAPI(req, res, parsed) {
     if (!imoSet.has(imo)) return sendJSON(res, 403, { error: 'Vessel not in your group.' }, corsH);
     const cstAll  = loadData();
     const vaptAll = loadVaptData();
-    const cstCerts = Object.values(cstAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo).map(c => ({
+    const cstCerts = Object.values(cstAll).filter(c => normalizeVesselIMO(c.vesselIMO) === imo).map(c => ({
       id: c.id, certId: c.certId, vesselName: c.vesselName, vesselIMO: c.vesselIMO,
       recipientName: c.recipientName, chiefEngineer: c.chiefEngineer,
       rank: c.rank, courseType: c.courseType, trainingMode: c.trainingMode,
@@ -3866,7 +3872,7 @@ async function handleAPI(req, res, parsed) {
       complianceDate: c.complianceDate, issuedDate: c.issuedDate || c.issuedAt,
       validUntil: c.validUntil, status: c.status,
     }));
-    const vaptCerts = Object.values(vaptAll).filter(c => (c.vesselIMO || '').toUpperCase() === imo).map(c => ({
+    const vaptCerts = Object.values(vaptAll).filter(c => normalizeVesselIMO(c.vesselIMO) === imo).map(c => ({
       id: c.id, certId: c.certId, vesselName: c.vesselName, vesselIMO: c.vesselIMO,
       recipientName: c.recipientName, assessmentType: c.assessmentType, riskLevel: c.riskLevel,
       assessmentDate: c.assessmentDate, issuedDate: c.issuedDate || c.issuedAt,
@@ -3881,8 +3887,8 @@ async function handleAPI(req, res, parsed) {
     const cstCerts  = loadData();
     const vaptCerts = loadVaptData();
     const nameMap = {};
-    Object.values(cstCerts).forEach(c  => { if (c.vesselIMO && c.vesselName) nameMap[c.vesselIMO.toUpperCase()]  = c.vesselName; });
-    Object.values(vaptCerts).forEach(c => { if (c.vesselIMO && c.vesselName) nameMap[c.vesselIMO.toUpperCase()] = c.vesselName; });
+    Object.values(cstCerts).forEach(c  => { if (c.vesselIMO && c.vesselName) nameMap[normalizeVesselIMO(c.vesselIMO)]  = c.vesselName; });
+    Object.values(vaptCerts).forEach(c => { if (c.vesselIMO && c.vesselName) nameMap[normalizeVesselIMO(c.vesselIMO)] = c.vesselName; });
     return sendJSON(res, 200, nameMap, corsH);
   }
 

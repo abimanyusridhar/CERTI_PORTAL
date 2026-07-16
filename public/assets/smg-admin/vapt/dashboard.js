@@ -1632,7 +1632,9 @@
   }
 
   function buildVaptCertFromRow(row) {
-    const imo    = vaptGetRowVal(row,'vesselIMO');
+    // Normalize the same way the server does (server/index.js normalizeVesselIMO) —
+    // see the matching comment in cst/dashboard.js's buildCertFromRow.
+    const imo    = vaptGetRowVal(row,'vesselIMO').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
     const vessel = vaptGetRowVal(row,'vesselName');
     const adRaw  = vaptGetRowVal(row,'assessmentDate');
     const email  = vaptGetRowVal(row,'recipientEmail');
@@ -1960,7 +1962,7 @@ function applyConfig() {
   // Auto-start if already logged in (token in storage)
   var tok = sessionStorage.getItem('adminToken') || '';
   if (tok) {
-    try { var parts = tok.split('.'); if (parts.length === 3) { var p = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/'))); if (p && p.iat) _sessionStart = p.iat; } } catch(e) {}
+    try { var parts = tok.split('.'); if (parts.length === 3) { var p = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/'))); if (p && p.iat) _sessionStart = p.iat * 1000; /* iat is seconds; _sessionStart arithmetic is ms — see cst/dashboard.js for the full explanation */ } } catch(e) {}
     if (!_sessionStart) _sessionStart = Date.now();
     scheduleSessionTimers(); startIdleTimeout();
   }

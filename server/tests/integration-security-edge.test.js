@@ -312,6 +312,50 @@ test('API-003: duplicate VAPT certificate ID is rejected with 409 and original d
 
 // ─── API-004/005: SQLi- and XSS-shaped payloads in cert fields ──────────────
 
+test('DATA-001: PUT /api/certs/:id normalizes vesselIMO the same way POST does (CST)', async () => {
+  const certId = `CST-IMOEDIT-${String(Date.now() % 900000 + 100000)}`;
+  try {
+    const created = await requestJson({
+      method: 'POST', port: PORT, urlPath: '/api/certs', token: adminToken,
+      body: { id: certId, recipientName: 'MV - Imo Edit', vesselName: 'Imo Edit Vessel', vesselIMO: '5551001', complianceDate: '2030-01-12', complianceQuarter: 'Q1' },
+    });
+    assert.equal(created.status, 201);
+
+    // A dirty edit input (mixed case, stray space, non-alphanumeric separator) must
+    // land normalized — previously sanitiseCertBody() only trimmed/length-capped
+    // vesselIMO on PUT, unlike POST, silently orphaning the cert from group-based
+    // vessel access and the /api/supt/vessel/:imo/certs filter.
+    const edited = await requestJson({
+      method: 'PUT', port: PORT, urlPath: `/api/certs/${certId}`, token: adminToken,
+      body: { vesselIMO: ' 5551-002 ' },
+    });
+    assert.equal(edited.status, 200);
+    assert.equal(edited.json.vesselIMO, '5551002', 'PUT must normalize vesselIMO exactly like POST does');
+  } finally {
+    await requestJson({ method: 'DELETE', port: PORT, urlPath: `/api/certs/${certId}`, token: adminToken });
+  }
+});
+
+test('DATA-001: PUT /api/vapt/certs/:id normalizes vesselIMO the same way POST does (VAPT)', async () => {
+  const vaptId = `VAP-IMOEDIT-${String(Date.now() % 900000 + 100000)}`;
+  try {
+    const created = await requestJson({
+      method: 'POST', port: PORT, urlPath: '/api/vapt/certs', token: adminToken,
+      body: { id: vaptId, recipientName: 'Imo Edit Vessel', vesselName: 'Imo Edit Vessel', vesselIMO: '5552001', assessmentDate: '2030-01-12' },
+    });
+    assert.equal(created.status, 201);
+
+    const edited = await requestJson({
+      method: 'PUT', port: PORT, urlPath: `/api/vapt/certs/${vaptId}`, token: adminToken,
+      body: { vesselIMO: ' 5552-002 ' },
+    });
+    assert.equal(edited.status, 200);
+    assert.equal(edited.json.vesselIMO, '5552002', 'PUT must normalize vesselIMO exactly like POST does');
+  } finally {
+    await requestJson({ method: 'DELETE', port: PORT, urlPath: `/api/vapt/certs/${vaptId}`, token: adminToken });
+  }
+});
+
 test('API-004/005: SQLi- and XSS-shaped field values are stored and returned verbatim by the API', async () => {
   const certId = `CST-XSSTEST-${String(Date.now() % 900000 + 100000)}`;
   const sqliName = "Robert'); DROP TABLE certs;--";
