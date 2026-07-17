@@ -31,6 +31,7 @@
     let STATUS_CHART = null, EXPIRY_CHART = null, EMAIL_CHART = null, QUARTERLY_CHART = null;
     let editingId = null, imgFile = null, deleteId = null;
     let issuanceMode = false;
+    let autoRecipFrom = ''; // tracks the vessel name we last auto-mirrored into fRecip, so a manual edit isn't clobbered
     let selectedIssueCertId = null;
     let dupCheckTimer = null;
     // Attachment state — var (not let) so onclick handlers in dynamic HTML can access them
@@ -975,8 +976,13 @@
     function onVesselNameInput() {
       const vn = document.getElementById('fVesselName').value.trim();
       const recip = document.getElementById('fRecip');
-      if (vn && (!recip.value || recip.value.startsWith('MV - '))) {
-        recip.value = 'MV - ' + vn;
+      // Mirror the vessel name (including whatever MV/MT prefix was typed) verbatim —
+      // matches the VAPT dashboard's convention. Never invent a prefix: it can't be
+      // inferred from the name alone and guessing wrong (e.g. always "MV -") silently
+      // mislabels tankers.
+      if (vn && (!recip.value || recip.value === autoRecipFrom)) {
+        recip.value = vn;
+        autoRecipFrom = vn;
       }
       livePreview();
     }
@@ -1916,6 +1922,7 @@
     function editCert(id) {
       const c = CERTS.find(x => x.id === id); if (!c) return;
       editingId = id;
+      autoRecipFrom = '';
       document.getElementById('fId').value = c.id || '';
       document.getElementById('fRecip').value = c.recipientName || '';
       document.getElementById('fVesselName').value = c.vesselName || '';
@@ -1985,6 +1992,7 @@
     }
 
     function resetForm() {
+      autoRecipFrom = '';
       ['fId', 'fRecip', 'fVesselName', 'fIMO', 'fEng', 'fCompDate', 'fEmail'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       document.getElementById('fTitle').value = (window.APP_CONFIG?window.APP_CONFIG.cst.trainingTitle:'Cyber Security Threat Awareness Training');
       document.getElementById('fOrg').value = (window.APP_CONFIG?window.APP_CONFIG.cst.organizer:'Synergy Cyber Security Team');
