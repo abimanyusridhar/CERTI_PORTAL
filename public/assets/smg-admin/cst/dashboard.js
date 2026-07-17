@@ -2293,8 +2293,10 @@
       const notes        = getRowVal(row, 'notes');
       const manualId     = getRowVal(row, 'certId');
 
-      // vesselName = clean name without type prefix
-      const vesselName   = recipientName.replace(/^(MV|MT)\s*[-–]\s*/i, '').trim() || recipientName;
+      // vesselName = clean name without type prefix. Dash optional (matches
+      // server/index.js deriveQuarterFields' "bare" regex) so "MV NORD KUDU"
+      // (no dash) is stripped the same as "MV - NORD KUDU".
+      const vesselName   = recipientName.replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim() || recipientName;
 
       const complianceDate = parseCsvDate(rawDate);
 

@@ -1682,9 +1682,13 @@
     }
     let validUntil = '';
     if (dateStr) { const d = new Date(dateStr); d.setFullYear(d.getFullYear()+1); validUntil = d.toISOString().slice(0,10); }
+    // recipientName keeps whatever prefix the CSV cell had (e.g. "MV - NORD KUDU");
+    // vesselName is derived bare — same convention as CST's buildCertFromRow, so
+    // a vessel imported via either dashboard's CSV ends up with the same shape.
+    const bareVessel = vessel.replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim() || vessel;
     return {
       id: (certId||'').toUpperCase(),
-      vesselIMO: imo, vesselName: vessel, recipientName: vessel,
+      vesselIMO: imo, vesselName: bareVessel, recipientName: vessel,
       assessmentDate: dateStr, validUntil,
       verifiedBy:    (CFG.vapt||{}).verifiedBy    || 'Gaurav Singh',
       verifierTitle: (CFG.vapt||{}).verifierTitle || 'CISO — Synergy Group',
@@ -1723,7 +1727,7 @@
       html += '<tr style="' + rowBg + ';border-bottom:1px solid var(--border)">'
         + '<td style="padding:6px 10px;color:var(--text-sec);font-size:.63rem">' + (i+1) + '</td>'
         + '<td style="padding:6px 10px;font-family:\'JetBrains Mono\',monospace;font-size:.61rem;color:' + idColor + '">' + (c.id||'—') + '</td>'
-        + '<td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + c.vesselName + '">' + (c.vesselName||'—') + '</td>'
+        + '<td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + c.recipientName + '">' + (c.recipientName||'—') + '</td>'
         + '<td style="padding:6px 10px;font-size:.65rem">' + (c.vesselIMO||'—') + '</td>'
         + '<td style="padding:6px 10px;font-size:.63rem">' + (c.assessmentDate||'—') + '</td>'
         + '<td style="padding:6px 10px;font-size:.63rem;color:var(--teal)">' + (c.validUntil||'—') + '</td>'
