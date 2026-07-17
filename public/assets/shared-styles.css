@@ -474,9 +474,12 @@ html.light :focus-visible { outline-color: var(--gold); }
 }
 
 .sb-circle { width: 42px; height: 42px; }
+.sb-circle.aft-circle { width: 34px; height: 34px; }
 .tb-circle { width: 42px; height: 42px; }
 .tb-circle.aft-circle { width: 34px; height: 34px; }
 .login-logo-img { width: 56px; height: 56px; }
+.login-logo-img.aft-circle { width: 45px; height: 45px; }
+.hub-logo.aft-circle { width: 29px; height: 29px; }
 
 html.light .syn-circle { border-color: rgba(181,128,10,0.52); background: rgba(255,255,255,0.97); box-shadow: 0 2px 14px rgba(30,60,120,0.10), 0 0 0 1px rgba(181,128,10,0.14); }
 html.light .aft-circle { border-color: rgba(8,120,108,0.48);  background: rgba(255,255,255,0.97); box-shadow: 0 2px 10px rgba(30,60,120,0.08), 0 0 0 1px rgba(8,120,108,0.11); }
