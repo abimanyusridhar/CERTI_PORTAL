@@ -152,6 +152,8 @@
       }
     } catch (e) { sessionStorage.removeItem('adminToken'); TOKEN = ''; redirectToSso(); return; }
 
+    document.documentElement.classList.toggle('role-client', payload.role === 'client');
+
     var headers = { Authorization: 'Bearer ' + TOKEN };
 
     Promise.all([

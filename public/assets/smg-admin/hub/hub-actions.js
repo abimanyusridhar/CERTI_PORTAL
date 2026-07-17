@@ -29,8 +29,19 @@
     onVesselSearch:     (el) => [el.value],
   };
 
+  // Defense in depth for the read-only "client" role — see role-client.css, which hides
+  // every control that dispatches these. The server-side hasAdminRole() check in
+  // server/index.js is the real boundary regardless of what happens here.
+  const RESTRICTED_ACTIONS = new Set([
+    'openAddUserModal', 'openUserEditModal', 'deleteUser',
+    'openCreateGroupModal', 'openGroupEditModal', 'deleteGroup', 'addImoRaw', 'removeImo',
+    'qvPickVessel', 'qvRemoveVessel',
+    'uploadDoc', 'deleteDoc', 'copyDocLink',
+  ]);
+
   function dispatch(name, el) {
     if (!name) return;
+    if (RESTRICTED_ACTIONS.has(name) && document.documentElement.classList.contains('role-client')) return;
     const fn = window[name];
     if (typeof fn !== 'function') return;
     const build = ARG_BUILDERS[name];

@@ -1,0 +1,74 @@
+/*
+ * Read-only "client" role — hides every mutating/admin control on the shared
+ * admin dashboards (CST, VAPT, and the Users/Groups/Documents hub). Applied
+ * only when <html> carries the "role-client" class, toggled by JS right after
+ * the session JWT is decoded (see cst/dashboard.js, vapt/dashboard.js, hub/hub.js).
+ *
+ * Selectors key off data-action (consumed by the shared click dispatcher in
+ * dashboard-actions.js) or existing ids/data-nav/data-panel — no render
+ * function anywhere had to change to support this. `!important` plus the
+ * ".role-client" ancestor combinator make these rules both higher-specificity
+ * and !important vs. any existing stylesheet rule (e.g. ".nav-item{display:
+ * flex!important}"), so there is no cascade fight to lose.
+ */
+
+/* ── Cert-row actions (CST + VAPT dashboards share these data-action names) ── */
+.role-client [data-action="editCert"],
+.role-client [data-action="askDelete"],
+.role-client [data-action="activateCert"],
+.role-client [data-action="quickSend"],
+.role-client [data-action="copyEncUrl"],
+.role-client [data-action="openAssignGroup"],
+.role-client [data-action="qvPickVessel"],
+.role-client [data-action="qvRemoveVessel"],
+.role-client [data-change-action="quickStatusChange"],
+
+/* ── Hub: Users tab ── */
+.role-client [data-action="openAddUserModal"],
+.role-client [data-action="openUserEditModal"],
+.role-client [data-action="deleteUser"],
+
+/* ── Hub: Groups tab ── */
+.role-client [data-action="openCreateGroupModal"],
+.role-client [data-action="openGroupEditModal"],
+.role-client [data-action="deleteGroup"],
+.role-client [data-action="addImoRaw"],
+.role-client [data-action="removeImo"],
+
+/* ── Hub: Documents tab ── */
+.role-client [data-action="uploadDoc"],
+.role-client [data-action="deleteDoc"],
+.role-client [data-action="copyDocLink"],
+.role-client .upload-card,
+
+/* ── Nav / header buttons: Issue Credentials, Import Certificates ── */
+.role-client #nav-issue,
+.role-client #nav-csv,
+.role-client [data-nav="nav-issue"],
+.role-client [data-nav="nav-csv"],
+
+/* ── Pending Activation + Emails Not Sent — stat tiles and detail panels ── */
+.role-client [data-panel="panelPending"],
+.role-client [data-panel="panelEmailPending"],
+.role-client #panelPending,
+.role-client #panelEmailPending
+{ display: none !important; }
+
+/* ── "Read-only" indicator next to the logout control — hidden unless role-client ── */
+.role-badge { display: none; }
+.role-client .role-badge {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  margin-right: 8px;
+  border-radius: 20px;
+  background: rgba(255, 170, 46, .12);
+  color: #FFAA2E;
+  border: 1px solid rgba(255, 170, 46, .3);
+  white-space: nowrap;
+}

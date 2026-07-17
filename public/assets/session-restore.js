@@ -12,6 +12,7 @@
     if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
       sessionStorage.removeItem('adminToken'); return;
     }
+    document.documentElement.classList.toggle('role-client', payload.role === 'client');
     document.getElementById('loginWrap').style.display = 'none';
     document.getElementById('appWrap').style.display = 'flex';
     TOKEN = tok;

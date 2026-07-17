@@ -240,6 +240,9 @@ const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || '';
 const COGNITO_DOMAIN        = (process.env.COGNITO_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 // Users in this Cognito group are granted admin access (case-sensitive)
 const COGNITO_ADMIN_GROUP   = process.env.COGNITO_ADMIN_GROUP || 'Admins';
+// Users in this Cognito group get the same real admin dashboards (full data) but every
+// mutating action is hidden client-side and rejected server-side — see hasAdminRole().
+const COGNITO_CLIENT_GROUP  = process.env.COGNITO_CLIENT_GROUP || 'client';
 // Dedicated IAM credentials for Cognito Admin API (may differ from SES credentials).
 // Falls back to AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY if not set separately.
 const COGNITO_IAM_ACCESS_KEY = process.env.COGNITO_ACCESS_KEY_ID     || process.env.AWS_ACCESS_KEY_ID     || process.env.AWS_SES_ACCESS_KEY || '';
@@ -373,8 +376,8 @@ async function initialiseRuntimePrerequisites() {
 // ─── JWT-STYLE ADMIN TOKENS ──────────────────────────────────────────────────
 const TOKEN_EXPIRY_MS = 8 * 60 * 60 * 1000;
 
-function issueToken(username) {
-  return security.issueToken(username);
+function issueToken(username, role = 'admin') {
+  return security.issueToken(username, role);
 }
 
 function verifyToken(token) {
@@ -2131,6 +2134,15 @@ function getTokenPayload(req) {
   return token ? verifyToken(token) : null;
 }
 
+// Full admin privilege check for mutating routes. Assumes authCheck(req) already passed
+// (valid, non-revoked session) — this only distinguishes admin from the reduced-privilege
+// "client" role. Missing role claim (every pre-existing token) defaults to admin, same as
+// issueToken()'s default, so no legacy token is ever downgraded.
+function hasAdminRole(req) {
+  const payload = getTokenPayload(req);
+  return !!payload && payload.role !== 'client';
+}
+
 // ─── CORS HELPER ─────────────────────────────────────────────────────────────
 function hasBearerAuth(req) {
   const auth = req.headers['authorization'] || '';
@@ -2554,6 +2566,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/certs ── (admin — create)
   if (route === '/certs' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const _ulCst = checkRateLimit(ip, 'cert-create');
     if (!_ulCst.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulCst.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
@@ -2610,6 +2623,7 @@ async function handleAPI(req, res, parsed) {
   // ── PUT /api/certs/:id ── (admin — update)
   if (route.startsWith('/certs/') && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const certId = sanitiseCertId(route.replace('/certs/', '').replace('/send-email', '').split('/')[0]);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     // Guard: don't match send-email sub-route
@@ -2663,6 +2677,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/certs/:id/send-email ── (admin — dispatch credential email)
   if (route.match(/^\/certs\/[^/]+\/send-email$/) && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const certId = sanitiseCertId(
       decodeURIComponent(route.replace('/certs/', '').replace('/send-email', ''))
     );
@@ -2738,6 +2753,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/import-csv ── (admin — bulk import CST certs)
   if (route === '/import-csv' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
@@ -2800,6 +2816,7 @@ async function handleAPI(req, res, parsed) {
     const segments = route.split('/').filter(Boolean);   // ['certs', '<id>']
     if (segments.length === 2) {
       if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+      if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
       const certId = sanitiseCertId(segments[1]);
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const data = loadData();
@@ -3128,6 +3145,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/vapt/certs ── (admin — create VAPT cert)
   if (route === '/vapt/certs' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const _ulVapt = checkRateLimit(ip, 'cert-create');
     if (!_ulVapt.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulVapt.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
@@ -3187,6 +3205,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/vapt/import-csv ── (admin — bulk import VAPT certs)
   if (route === '/vapt/import-csv' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
@@ -3250,6 +3269,7 @@ async function handleAPI(req, res, parsed) {
   // ── PUT /api/vapt/certs/:id ── (admin — update VAPT cert)
   if (route.startsWith('/vapt/certs/') && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     if (route.includes('/send-email')) return sendJSON(res, 404, { error: 'Not found.' }, corsH);
     const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
@@ -3296,6 +3316,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/vapt/certs/:id/send-email ── (admin — dispatch VAPT credential email)
   if (route.match(/^\/vapt\/certs\/[^/]+\/send-email$/) && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const certId = sanitiseCertId(decodeURIComponent(route.replace('/vapt/certs/', '').replace('/send-email', '')));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     const data = loadVaptData();
@@ -3372,6 +3393,7 @@ async function handleAPI(req, res, parsed) {
     const segments = route.split('/').filter(Boolean);   // ['vapt', 'certs', '<id>']
     if (segments.length === 3) {
       if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+      if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
       const certId = sanitiseCertId(segments[2]);
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const data = loadVaptData();
@@ -3401,6 +3423,7 @@ async function handleAPI(req, res, parsed) {
   // ── DELETE /api/certs/:id/attachments/:idx ── (admin — remove one attachment)
   if (route.match(/^\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const parts  = route.split('/');
     const certId = sanitiseCertId(parts[2]);
     const idx    = parseInt(parts[4], 10);
@@ -3424,6 +3447,7 @@ async function handleAPI(req, res, parsed) {
   // ── DELETE /api/vapt/certs/:id/attachments/:idx ── (admin — remove one VAPT attachment)
   if (route.match(/^\/vapt\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const parts  = route.split('/');
     const certId = sanitiseCertId(parts[3]);
     const idx    = parseInt(parts[5], 10);
@@ -3458,6 +3482,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/docs/upload ── (admin — upload a document for a vessel)
   if (route === '/docs/upload' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const _ulDoc = checkRateLimit(ip, 'doc-upload');
     if (!_ulDoc.ok) return sendJSON(res, 429, { error: 'Too many uploads. Try again later.' }, { 'Retry-After': String(_ulDoc.retryAfter), ...corsH });
     const ct = req.headers['content-type'] || '';
@@ -3512,6 +3537,7 @@ async function handleAPI(req, res, parsed) {
   // ── PUT /api/docs/:id ── (admin — update doc metadata)
   if (route.match(/^\/docs\/DOC-\d+$/) && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const docId = route.replace('/docs/', '');
     const docs = loadDocs();
     if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
@@ -3529,6 +3555,7 @@ async function handleAPI(req, res, parsed) {
   // ── DELETE /api/docs/:id ── (admin — delete document + file)
   if (route.match(/^\/docs\/DOC-\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const docId = route.replace('/docs/', '');
     const docs = loadDocs();
     if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
@@ -3756,6 +3783,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/admin/users ── (admin — create superintendent; SSO is the only login path)
   if (route === '/admin/users' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name     = (body.name     || '').trim().slice(0, 120);
@@ -3795,6 +3823,7 @@ async function handleAPI(req, res, parsed) {
   // ── PUT /api/admin/users/:id ── (admin — update user)
   if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3817,6 +3846,7 @@ async function handleAPI(req, res, parsed) {
   // ── DELETE /api/admin/users/:id ── (admin — remove user)
   if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3902,6 +3932,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/admin/groups ── (admin — create group)
   if (route === '/admin/groups' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name       = (body.name || '').trim().slice(0, 120);
@@ -3919,6 +3950,7 @@ async function handleAPI(req, res, parsed) {
   // ── PUT /api/admin/groups/:id ── (admin — update group)
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -3935,6 +3967,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/admin/groups/:id/vessels ── (admin — add vessel IMO to group)
   if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels$/) && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const groupId = route.replace('/admin/groups/', '').replace('/vessels', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -3954,6 +3987,7 @@ async function handleAPI(req, res, parsed) {
   // ── DELETE /api/admin/groups/:id/vessels/:imo ── (admin — remove vessel from group)
   if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels\/[A-Z0-9]+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const parts   = route.split('/');
     const groupId = parts[3];
     const imo     = parts[5].toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -3968,6 +4002,7 @@ async function handleAPI(req, res, parsed) {
   // ── DELETE /api/admin/groups/:id ── (admin — remove group)
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -3988,6 +4023,7 @@ async function handleAPI(req, res, parsed) {
   // ── POST /api/admin/cognito-sync ── (admin — pull users from Cognito User Pool)
   if (route === '/admin/cognito-sync' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
+    if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
     if (!COGNITO_ENABLED) return sendJSON(res, 503, { error: 'Cognito not configured.' }, corsH);
     if (!COGNITO_IAM_ACCESS_KEY || !COGNITO_IAM_SECRET_KEY) {
       return sendJSON(res, 503, { error: 'Cognito credentials not configured.' }, corsH);
@@ -4108,10 +4144,12 @@ async function handleRequest(req, res) {
       // Primary: Cognito group membership. Fallback: email matches ADMIN_USER.
       const isAdmin   = cogGroups.includes(COGNITO_ADMIN_GROUP)
                         || email === (ADMIN_USER || '').toLowerCase();
-      log.info('SSO login:', email, '| groups:', cogGroups, '| admin:', isAdmin);
+      // Client: same real admin dashboards, full data, every mutating action hidden/rejected.
+      const isClient  = !isAdmin && cogGroups.includes(COGNITO_CLIENT_GROUP);
+      log.info('SSO login:', email, '| groups:', cogGroups, '| admin:', isAdmin, '| client:', isClient);
       let sessionToken, cookieName;
-      if (isAdmin) {
-        sessionToken = issueToken(ADMIN_USER);
+      if (isAdmin || isClient) {
+        sessionToken = issueToken(isAdmin ? ADMIN_USER : email, isAdmin ? 'admin' : 'client');
         cookieName   = 'sso_admin_token';
       } else {
         const users = loadUsers();
@@ -4150,16 +4188,16 @@ async function handleRequest(req, res) {
       // like portal.html that depends entirely on the browser auto-sending this cookie (no
       // handoff-cookie fallback of its own) gets silently logged back out immediately after
       // a successful SSO login. Lax still blocks cross-site POST/sub-resource use.
-      const persistentCookie = isAdmin
+      const persistentCookie = (isAdmin || isClient)
         ? `adminToken=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800${secure}`
         : `suptSession=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400${secure}`;
-      // Double-submit CSRF cookie, admin sessions only (JS-readable — the whole point is
-      // that a forged cross-site request can't read it to echo it back as a header).
+      // Double-submit CSRF cookie, admin/client sessions only (JS-readable — the whole
+      // point is that a forged cross-site request can't read it to echo it back as a header).
       const cookies = [
         `${cookieName}=${sessionToken}; Path=/; Max-Age=30; SameSite=Lax${secure}`,
         persistentCookie,
       ];
-      if (isAdmin) {
+      if (isAdmin || isClient) {
         const adminPayload = verifyToken(sessionToken);
         if (adminPayload && adminPayload.jti) {
           cookies.push(`csrfToken=${issueCsrfToken(adminPayload.jti)}; SameSite=Lax; Path=/; Max-Age=28800${secure}`);

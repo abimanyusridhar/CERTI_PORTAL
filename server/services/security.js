@@ -168,10 +168,11 @@ function createSecurityService({ keys, cfg }) {
     });
   }
 
-  function issueToken(username) {
+  function issueToken(username, role = 'admin') {
     const nowS = Math.floor(Date.now() / 1000); // Unix seconds (standard JWT)
     const payload = {
       sub: username,
+      role,
       iat: nowS,
       exp: nowS + TOKEN_EXPIRY_S,
       jti: crypto.randomBytes(16).toString('hex'),

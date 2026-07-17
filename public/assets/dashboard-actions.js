@@ -20,6 +20,20 @@
     if (typeof fn === 'function') fn(...args);
   }
 
+  // Defense in depth for the read-only "client" role (see role-client.css, which hides
+  // every control that dispatches these — this only guards against one escaping the CSS,
+  // e.g. a future button added without the class). The server-side hasAdminRole() check
+  // in server/index.js is the real boundary regardless of what happens here.
+  const RESTRICTED_ACTIONS = new Set([
+    'editCert', 'askDelete', 'activateCert', 'quickSend', 'copyEncUrl', 'openAssignGroup',
+    'closeViewEdit', 'closeViewIssue', 'closeViewActivate', 'goIssue', 'selectIssueCert',
+    'doDelete', 'saveCert', 'doImportCsv', 'confirmAssignGroup', 'sendViaSES', 'markAsSent',
+    'bulkDeleteCerts', 'openBulkAssign', 'quickStatusChange',
+  ]);
+  function isRestricted(action) {
+    return RESTRICTED_ACTIONS.has(action) && document.documentElement.classList.contains('role-client');
+  }
+
   const CLICK_HANDLERS = {
     // ── Cert-row actions (dynamic template-literal rows in dashboard.js) ──
     openCertDetail:      (el) => call('openCertDetail', el.dataset.id),
@@ -117,6 +131,7 @@
     const el = e.target.closest('[data-action]');
     if (!el) return;
     const action = el.dataset.action;
+    if (isRestricted(action)) return;
     if (Object.prototype.hasOwnProperty.call(BACKDROP_HANDLERS, action)) {
       if (e.target === el) call(BACKDROP_HANDLERS[action]);
       return;
@@ -136,6 +151,7 @@
     const el = e.target.closest('[data-change-action]');
     if (!el) return;
     const action = el.dataset.changeAction;
+    if (isRestricted(action)) return;
     const handler = CHANGE_HANDLERS[action] || VALUE_HANDLERS[action];
     if (handler) { handler(el); return; }
     // Generic fallback for simple no-arg change handlers (e.g. loadQuarterlyStats()).
