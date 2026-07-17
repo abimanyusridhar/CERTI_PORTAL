@@ -135,6 +135,25 @@ function main() {
     }
   });
 
+  // Same bare vessel name shared by more than one IMO (across CST+VAPT combined).
+  // This is what makes the Vessel Groups tab show what looks like the same ship
+  // twice with a different prefix — e.g. "GLOBAL HARMONY 9443578" next to
+  // "MV - GLOBAL HARMONY 9348881". Flagged for human review only: it may be a
+  // genuine IMO typo in one system, or two real, differently-named sister
+  // vessels that happen to share a name — this script does not decide which.
+  const byBareName = {};
+  [...cstEntries, ...vaptEntries].forEach(e => {
+    if (!e.bare) return;
+    (byBareName[e.bare] = byBareName[e.bare] || []).push(e);
+  });
+  const possibleImoMismatch = Object.entries(byBareName)
+    .map(([bare, list]) => ({ bare, imos: [...new Set(list.map(e => e.imo))], entries: list }))
+    .filter(g => g.imos.length > 1)
+    .map(g => ({
+      vesselName: g.entries[0].bare,
+      entries: g.entries.map(e => ({ system: e.system, id: e.id, imo: e.imo, name: e.displayName })),
+    }));
+
   const report = {
     generatedAt: new Date().toISOString(),
     tenantId: TENANT_ID || null,
@@ -150,6 +169,7 @@ function main() {
     },
     missingPrefix,
     prefixMissingDash,
+    possibleImoMismatch,
     missingImo,
     notes: [
       'Read-only report. No source files were changed.',
@@ -157,6 +177,7 @@ function main() {
       'withinSystemDrift: same IMO used with different names/prefixes inside one system.',
       'missingPrefix is informational only — a name with no MV/MT token may legitimately be a person\'s name, not an error.',
       'prefixMissingDash: has an MV/MT token but not the "MV - "/"MT - " dash form — the app\'s own prefix detection (deriveQuarterFields, CSV import) will not recognise it as prefixed, which is what drives the ambiguous-default-to-MV fallback fixed earlier.',
+      'possibleImoMismatch: the same vessel name is recorded under more than one IMO — needs a human to confirm whether it\'s an IMO typo or two genuinely different vessels before anything is changed.',
     ],
   };
 
