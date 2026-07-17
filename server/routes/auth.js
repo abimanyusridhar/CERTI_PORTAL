@@ -6,6 +6,7 @@ function createAuthRoutes(deps) {
     authCheck,
     verifyToken,
     revokeToken,
+    secure = '',
   } = deps;
 
   // ── POST /api/auth/login ── DECOMMISSIONED (admin panel is SSO-only now)
@@ -41,9 +42,9 @@ function createAuthRoutes(deps) {
     }
     sendJSON(res, 200, { ok: true }, {
       'Set-Cookie': [
-        'adminToken=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
-        'sso_admin_token=; Path=/; SameSite=Lax; Max-Age=0',
-        'csrfToken=; SameSite=Lax; Path=/; Max-Age=0',
+        `adminToken=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure}`,
+        `sso_admin_token=; Path=/; SameSite=Lax; Max-Age=0${secure}`,
+        `csrfToken=; SameSite=Lax; Path=/; Max-Age=0${secure}`,
       ],
       ...corsH,
     });
