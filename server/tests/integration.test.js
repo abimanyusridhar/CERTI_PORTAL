@@ -7,7 +7,6 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const { createSecurityService } = require('../services/security');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -201,11 +200,14 @@ test('server critical API flows', async () => {
     // /auth/sso/callback does, rather than going through a browser-only Cognito
     // round-trip this test harness can't simulate.
     const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-    const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
-    const { urlMacKey } = keys;
-    const sec = createSecurityService({ keys, cfg: {} });
+    const { jwtSecret, urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
     function mintAdminToken(username) {
-      return sec.issueToken(username, 'admin');
+      const nowS = Math.floor(Date.now() / 1000);
+      const payload = { sub: username, iat: nowS, exp: nowS + 8 * 60 * 60, jti: crypto.randomBytes(16).toString('hex') };
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+      const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const sig = crypto.createHmac('sha256', jwtSecret).update(header + '.' + body).digest('base64url');
+      return `${header}.${body}.${sig}`;
     }
     const token = mintAdminToken('admin_test');
 

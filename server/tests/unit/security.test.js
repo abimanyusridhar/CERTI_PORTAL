@@ -13,11 +13,10 @@ const {
 
 // ── Shared test fixtures ──────────────────────────────────────────────────────
 const KEYS = {
-  urlEncKey:     crypto.randomBytes(32).toString('hex'),
-  urlMacKey:     crypto.randomBytes(32).toString('hex'),
-  jwtSecret:     crypto.randomBytes(48).toString('hex'),
-  pwdSalt:       crypto.randomBytes(32).toString('hex'),
-  sessionEncKey: crypto.randomBytes(32).toString('hex'),
+  urlEncKey: crypto.randomBytes(32).toString('hex'),
+  urlMacKey: crypto.randomBytes(32).toString('hex'),
+  jwtSecret: crypto.randomBytes(48).toString('hex'),
+  pwdSalt:   crypto.randomBytes(32).toString('hex'),
 };
 const CFG  = { routes: { cst: '/CST', vpt: '/VAPT' } };
 const sec  = createSecurityService({ keys: KEYS, cfg: CFG });
@@ -269,8 +268,8 @@ test('verifyToken — returns null for tampered signature', () => {
 test('verifyToken — returns null for expired token', () => {
   const nowS = Math.floor(Date.now() / 1000);
   const payload = { sub: 'admin', iat: nowS - 100, exp: nowS - 1, jti: 'x' };
-  const header  = Buffer.from(JSON.stringify({ alg: 'A256GCM+HS256', typ: 'JWE' })).toString('base64url');
-  const body    = sec.encryptSessionPayload(payload);
+  const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body    = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig     = crypto.createHmac('sha256', KEYS.jwtSecret).update(`${header}.${body}`).digest('base64url');
   assert.equal(sec.verifyToken(`${header}.${body}.${sig}`), null);
 });
@@ -280,39 +279,6 @@ test('verifyToken — returns null for malformed / empty inputs', () => {
   assert.equal(sec.verifyToken(''), null);
   assert.equal(sec.verifyToken('only.two'), null);
   assert.equal(sec.verifyToken('a.b.c.d'), null);
-});
-
-test('issueToken — payload segment is not plaintext-recoverable without sessionEncKey', () => {
-  const token = sec.issueToken('someone@example.com', 'admin');
-  const [, body] = token.split('.');
-  // A plain JWT would have base64url(JSON) here — decoding it would yield readable
-  // JSON. Confirm that's NOT the case: the raw decoded bytes must not parse as JSON
-  // containing the claims, proving the payload is encrypted, not just encoded.
-  const raw = Buffer.from(body, 'base64url');
-  let parsedAsPlainJson = null;
-  try { parsedAsPlainJson = JSON.parse(raw.toString('utf8')); } catch { /* expected */ }
-  assert.equal(parsedAsPlainJson, null, 'payload segment must not be plain JSON');
-  assert.equal(raw.toString('utf8').includes('someone@example.com'), false, 'email must not appear in the clear');
-  assert.equal(raw.toString('utf8').includes('admin'), false, 'role must not appear in the clear');
-});
-
-test('verifyToken — decrypts a correctly-encrypted payload back to the original claims', () => {
-  const token = sec.issueToken('roundtrip@example.com', 'client');
-  const payload = sec.verifyToken(token);
-  assert.ok(payload);
-  assert.equal(payload.sub, 'roundtrip@example.com');
-  assert.equal(payload.role, 'client');
-});
-
-test('verifyToken — rejects a token whose payload segment was tampered (GCM auth tag)', () => {
-  const token = sec.issueToken('admin');
-  const [h, b, s] = token.split('.');
-  const bodyBytes = Buffer.from(b, 'base64url');
-  bodyBytes[bodyBytes.length - 1] ^= 0xff; // flip a byte inside the ciphertext
-  const tamperedBody = bodyBytes.toString('base64url');
-  // Signature no longer matches header+tamperedBody either, so this is rejected
-  // at the outer HMAC check — same observable result (null), defense in depth.
-  assert.equal(sec.verifyToken(`${h}.${tamperedBody}.${s}`), null);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

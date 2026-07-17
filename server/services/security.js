@@ -168,36 +168,6 @@ function createSecurityService({ keys, cfg }) {
     });
   }
 
-  // Session-token payload confidentiality: a plain JWT (JWS) only signs the
-  // payload — anyone holding the token (e.g. via sessionStorage/XSS, or just
-  // pasting it into a base64 decoder) can read sub/role/jti in the clear. That's
-  // normally an accepted tradeoff for bearer tokens, but this reuses the same
-  // AES-256-GCM primitive already used for cert-verification URLs
-  // (encryptCertToken/decryptCertToken above) to encrypt the payload segment too,
-  // so a captured token's claims aren't casually readable — only decryptable
-  // with keys.sessionEncKey, which never leaves the server.
-  function _encryptSessionPayload(payloadObj) {
-    const key = Buffer.from(keys.sessionEncKey, 'hex');
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const json = Buffer.from(JSON.stringify(payloadObj), 'utf8');
-    const enc = Buffer.concat([cipher.update(json), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return Buffer.concat([iv, tag, enc]).toString('base64url');
-  }
-
-  function _decryptSessionPayload(encBody) {
-    const raw = Buffer.from(encBody, 'base64url');
-    if (raw.length < 29) return null; // 12-byte IV + 16-byte GCM tag + >=1 byte ciphertext
-    const iv  = raw.subarray(0, 12);
-    const tag = raw.subarray(12, 28);
-    const enc = raw.subarray(28);
-    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(keys.sessionEncKey, 'hex'), iv);
-    decipher.setAuthTag(tag);
-    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
-    return JSON.parse(dec.toString('utf8'));
-  }
-
   function issueToken(username, role = 'admin') {
     const nowS = Math.floor(Date.now() / 1000); // Unix seconds (standard JWT)
     const payload = {
@@ -207,8 +177,8 @@ function createSecurityService({ keys, cfg }) {
       exp: nowS + TOKEN_EXPIRY_S,
       jti: crypto.randomBytes(16).toString('hex'),
     };
-    const header = Buffer.from(JSON.stringify({ alg: 'A256GCM+HS256', typ: 'JWE' })).toString('base64url');
-    const body = _encryptSessionPayload(payload);
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const sig = crypto.createHmac('sha256', keys.jwtSecret).update(header + '.' + body).digest('base64url');
     return `${header}.${body}.${sig}`;
   }
@@ -224,8 +194,7 @@ function createSecurityService({ keys, cfg }) {
     if (sigBuf.length !== expectedBuf.length) return null;
     if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
     try {
-      const payload = _decryptSessionPayload(body);
-      if (!payload) return null;
+      const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
       // exp is Unix seconds; multiply by 1000 to compare with Date.now() (ms)
       if (!payload.exp || Date.now() > payload.exp * 1000) return null;
       return payload;
@@ -308,9 +277,6 @@ function createSecurityService({ keys, cfg }) {
     hashPassword,
     issueToken,
     verifyToken,
-    // Exposed for tests that need to hand-construct a token with specific claims
-    // (e.g. an already-expired one) — production code only ever calls issueToken.
-    encryptSessionPayload: _encryptSessionPayload,
     issueCsrfToken,
     verifyCsrfToken,
     encryptCertToken,

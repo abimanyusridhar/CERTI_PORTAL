@@ -8,7 +8,6 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const { createSecurityService } = require('../services/security');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -147,11 +146,15 @@ let child;
 let tenantId;
 let jwtSecret;
 let urlMacKey;
-let sec;
 let adminToken;
 
 function mintAdminToken(username) {
-  return sec.issueToken(username, 'admin');
+  const nowS = Math.floor(Date.now() / 1000);
+  const payload = { sub: username, iat: nowS, exp: nowS + 8 * 60 * 60, jti: crypto.randomBytes(16).toString('hex') };
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', jwtSecret).update(header + '.' + body).digest('base64url');
+  return `${header}.${body}.${sig}`;
 }
 
 function mintUserSession(userId) {
@@ -208,9 +211,7 @@ before(async () => {
   await waitForHealth(PORT);
 
   const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-  const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
-  ({ jwtSecret, urlMacKey } = keys);
-  sec = createSecurityService({ keys, cfg: {} });
+  ({ jwtSecret, urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8')));
   adminToken = mintAdminToken('admin_test');
 });
 

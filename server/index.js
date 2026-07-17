@@ -208,28 +208,14 @@ function loadOrCreateKeys() {
   if (fs.existsSync(KEYS_FILE)) {
     try {
       const k = JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
-      if (k.urlEncKey && k.urlMacKey && k.jwtSecret && k.pwdSalt) {
-        // Migrate in place: key files created before session-payload encryption
-        // (see security.js issueToken/verifyToken) won't have this field yet.
-        // Add it WITHOUT touching the other four — regenerating jwtSecret/urlEncKey
-        // here would invalidate every active session and every outstanding signed
-        // cert-verification URL, which this migration must not do.
-        if (!k.sessionEncKey) {
-          k.sessionEncKey = crypto.randomBytes(32).toString('hex');
-          try { fs.writeFileSync(KEYS_FILE, JSON.stringify(k, null, 2), { encoding: 'utf8', mode: 0o600 }); }
-          catch (e) { log.warn('[Keys] Could not persist migrated sessionEncKey:', e.message); }
-          log.info('[Keys] Added sessionEncKey for session-token payload encryption (existing keys unchanged).');
-        }
-        return k;
-      }
+      if (k.urlEncKey && k.urlMacKey && k.jwtSecret && k.pwdSalt) return k;
     } catch { /* fall through to create */ }
   }
   const keys = {
-    urlEncKey:     crypto.randomBytes(32).toString('hex'),
-    urlMacKey:     crypto.randomBytes(32).toString('hex'),
-    jwtSecret:     crypto.randomBytes(48).toString('hex'),
-    pwdSalt:       crypto.randomBytes(32).toString('hex'),
-    sessionEncKey: crypto.randomBytes(32).toString('hex'),
+    urlEncKey: crypto.randomBytes(32).toString('hex'),
+    urlMacKey: crypto.randomBytes(32).toString('hex'),
+    jwtSecret: crypto.randomBytes(48).toString('hex'),
+    pwdSalt:   crypto.randomBytes(32).toString('hex'),
   };
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2), { encoding: 'utf8', mode: 0o600 });
   log.info('New cryptographic keys generated and persisted.');
@@ -319,34 +305,16 @@ async function _syncKeysWithS3() {
   } catch { /* key not in S3 yet */ }
 
   if (s3Keys && s3Keys.urlEncKey && s3Keys.urlMacKey && s3Keys.jwtSecret && s3Keys.pwdSalt) {
-    let _keysChanged = false;
     if (s3Keys.jwtSecret !== KEYS.jwtSecret || s3Keys.urlEncKey !== KEYS.urlEncKey) {
       // S3 has the canonical keys; we generated fresh ones on this instance
       // → swap KEYS in-place so all security closures see the correct values
       Object.assign(KEYS, s3Keys);
-      _keysChanged = true;
-      log.info('[Keys] Restored canonical crypto keys from S3. Existing cert URLs remain valid.');
-    }
-    // sessionEncKey is reconciled independently of the four legacy keys above —
-    // an older S3 copy (synced before session-payload encryption existed) may not
-    // have it yet, or this instance may have just migrated a fresh one locally.
-    // Converge every instance on ONE value so tokens issued by one instance can
-    // be decrypted by another behind a load balancer.
-    if (s3Keys.sessionEncKey && s3Keys.sessionEncKey !== KEYS.sessionEncKey) {
-      KEYS.sessionEncKey = s3Keys.sessionEncKey;
-      _keysChanged = true;
-      log.info('[Keys] Adopted canonical sessionEncKey from S3.');
-    } else if (!s3Keys.sessionEncKey && KEYS.sessionEncKey) {
-      try {
-        await s3.putJson(s3KeyPath, KEYS);
-        log.info('[Keys] Pushed newly-migrated sessionEncKey to S3 for other instances.');
-      } catch (e) { log.warn('[Keys] Failed to push sessionEncKey to S3:', e.message); }
-    }
-    if (_keysChanged) {
       try {
         fs.writeFileSync(KEYS_FILE, JSON.stringify(KEYS, null, 2), { encoding: 'utf8', mode: 0o600 });
       } catch (e) { log.warn('Could not write S3 keys to local disk:', e.message); }
+      log.info('[Keys] Restored canonical crypto keys from S3. Existing cert URLs remain valid.');
     }
+    // else: local keys already match S3 — nothing to do
   } else {
     // S3 has no keys yet → push current local keys so future instances can recover
     try {
@@ -2359,7 +2327,6 @@ const authRoutes = createAuthRoutes({
   authCheck,
   verifyToken,
   revokeToken: (jti, expMs) => revokedTokens.set(jti, expMs),
-  secure: BASE_ORIGIN.startsWith('https') ? '; Secure' : '',
 });
 
 // ─── API ROUTER ──────────────────────────────────────────────────────────────
