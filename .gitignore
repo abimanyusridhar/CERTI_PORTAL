@@ -62,6 +62,29 @@ test-results/
 playwright-report/
 blob-report/
 
+# --- Terraform (real AWS resource IDs / state live here once `terraform apply` runs) ---
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/*.tfvars.json
+terraform/.terraform.lock.hcl
+terraform/crash.log
+terraform/crash.*.log
+
+# --- Credentials / key material (defense-in-depth — nothing here should ever exist
+# outside the runtime-generated data/.keys.json, which is already ignored above) ---
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# --- Process artifacts ---
+*.pid
+*.sock
+
 # --- Documentation ---
 *.md
 !README.md
