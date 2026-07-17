@@ -15,6 +15,7 @@
   let CERTS = [];
   let STATUS_CHART = null, EXPIRY_CHART = null, EMAIL_CHART = null;
   let editingId = null, imgFile = null, deleteTargetId = null;
+  let autoRecipFrom = ''; // tracks the vessel name we last auto-mirrored into fRecipientName, so a manual edit isn't clobbered
   let filterStatus = '';
   let csvParsedRows = [];
   let selectedIssueCertId = null;
@@ -631,7 +632,28 @@
     updatePreview();
   }
 
+  function buildRecipientFromVessel(vesselNameRaw, vesselType) {
+    const bare = vesselNameRaw.trim().replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim();
+    if (!bare) return '';
+    return vesselType ? `${vesselType} - ${bare}` : bare;
+  }
+  function onVesselNameInput() {
+    const vn = document.getElementById('fVesselName').value;
+    const vt = document.getElementById('fVesselType').value;
+    const recip = document.getElementById('fRecipientName');
+    // Vessel type (MV/MT) is an explicit selection, never guessed — mirrors the
+    // CST dashboard's convention so the same vessel gets the same prefix in both.
+    const built = buildRecipientFromVessel(vn, vt);
+    if (built && (!recip.value || recip.value === autoRecipFrom)) {
+      recip.value = built;
+      autoRecipFrom = built;
+    }
+    updatePreview();
+  }
+
   function clearForm() {
+    autoRecipFrom = '';
+    const vType = document.getElementById('fVesselType'); if (vType) vType.value = '';
     ['fId','fImo','fVesselName','fRecipientName','fRecipientEmail'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('fAssessmentDate').value='';
     document.getElementById('fValidUntil').value='';
@@ -653,11 +675,16 @@
   function editCert(id) {
     const c=CERTS.find(x=>x.id===id); if (!c) return;
     editingId=id; imgFile=null;
+    autoRecipFrom = '';
     document.getElementById('addPageTitle').textContent='Edit VAPT Certificate';
     document.getElementById('saveTxt').textContent='Update Certificate';
     document.getElementById('fId').value=c.id;
     document.getElementById('fImo').value=c.vesselIMO||'';
     document.getElementById('fVesselName').value=c.vesselName||'';
+    {
+      const detected = ((c.recipientName || '').match(/^(MV|MT)\s*[-–]/i) || (c.vesselName || '').match(/^(MV|MT)\s*[-–]?\s/i));
+      const vType = document.getElementById('fVesselType'); if (vType) vType.value = detected ? detected[1].toUpperCase() : '';
+    }
     document.getElementById('fRecipientName').value=c.recipientName||'';
     document.getElementById('fAssessmentDate').value=c.assessmentDate||'';
     document.getElementById('fValidUntil').value=c.validUntil||'';

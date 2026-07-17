@@ -3925,9 +3925,11 @@ async function handleAPI(req, res, parsed) {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     const cstCerts  = loadData();
     const vaptCerts = loadVaptData();
+    // CST is authoritative: only fill from VAPT when CST has no record for that vessel,
+    // so the same IMO shows one consistent name regardless of data-load order.
     const nameMap = {};
     Object.values(cstCerts).forEach(c  => { if (c.vesselIMO && c.vesselName) nameMap[normalizeVesselIMO(c.vesselIMO)]  = c.vesselName; });
-    Object.values(vaptCerts).forEach(c => { if (c.vesselIMO && c.vesselName) nameMap[normalizeVesselIMO(c.vesselIMO)] = c.vesselName; });
+    Object.values(vaptCerts).forEach(c => { const imo = c.vesselIMO && normalizeVesselIMO(c.vesselIMO); if (imo && c.vesselName && !nameMap[imo]) nameMap[imo] = c.vesselName; });
     return sendJSON(res, 200, nameMap, corsH);
   }
 

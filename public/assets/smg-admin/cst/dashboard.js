@@ -973,16 +973,22 @@
       if (issuedEl && !issuedEl.value) issuedEl.value = new Date().toISOString().slice(0, 10);
       livePreview();
     }
+    function buildRecipientFromVessel(vesselNameRaw, vesselType) {
+      const bare = vesselNameRaw.trim().replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim();
+      if (!bare) return '';
+      return vesselType ? `${vesselType} - ${bare}` : bare;
+    }
     function onVesselNameInput() {
-      const vn = document.getElementById('fVesselName').value.trim();
+      const vn = document.getElementById('fVesselName').value;
+      const vt = document.getElementById('fVesselType').value;
       const recip = document.getElementById('fRecip');
-      // Mirror the vessel name (including whatever MV/MT prefix was typed) verbatim —
-      // matches the VAPT dashboard's convention. Never invent a prefix: it can't be
-      // inferred from the name alone and guessing wrong (e.g. always "MV -") silently
-      // mislabels tankers.
-      if (vn && (!recip.value || recip.value === autoRecipFrom)) {
-        recip.value = vn;
-        autoRecipFrom = vn;
+      // Vessel type (MV/MT) is an explicit selection, never guessed — the prefix
+      // can't be inferred from the vessel name alone (e.g. always defaulting to
+      // "MV -" silently mislabels tankers).
+      const built = buildRecipientFromVessel(vn, vt);
+      if (built && (!recip.value || recip.value === autoRecipFrom)) {
+        recip.value = built;
+        autoRecipFrom = built;
       }
       livePreview();
     }
@@ -1926,6 +1932,10 @@
       document.getElementById('fId').value = c.id || '';
       document.getElementById('fRecip').value = c.recipientName || '';
       document.getElementById('fVesselName').value = c.vesselName || '';
+      {
+        const detected = ((c.recipientName || '').match(/^(MV|MT)\s*[-–]/i) || (c.vesselName || '').match(/^(MV|MT)\s*[-–]?\s/i));
+        document.getElementById('fVesselType').value = detected ? detected[1].toUpperCase() : '';
+      }
       document.getElementById('fIMO').value = c.vesselIMO || '';
       document.getElementById('fEng').value = c.chiefEngineer || '';
       document.getElementById('fTitle').value = c.trainingTitle || '';
@@ -1993,6 +2003,7 @@
 
     function resetForm() {
       autoRecipFrom = '';
+      const vType = document.getElementById('fVesselType'); if (vType) vType.value = '';
       ['fId', 'fRecip', 'fVesselName', 'fIMO', 'fEng', 'fCompDate', 'fEmail'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       document.getElementById('fTitle').value = (window.APP_CONFIG?window.APP_CONFIG.cst.trainingTitle:'Cyber Security Threat Awareness Training');
       document.getElementById('fOrg').value = (window.APP_CONFIG?window.APP_CONFIG.cst.organizer:'Synergy Cyber Security Team');
