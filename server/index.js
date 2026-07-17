@@ -466,6 +466,10 @@ const RATE_LIMITS = {
   'cert-create': { max: 20, window: 300_000 }, // cert creates (CST+VAPT combined) per 5 min per IP
   'doc-upload':  { max: 10, window: 300_000 }, // document uploads per 5 min per IP
   'csp-report':  { max: 60, window: 60_000  }, // browser-sent CSP violation reports per IP
+  // Cert images/attachments under /uploads/ are public by design (QR-code/PSC
+  // verification needs to load them with no auth) — this bucket exists purely to
+  // slow down scripted mass enumeration/harvesting, not to limit normal page loads.
+  uploads:     { max: 60,  window: 60_000  },
   default:     { max: 120, window: 60_000  },
 };
 
@@ -2966,13 +2970,17 @@ async function handleAPI(req, res, parsed) {
   }
 
   // ── GET /api/ses-status ── (admin — email service status)
+  // Reports only booleans, never the raw sender addresses — the dashboard UI only
+  // ever reads `.enabled` (see checkSesStatus() in dashboard.js), and a misconfigured
+  // sender (e.g. a personal inbox used as a stand-in during setup) shouldn't be
+  // readable by every admin/client session just to show a green/red dot.
   if (route === '/ses-status' && method === 'GET') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     return sendJSON(res, 200, {
-      enabled:  SES_ENABLED,
-      region:   SES_REGION   || null,
-      fromCST:  SES_FROM_CST || null,
-      fromVAPT: SES_FROM_VAPT || null,
+      enabled:         SES_ENABLED,
+      region:          SES_REGION || null,
+      fromCSTSet:      !!SES_FROM_CST,
+      fromVAPTSet:     !!SES_FROM_VAPT,
       missing: [
         !SES_REGION     && 'region',
         !SES_ACCESS_KEY && 'access key',
@@ -3750,8 +3758,9 @@ async function handleAPI(req, res, parsed) {
 
   // ── POST /api/auth/user/logout ── (superintendent — clear the session cookie)
   if (route === '/auth/user/logout' && method === 'POST') {
+    const _secureClr = BASE_ORIGIN.startsWith('https') ? '; Secure' : '';
     return sendJSON(res, 200, { ok: true }, {
-      'Set-Cookie': 'suptSession=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
+      'Set-Cookie': `suptSession=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${_secureClr}`,
       ...corsH,
     });
   }
@@ -4231,7 +4240,7 @@ async function handleRequest(req, res) {
     const location  = COGNITO_ENABLED
       ? `https://${COGNITO_DOMAIN}/logout?client_id=${encodeURIComponent(COGNITO_CLIENT_ID)}&logout_uri=${logoutUri}`
       : '/';
-    const clr = '; Path=/; Max-Age=0; SameSite=Lax';
+    const clr = `; Path=/; Max-Age=0; SameSite=Lax${BASE_ORIGIN.startsWith('https') ? '; Secure' : ''}`;
     res.writeHead(302, {
       ...SECURITY_HEADERS,
       // Clear both the short-lived handoff cookies and the persistent session cookies —
@@ -4249,9 +4258,17 @@ async function handleRequest(req, res) {
 
   // ── Uploads (shared) ─────────────────────────────────────────────────────
   if (p.startsWith('/uploads/')) {
+    // Rate-limited even though cert images are intentionally public (VAPT-flagged
+    // "large-scale certificate harvesting" concern) — this only throttles scripted
+    // mass enumeration, not the one-or-two-image load a real verify page does.
+    const _rlUp = checkRateLimit(getClientIp(req), 'uploads');
+    if (!_rlUp.ok) {
+      res.writeHead(429, { 'Retry-After': String(_rlUp.retryAfter), ...SECURITY_HEADERS });
+      return res.end('Too many requests.');
+    }
     // Extract relative path while protecting against traversal attacks
     const relPath = p.slice('/uploads/'.length);
-    
+
     // Reject path traversal attempts
     if (relPath.includes('..') || relPath.startsWith('/')) {
       res.writeHead(403, SECURITY_HEADERS);

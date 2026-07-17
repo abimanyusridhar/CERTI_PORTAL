@@ -310,10 +310,12 @@ test('GET /api/ses-status requires admin and returns email config shape', async 
 
   const res = await requestJson({ port: PORT, urlPath: '/api/ses-status', token: adminToken });
   assert.equal(res.status, 200);
-  for (const key of ['enabled', 'region', 'fromCST', 'fromVAPT', 'missing']) {
+  for (const key of ['enabled', 'region', 'fromCSTSet', 'fromVAPTSet', 'missing']) {
     assert.ok(key in res.json, `ses-status must include ${key}`);
   }
   assert.equal(res.json.enabled, false, 'AWS creds are zeroed out in the spawn env for this test');
+  assert.equal(typeof res.json.fromCSTSet, 'boolean', 'must report presence only, never the raw sender address');
+  assert.equal(typeof res.json.fromVAPTSet, 'boolean', 'must report presence only, never the raw sender address');
   assert.ok(Array.isArray(res.json.missing));
 });
 

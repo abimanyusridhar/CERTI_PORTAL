@@ -54,8 +54,10 @@
 
 /* ── CST/VAPT dashboard sidebar shortcuts into the hub (Users/Groups/Documents
    still viewable there directly; these are just the sidebar's convenience
-   links, hidden per client-only navigation request) ── */
+   links, hidden per client-only navigation request). CST uses #nav-documents,
+   VAPT uses #navLinkDocuments for the same link — both must be listed. ── */
 .role-client #nav-documents,
+.role-client #navLinkDocuments,
 .role-client #navLinkGroups,
 .role-client #navLinkUsers,
 
