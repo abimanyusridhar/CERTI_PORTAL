@@ -11,7 +11,8 @@
     "test:perf": "node server/tests/perf/smoke.js",
     "migrate": "node scripts/migrate-to-aws.js",
     "migrate:dynamo": "node scripts/migrate-to-dynamo.js",
-    "data:inspect": "node scripts/inspect-data-structure.js"
+    "data:inspect": "node scripts/inspect-data-structure.js",
+    "audit:vessels": "node scripts/audit-vessel-alignment.js"
   },
   "engines": {
     "node": ">=18.0.0"
