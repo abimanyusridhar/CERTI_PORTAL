@@ -36,7 +36,7 @@
     'openAddUserModal', 'openUserEditModal', 'deleteUser',
     'openCreateGroupModal', 'openGroupEditModal', 'deleteGroup', 'addImoRaw', 'removeImo',
     'qvPickVessel', 'qvRemoveVessel',
-    'uploadDoc', 'deleteDoc', 'copyDocLink',
+    'uploadDoc', 'deleteDoc',
   ]);
 
   function dispatch(name, el) {

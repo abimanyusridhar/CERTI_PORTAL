@@ -58,7 +58,7 @@
         <td><span style="font-family:'JetBrains Mono',monospace;font-size:.82rem;color:${vesselCount?'var(--teal)':'var(--text-sec)'};font-weight:700">${vesselCount||'—'}</span></td>
         <td><span class="active-pill ${u.active?'on':'off'}">${u.active?'Active':'Inactive'}</span></td>
         <td style="font-size:.7rem;color:var(--text-sec)">${fmtDt(u.createdAt)}</td>
-        <td style="text-align:right">
+        <td class="col-actions" style="text-align:right">
           <div style="display:flex;gap:6px;justify-content:flex-end">
             <button class="btn-sm" data-action="openUserEditModal" data-id="${escH(u.id)}">Edit</button>
             <button class="btn-sm danger" data-action="deleteUser" data-id="${escH(u.id)}" data-name="${escH(u.name)}">Delete</button>

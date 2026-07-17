@@ -10,6 +10,10 @@
  * ".role-client" ancestor combinator make these rules both higher-specificity
  * and !important vs. any existing stylesheet rule (e.g. ".nav-item{display:
  * flex!important}"), so there is no cascade fight to lose.
+ *
+ * Copy URL (copyEncUrl) and Copy Link (copyDocLink) are deliberately NOT
+ * hidden — client may copy the cert verification URL / document share link,
+ * treated as a read/share action rather than a mutation.
  */
 
 /* ── Cert-row actions (CST + VAPT dashboards share these data-action names) ── */
@@ -17,7 +21,6 @@
 .role-client [data-action="askDelete"],
 .role-client [data-action="activateCert"],
 .role-client [data-action="quickSend"],
-.role-client [data-action="copyEncUrl"],
 .role-client [data-action="openAssignGroup"],
 .role-client [data-action="qvPickVessel"],
 .role-client [data-action="qvRemoveVessel"],
@@ -27,6 +30,7 @@
 .role-client [data-action="openAddUserModal"],
 .role-client [data-action="openUserEditModal"],
 .role-client [data-action="deleteUser"],
+.role-client .col-actions,
 
 /* ── Hub: Groups tab ── */
 .role-client [data-action="openCreateGroupModal"],
@@ -34,11 +38,11 @@
 .role-client [data-action="deleteGroup"],
 .role-client [data-action="addImoRaw"],
 .role-client [data-action="removeImo"],
+.role-client .group-actions,
 
 /* ── Hub: Documents tab ── */
 .role-client [data-action="uploadDoc"],
 .role-client [data-action="deleteDoc"],
-.role-client [data-action="copyDocLink"],
 .role-client .upload-card,
 
 /* ── Nav / header buttons: Issue Credentials, Import Certificates ── */
@@ -54,9 +58,16 @@
 .role-client #panelEmailPending
 { display: none !important; }
 
+/* ── Primary KPI row loses its Pending/Emails-Not-Sent tiles above — collapse
+   the grid from 4 tracks to 2 so the remaining Total/Active&Valid tiles fill
+   the row instead of leaving two empty grid tracks on the right. ── */
+.role-client .stats-row-primary {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
 /* ── "Read-only" indicator next to the logout control — hidden unless role-client ── */
-.role-badge { display: none; }
-.role-client .role-badge {
+.client-readonly-badge { display: none; }
+.role-client .client-readonly-badge {
   display: inline-flex !important;
   align-items: center;
   gap: 4px;
