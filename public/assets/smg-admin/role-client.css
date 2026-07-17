@@ -45,11 +45,19 @@
 .role-client [data-action="deleteDoc"],
 .role-client .upload-card,
 
-/* ── Nav / header buttons: Issue Credentials, Import Certificates ── */
+/* ── Nav / header buttons: Issue Credentials, Import Certificates, Add New ── */
 .role-client #nav-issue,
 .role-client #nav-csv,
 .role-client [data-nav="nav-issue"],
 .role-client [data-nav="nav-csv"],
+.role-client [data-action="startAdd"],
+
+/* ── CST/VAPT dashboard sidebar shortcuts into the hub (Users/Groups/Documents
+   still viewable there directly; these are just the sidebar's convenience
+   links, hidden per client-only navigation request) ── */
+.role-client #nav-documents,
+.role-client #navLinkGroups,
+.role-client #navLinkUsers,
 
 /* ── Pending Activation + Emails Not Sent — stat tiles and detail panels ── */
 .role-client [data-panel="panelPending"],

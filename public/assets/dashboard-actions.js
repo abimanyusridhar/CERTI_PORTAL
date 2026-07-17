@@ -25,7 +25,7 @@
   // e.g. a future button added without the class). The server-side hasAdminRole() check
   // in server/index.js is the real boundary regardless of what happens here.
   const RESTRICTED_ACTIONS = new Set([
-    'editCert', 'askDelete', 'activateCert', 'quickSend', 'openAssignGroup',
+    'editCert', 'askDelete', 'activateCert', 'quickSend', 'openAssignGroup', 'startAdd',
     'closeViewEdit', 'closeViewIssue', 'closeViewActivate', 'goIssue', 'selectIssueCert',
     'doDelete', 'saveCert', 'doImportCsv', 'confirmAssignGroup', 'sendViaSES', 'markAsSent',
     'bulkDeleteCerts', 'openBulkAssign', 'quickStatusChange',
