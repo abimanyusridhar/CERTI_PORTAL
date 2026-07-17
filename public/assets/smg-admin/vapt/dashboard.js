@@ -1786,11 +1786,13 @@
   }
 
   function downloadSampleCsv() {
+    // Same vessels/IMOs, same "MV - "/"MT - " prefix format as the CST dashboard's
+    // sample CSV — importing both keeps the two systems' vessel names aligned.
     const csv = [
       'imo_number,vessel_name,assessment_date,cert_number,recipient_email,notes',
-      '9491666,MV EFFICIENCY OL,10-Feb-26,VAP-9491666-0226,master@efficiencyol.com,VAPT completed',
-      '9623740,MV NORD KUDU,15-Mar-26,,master@nordkudu.com,',
-      '9689536,MT BW CHINOOK,20-Mar-26,,chief@bwchinook.com,Follow-up required',
+      '9491666,MV - EFFICIENCY OL,10-Feb-26,VAP-9491666-0226,master@efficiencyol.com,VAPT completed',
+      '9623740,MV - NORD KUDU,15-Mar-26,,master@nordkudu.com,',
+      '9689536,MT - BW CHINOOK,20-Mar-26,,chief@bwchinook.com,Follow-up required',
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');

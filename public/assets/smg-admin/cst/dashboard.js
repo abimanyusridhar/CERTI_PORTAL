@@ -2142,7 +2142,7 @@
     const CSV_FIELD_ALIASES = {
       vesselIMO:      ['imo number','imo_number','imo no','imo','vessel imo','vessel_imo','imonumber'],
       complianceDate: ['issues_dates','issue date','issue_date','compliance date','compliance_date','issueddate','issued date','issued_date','training date','date'],
-      chiefEngineer:  ['chif name','chief name','chief_engineer','chief engineer','chief eng','chiefofficer','chief','ce name','master'],
+      chiefEngineer:  ['chif name','chief name','chief_name','chief_engineer','chief engineer','chief eng','chiefofficer','chief','ce name','master'],
       recipientName:  ['vessel_name','vessel name','(mv/mt) - vessel name','vessel','ship name','ship_name','full vessel name','mv/mt vessel name'],
       recipientEmail: ['recipient email','recipient_email','email','email address','master email','contact email'],
       notes:          ['notes','remarks','comment','comments'],
@@ -2442,9 +2442,11 @@
     document.getElementById('csvMode').addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); });
 
     function downloadSampleCsv() {
-      // Headers match all supported aliases — use the canonical Synergy format
+      // Header naming (snake_case) and the "MV - "/"MT - " vessel-name prefix format
+      // match the VAPT dashboard's sample CSV exactly — same vessel, same IMO, same
+      // spelling and prefix in both, so importing both keeps the two systems aligned.
       const rows = [
-        'IMO Number,VESSEL_NAME,Chif Name,ISSUES_DATES,recipient_email,notes',
+        'imo_number,vessel_name,chief_name,compliance_date,recipient_email,notes',
         '9623740,MV - NORD KUDU,BARREGA WILLIE PANIAMOGAN,30-Jan-26,master@nordkudu.com,',
         '9689536,MT - BW CHINOOK,TARAK NATH,12-Feb-26,master@bwchinook.com,',
         '9491666,MV - EFFICIENCY OL,JOHN A SMITH,10-Mar-26,chief@efficiencyol.com,Attended online session',
