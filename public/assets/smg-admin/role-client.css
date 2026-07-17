@@ -25,6 +25,7 @@
 .role-client [data-action="qvPickVessel"],
 .role-client [data-action="qvRemoveVessel"],
 .role-client [data-change-action="quickStatusChange"],
+.role-client [data-change-action="quickVesselTypeChange"],
 
 /* ── Hub: Users tab ── */
 .role-client [data-action="openAddUserModal"],

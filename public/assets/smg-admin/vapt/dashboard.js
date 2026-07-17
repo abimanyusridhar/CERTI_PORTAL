@@ -57,6 +57,7 @@
     scheduleTokenExpiryWarning();
     await refreshStats();
     await loadGroupsMap();
+    await loadVesselNamesMap();
     renderTbl('dashTbl', '');
     updateRealTimeBadge();
     checkSesStatus();
@@ -543,6 +544,13 @@
       const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
       const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
       const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle"><input type="checkbox" class="row-sel-cb" data-imo="${safeIMO}" data-tbl="${id}" data-change-action="toggleRowSelect" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.vesselIMO||'')?'checked':''}></td>`;
+      const vTypeMatch = (c.recipientName || '').match(/^(MV|MT)\s*[-–]/i) || (c.vesselName || '').match(/^(MV|MT)\s*[-–]?\s/i);
+      const vType = vTypeMatch ? vTypeMatch[1].toUpperCase() : '';
+      const vTypeSel = `<select class="inline-vtype-sel" data-id="${safeId}" data-change-action="quickVesselTypeChange" title="Fix vessel type (MV/MT) — realigns the prefix" style="margin-top:4px;font-size:.6rem;padding:1px 3px">
+        <option value="" ${vType===''?'selected':''}>— Type —</option>
+        <option value="MV" ${vType==='MV'?'selected':''}>MV</option>
+        <option value="MT" ${vType==='MT'?'selected':''}>MT</option>
+      </select>`;
       const RISK_STYLE = {
         CRITICAL: { emoji: '🔴', color: 'var(--invalid)' },
         HIGH:     { emoji: '🟠', color: 'var(--warn)' },
@@ -555,7 +563,7 @@
         : '<span style="color:var(--text-sec);font-size:.68rem">—</span>';
       return `<tr>${selCell}
         <td><span class="cid" title="${safeId}">${safeId}</span></td>
-        <td class="name-cell" style="cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''} ${groupBadge}</td>
+        <td class="name-cell"><div style="cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName||'—'}</div>${c.vesselName&&c.vesselName!==c.recipientName?`<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>`:''} ${groupBadge}</div>${vTypeSel}</td>
         <td><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO||'—'}</span></td>
         <td style="font-size:.76rem;color:var(--text-sec)">${fmt(c.assessmentDate)}</td>
         <td><select class="inline-status-sel status-${c.status?c.status.toLowerCase():'pending'}" data-id="${safeId}" data-change-action="quickStatusChange" title="Change status">
@@ -1080,6 +1088,38 @@
     } catch {
       c.status = oldStatus;
       if (selEl) { selEl.value = oldStatus; selEl.className = 'inline-status-sel status-' + oldStatus.toLowerCase(); }
+      toast('Connection error. Please check your network.', 'err');
+    }
+  }
+
+  // ── QUICK VESSEL TYPE ALIGN (inline table dropdown) — reduces MV/MT prefix ambiguity ──
+  async function quickVesselTypeChange(id, newType, selEl) {
+    const c = CERTS.find(x => x.id === id); if (!c) return;
+    const newVesselName = buildRecipientFromVessel(c.vesselName || '', newType);
+    if (!newVesselName || newVesselName === c.vesselName) return;
+    const oldVesselName = c.vesselName, oldRecip = c.recipientName;
+    // Only rebuild recipientName if it's currently empty or was just mirroring the
+    // vessel name — VAPT's Recipient Name can legitimately be a different person/
+    // company, unlike the vessel identity itself.
+    const shouldSyncRecip = !c.recipientName || c.recipientName === c.vesselName;
+    c.vesselName = newVesselName;
+    if (shouldSyncRecip) c.recipientName = newVesselName;
+    try {
+      const fd = new FormData();
+      fd.append('vesselName', newVesselName);
+      if (shouldSyncRecip) fd.append('recipientName', newVesselName);
+      const r = await fetch(API + '/vapt/certs/' + encodeURIComponent(id), { method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
+      if (r.ok) {
+        toast('Vessel type aligned.', 'ok');
+        renderTbl('allTbl', document.getElementById('allQ')?.value || '', document.getElementById('allStatusSel')?.value || '', document.getElementById('allEmailSel')?.value || '');
+      } else {
+        c.vesselName = oldVesselName; c.recipientName = oldRecip;
+        if (selEl) selEl.value = '';
+        toast('Could not update vessel type. Please try again.', 'err');
+      }
+    } catch {
+      c.vesselName = oldVesselName; c.recipientName = oldRecip;
+      if (selEl) selEl.value = '';
       toast('Connection error. Please check your network.', 'err');
     }
   }
@@ -1713,7 +1753,7 @@
 
   function renderCsvPreview() {
     const records = csvParsedRows.map(buildVaptCertFromRow);
-    const dups = [], noId = [];
+    const dups = [], noId = [], mismatched = [];
     document.getElementById('csvPreviewWrap').style.display = 'block';
     document.getElementById('csvPreviewCount').textContent  = records.length;
     document.getElementById('csvImportBtn').disabled = false;
@@ -1725,17 +1765,27 @@
     records.forEach((c, i) => {
       const existing    = CERTS.find(x => x.id === c.id);
       const hasId       = !!c.id;
-      const rowBg       = existing ? 'background:rgba(255,170,46,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
+      // Cross-check against the canonical (CST-authoritative) vessel name for this
+      // IMO, comparing bare names (prefix stripped) so a differently-prefixed or
+      // differently-spelled vessel name doesn't silently diverge between CST/VAPT.
+      const canonical   = c.vesselIMO ? _vesselNamesMap[c.vesselIMO.toUpperCase()] : null;
+      const bare        = (s) => (s || '').replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim().toLowerCase();
+      const mismatch    = canonical && c.vesselName && bare(canonical) !== bare(c.vesselName);
+      const rowBg       = mismatch ? 'background:rgba(255,107,138,.06)' : existing ? 'background:rgba(255,170,46,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
       const idColor     = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
-      const statusTxt   = existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
-      const statusColor = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
+      const statusTxt   = mismatch ? '⚠ Name differs' : existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
+      const statusColor = mismatch ? 'var(--invalid)' : existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
       const emailChip   = c.recipientEmail ? '<span style="color:var(--teal);font-size:.6rem">✓</span>' : '<span style="color:var(--text-sec);font-size:.6rem">—</span>';
       if (existing) dups.push(c.id);
       if (!hasId)   noId.push(i+1);
+      if (mismatch) mismatched.push({ row: i+1, imo: c.vesselIMO, csvName: c.vesselName, canonical });
+      const vesselCell = mismatch
+        ? c.vesselName + ' <span style="color:var(--invalid)" title="Existing record for this IMO uses: ' + canonical + '">⚠</span>'
+        : (c.vesselName||'—');
       html += '<tr style="' + rowBg + ';border-bottom:1px solid var(--border)">'
         + '<td style="padding:6px 10px;color:var(--text-sec);font-size:.63rem">' + (i+1) + '</td>'
         + '<td style="padding:6px 10px;font-family:\'JetBrains Mono\',monospace;font-size:.61rem;color:' + idColor + '">' + (c.id||'—') + '</td>'
-        + '<td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + c.vesselName + '">' + (c.vesselName||'—') + '</td>'
+        + '<td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + c.vesselName + '">' + vesselCell + '</td>'
         + '<td style="padding:6px 10px;font-size:.65rem">' + (c.vesselIMO||'—') + '</td>'
         + '<td style="padding:6px 10px;font-size:.63rem">' + (c.assessmentDate||'—') + '</td>'
         + '<td style="padding:6px 10px;font-size:.63rem;color:var(--teal)">' + (c.validUntil||'—') + '</td>'
@@ -1748,6 +1798,7 @@
     const warns   = [];
     if (dups.length) warns.push('⚠ ' + dups.length + ' duplicate(s) will be skipped: ' + dups.slice(0,3).join(', ') + (dups.length>3?'…':''));
     if (noId.length) warns.push('✗ ' + noId.length + ' row(s) cannot generate ID: rows ' + noId.slice(0,5).join(', '));
+    if (mismatched.length) warns.push('⚠ ' + mismatched.length + ' row(s) have a vessel name that differs from the existing record for that IMO — check before importing: ' + mismatched.slice(0,3).map(m => 'row ' + m.row + ' ("' + m.csvName + '" vs existing "' + m.canonical + '")').join('; ') + (mismatched.length>3?'…':''));
     if (warns.length) { warnBox.style.display='block'; warnBox.innerHTML=warns.map(w=>'<div>'+w+'</div>').join(''); }
     else warnBox.style.display='none';
   }
@@ -2016,6 +2067,7 @@ function applyConfig() {
 let _assignGroupIMO = '', _assignGroupName = '', _allGroupsForAssign = [], _bulkAssignIMOs = [];
 let _selectedRows = new Set();
 let _imoGroupMap = {};
+let _vesselNamesMap = {}; // IMO -> canonical vessel name (CST-authoritative, see /api/vessels/names)
 
 async function loadGroupsMap() {
   try {
@@ -2024,6 +2076,14 @@ async function loadGroupsMap() {
     const groups = await r.json();
     _imoGroupMap = {};
     groups.forEach(g => { (g.vesselIMOs || []).forEach(imo => { _imoGroupMap[imo.toUpperCase()] = g.name; }); });
+  } catch { }
+}
+
+async function loadVesselNamesMap() {
+  try {
+    const r = await fetch(API + '/vessels/names', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) return;
+    _vesselNamesMap = await r.json();
   } catch { }
 }
 

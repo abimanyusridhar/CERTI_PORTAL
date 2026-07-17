@@ -28,7 +28,7 @@
     'editCert', 'askDelete', 'activateCert', 'quickSend', 'openAssignGroup', 'startAdd',
     'closeViewEdit', 'closeViewIssue', 'closeViewActivate', 'goIssue', 'selectIssueCert',
     'doDelete', 'saveCert', 'doImportCsv', 'confirmAssignGroup', 'sendViaSES', 'markAsSent',
-    'bulkDeleteCerts', 'openBulkAssign', 'quickStatusChange',
+    'bulkDeleteCerts', 'openBulkAssign', 'quickStatusChange', 'quickVesselTypeChange',
   ]);
   function isRestricted(action) {
     return RESTRICTED_ACTIONS.has(action) && document.documentElement.classList.contains('role-client');
@@ -118,6 +118,7 @@
     toggleRowSelect:    (el) => call('toggleRowSelect', el),
     toggleSelectAll:    (el) => call('toggleSelectAll', el, el.dataset.tbl),
     quickStatusChange:  (el) => call('quickStatusChange', el.dataset.id, el.value, el),
+    quickVesselTypeChange: (el) => call('quickVesselTypeChange', el.dataset.id, el.value, el),
     // These three all originally received the input/select ELEMENT itself (this),
     // not its value — keep passing el, not el.value.
     handleCsvFile:      (el) => call('handleCsvFile', el),
