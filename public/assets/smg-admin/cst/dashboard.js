@@ -71,7 +71,6 @@
       await refreshStats();
       selectQuarter('ALL');
       await loadGroupsMap();
-      await loadVesselNamesMap();
       renderTbl('dashTbl', '');
       updateRealTimeBadge();
       checkSesStatus();  // Check email service status
@@ -678,32 +677,6 @@
       }
     }
 
-    // ── QUICK VESSEL TYPE ALIGN (inline table dropdown) — reduces MV/MT prefix ambiguity ──
-    async function quickVesselTypeChange(id, newType, selEl) {
-      const c = CERTS.find(x => x.id === id); if (!c) return;
-      const newRecip = buildRecipientFromVessel(c.vesselName || '', newType);
-      if (!newRecip || newRecip === c.recipientName) return;
-      const oldRecip = c.recipientName;
-      c.recipientName = newRecip;
-      try {
-        const fd = new FormData();
-        fd.append('recipientName', newRecip);
-        const r = await fetch(API + '/certs/' + encodeURIComponent(id), { method: 'PUT', headers: { Authorization: 'Bearer ' + TOKEN }, body: fd });
-        if (r.ok) {
-          toast('Vessel type aligned — recipient name updated.', 'ok');
-          renderTbl('allTbl', document.getElementById('allQ')?.value || '', document.getElementById('allStatus')?.value || '', document.getElementById('allQtr')?.value || '', document.getElementById('allMode')?.value || '', document.getElementById('allEmail')?.value || '');
-        } else {
-          c.recipientName = oldRecip;
-          if (selEl) selEl.value = '';
-          toast('Could not update vessel type. Please try again.', 'err');
-        }
-      } catch {
-        c.recipientName = oldRecip;
-        if (selEl) selEl.value = '';
-        toast('Connection error. Please check your network.', 'err');
-      }
-    }
-
     async function activateCert(id) {
       const c = CERTS.find(x => x.id === id);
       if (!c) return;
@@ -842,17 +815,10 @@
         const safeEmail = escHtml(c.recipientEmail);
         const groupName = _imoGroupMap[(c.vesselIMO||'').toUpperCase()] || '';
         const groupBadge = groupName ? `<div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:1px 7px;border-radius:20px;background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.25);font-size:.58rem;color:var(--teal);font-weight:600;letter-spacing:.06em"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg>${escHtml(groupName)}</div>` : '';
-        const vTypeMatch = (c.recipientName || '').match(/^(MV|MT)\s*[-–]/i) || (c.vesselName || '').match(/^(MV|MT)\s*[-–]?\s/i);
-        const vType = vTypeMatch ? vTypeMatch[1].toUpperCase() : '';
-        const vTypeSel = `<select class="inline-vtype-sel" data-id="${safeId}" data-change-action="quickVesselTypeChange" title="Fix vessel type (MV/MT) — realigns the prefix" style="margin-top:4px;font-size:.6rem;padding:1px 3px">
-        <option value="" ${vType===''?'selected':''}>— Type —</option>
-        <option value="MV" ${vType==='MV'?'selected':''}>MV</option>
-        <option value="MT" ${vType==='MT'?'selected':''}>MT</option>
-      </select>`;
         const selCell = `<td style="padding:6px 6px;text-align:center;vertical-align:middle;display:table-cell!important;visibility:visible!important"><input type="checkbox" class="row-sel-cb" data-id="${safeId}" data-imo="${safeIMO}" data-tbl="${id}" data-change-action="toggleRowSelect" style="accent-color:#64FFDA;width:14px;height:14px" ${_selectedRows.has(c.id||'')?'checked':''}></td>`;
         return `<tr style="display:table-row!important;visibility:visible!important;border-bottom:1px solid var(--border)!important">${selCell}
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span class="cid" title="${safeId}">${safeId}</span></td>
-      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><div style="cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''} ${groupBadge}</div>${vTypeSel}</td>
+      <td class="name-cell" style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;cursor:pointer" title="View in public portal" data-action="viewCertNewTabRow" data-id="${safeId}"><div style="color:var(--text-bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeName || '—'}</div>${safeVessel && c.vesselName !== c.recipientName ? `<div style="font-size:.68rem;color:var(--text-sec)">${safeVessel}</div>` : ''} ${groupBadge}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important"><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${safeIMO || '—'}</span></td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important;font-size:.76rem;color:var(--text-sec);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeCE || '—'}</td>
       <td style="display:table-cell!important;visibility:visible!important;padding:8px 10px!important">${qBadge}</td>
@@ -2383,7 +2349,7 @@
       const quarter = document.getElementById('csvQuarter').value;
       const mode    = document.getElementById('csvMode').value;
       const records = csvParsedRows.map(r => buildCertFromRow(r, quarter, mode));
-      const dups = [], noId = [], noImo = [], mismatched = [];
+      const dups = [], noId = [], noImo = [];
 
       document.getElementById('csvPreviewWrap').style.display = 'block';
       document.getElementById('csvPreviewCount').textContent = records.length;
@@ -2399,30 +2365,20 @@
         const existing   = CERTS.find(x => x.id === c.id);
         const hasId      = !!c.id;
         const hasImo     = !!c.vesselIMO;
-        // Cross-check against the canonical (CST-authoritative) vessel name for this
-        // IMO, so a CSV row with a differently-spelled/prefixed vessel name doesn't
-        // silently create a mismatch between CST and VAPT for the same ship.
-        const canonical  = hasImo ? _vesselNamesMap[c.vesselIMO.toUpperCase()] : null;
-        const canonBare  = canonical ? canonical.replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim().toLowerCase() : null;
-        const mismatch   = canonBare && c.vesselName && canonBare !== c.vesselName.trim().toLowerCase();
-        const rowBg      = mismatch ? 'background:rgba(255,107,138,.06)' : existing ? 'background:rgba(255,170,46,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
+        const rowBg      = existing ? 'background:rgba(255,170,46,.05)' : !hasId ? 'background:rgba(255,107,138,.05)' : '';
         const idColor    = existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
-        const statusTxt  = mismatch ? '⚠ Name differs' : existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
-        const statusColor= mismatch ? 'var(--invalid)' : existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
+        const statusTxt  = existing ? '⚠ Exists' : !hasId ? '✗ No ID' : '✓ New';
+        const statusColor= existing ? 'var(--warn)' : !hasId ? 'var(--invalid)' : 'var(--teal)';
         const emailChip  = c.recipientEmail
           ? `<span style="color:var(--teal);font-size:.6rem">✓</span>`
           : `<span style="color:var(--text-sec);font-size:.6rem">—</span>`;
         if (existing) dups.push(c.id);
         if (!hasId)   noId.push(i+1);
         if (!hasImo)  noImo.push(i+1);
-        if (mismatch) mismatched.push({ row: i+1, imo: c.vesselIMO, csvName: c.vesselName, canonical });
-        const vesselCell = mismatch
-          ? `${escHtml(c.recipientName||'—')} <span style="color:var(--invalid)" title="Existing record for this IMO uses: ${escHtml(canonical)}">⚠</span>`
-          : escHtml(c.recipientName||'—');
         html += `<tr style="${rowBg};border-bottom:1px solid var(--border)">
           <td style="padding:6px 10px;color:var(--text-sec);font-size:.63rem">${i+1}</td>
           <td style="padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:.61rem;color:${idColor}">${c.id||'—'}</td>
-          <td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.recipientName)}">${vesselCell}</td>
+          <td style="padding:6px 10px;font-size:.65rem;color:var(--text-bright);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.recipientName)}">${escHtml(c.recipientName||'—')}</td>
           <td style="padding:6px 10px;font-size:.65rem">${escHtml(c.vesselIMO||'—')}</td>
           <td style="padding:6px 10px;font-size:.63rem;color:var(--text-sec);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.chiefEngineer)}">${escHtml(c.chiefEngineer||'—')}</td>
           <td style="padding:6px 10px;font-size:.63rem">${c.complianceDate||'—'}</td>
@@ -2438,7 +2394,6 @@
       if (dups.length)  warns.push(`⚠ ${dups.length} duplicate(s) will be skipped: ${dups.slice(0,3).join(', ')}${dups.length>3?'…':''}`);
       if (noId.length)  warns.push(`✗ ${noId.length} row(s) missing IMO/date (cannot generate ID): rows ${noId.slice(0,5).join(', ')}`);
       if (noImo.length && !noId.length) warns.push(`⚠ ${noImo.length} row(s) have no IMO number`);
-      if (mismatched.length) warns.push(`⚠ ${mismatched.length} row(s) have a vessel name that differs from the existing record for that IMO — check before importing: ${mismatched.slice(0,3).map(m => `row ${m.row} ("${m.csvName}" vs existing "${m.canonical}")`).join('; ')}${mismatched.length>3?'…':''}`);
       if (warns.length) { warnBox.style.display = 'block'; warnBox.innerHTML = warns.map(w => `<div>${w}</div>`).join(''); }
       else              { warnBox.style.display = 'none'; }
       // warnings already set above
@@ -3035,7 +2990,6 @@ function exportValidityCSV() {
 let _assignGroupIMO = '', _assignGroupName = '', _allGroupsForAssign = [], _bulkAssignIMOs = [];
 let _selectedRows = new Set();
 let _imoGroupMap = {};
-let _vesselNamesMap = {}; // IMO -> canonical vessel name (CST-authoritative, see /api/vessels/names)
 
 async function loadGroupsMap() {
   try {
@@ -3044,14 +2998,6 @@ async function loadGroupsMap() {
     const groups = await r.json();
     _imoGroupMap = {};
     groups.forEach(g => { (g.vesselIMOs || []).forEach(imo => { _imoGroupMap[imo.toUpperCase()] = g.name; }); });
-  } catch { }
-}
-
-async function loadVesselNamesMap() {
-  try {
-    const r = await fetch(API + '/vessels/names', { headers: { Authorization: 'Bearer ' + TOKEN } });
-    if (!r.ok) return;
-    _vesselNamesMap = await r.json();
   } catch { }
 }
 
