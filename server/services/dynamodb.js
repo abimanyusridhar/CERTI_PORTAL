@@ -12,18 +12,23 @@
  *
  * Environment variables:
  *   DYNAMO_TABLE_NAME   — required to enable DynamoDB (matches Terraform's dynamodb_table_name)
- *   DYNAMO_REGION       — defaults to AWS_REGION, then ap-south-1
- *   DYNAMO_ACCESS_KEY   — falls back to S3_ACCESS_KEY, then AWS_ACCESS_KEY_ID
- *   DYNAMO_SECRET_KEY   — falls back to S3_SECRET_KEY, then AWS_SECRET_ACCESS_KEY
+ *                         (DYNAMODB_TABLE_NAME also accepted — easy typo to make/copy between envs)
+ *   DYNAMO_REGION       — defaults to AWS_REGION, then ap-south-1 (DYNAMODB_REGION also accepted)
+ *   DYNAMO_ACCESS_KEY   — falls back to S3_ACCESS_KEY, then AWS_ACCESS_KEY_ID (DYNAMODB_ACCESS_KEY also accepted)
+ *   DYNAMO_SECRET_KEY   — falls back to S3_SECRET_KEY, then AWS_SECRET_ACCESS_KEY (DYNAMODB_SECRET_KEY also accepted)
  */
 
 const https  = require('https');
 const crypto = require('crypto');
 
-const REGION     = process.env.DYNAMO_REGION     || process.env.AWS_REGION            || 'ap-south-1';
-const TABLE      = process.env.DYNAMO_TABLE_NAME  || '';
-const ACCESS_KEY = process.env.DYNAMO_ACCESS_KEY  || process.env.S3_ACCESS_KEY  || process.env.AWS_ACCESS_KEY_ID     || '';
-const SECRET_KEY = process.env.DYNAMO_SECRET_KEY  || process.env.S3_SECRET_KEY  || process.env.AWS_SECRET_ACCESS_KEY || '';
+// Accept both DYNAMO_* (this file's canonical name, matches Terraform) and
+// DYNAMODB_* (an easy, easy-to-miss typo — "DynamoDB" the product name vs.
+// "DYNAMO" the env prefix — that silently disables the whole feature if it's
+// the only one set, since DYNAMO_ENABLED just sees an empty string).
+const REGION     = process.env.DYNAMO_REGION     || process.env.DYNAMODB_REGION     || process.env.AWS_REGION            || 'ap-south-1';
+const TABLE      = process.env.DYNAMO_TABLE_NAME || process.env.DYNAMODB_TABLE_NAME || '';
+const ACCESS_KEY = process.env.DYNAMO_ACCESS_KEY || process.env.DYNAMODB_ACCESS_KEY || process.env.S3_ACCESS_KEY  || process.env.AWS_ACCESS_KEY_ID     || '';
+const SECRET_KEY = process.env.DYNAMO_SECRET_KEY || process.env.DYNAMODB_SECRET_KEY || process.env.S3_SECRET_KEY  || process.env.AWS_SECRET_ACCESS_KEY || '';
 
 const DYNAMO_ENABLED = !!(TABLE && ACCESS_KEY && SECRET_KEY);
 const HOST = `dynamodb.${REGION}.amazonaws.com`;

@@ -9,6 +9,7 @@ const DYNAMO_PATH = require.resolve('../../services/dynamodb');
 
 const ENV_KEYS = [
   'DYNAMO_TABLE_NAME', 'DYNAMO_REGION', 'DYNAMO_ACCESS_KEY', 'DYNAMO_SECRET_KEY',
+  'DYNAMODB_TABLE_NAME', 'DYNAMODB_REGION', 'DYNAMODB_ACCESS_KEY', 'DYNAMODB_SECRET_KEY',
   'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY',
 ];
 
@@ -150,6 +151,42 @@ test('dynamodb service - putItem/getItem/deleteItem sign requests with the corre
   } finally {
     mock.restore();
     restoreEnv();
+  }
+});
+
+test('dynamodb service - DYNAMODB_* naming (the "DB" typo) is accepted as an alias for DYNAMO_*', () => {
+  const { dynamodb, restore } = withFreshDynamo({
+    DYNAMODB_TABLE_NAME: 'unit-table',
+    DYNAMODB_REGION: 'us-east-1',
+    DYNAMODB_ACCESS_KEY: 'AKIAUNITTEST',
+    DYNAMODB_SECRET_KEY: 'unit-secret-key',
+  });
+  try {
+    // A table name set ONLY via the DYNAMODB_* alias must still enable the
+    // service — this exact mismatch (DYNAMODB_TABLE_NAME vs. the canonical
+    // DYNAMO_TABLE_NAME) was found silently disabling DynamoDB entirely.
+    assert.equal(dynamodb.DYNAMO_ENABLED, true);
+  } finally {
+    restore();
+  }
+});
+
+test('dynamodb service - DYNAMO_* takes precedence over DYNAMODB_* when both are set', async () => {
+  const { dynamodb, restore } = withFreshDynamo({
+    DYNAMO_TABLE_NAME: 'canonical-table',
+    DYNAMODB_TABLE_NAME: 'alias-table',
+    DYNAMO_ACCESS_KEY: 'AKIA', DYNAMO_SECRET_KEY: 'secret',
+  });
+  const mock = mockHttpsRequest(({ body }) => {
+    const parsed = JSON.parse(body.toString('utf8'));
+    assert.equal(parsed.TableName, 'canonical-table');
+    return { statusCode: 200, body: '{}' };
+  });
+  try {
+    await dynamodb.putItem({ id: '1' });
+  } finally {
+    mock.restore();
+    restore();
   }
 });
 
