@@ -286,26 +286,6 @@
       statusPage:         '',
     },
 
-    // ── SUPPORT & HELP ───────────────────────────────────────────────────
-    support: {
-      cstHelpEmail:       'trainingawareness@synergyship.com',
-      vaptHelpEmail:      'vapt@synergyship.com',
-      portalHelpText:     'If you experience issues verifying a certificate, contact the '
-                          + 'Synergy Cyber Security Team with the certificate number and the '
-                          + 'vessel IMO number for manual verification assistance.',
-      // Common error recovery hints shown to end users
-      hints: {
-        notFound:         'Double-check the certificate number on your training document. '
-                          + 'Certificate IDs follow the format CST-XXXXXXX-MM-YY.',
-        vaptNotFound:     'VAPT certificate IDs follow the format VAP-XXXXXXX-MMYY. '
-                          + 'Contact vapt@synergyship.com if the certificate was issued within the last 48 hours.',
-        networkError:     'A network error occurred. The request will retry automatically. '
-                          + 'If the problem persists, check your internet connection or contact support.',
-        serverError:      'The verification service is temporarily unavailable. '
-                          + 'Please try again in a few minutes.',
-      },
-    },
-
     // ── EMAIL TEMPLATES ──────────────────────────────────────────────────
     // Functions so they interpolate live cert data at call-time.
     emailTemplates: {
