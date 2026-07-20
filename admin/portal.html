@@ -23,27 +23,43 @@
     }
     body { min-height: 100vh; background: var(--navy); font-family: 'DM Sans', sans-serif; }
 
-    /* ── LOGIN ── */
-    #loginWrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
-    .login-bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(100,255,218,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.02) 1px,transparent 1px); background-size: 40px 40px; pointer-events: none; }
-    .login-card { position: relative; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 40px 36px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
-    .login-icon { display: flex; justify-content: center; margin-bottom: 18px; }
-    .login-icon svg { width: 44px; height: 44px; }
-    .login-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--text-bright); font-weight: 700; text-align: center; margin-bottom: 4px; }
-    .login-sub { font-size: .72rem; color: var(--text-sec); text-align: center; margin-bottom: 26px; letter-spacing: .04em; }
-    .login-err { display: none; background: rgba(255,107,138,.08); border: 1px solid rgba(255,107,138,.3); color: var(--invalid); border-radius: 8px; padding: 9px 13px; font-size: .73rem; text-align: center; margin-bottom: 14px; }
+    /* ── LOGIN — split panel: brand identity left, sign-in right ── */
+    #loginWrap { display: flex; min-height: 100vh; }
+    .login-brand-panel { flex: 1 1 46%; max-width: 560px; position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; background: linear-gradient(160deg, #0A1628 0%, #123B36 55%, #184F47 100%); overflow: hidden; }
+    .login-brand-panel::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(100,255,218,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.05) 1px,transparent 1px); background-size: 48px 48px; pointer-events: none; }
+    .login-brand-panel::after { content: ''; position: absolute; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(100,255,218,.18), transparent 70%); top: -100px; right: -140px; pointer-events: none; }
+    .login-brand-content { position: relative; z-index: 1; text-align: center; max-width: 340px; }
+    .login-brand-logos { display: flex; justify-content: center; gap: 12px; margin-bottom: 28px; }
+    .login-brand-logo { width: 72px; height: 72px; border-radius: 50%; display: block; border: 2px solid rgba(100,255,218,.4); background: #fff; padding: 7px; box-sizing: border-box; transition: transform .3s ease; }
+    .login-brand-logo:hover { transform: scale(1.05) rotate(-2deg); }
+    .login-brand-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 10px; line-height: 1.15; }
+    .login-brand-sub { font-size: .82rem; color: rgba(255,255,255,.65); line-height: 1.6; }
+
+    .login-form-panel { flex: 1 1 54%; display: flex; align-items: center; justify-content: center; background: var(--surface); padding: 48px 32px; }
+    .login-form-inner { width: 100%; max-width: 400px; }
+    .login-welcome { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: var(--text-bright); margin-bottom: 6px; }
+    .login-welcome-sub { font-size: .82rem; color: var(--text-sec); margin-bottom: 28px; }
+
+    .login-err { display: none; margin-bottom: 16px; background: rgba(255,107,138,.08); border: 1px solid rgba(255,107,138,.3); color: var(--invalid); border-radius: 8px; padding: 9px 13px; font-size: .73rem; text-align: center; }
     .login-err.show { display: block; }
-    .fgroup { margin-bottom: 15px; }
-    .flabel { font-size: .63rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 5px; }
-    .fcontrol { width: 100%; background: var(--navy); border: 1px solid var(--border); border-radius: 9px; padding: 11px 14px; font-size: .84rem; color: var(--text-bright); font-family: 'DM Sans',sans-serif; box-sizing: border-box; transition: border-color .2s; }
-    .fcontrol:focus { outline: none; border-color: var(--sp-accent); }
-    .btn-login { width: 100%; padding: 12px; background: linear-gradient(135deg, var(--sp-accent), #3DE8C0); color: #0A1628; font-weight: 700; font-size: .85rem; border: none; border-radius: 10px; cursor: pointer; font-family: 'DM Sans',sans-serif; letter-spacing: .06em; transition: opacity .2s; margin-top: 4px; }
-    .btn-login:hover { opacity: .88; }
-    #ssoLoginBtn:hover { opacity: .88; }
-    #ssoLoginBtn { opacity: 1; }
-    .btn-login:disabled { opacity: .5; cursor: default; }
+
+    .login-option-card { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; text-decoration: none; background: var(--surface-1); transition: border-color .18s, box-shadow .18s, transform .18s; box-sizing: border-box; }
+    .login-option-card:hover { border-color: var(--sp-accent); box-shadow: 0 8px 24px rgba(100,255,218,.16); transform: translateY(-1px); }
+    .login-option-icon { width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; background: linear-gradient(135deg, rgba(100,255,218,.18), rgba(100,255,218,.06)); display: flex; align-items: center; justify-content: center; color: var(--sp-accent); }
+    .login-option-text { flex: 1; min-width: 0; }
+    .login-option-title { display: block; font-size: .88rem; font-weight: 700; color: var(--text-bright); }
+    .login-option-desc { display: block; font-size: .72rem; color: var(--text-sec); margin-top: 2px; }
+    .login-option-chevron { flex-shrink: 0; color: var(--text-sec); }
+
     .login-badge { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; font-size: .67rem; color: var(--text-sec); }
     .login-badge svg { opacity: .5; }
+
+    @media (max-width: 880px) {
+      #loginWrap { flex-direction: column; }
+      .login-brand-panel { flex: 0 0 auto; max-width: none; padding: 36px 24px; min-height: 220px; }
+      .login-brand-title { font-size: 1.4rem; }
+      .login-form-panel { flex: 1; padding: 32px 24px; }
+    }
 
     /* ── APP LAYOUT ── */
     #appWrap { display: none; min-height: 100vh; }
@@ -229,10 +245,7 @@
       --sp-accent: #2ABBA0;
       --sp-accent-dim: rgba(10,124,110,0.07);
     }
-    html.light .login-bg-grid { background-image: linear-gradient(rgba(30,60,120,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(30,60,120,.02) 1px,transparent 1px) !important; }
-    html.light .login-card { box-shadow: 0 20px 60px rgba(30,60,120,.12) !important; }
     html.light .login-err { background: rgba(220,38,38,.07) !important; border-color: rgba(220,38,38,.25) !important; color: #DC2626 !important; }
-    html.light .btn-login { background: linear-gradient(135deg, #2ABBA0, #2ABBA0) !important; color: #fff !important; }
     html.light .sb-vessel-item:hover,
     html.light .sb-vessel-item.active { border-color: rgba(10,124,110,.20) !important; }
     html.light .q-btn.active { border-color: rgba(10,124,110,.3) !important; }
@@ -276,37 +289,46 @@
 
 <!-- ─── LOGIN ─────────────────────────────────────────────────────────────── -->
 <div id="loginWrap" style="display:none">
-  <div class="login-bg-grid"></div>
-  <div class="login-card">
-    <div class="login-icon" style="gap:10px">
-      <img src="/images/SYN.png" class="nav-logo-circle syn-circle login-logo-img" alt="Synergy Marine Group" />
-      <img src="/images/AFT.png" class="nav-logo-circle aft-circle login-logo-img" alt="AFT" />
+  <div class="login-brand-panel">
+    <div class="login-brand-content">
+      <div class="login-brand-logos">
+        <img src="/images/SYN.png" class="login-brand-logo" alt="Synergy Marine Group" />
+        <img src="/images/AFT.png" class="login-brand-logo" alt="AFT" />
+      </div>
+      <h1 class="login-brand-title">Superintendent Portal</h1>
+      <p class="login-brand-sub">Vessel Certificate Access &middot; Read-Only View</p>
     </div>
-    <div class="login-title">Superintendent Portal</div>
-    <div class="login-sub">Vessel Certificate Access · Read-Only View</div>
+  </div>
+  <div class="login-form-panel" role="form" aria-labelledby="loginWelcome">
+    <div class="login-form-inner">
+      <h2 class="login-welcome" id="loginWelcome">Welcome back</h2>
+      <p class="login-welcome-sub">Sign in to your account to continue</p>
 
-    <!-- SSO error message (shown when ?sso_error=1) -->
-    <div id="ssoErrMsg" style="display:none;margin-bottom:12px;padding:9px 13px;background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.3);color:var(--invalid);border-radius:8px;font-size:.73rem;text-align:center">
-      SSO login failed. Your account may not be registered in the portal — ask your administrator to add you.
-    </div>
+      <!-- SSO error message (shown when ?sso_error=1) -->
+      <div id="ssoErrMsg" class="login-err">
+        SSO login failed. Your account may not be registered in the portal — ask your administrator to add you.
+      </div>
 
-    <!-- Primary: AWS SSO -->
-    <a id="ssoLoginBtn" href="/auth/sso/login?next=/console/portal/"
-      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#64FFDA,#3DE8C0);color:#0A1628;font-size:.85rem;font-weight:700;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 18px rgba(100,255,218,.2);transition:opacity .18s">
-      <svg width="18" height="18" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(0,0,0,.12)"/>
-        <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="#0A1628" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <circle cx="24" cy="22" r="6" stroke="#0A1628" stroke-width="2.2" fill="none"/>
-      </svg>
-      Sign in with AWS SSO
-    </a>
-    <p style="font-size:.62rem;color:var(--text-sec);text-align:center;margin:8px 0 14px;line-height:1.6">
-      Use your company AWS identity &mdash; no profile URL required
-    </p>
+      <!-- Primary: AWS SSO -->
+      <a id="ssoLoginBtn" class="login-option-card" href="/auth/sso/login?next=/console/portal/">
+        <span class="login-option-icon">
+          <svg width="20" height="20" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+            <path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4z" fill="rgba(100,255,218,.15)"/>
+            <path d="M13 30c3.87 2.6 8.6 4 13 4s9.13-1.4 13-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <circle cx="24" cy="22" r="6" stroke="currentColor" stroke-width="2.2" fill="none"/>
+          </svg>
+        </span>
+        <span class="login-option-text">
+          <span class="login-option-title">Continue with AWS SSO</span>
+          <span class="login-option-desc">Use your company AWS identity &mdash; no profile URL required</span>
+        </span>
+        <svg class="login-option-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </a>
 
-    <div class="login-badge">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      Secured · Read-Only Access · 24-Hour Session
+      <div class="login-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64FFDA" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Secured &middot; Read-Only Access &middot; 24-Hour Session
+      </div>
     </div>
   </div>
 </div>

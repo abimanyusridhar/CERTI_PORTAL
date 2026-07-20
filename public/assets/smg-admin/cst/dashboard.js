@@ -2407,8 +2407,13 @@
       if (added > 0) toast(`${added} certificate(s) imported!`, 'ok');
     }
 
-    document.getElementById('csvQuarter').addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); });
-    document.getElementById('csvMode').addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); });
+    // These run at parse time, not inside a function — csvQuarter/csvMode live
+    // inside #appWrap, which the server strips from the DOM entirely for
+    // unauthenticated requests, so they may not exist here. Null-guard rather
+    // than assume, or a script error here silently stops the rest of this
+    // file's top-level init code from running (config-driven text, etc.).
+    { const _csvQ = document.getElementById('csvQuarter'); if (_csvQ) _csvQ.addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); }); }
+    { const _csvM = document.getElementById('csvMode');    if (_csvM) _csvM.addEventListener('change', () => { if (csvParsedRows.length > 0) renderCsvPreview(); }); }
 
     function downloadSampleCsv() {
       // Header naming (snake_case) and the "MV - "/"MT - " vessel-name prefix format
@@ -2504,11 +2509,14 @@
       document.getElementById('appWrap').style.display = 'flex';
       scheduleTokenExpiryWarning();
       initApp();
+      // Both read #f* form fields that only exist inside #appWrap — calling
+      // them unconditionally throws for unauthenticated requests, since the
+      // server strips that markup entirely when there's no valid session.
+      livePreview();
+      updateCompletionChecklistFull();
     } else {
       document.getElementById('appWrap').style.display = 'none';
     }
-    livePreview();
-    updateCompletionChecklistFull();
   
 
 // Near-expiry proactive banner — shown on Dashboard page when any cert expires within 30 days
@@ -2593,8 +2601,8 @@ function applyConfig() {
   var navUsers = document.getElementById('navLinkUsers');   if (navUsers) navUsers.href = adm + '/?tab=users';
   // Admin data notice from compliance config
   if (C.compliance && C.compliance.adminDataNotice) {
-    var notice = document.getElementById("adminDataNotice");
-    if (notice) notice.lastChild.textContent = ' ' + C.compliance.adminDataNotice;
+    var noticeText = document.getElementById("adminDataNoticeText");
+    if (noticeText) noticeText.textContent = C.compliance.adminDataNotice;
   }
 }
   // Call immediately (fast path if config.js already loaded)
