@@ -199,6 +199,65 @@
     return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
   }
 
+  // ── Recipient Activity timeline — shared by the initial view-modal render
+  // and the async live-refresh that follows it, so both stay in sync instead
+  // of drifting apart as two hand-copied blocks. emailInfo = the subset of
+  // cert fields the timeline needs (emailSentAt/recipientEmail/emailStatus);
+  // engagement = the tracked-activity object (emailOpenedAt/certFirstViewedAt/etc).
+  function buildEngagementActivityHtml(emailInfo, engagement) {
+    const eng = engagement || {};
+    const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
+    const emailSent = emailInfo.emailStatus === 'SENT';
+    const events = [];
+    if (emailInfo.emailSentAt)
+      events.push({ ts: emailInfo.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)',
+        sub: emailInfo.recipientEmail ? 'To: ' + emailInfo.recipientEmail : null });
+    if (eng.emailOpenedAt)
+      events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened',
+        sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once',
+        color: '#64FFDA', count: eng.emailOpenCount });
+    if (eng.certFirstViewedAt)
+      events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed',
+        sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once',
+        color: 'var(--teal)', count: eng.certViewCount });
+    if (eng.docFirstDownloadAt)
+      events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded',
+        sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''),
+        color: 'var(--gold)', count: eng.docDownloadCount });
+    events.sort((a, b) => a.ts < b.ts ? -1 : 1);
+
+    const chips = [];
+    if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
+    if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
+    if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
+    if (!hasAnyEngagement && emailSent)
+      chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
+
+    return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Recipient Activity
+        </div>
+        ${chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips.join('')+'</div>' : ''}
+      </div>
+      ${events.length === 0
+        ? '<div style="font-size:.72rem;color:var(--text-sec);font-style:italic;padding:6px 0">No recipient activity recorded yet.</div>'
+        : '<div style="position:relative;padding-left:22px">'
+          + '<div style="position:absolute;left:7px;top:6px;bottom:6px;width:1px;background:linear-gradient(to bottom,var(--border),transparent)"></div>'
+          + events.map((ev, i) =>
+              '<div style="position:relative;margin-bottom:' + (i < events.length-1 ? '13px' : '0') + '">'
+              + '<div style="position:absolute;left:-18px;top:3px;width:8px;height:8px;border-radius:50%;background:' + ev.color + ';box-shadow:0 0 6px ' + ev.color + '55;border:1.5px solid var(--bg)"></div>'
+              + '<div style="display:flex;align-items:center;gap:6px">'
+              + '<span style="font-size:.72rem;color:' + ev.color + ';font-weight:700">' + ev.icon + ' ' + ev.label + '</span>'
+              + (ev.count > 1 ? '<span style="padding:1px 6px;border-radius:10px;background:' + ev.color + '20;color:' + ev.color + ';font-size:.56rem;font-weight:700">×' + ev.count + '</span>' : '')
+              + '</div>'
+              + '<div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">' + fmtDt(ev.ts) + (ev.sub ? ' · ' + ev.sub : '') + '</div>'
+              + '</div>'
+            ).join('')
+          + '</div>'
+      }`;
+  }
+
   function goIssue(id) {
     showPage('issue',document.getElementById('nav-issue'));
     setTimeout(() => { selectIssueCert(id); },100);
@@ -886,60 +945,8 @@
       ${c.certificateImage?`<img src="${c.certificateImage}" style="width:100%;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;margin-bottom:${atts.length?'14px':'0'}" data-action="openLB" />`:''}
       ${buildViewAttachments(atts)}
       ${(function() {
-        const eng = c.engagement || {};
-        const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
-        const emailSent        = c.emailStatus === 'SENT';
-        // Always render wrapper — async live-refresh needs the div to exist
-
-        const events = [];
-        if (c.emailSentAt)
-          events.push({ ts: c.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)',
-            sub: c.recipientEmail ? 'To: ' + c.recipientEmail : null });
-        if (eng.emailOpenedAt)
-          events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened',
-            sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once',
-            color: '#64FFDA', count: eng.emailOpenCount });
-        if (eng.certFirstViewedAt)
-          events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed',
-            sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once',
-            color: 'var(--teal)', count: eng.certViewCount });
-        if (eng.docFirstDownloadAt)
-          events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded',
-            sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''),
-            color: 'var(--gold)', count: eng.docDownloadCount });
-        events.sort((a,b) => a.ts < b.ts ? -1 : 1);
-
-        const chips = [];
-        if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
-        if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
-        if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
-        if (!hasAnyEngagement && emailSent)
-          chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
-
         return `<div id="viewEngagementSection" data-certid="${c.id}" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Recipient Activity
-            </div>
-            ${chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips.join('')+'</div>' : ''}
-          </div>
-          ${events.length === 0
-            ? '<div style="font-size:.72rem;color:var(--text-sec);font-style:italic;padding:6px 0">No recipient activity recorded yet.</div>'
-            : '<div style="position:relative;padding-left:22px">'
-              + '<div style="position:absolute;left:7px;top:6px;bottom:6px;width:1px;background:linear-gradient(to bottom,var(--border),transparent)"></div>'
-              + events.map((ev, i) =>
-                  '<div style="position:relative;margin-bottom:' + (i < events.length-1 ? '13px' : '0') + '">'
-                  + '<div style="position:absolute;left:-18px;top:3px;width:8px;height:8px;border-radius:50%;background:' + ev.color + ';box-shadow:0 0 6px ' + ev.color + '55;border:1.5px solid var(--bg)"></div>'
-                  + '<div style="display:flex;align-items:center;gap:6px">'
-                  + '<span style="font-size:.72rem;color:' + ev.color + ';font-weight:700">' + ev.icon + ' ' + ev.label + '</span>'
-                  + (ev.count > 1 ? '<span style="padding:1px 6px;border-radius:10px;background:' + ev.color + '20;color:' + ev.color + ';font-size:.56rem;font-weight:700">×' + ev.count + '</span>' : '')
-                  + '</div>'
-                  + '<div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">' + fmtDt(ev.ts) + (ev.sub ? ' · ' + ev.sub : '') + '</div>'
-                  + '</div>'
-                ).join('')
-              + '</div>'
-          }
+          ${buildEngagementActivityHtml({ emailSentAt: c.emailSentAt, recipientEmail: c.recipientEmail, emailStatus: c.emailStatus }, c.engagement)}
         </div>`;
       })()}
     `;
@@ -965,50 +972,11 @@
       // Guard: only update if this modal is still showing the same cert (race-condition fix)
       const actDiv = document.getElementById('viewEngagementSection');
       if (!actDiv || actDiv.dataset.certid !== certId) return;
-      const eng = engagement || {};
-      const hasAnyEngagement = eng.emailOpenedAt || eng.certFirstViewedAt || eng.docFirstDownloadAt;
-      const emailSent = cached ? cached.emailStatus === 'SENT' : false;
       const cachedC = cached || {};
-      const events = [];
-      if (cachedC.emailSentAt)
-        events.push({ ts: cachedC.emailSentAt, icon: '📤', label: 'Email dispatched', color: 'var(--text-sec)', sub: cachedC.recipientEmail ? 'To: ' + cachedC.recipientEmail : null });
-      if (eng.emailOpenedAt)
-        events.push({ ts: eng.emailOpenedAt, icon: '📧', label: 'Email opened', sub: eng.emailOpenCount > 1 ? eng.emailOpenCount + ' times · most recently ' + fmtDt(eng.emailLastOpenAt) : 'Once', color: '#64FFDA', count: eng.emailOpenCount });
-      if (eng.certFirstViewedAt)
-        events.push({ ts: eng.certFirstViewedAt, icon: '👁', label: 'Certificate viewed', sub: eng.certViewCount > 1 ? eng.certViewCount + ' times · last: ' + fmtDt(eng.certLastViewedAt) : 'Once', color: 'var(--teal)', count: eng.certViewCount });
-      if (eng.docFirstDownloadAt)
-        events.push({ ts: eng.docFirstDownloadAt, icon: '⬇', label: 'Document downloaded', sub: (eng.docDownloadCount > 1 ? eng.docDownloadCount + ' times · ' : '') + (eng.docLastFile || ''), color: 'var(--gold)', count: eng.docDownloadCount });
-      events.sort((a, b) => a.ts < b.ts ? -1 : 1);
-      const chips = [];
-      if (eng.emailOpenCount)   chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.12);border:1px solid rgba(100,255,218,.3);color:#64FFDA;font-size:.58rem;font-weight:700">📧 ${eng.emailOpenCount} open${eng.emailOpenCount>1?'s':''}</span>`);
-      if (eng.certViewCount)    chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(100,255,218,.10);border:1px solid rgba(100,255,218,.3);color:var(--teal);font-size:.58rem;font-weight:700">👁 ${eng.certViewCount} view${eng.certViewCount>1?'s':''}</span>`);
-      if (eng.docDownloadCount) chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(212,168,67,.10);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700">⬇ ${eng.docDownloadCount} download${eng.docDownloadCount>1?'s':''}</span>`);
-      if (!hasAnyEngagement && emailSent)
-        chips.push(`<span style="padding:3px 9px;border-radius:20px;background:rgba(255,170,46,.07);border:1px solid rgba(255,170,46,.2);color:var(--warn);font-size:.58rem">⏳ Awaiting recipient</span>`);
-      actDiv.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:.58rem;letter-spacing:.14em;color:var(--text-sec);text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:600">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Recipient Activity
-          </div>
-          ${chips.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips.join('')+'</div>' : ''}
-        </div>
-        ${events.length === 0
-          ? '<div style="font-size:.72rem;color:var(--text-sec);font-style:italic;padding:6px 0">No recipient activity recorded yet.</div>'
-          : '<div style="position:relative;padding-left:22px">'
-            + '<div style="position:absolute;left:7px;top:6px;bottom:6px;width:1px;background:linear-gradient(to bottom,var(--border),transparent)"></div>'
-            + events.map((ev, i) =>
-                '<div style="position:relative;margin-bottom:' + (i < events.length-1 ? '13px' : '0') + '">'
-                + '<div style="position:absolute;left:-18px;top:3px;width:8px;height:8px;border-radius:50%;background:' + ev.color + ';box-shadow:0 0 6px ' + ev.color + '55;border:1.5px solid var(--bg)"></div>'
-                + '<div style="display:flex;align-items:center;gap:6px">'
-                + '<span style="font-size:.72rem;color:' + ev.color + ';font-weight:700">' + ev.icon + ' ' + ev.label + '</span>'
-                + (ev.count > 1 ? '<span style="padding:1px 6px;border-radius:10px;background:' + ev.color + '20;color:' + ev.color + ';font-size:.56rem;font-weight:700">×' + ev.count + '</span>' : '')
-                + '</div>'
-                + '<div style="font-size:.63rem;color:var(--text-sec);margin-top:2px">' + fmtDt(ev.ts) + (ev.sub ? ' · ' + ev.sub : '') + '</div>'
-                + '</div>'
-              ).join('')
-            + '</div>'
-        }`;
+      actDiv.innerHTML = buildEngagementActivityHtml(
+        { emailSentAt: cachedC.emailSentAt, recipientEmail: cachedC.recipientEmail, emailStatus: cachedC.emailStatus },
+        engagement
+      );
     } catch(e) { /* silent — stale data from cache is fine */ }
   })(id);
   }
