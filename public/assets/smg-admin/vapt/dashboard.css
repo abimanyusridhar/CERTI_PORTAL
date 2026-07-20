@@ -177,7 +177,7 @@
     .inline-status-sel.status-pending{background:rgba(255,170,46,.1);color:#FFAA2E;border-color:rgba(255,170,46,.3)}
     .inline-status-sel.status-revoked{background:rgba(255,179,71,.1);color:var(--warn);border-color:rgba(255,179,71,.3)}
     .inline-status-sel option{background:var(--navy-mid);color:var(--text);font-size:.75rem}
-    .act-grp{display:flex;gap:5px;flex-wrap:wrap}
+    .act-grp{display:flex;gap:4px;flex-wrap:nowrap;align-items:center}
     .thumb{width:50px;height:36px;border-radius:5px;object-fit:cover;border:1px solid var(--border-gold);cursor:zoom-in;background:var(--navy-mid);display:inline-block;vertical-align:middle}
     .no-img{width:50px;height:36px;border-radius:5px;border:1px dashed var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:.55rem;color:var(--text-sec);vertical-align:middle}
     .empty-state{padding:60px;text-align:center;color:var(--text-sec)}
@@ -805,9 +805,9 @@
     vertical-align: middle !important;
   }
   thead th {
-    padding: 12px 14px !important;
-    font-size: .57rem !important;
-    letter-spacing: .18em !important;
+    padding: 11px 14px !important;
+    font-size: .58rem !important;
+    letter-spacing: .16em !important;
     background: rgba(0,0,0,0.12) !important;
   }
 
@@ -938,6 +938,37 @@
   html.light thead th {
     background: rgba(30,60,120,0.04) !important;
   }
+
+  /* ── ENGAGEMENT BADGES — light mode overrides (matches CST) ──
+     Without these the badges keep their dark-mode teal/gold text on a
+     near-white background — low contrast and visibly inconsistent next
+     to CST's tuned light-mode palette. */
+  html.light .eng-badge {
+    background: rgba(0,0,0,.05) !important;
+    border-color: rgba(0,0,0,.12) !important;
+    color: var(--text-sec) !important;
+  }
+  html.light .eng-open {
+    background: rgba(30,100,220,.09) !important;
+    border-color: rgba(30,100,220,.28) !important;
+    color: #1A5DC8 !important;
+  }
+  html.light .eng-view {
+    background: rgba(0,140,110,.08) !important;
+    border-color: rgba(0,140,110,.28) !important;
+    color: #007A60 !important;
+  }
+  html.light .eng-dl {
+    background: rgba(160,100,0,.08) !important;
+    border-color: rgba(160,100,0,.28) !important;
+    color: #8B6000 !important;
+  }
+  html.light .eng-badge[style*="rgba(255,179,71"] {
+    background: rgba(180,110,0,.08) !important;
+    border-color: rgba(180,110,0,.25) !important;
+    color: #7A5500 !important;
+  }
+
   html.light .stat-card {
     background: #fff !important;
     border-color: rgba(30,60,120,0.10) !important;

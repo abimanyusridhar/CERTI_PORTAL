@@ -863,6 +863,12 @@
       font-size: .7rem;
       color: var(--gold);
     }
+    /* All Certificates table — Certificate ID column (matches VAPT's .cid) */
+    .cid {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--gold);
+    }
 
     .pill {
       display: inline-flex;

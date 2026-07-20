@@ -548,7 +548,7 @@
       <col style="width:70px"> <!-- Email -->
       <col style="width:130px"><!-- Engagement -->
       <col style="width:68px"> <!-- Image -->
-      <col>                    <!-- Actions -->
+      <col style="min-width:180px"><!-- Actions (fill rest) -->
     </colgroup><thead><tr>
       <th style="padding:8px 6px;width:36px;text-align:center"><input type="checkbox" id="selAllCb_${id}" data-change-action="toggleSelectAll" data-tbl="${id}" style="accent-color:#64FFDA;width:14px;height:14px" title="Select all"></th><th>Cert ID</th><th>Vessel</th><th>IMO</th><th>Assessment Date</th><th>Status</th><th>Risk</th><th>Valid Until</th><th>Email</th><th>Engagement</th><th>Image</th><th>Actions</th>
     </tr></thead><tbody>` + (isDash?list.slice(0,10):list).map(c => {
