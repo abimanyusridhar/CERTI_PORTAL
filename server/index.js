@@ -73,6 +73,7 @@ function _makeStore(opts) {
     primary,
     secondary,
     shadowRead: SHADOW_READ_DYNAMO,
+    readFromSecondary: DYNAMO_PRIMARY_READ,
     onError: opts.onError,
     onMismatch: ({ primary: p, secondary: s }) => log.warn(
       `[dynamo-shadow-read] mismatch for ${opts.dynamoEntityPrefix}: ` +
@@ -196,8 +197,20 @@ const CSRF_ENFORCE = process.env.CSRF_ENFORCE === 'true';
 //   SHADOW_READ_DYNAMO=true — additionally background-diffs DynamoDB against
 //                             the JSON/S3 store on every load(), logging
 //                             mismatches; never serves the DynamoDB copy.
-const DUAL_WRITE_DYNAMO  = process.env.DUAL_WRITE_DYNAMO === 'true';
-const SHADOW_READ_DYNAMO = process.env.SHADOW_READ_DYNAMO === 'true';
+//   DYNAMO_PRIMARY_READ=true — makes DynamoDB the store that GET/display
+//                             requests actually read from, instead of just a
+//                             write-mirror. Requires DUAL_WRITE_DYNAMO=true
+//                             (validated below) so DynamoDB keeps receiving
+//                             every write it's now serving reads from — read
+//                             failures/cold-start fall back to JSON/S3 safely.
+const DUAL_WRITE_DYNAMO   = process.env.DUAL_WRITE_DYNAMO === 'true';
+const SHADOW_READ_DYNAMO  = process.env.SHADOW_READ_DYNAMO === 'true';
+const DYNAMO_PRIMARY_READ = process.env.DYNAMO_PRIMARY_READ === 'true';
+if (DYNAMO_PRIMARY_READ && !DUAL_WRITE_DYNAMO) {
+  log.error('DYNAMO_PRIMARY_READ=true requires DUAL_WRITE_DYNAMO=true — otherwise DynamoDB never ' +
+    'receives new writes and reads would serve permanently stale data. Refusing to start.');
+  process.exit(1);
+}
 
 [path.dirname(DATA_FILE), UPLOADS_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
