@@ -101,15 +101,10 @@
       max-width: 340px;
     }
     .login-brand-logo {
-      width: 84px;
-      height: 84px;
-      border-radius: 50%;
+      width: auto;
+      height: 92px;
       display: block;
       margin: 0 auto 28px;
-      border: 2px solid rgba(212,168,67,.4);
-      background: #fff;
-      padding: 8px;
-      box-sizing: border-box;
     }
     .login-brand-title {
       font-family: 'Playfair Display', serif;

@@ -11,7 +11,7 @@ body { min-height: 100vh; background: var(--navy); overflow-x: hidden; }
 /* ── Top Bar ── */
 .hub-topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; padding: 12px 18px; background: linear-gradient(135deg, rgba(15,32,56,.85) 0%, rgba(12,26,46,.9) 100%); border: 1px solid var(--border-mid); border-radius: 14px; backdrop-filter: blur(12px); }
 .hub-topbar-logos { display: flex; align-items: center; gap: 10px; }
-.hub-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: contain; border: 1px solid var(--border-gold); background: rgba(212,168,67,.06); padding: 3px; }
+.hub-logo { width: auto; height: 36px; object-fit: contain; border: none; background: transparent; padding: 0; }
 .hub-brand-text { flex: 1; }
 .hub-brand-name { font-family: 'Playfair Display', serif; font-size: .95rem; color: var(--text-bright); font-weight: 700; }
 .hub-brand-sub { font-size: .62rem; color: var(--text-sec); letter-spacing: .1em; text-transform: uppercase; margin-top: 1px; }
