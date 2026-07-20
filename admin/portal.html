@@ -313,6 +313,11 @@
 
 <!-- ─── APP ───────────────────────────────────────────────────────────────── -->
 <div id="appWrap">
+  <!-- Server strips everything down to the matching END marker for
+       unauthenticated requests (see sendAdminAppShell in server/index.js).
+       Do not rely on the #appWrap{display:none} rule above alone — it's
+       CSS-only and trivially overridden from the browser console. -->
+  <!-- SERVER-GATED:APPWRAP-START -->
 
   <!-- Sidebar -->
   <aside class="sidebar">
@@ -502,6 +507,7 @@
     </div>
 
   </main>
+  <!-- SERVER-GATED:APPWRAP-END -->
 </div>
 
 <script src="/assets/smg-admin/portal/portal.js" defer></script>

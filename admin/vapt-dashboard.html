@@ -81,6 +81,11 @@
 
 <!-- ══ APP ══ -->
 <div id="appWrap" style="display:none">
+  <!-- Server strips everything down to the matching END marker for
+       unauthenticated requests (see sendAdminAppShell in server/index.js).
+       Do not rely on the display:none above alone — it's CSS-only and
+       trivially overridden from the browser console. -->
+  <!-- SERVER-GATED:APPWRAP-START -->
   <div class="sidebar-overlay" id="sidebarOverlay" data-action="closeSidebar"></div>
   <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navigation sidebar">
     <div class="sb-brand">
@@ -858,6 +863,7 @@
       </div>
     </div>
   </main>
+  <!-- SERVER-GATED:APPWRAP-END -->
 </div>
 
 <!-- ══ VIEW MODAL ══ -->

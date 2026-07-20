@@ -51,8 +51,8 @@
     routeVPT:  '/VAPT',
 
     // Certificate ID prefixes
-    cstPrefix:  'CST',                          // → "CST-{IMO}-{MM}-{YY}"
-    vaptPrefix: 'VAP',                          // → "VAP-{IMO}-{MMYY}"
+    cstPrefix:  'CST',                          
+    vaptPrefix: 'VAP',                          
 
     // Training programme label
     trainingTitle: 'Cyber Security Threat Intelligence Awareness Training',
@@ -387,6 +387,33 @@
       },
     },
 
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════
+   * §4  BROWSER-SAFE VIEW  —  what actually gets shipped to /config.js
+   *
+   *     The full `cfg` above (personal CISO name/title + emailTemplates
+   *     source) is for SERVER use only (email generation, defaulting a new
+   *     certificate's `verifiedBy` field). None of that belongs in a static
+   *     file any anonymous visitor can fetch without ever verifying a real
+   *     certificate — doing so lets an attacker scrape the CISO's full name
+   *     for spear-phishing without any interaction with the product.
+   *
+   *     `verifiedBy`/`previewSigName` fall back to a role-only string here;
+   *     real issued certificates keep the actual signatory because that is
+   *     populated server-side from `cfg.cst.verifiedBy` / `cfg.vapt.verifiedBy`
+   *     at certificate-creation time, never from this browser copy.
+   * ═══════════════════════════════════════════════════════════════════════ */
+  cfg.buildBrowserConfig = function () {
+    var roleWithCompany = A.cisoRole + ', ' + A.company; // "CISO, Synergy Marine Group" — no personal name
+    var safe = {};
+    for (var k in cfg) {
+      if (k === 'buildBrowserConfig' || k === 'emailTemplates') continue;
+      safe[k] = cfg[k];
+    }
+    safe.cst  = Object.assign({}, cfg.cst,  { verifiedBy: roleWithCompany, previewSigName: roleWithCompany });
+    safe.vapt = Object.assign({}, cfg.vapt, { verifiedBy: A.cisoRole,      previewSigName: roleWithCompany });
+    return safe;
   };
 
   // ── UMD export ────────────────────────────────────────────────────────────

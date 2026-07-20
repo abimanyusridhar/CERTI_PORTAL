@@ -470,6 +470,11 @@ const RATE_LIMITS = {
   // verification needs to load them with no auth) — this bucket exists purely to
   // slow down scripted mass enumeration/harvesting, not to limit normal page loads.
   uploads:     { max: 60,  window: 60_000  },
+  // Admin panel entry points (dashboard.html/vapt-dashboard.html/portal.html,
+  // the /misecure paths). These necessarily stay reachable pre-auth as login
+  // shells, so this bucket exists to slow down + surface automated scanning
+  // or brute-forcing of the admin entry points, not to gate normal reloads.
+  'admin-page': { max: 30,  window: 60_000  },
   default:     { max: 120, window: 60_000  },
 };
 
@@ -2045,6 +2050,47 @@ function sendFile(res, filePath, req) {
     const stream = fs.createReadStream(filePath);
     stream.on('error', () => { if (!res.headersSent) res.end(); else res.destroy(); });
     stream.pipe(res);
+  });
+}
+
+// Admin login-shell pages (dashboard.html/vapt-dashboard.html/portal.html)
+// embed their own login form AND the full authenticated app shell (sidebar
+// nav, stat cards, etc.) in one static file, toggling visibility with plain
+// CSS (display:none). That toggle is enforced entirely in the browser — a
+// visitor can reveal the "logged in" shell from devtools with e.g.
+// `document.getElementById('appWrap').style.display = 'flex'` without ever
+// authenticating. No real data is reachable that way (every API call the
+// shell would make is still rejected server-side by authCheck), but the nav
+// structure and "Administrator" chrome renders, which reads as a breach in
+// a screenshot even though nothing was actually bypassed.
+//
+// Real fix: strip the app-shell markup server-side for unauthenticated
+// requests, bounded by the SERVER-GATED:APPWRAP-START/END markers in each
+// file, so there is nothing left in the DOM for a console trick to reveal.
+const APP_SHELL_PAGES  = new Set(['dashboard.html', 'vapt-dashboard.html', 'portal.html']);
+const APPWRAP_START    = '<!-- SERVER-GATED:APPWRAP-START -->';
+const APPWRAP_END      = '<!-- SERVER-GATED:APPWRAP-END -->';
+
+function sendAdminAppShell(res, filePath, req) {
+  if (!APP_SHELL_PAGES.has(path.basename(filePath)) || authCheck(req)) {
+    return sendFile(res, filePath, req);
+  }
+  fs.readFile(filePath, 'utf8', (err, html) => {
+    if (err) {
+      res.writeHead(404, SECURITY_HEADERS);
+      return res.end('Not found');
+    }
+    const start = html.indexOf(APPWRAP_START);
+    const end   = html.indexOf(APPWRAP_END);
+    if (start !== -1 && end !== -1 && end > start) {
+      html = html.slice(0, start + APPWRAP_START.length) + html.slice(end);
+    }
+    res.writeHead(200, {
+      ...SECURITY_HEADERS,
+      'Content-Type':  'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.end(html);
   });
 }
 
@@ -4408,11 +4454,20 @@ async function handleRequest(req, res) {
   }
 
   // ── Config (browser-side app.config.js) ──────────────────────────────────
+  // Never stream the raw module source (it also holds server-only secrets:
+  // the CISO's personal name/title and email-template bodies) — build a
+  // browser-safe payload instead. See CFG.buildBrowserConfig() for what's
+  // stripped/redacted.
   if (p === '/config.js') {
-    const cfgPath = (TENANT_CFG_FILE && fs.existsSync(TENANT_CFG_FILE))
-      ? TENANT_CFG_FILE
-      : path.join(__dirname, '..', 'config', 'app.config.js');
-    return sendFile(res, cfgPath, req);
+    const browserCfg = (typeof CFG.buildBrowserConfig === 'function') ? CFG.buildBrowserConfig() : CFG;
+    const body = 'window.APP_CONFIG = ' + JSON.stringify(browserCfg) + ';\n'
+      + 'document.dispatchEvent(new CustomEvent("appconfigready", { detail: window.APP_CONFIG }));\n';
+    res.writeHead(200, {
+      ...SECURITY_HEADERS,
+      'Content-Type':  'application/javascript; charset=utf-8',
+      'Cache-Control': 'no-cache, must-revalidate',
+    });
+    return res.end(body);
   }
 
   // ── API (shared) ──────────────────────────────────────────────────────────
@@ -4429,6 +4484,23 @@ async function handleRequest(req, res) {
   const publicDir = path.resolve(__dirname, '..', 'public');
   const adminDir  = path.resolve(__dirname, '..', 'admin');
 
+  // Admin panel entry points — rate-limited and logged. Their paths are not
+  // secret (dashboard.html/vapt-dashboard.html/portal.html are login shells
+  // that must stay reachable pre-auth, so the real control is authCheck()
+  // below, not URL obscurity) — this exists to slow down and surface
+  // automated scanning/brute-forcing of the admin entry points.
+  const isAdminPanelPath = p === CFG.routes.cstAdmin || p.startsWith(CFG.routes.cstAdmin + '/') ||
+                           p === CFG.routes.vptAdmin || p.startsWith(CFG.routes.vptAdmin + '/');
+  if (isAdminPanelPath) {
+    const ip = getClientIp(req);
+    const rl = checkRateLimit(ip, 'admin-page');
+    if (!rl.ok) {
+      log.warn(`[admin-access] rate limit exceeded for admin panel — ip=${ip} path=${p}`);
+      res.writeHead(429, { ...SECURITY_HEADERS, 'Retry-After': String(rl.retryAfter) });
+      return res.end('Too many requests');
+    }
+  }
+
   // The admin hub — reachable only via in-app navigation after login, no
   // login form of its own (unlike dashboard.html/vapt-dashboard.html/
   // portal.html, which embed their own login UI and must stay reachable
@@ -4437,6 +4509,7 @@ async function handleRequest(req, res) {
   const GATED_ADMIN_PAGES = new Set(['index.html']);
   function gateAdminPage(filePath) {
     if (GATED_ADMIN_PAGES.has(path.basename(filePath)) && !authCheck(req)) {
+      log.warn(`[admin-access] unauthenticated request for gated admin page — ip=${getClientIp(req)} path=${p}`);
       res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/' });
       res.end();
       return true;
@@ -4458,7 +4531,7 @@ async function handleRequest(req, res) {
       if (gateAdminPage(hubPath)) return;
       return sendFile(res, hubPath, req);
     }
-    return sendFile(res, path.join(adminDir, 'dashboard.html'), req);
+    return sendAdminAppShell(res, path.join(adminDir, 'dashboard.html'), req);
   }
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
     const relative = p.slice((CFG.routes.cstAdmin + '/').length).replace(/\/$/, '');
@@ -4488,7 +4561,7 @@ async function handleRequest(req, res) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
     if (gateAdminPage(filePath)) return;
-    return sendFile(res, filePath, req);
+    return sendAdminAppShell(res, filePath, req);
   }
 
   if (p.startsWith(CFG.routes.cst + '/cert/')) {
@@ -4505,7 +4578,7 @@ async function handleRequest(req, res) {
 
   if (p === CFG.routes.vptAdmin || p === CFG.routes.vptAdmin + '/') {
     if (p === CFG.routes.vptAdmin) { res.writeHead(301, { Location: CFG.routes.vptAdmin + '/' }); return res.end(); }
-    return sendFile(res, path.join(adminDir, 'vapt-dashboard.html'), req);
+    return sendAdminAppShell(res, path.join(adminDir, 'vapt-dashboard.html'), req);
   }
   if (p.startsWith(CFG.routes.vptAdmin + '/')) {
     const relative = p.slice((CFG.routes.vptAdmin + '/').length);
@@ -4515,7 +4588,7 @@ async function handleRequest(req, res) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
     if (gateAdminPage(filePath)) return;
-    return sendFile(res, filePath, req);
+    return sendAdminAppShell(res, filePath, req);
   }
 
   if (p.startsWith(CFG.routes.vpt + '/cert/')) {
