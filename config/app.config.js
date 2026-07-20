@@ -133,6 +133,9 @@
       cstAdmin:  A.routeCST + '/misecure',
       vptAdmin:  A.routeVPT + '/misecure',
       vaptAdmin: A.routeVPT + '/misecure', // alias: kept in sync with vptAdmin
+      // Superintendent portal — not CST/VAPT-specific (it shows both cert types'
+      // documents per vessel), so it lives at a neutral path, not under /CST.
+      portal:    '/misecure/portal',
     },
 
     // ── CERTIFICATE ID FORMATS ───────────────────────────────────────────

@@ -4497,7 +4497,8 @@ async function handleRequest(req, res) {
   // below, not URL obscurity) — this exists to slow down and surface
   // automated scanning/brute-forcing of the admin entry points.
   const isAdminPanelPath = p === CFG.routes.cstAdmin || p.startsWith(CFG.routes.cstAdmin + '/') ||
-                           p === CFG.routes.vptAdmin || p.startsWith(CFG.routes.vptAdmin + '/');
+                           p === CFG.routes.vptAdmin || p.startsWith(CFG.routes.vptAdmin + '/') ||
+                           p === CFG.routes.portal   || p.startsWith(CFG.routes.portal + '/');
   if (isAdminPanelPath) {
     const ip = getClientIp(req);
     const rl = checkRateLimit(ip, 'admin-page');
@@ -4525,6 +4526,15 @@ async function handleRequest(req, res) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  Superintendent portal — not CST/VAPT-specific, lives at a neutral path
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (p === CFG.routes.portal || p === CFG.routes.portal + '/') {
+    if (p === CFG.routes.portal) { res.writeHead(301, { Location: CFG.routes.portal + '/' + (parsed.search || '') }); return res.end(); }
+    return sendAdminAppShell(res, path.join(adminDir, 'portal.html'), req);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  CST — Cyber Security Training routes
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -4543,7 +4553,7 @@ async function handleRequest(req, res) {
   if (p.startsWith(CFG.routes.cstAdmin + '/')) {
     const relative = p.slice((CFG.routes.cstAdmin + '/').length).replace(/\/$/, '');
     // Known named admin pages — extensionless sub-paths resolved here.
-    const PAGE_MAP = { hub: 'index.html', portal: 'portal.html' };
+    const PAGE_MAP = { hub: 'index.html' };
     // Users/Groups/Documents were merged into the hub as tabs — old bookmarked
     // URLs redirect to the hub with a ?tab= hint instead of 404ing.
     const LEGACY_TAB_REDIRECTS = { users: 'users', groups: 'groups', documents: 'docs' };
@@ -4552,6 +4562,11 @@ async function handleRequest(req, res) {
       filePath = parsed.searchParams.has('tab')
         ? path.join(adminDir, 'index.html')
         : path.join(adminDir, 'dashboard.html');
+    } else if (relative === 'portal') {
+      // Moved to a neutral, non-CST-prefixed path — the portal shows both
+      // CST and VAPT vessel documents, so it never belonged under /CST.
+      res.writeHead(301, { ...SECURITY_HEADERS, Location: CFG.routes.portal + '/' + (parsed.search || '') });
+      return res.end();
     } else if (LEGACY_TAB_REDIRECTS[relative]) {
       // Preserve any existing query params (e.g. ?imo=...&vessel=... deep-links
       // into the Documents tab) alongside the tab hint.
