@@ -9,7 +9,7 @@ function clearSession() { localStorage.removeItem(LS_NAME); }
 function applyPortalConfig() {
   const C = window.APP_CONFIG;
   if (!C) return;
-  const portalPath = ((C.routes && C.routes.portal) || '/misecure/portal') + '/';
+  const portalPath = ((C.routes && C.routes.portal) || '/console/portal') + '/';
   const btn = document.getElementById('ssoLoginBtn');
   if (btn) btn.href = '/auth/sso/login?next=' + encodeURIComponent(portalPath);
   const ssoErr = new URLSearchParams(location.search).get('sso_error');

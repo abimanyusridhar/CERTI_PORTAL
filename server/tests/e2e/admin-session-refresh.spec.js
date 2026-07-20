@@ -45,7 +45,7 @@ async function loginAndAssertLoggedIn(page, context, url, token) {
 test.describe('Admin session survives a page refresh (regression: iat seconds/ms mix-up)', () => {
   test('CST dashboard stays logged in across two consecutive reloads', async ({ page, context }) => {
     const token = mintAdminToken('e2e_refresh_cst');
-    await loginAndAssertLoggedIn(page, context, `${APP_ORIGIN}/CST/misecure/`, token);
+    await loginAndAssertLoggedIn(page, context, `${APP_ORIGIN}/console/cst/`, token);
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(800);
@@ -60,7 +60,7 @@ test.describe('Admin session survives a page refresh (regression: iat seconds/ms
 
   test('VAPT dashboard stays logged in across two consecutive reloads', async ({ page, context }) => {
     const token = mintAdminToken('e2e_refresh_vapt');
-    await loginAndAssertLoggedIn(page, context, `${APP_ORIGIN}/VAPT/misecure/`, token);
+    await loginAndAssertLoggedIn(page, context, `${APP_ORIGIN}/console/vapt/`, token);
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(800);

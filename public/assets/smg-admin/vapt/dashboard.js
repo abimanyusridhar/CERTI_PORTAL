@@ -1092,7 +1092,7 @@
   function openDocLibraryForVessel() {
     const imo = (document.getElementById('fImo') || {}).value || '';
     const vessel = (document.getElementById('fVesselName') || {}).value || '';
-    const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cstAdmin) || '/CST/misecure';
+    const base = (window.APP_CONFIG && window.APP_CONFIG.routes && window.APP_CONFIG.routes.cstAdmin) || '/console/cst';
     let url = base + '/?tab=docs';
     if (imo) url += '&imo=' + encodeURIComponent(imo.trim().toUpperCase()) + '&vessel=' + encodeURIComponent(vessel.trim());
     window.open(url, '_blank');
@@ -1913,7 +1913,7 @@ function applyConfig() {
   // Sidebar nav links
   var sbVPT = document.getElementById('sbLinkVPT');      if (sbVPT)     sbVPT.href     = C.routes.vpt;
   var sbCST = document.getElementById('sbLinkCSTAdmin'); if (sbCST)     sbCST.href     = C.routes.cstAdmin;
-  var adm = C.routes.cstAdmin || '/CST/misecure';
+  var adm = C.routes.cstAdmin || '/console/cst';
   var navDocs  = document.getElementById('navLinkDocuments'); if (navDocs)  navDocs.href  = adm + '/?tab=docs';
   var navGrps  = document.getElementById('navLinkGroups');    if (navGrps)  navGrps.href  = adm + '/?tab=groups';
   var navUsers = document.getElementById('navLinkUsers');     if (navUsers) navUsers.href = adm + '/?tab=users';

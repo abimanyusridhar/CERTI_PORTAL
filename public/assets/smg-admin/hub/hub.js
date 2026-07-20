@@ -18,9 +18,9 @@
     var bn = document.getElementById('hubBrandName');
     if (bn) bn.textContent = C.brand.name;
     var cstAdminLink = document.getElementById('cstAdminLink');
-    if (cstAdminLink) cstAdminLink.href = (C.routes.cstAdmin || '/CST/misecure') + '/';
+    if (cstAdminLink) cstAdminLink.href = (C.routes.cstAdmin || '/console/cst') + '/';
     var vaptAdminLink = document.getElementById('vaptAdminLink');
-    if (vaptAdminLink) vaptAdminLink.href = (C.routes.vaptAdmin || '/VAPT/misecure') + '/';
+    if (vaptAdminLink) vaptAdminLink.href = (C.routes.vptAdmin || '/console/vapt') + '/';
     var cstPortalLink = document.getElementById('cstPortalLink');
     if (cstPortalLink) cstPortalLink.href = C.routes.cst || '/CST';
     var vaptPortalLink = document.getElementById('vaptPortalLink');
@@ -108,7 +108,7 @@
   function redirectToSso() {
     var C = window.APP_CONFIG;
     var next = window.location.pathname + window.location.search.replace(/[?&]sso_error=[^&]*/, '');
-    if (!next || next === '/') next = (C && C.routes && C.routes.cstAdmin) ? C.routes.cstAdmin + '/' : '/CST/misecure/';
+    if (!next || next === '/') next = (C && C.routes && C.routes.cstAdmin) ? C.routes.cstAdmin + '/' : '/console/cst/';
     window.location.replace('/auth/sso/login?next=' + encodeURIComponent(next));
   }
 

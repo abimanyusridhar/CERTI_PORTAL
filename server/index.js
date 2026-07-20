@@ -4491,6 +4491,17 @@ async function handleRequest(req, res) {
   const publicDir = path.resolve(__dirname, '..', 'public');
   const adminDir  = path.resolve(__dirname, '..', 'admin');
 
+  // Admin routes were renamed off the old /CST/misecure, /VAPT/misecure,
+  // /misecure/portal paths onto /console/cst, /console/vapt, /console/portal.
+  // Old bookmarks/links still resolve via a 301 — checked by literal string
+  // since CFG.routes.* now holds the NEW values, not these.
+  const LEGACY_ADMIN_PREFIXES = [
+    { old: '/CST/misecure',   dest: CFG.routes.cstAdmin },
+    { old: '/VAPT/misecure',  dest: CFG.routes.vptAdmin },
+    { old: '/misecure/portal', dest: CFG.routes.portal },
+  ];
+  const legacyAdminMatch = LEGACY_ADMIN_PREFIXES.find(({ old }) => p === old || p.startsWith(old + '/'));
+
   // Admin panel entry points — rate-limited and logged. Their paths are not
   // secret (dashboard.html/vapt-dashboard.html/portal.html are login shells
   // that must stay reachable pre-auth, so the real control is authCheck()
@@ -4498,7 +4509,8 @@ async function handleRequest(req, res) {
   // automated scanning/brute-forcing of the admin entry points.
   const isAdminPanelPath = p === CFG.routes.cstAdmin || p.startsWith(CFG.routes.cstAdmin + '/') ||
                            p === CFG.routes.vptAdmin || p.startsWith(CFG.routes.vptAdmin + '/') ||
-                           p === CFG.routes.portal   || p.startsWith(CFG.routes.portal + '/');
+                           p === CFG.routes.portal   || p.startsWith(CFG.routes.portal + '/') ||
+                           !!legacyAdminMatch;
   if (isAdminPanelPath) {
     const ip = getClientIp(req);
     const rl = checkRateLimit(ip, 'admin-page');
@@ -4507,6 +4519,11 @@ async function handleRequest(req, res) {
       res.writeHead(429, { ...SECURITY_HEADERS, 'Retry-After': String(rl.retryAfter) });
       return res.end('Too many requests');
     }
+  }
+  if (legacyAdminMatch) {
+    const suffix = p.slice(legacyAdminMatch.old.length); // '' or '/...'
+    res.writeHead(301, { ...SECURITY_HEADERS, Location: legacyAdminMatch.dest + suffix + (parsed.search || '') });
+    return res.end();
   }
 
   // The admin hub — reachable only via in-app navigation after login, no
@@ -4595,7 +4612,7 @@ async function handleRequest(req, res) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  VPT — VAPT Assessment routes
+  //  VAPT — Vulnerability Assessment & Penetration Testing routes
   // ══════════════════════════════════════════════════════════════════════════
 
   if (p === CFG.routes.vptAdmin || p === CFG.routes.vptAdmin + '/') {

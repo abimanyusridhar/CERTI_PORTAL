@@ -56,7 +56,7 @@ test('static pages - referenced first-party assets exist', () => {
       const href = match[1];
       if (href.includes('${')) continue;
       if (/^(?:https?:|mailto:|tel:|#|data:|\/api\/|\/auth\/)/i.test(href)) continue;
-      if (/^\/(?:CST|VAPT|VPT|admin|vapt-admin|cert|vapt-cert)(?:\/|$)/i.test(href)) continue;
+      if (/^\/(?:CST|VAPT|VPT|admin|vapt-admin|cert|vapt-cert|console)(?:\/|$)/i.test(href)) continue;
       if (href.startsWith('/')) refs.add(resolveServedRef(href.slice(1).split('?')[0]));
       else refs.add(path.normalize(path.join(path.dirname(rel), href.split('?')[0])).replace(/\\/g, '/'));
     }

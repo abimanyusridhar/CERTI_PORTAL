@@ -127,15 +127,17 @@
     },
 
     // ── ROUTES ───────────────────────────────────────────────────────────
+    // NOTE: cst/vpt (the public verify routes) are load-bearing for every
+    // certificate email already sent — the verify link is built from these
+    // at send-time and can never change shape for a cert already issued.
+    // The admin-only routes below have no such constraint and can be
+    // renamed freely; old paths 301-redirect for continuity (see server/index.js).
     routes: {
-      cst:       A.routeCST,
-      vpt:       A.routeVPT,
-      cstAdmin:  A.routeCST + '/misecure',
-      vptAdmin:  A.routeVPT + '/misecure',
-      vaptAdmin: A.routeVPT + '/misecure', // alias: kept in sync with vptAdmin
-      // Superintendent portal — not CST/VAPT-specific (it shows both cert types'
-      // documents per vessel), so it lives at a neutral path, not under /CST.
-      portal:    '/misecure/portal',
+      cst:      A.routeCST,
+      vpt:      A.routeVPT,
+      cstAdmin: '/console/cst',
+      vptAdmin: '/console/vapt',
+      portal:   '/console/portal',
     },
 
     // ── CERTIFICATE ID FORMATS ───────────────────────────────────────────
