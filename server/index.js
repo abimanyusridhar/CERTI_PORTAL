@@ -2621,6 +2621,7 @@ async function handleAPI(req, res, parsed) {
     else if (!cert.status)                                       cert.status = 'PENDING';
     data[cert.id]    = cert;
     saveData(data);
+    autoMapVesselToGroup(cert.vesselIMO);
     return sendJSON(res, 201, cert, corsH);
   }
 
@@ -2810,6 +2811,7 @@ async function handleAPI(req, res, parsed) {
       added++;
     }
     saveData(data);
+    for (const r of results) if (r.status === 'created') autoMapVesselToGroup(data[r.id] && data[r.id].vesselIMO);
     return sendJSON(res, 200, { added, skipped, failed, total: records.length, results }, corsH);
   }
 
@@ -3207,6 +3209,7 @@ async function handleAPI(req, res, parsed) {
     else if (!cert.status)                                       cert.status = 'PENDING';
     data[cert.id] = cert;
     saveVaptData(data);
+    autoMapVesselToGroup(cert.vesselIMO);
     return sendJSON(res, 201, cert, corsH);
   }
 
@@ -3271,6 +3274,7 @@ async function handleAPI(req, res, parsed) {
       added++;
     }
     saveVaptData(data);
+    for (const r of results) if (r.status === 'created') autoMapVesselToGroup(data[r.id] && data[r.id].vesselIMO);
     return sendJSON(res, 200, { added, skipped, failed, total: records.length, results }, corsH);
   }
 

@@ -364,12 +364,13 @@
   }
   window.qvPickVessel = qvPickVessel;
 
-  // Matches vesselName loosely — strips the MV/MT/M-V prefix (same convention
-  // dashboard.js's CSV import already applies) and collapses whitespace — so
-  // "MV Nord Kudu" and "Nord  Kudu" both resolve to the same stored vessel
-  // instead of silently falling through to the raw-IMO branch below.
+  // Matches vesselName loosely — strips the MV/MT prefix using the same
+  // regex as everywhere else in the app (server/index.js, cst/dashboard.js,
+  // vapt/dashboard.js, scripts/audit-vessel-alignment.js) so "MV Nord Kudu"
+  // resolves to the same stored vessel instead of silently falling through
+  // to the raw-IMO branch below.
   function _canonicalVesselName(n) {
-    return String(n || '').replace(/^(MV|MT|M\/V)\s*[-–]?\s*/i, '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return String(n || '').replace(/^(MV|MT)\s*[-–]?\s*/i, '').trim().toLowerCase();
   }
 
   async function qvAddVessel() {
