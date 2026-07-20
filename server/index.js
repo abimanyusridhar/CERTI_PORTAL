@@ -2072,7 +2072,14 @@ const APPWRAP_START    = '<!-- SERVER-GATED:APPWRAP-START -->';
 const APPWRAP_END      = '<!-- SERVER-GATED:APPWRAP-END -->';
 
 function sendAdminAppShell(res, filePath, req) {
-  if (!APP_SHELL_PAGES.has(path.basename(filePath)) || authCheck(req)) {
+  const basename = path.basename(filePath);
+  // portal.html is the superintendent portal — its sessions are validated via
+  // getUserFromSession()/suptSession, never authCheck()/adminToken. Without this,
+  // every legitimately logged-in superintendent gets their own shell stripped.
+  const isAuthed = basename === 'portal.html'
+    ? (authCheck(req) || !!getUserFromSession(req))
+    : authCheck(req);
+  if (!APP_SHELL_PAGES.has(basename) || isAuthed) {
     return sendFile(res, filePath, req);
   }
   fs.readFile(filePath, 'utf8', (err, html) => {
