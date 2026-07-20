@@ -113,7 +113,7 @@
           renderNotFound();
           history.pushState(null, '', (window.APP_CONFIG ? window.APP_CONFIG.routes.cst : '/CST'));
         } else if (!res.ok) {
-          renderError();
+          renderError(undefined, data.error);
         } else {
           // Fetch the encrypted, shareable verification URL from the server
           let shareUrl = window.location.href;
@@ -143,14 +143,17 @@
     scroll();
   }
 
-  function renderError(reason) {
+  function renderError(reason, serverMsg) {
     const _errEmail = (window.APP_CONFIG && window.APP_CONFIG.contact)
       ? window.APP_CONFIG.contact.cstEmail
       : '';
     const msg = reason === 'timeout'
       ? 'The verification request timed out. Please check your connection and try again.'
       : 'Could not reach the verification service. Please try again in a moment.';
-    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Service Unavailable</h3><p>${msg}<br>If the issue persists, contact <strong style="color:var(--gold)">${_errEmail}</strong></p></div>`;
+    const detail = (reason !== 'timeout' && serverMsg)
+      ? `<br><code style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--warn);opacity:.75">${escH(serverMsg)}</code>`
+      : '';
+    document.getElementById('result').innerHTML = `<div class="not-found" style="background:rgba(255,179,71,0.04);border-color:rgba(255,179,71,0.2)" role="alert"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.5" style="margin:0 auto" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><h3 style="color:var(--warn)">Service Unavailable</h3><p>${msg}${detail}<br>If the issue persists, contact <strong style="color:var(--gold)">${_errEmail || 'the CST team'}</strong></p><button data-action="verify" style="margin-top:14px;padding:9px 22px;background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.3);border-radius:20px;color:var(--warn);font-size:.72rem;font-weight:600;letter-spacing:.08em;cursor:pointer;text-transform:uppercase">↺ Retry</button></div>`;
     scroll();
   }
 
@@ -484,7 +487,7 @@
         } else if (r.status === 404) {
           renderNotFound();
         } else {
-          renderError();
+          renderError(undefined, err.error);
         }
         return;
       }

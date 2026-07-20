@@ -2540,7 +2540,7 @@ async function handleAPI(req, res, parsed) {
     const rl = checkRateLimit(ip, 'track');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(rl.retryAfter), ...corsH });
     let body;
-    try { body = JSON.parse(await getBody(req, 3000)); } catch { return sendJSON(res, 400, {}, corsH); }
+    try { body = JSON.parse(await getBody(req, 3000)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const { certId: rawId, event, file, kind } = body || {};
     const certId = sanitiseCertId(rawId);
     if (!certId || !['cert_viewed', 'document_downloaded'].includes(event)) {
@@ -4134,6 +4134,45 @@ async function handleAPI(req, res, parsed) {
   sendJSON(res, 404, { error: 'Not found.' }, corsH);
 }
 
+// Shared HTML error-page shell — used for both the 404 (page not found) and
+// the top-level 500 fallback (an unhandled exception in handleRequest), so a
+// real server error looks like an intentional error page instead of a raw
+// JSON blob rendered as plain text in the browser.
+function renderErrorPage(code, title, message) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${code} — ${title} · ${CFG.brand.name}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#0A1628;color:#CCD6F6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px}
+    .card{max-width:500px;width:100%;text-align:center}
+    .code{font-size:6rem;font-weight:800;line-height:1;background:linear-gradient(135deg,#D4A843,#64FFDA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
+    h1{font-size:1.5rem;color:#E6F1FF;margin-bottom:10px}
+    p{font-size:.9rem;color:#8892B0;line-height:1.7;margin-bottom:28px}
+    .links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+    a{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:10px;font-size:.8rem;font-weight:600;letter-spacing:.06em;text-decoration:none;transition:opacity .2s}
+    .btn-gold{background:linear-gradient(135deg,#D4A843,#9E7B0A);color:#0A1628}
+    .btn-teal{background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.3);color:#64FFDA}
+    a:hover{opacity:.85;transform:translateY(-1px)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="code">${code}</div>
+    <h1>${title}</h1>
+    <p>${message}</p>
+    <div class="links">
+      <a href="${CFG.routes.cst}" class="btn-gold">🛡 CST Portal</a>
+      <a href="${CFG.routes.vpt}" class="btn-teal">🔍 VAPT Portal</a>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 // ─── SINGLE UNIFIED SERVER ────────────────────────────────────────────────────
 async function handleRequest(req, res) {
   if (isShuttingDown) {
@@ -4687,38 +4726,7 @@ async function handleRequest(req, res) {
 
   // 404
   res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>404 — Page Not Found · ${CFG.brand.name}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',system-ui,sans-serif;background:#0A1628;color:#CCD6F6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px}
-    .card{max-width:500px;width:100%;text-align:center}
-    .code{font-size:6rem;font-weight:800;line-height:1;background:linear-gradient(135deg,#D4A843,#64FFDA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px}
-    h1{font-size:1.5rem;color:#E6F1FF;margin-bottom:10px}
-    p{font-size:.9rem;color:#8892B0;line-height:1.7;margin-bottom:28px}
-    .links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-    a{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:10px;font-size:.8rem;font-weight:600;letter-spacing:.06em;text-decoration:none;transition:opacity .2s}
-    .btn-gold{background:linear-gradient(135deg,#D4A843,#9E7B0A);color:#0A1628}
-    .btn-teal{background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.3);color:#64FFDA}
-    a:hover{opacity:.85;transform:translateY(-1px)}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="code">404</div>
-    <h1>Page Not Found</h1>
-    <p>The page you're looking for doesn't exist.<br>Use the links below to return to a valid portal.</p>
-    <div class="links">
-      <a href="${CFG.routes.cst}" class="btn-gold">🛡 CST Portal</a>
-      <a href="${CFG.routes.vpt}" class="btn-teal">🔍 VAPT Portal</a>
-    </div>
-  </div>
-</body>
-</html>`);
+  res.end(renderErrorPage(404, 'Page Not Found', "The page you're looking for doesn't exist.<br>Use the links below to return to a valid portal."));
 }
 
 const server = http.createServer((req, res) => {
@@ -4738,8 +4746,14 @@ const server = http.createServer((req, res) => {
   Promise.resolve(handleRequest(req, res)).catch((err) => {
     log.error('Unhandled request error:', err && err.message ? err.message : err);
     if (res.headersSent) return res.end();
-    res.writeHead(500, { ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ error: 'Internal server error' }));
+    const isApi = (() => { try { return new URL(req.url, 'http://localhost').pathname.startsWith('/api'); } catch { return false; } })();
+    if (isApi) {
+      res.writeHead(500, { ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+    } else {
+      res.writeHead(500, { ...SECURITY_HEADERS, 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(renderErrorPage(500, 'Something Went Wrong', 'An unexpected error occurred while processing your request.<br>Please try again, or use the links below.'));
+    }
   });
 });
 
