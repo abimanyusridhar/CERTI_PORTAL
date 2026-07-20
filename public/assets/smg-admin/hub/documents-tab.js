@@ -56,6 +56,7 @@
       const docsRes = await fetch(API + '/docs', { headers: authHdr() });
       if (checkUnauth(docsRes)) return;
       if (docsRes.ok) allDocs = await docsRes.json();
+      else toast('Failed to load data', true);
     } catch { toast('Failed to load data', true); }
     renderDocs();
     updateBadges();
@@ -226,7 +227,7 @@
       const { url } = await r.json();
       window.open(url, '_blank');
     } catch { toast('Open failed — check connection', true); }
-    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }
   }
   window.openDocDirect = openDocDirect;
 
@@ -240,7 +241,7 @@
       await navigator.clipboard.writeText(url);
       toast('Shareable link copied — valid for 24 hours. Send to superintendent.');
     } catch { toast('Copy failed', true); }
-    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }
   }
   window.copyDocLink = copyDocLink;
 

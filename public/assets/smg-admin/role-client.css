@@ -38,6 +38,8 @@
 .role-client [data-action="deleteGroup"],
 .role-client [data-action="addImoRaw"],
 .role-client [data-action="removeImo"],
+.role-client [data-action="qvAddVessel"],
+.role-client #qvImoInput,
 .role-client .group-actions,
 
 /* ── Hub: Documents tab ── */

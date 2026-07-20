@@ -467,7 +467,10 @@
 
   /* ── REFINED THEME TOGGLE ──────────────────────────────── */
   .theme-toggle {
-    display: flex;
+    /* Theme is permanently locked to light (see theme-toggle.js) — hidden by
+       default so there's no flash of a clickable-looking dead button before
+       the deferred script runs. */
+    display: none;
     align-items: center;
     gap: 6px;
     padding: 5px 12px 5px 7px;

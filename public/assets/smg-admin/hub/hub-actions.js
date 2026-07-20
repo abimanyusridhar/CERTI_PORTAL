@@ -35,7 +35,7 @@
   const RESTRICTED_ACTIONS = new Set([
     'openAddUserModal', 'openUserEditModal', 'deleteUser',
     'openCreateGroupModal', 'openGroupEditModal', 'deleteGroup', 'addImoRaw', 'removeImo',
-    'qvPickVessel', 'qvRemoveVessel',
+    'qvPickVessel', 'qvRemoveVessel', 'qvAddVessel',
     'uploadDoc', 'deleteDoc',
   ]);
 

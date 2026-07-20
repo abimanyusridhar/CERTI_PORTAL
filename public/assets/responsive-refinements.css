@@ -778,21 +778,6 @@
   /* Already dark by default, no changes needed */
 }
 
-/* Light mode support */
-html.light {
-  --navy: #F5F7FA;
-  --navy-mid: #E8EEF5;
-  --navy-light: #D5DFE8;
-  --gold: #B5860A;
-  --gold-light: #D4AE47;
-  --gold-dim: rgba(181, 134, 10, 0.1);
-  --teal: #0097A7;
-  --teal-dim: rgba(0, 151, 167, 0.06);
-  --surface: #FFFFFF;
-  --surface-hover: #F5F7FA;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-gold: rgba(181, 134, 10, 0.2);
-  --text: #1A202C;
-  --text-sec: #4A5568;
-  --text-bright: #111827;
-}
+/* Light mode variables live in shared-styles.css's html.light block — that
+   file loads first, so a second definition here with different hex values
+   would silently win the cascade and diverge from the intended palette. */

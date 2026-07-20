@@ -42,7 +42,7 @@ function validateRuntimeConfig({ port, adminUser, adminPass, cfg }) {
                    /[^A-Za-z0-9]/.test(adminPass);
     if (!passOk) errors.push('ADMIN_PASS must be at least 12 characters and include uppercase, lowercase, digit, and special character');
   }
-  if (!cfg || !cfg.routes || !cfg.routes.cst || !cfg.routes.vpt || !cfg.routes.cstAdmin || !cfg.routes.vptAdmin) {
+  if (!cfg || !cfg.routes || !cfg.routes.cst || !cfg.routes.vpt || !cfg.routes.cstAdmin || !cfg.routes.vptAdmin || !cfg.routes.portal) {
     errors.push('App config routes are missing required values');
   }
   return { ok: errors.length === 0, errors };

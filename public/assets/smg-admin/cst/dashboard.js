@@ -60,7 +60,7 @@
 
     // Helper: returns true if any blocking modal/overlay is currently visible
     function _isModalOpen() {
-      const modals = ['addMod', 'viewMod', 'delMod'];
+      const modals = ['viewMod', 'delMod', 'assignGroupMod'];
       return modals.some(id => {
         const el = document.getElementById(id);
         return el && el.style.display !== 'none' && el.style.display !== '';
@@ -2076,7 +2076,6 @@
     });
     function clearImg(e) { e.stopPropagation(); clearImgSilent(); }
     // ── PDF / DOCUMENT ATTACHMENTS ──
-    function _he(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function renderAttachList() {
       const el = document.getElementById('attachList');
       if (!el) return;
@@ -2092,13 +2091,13 @@
         const fn = (a.name || '').toLowerCase();
         const icon = fn.endsWith('.pdf') ? '📋' : (fn.endsWith('.xls') || fn.endsWith('.xlsx')) ? '📊' : (fn.endsWith('.doc') || fn.endsWith('.docx')) ? '📝' : '📄';
         const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,170,46,.09);color:var(--gold);border:1px solid rgba(255,170,46,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
-        const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
+        const openBtn = (!a.pending && a.url) ? `<a href="${escHtml(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
         const rmBtn = a.saved
           ? `<button type="button" data-action="removeSavedAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
           : `<button type="button" data-action="removePendingAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
         return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
           <span style="font-size:.88rem;flex-shrink:0">${icon}</span>
-          <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_he(a.name || 'Document')}${badge}</span>
+          <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(a.name || 'Document')}${badge}</span>
           <div style="display:flex;gap:5px;flex-shrink:0">${openBtn}${rmBtn}</div>
         </div>`;
       }).join('');

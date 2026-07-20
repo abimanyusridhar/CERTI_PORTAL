@@ -64,16 +64,20 @@
     if (_autoRefreshInterval) clearInterval(_autoRefreshInterval);
     _autoRefreshInterval = setInterval(async () => {
       // Skip background refresh when a modal/overlay is open
-      const viewOpen = document.getElementById('viewOverlay');
-      const addPage  = document.getElementById('page-add');
-      if ((viewOpen && viewOpen.style.display === 'flex') ||
-          (addPage  && addPage.style.display  !== 'none')) return;
+      const viewOpen  = document.getElementById('viewOverlay');
+      const delOpen   = document.getElementById('delOverlay');
+      const groupOpen = document.getElementById('assignGroupMod');
+      const addPage   = document.getElementById('page-add');
+      if ((viewOpen  && viewOpen.style.display  === 'flex') ||
+          (delOpen   && delOpen.style.display   !== 'none') ||
+          (groupOpen && groupOpen.style.display !== 'none') ||
+          (addPage   && addPage.style.display   !== 'none')) return;
       await refreshStats();
       const dashPage  = document.getElementById('page-dashboard');
       const certsPage = document.getElementById('page-certs');
       const issuePage = document.getElementById('page-issue');
       if (dashPage  && dashPage.style.display  !== 'none') renderTbl('dashTbl', '');
-      if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value || '', document.getElementById('allStatusSel')?.value || '', document.getElementById('allEmailSel')?.value || '');
+      if (certsPage && certsPage.style.display !== 'none') renderTbl('allTbl', document.getElementById('allQ')?.value || '', document.getElementById('allStatusSel')?.value || '', document.getElementById('allEmailSel')?.value || '', document.getElementById('allRiskSel')?.value || '', document.getElementById('allQuarterSel')?.value || '');
       if (issuePage && issuePage.style.display !== 'none') {
         renderIssueList(document.getElementById('issueSearch')?.value || '');
         renderSentLog();
@@ -193,24 +197,6 @@
   function fmtTiny(d) {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-  }
-
-  function renderNearExpiry(list) {
-    const el = document.getElementById('nearExpiryList');
-    if (!list.length) { el.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:.78rem">All VAPT certificates healthy — no urgent expiries</div>'; return; }
-    el.innerHTML = list.map(c => {
-      const dl=c.daysLeft;
-      const bc=dl<=7?'crit':dl<=20?'warn':'ok';
-      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" data-action="editCert" data-id="${c.id}">
-        <div class="ne-days-badge ${bc}">${dl===0?'TODAY':dl+'d'}</div>
-        <div style="flex:1">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--gold)">${c.id}</div>
-          <div style="font-size:.76rem;color:var(--text-bright)">${escHtml(c.recipientName||'—')}</div>
-          <div style="font-size:.62rem;color:var(--text-sec)">Valid until ${fmt(c.validUntil)}</div>
-        </div>
-        <button class="btn btn-teal btn-sm" data-action="editCert" data-id="${c.id}">Edit</button>
-      </div>`;
-    }).join('');
   }
 
   function goIssue(id) {
@@ -1477,7 +1463,6 @@
   });
 
   // ── PDF / DOCUMENT ATTACHMENTS ──
-  function _he(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function renderAttachList() {
     const el = document.getElementById('attachList');
     if (!el) return;
@@ -1493,13 +1478,13 @@
       const fn = (a.name || '').toLowerCase();
       const icon = fn.endsWith('.pdf') ? '📋' : (fn.endsWith('.xls') || fn.endsWith('.xlsx')) ? '📊' : (fn.endsWith('.doc') || fn.endsWith('.docx')) ? '📝' : '📄';
       const badge = a.pending ? '<span style="font-size:.56rem;background:rgba(255,170,46,.09);color:var(--gold);border:1px solid rgba(255,170,46,.2);padding:1px 5px;border-radius:4px;margin-left:5px">pending</span>' : '';
-      const openBtn = (!a.pending && a.url) ? `<a href="${_he(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
+      const openBtn = (!a.pending && a.url) ? `<a href="${escHtml(a.url)}" target="_blank" style="font-size:.62rem;color:var(--teal);padding:3px 8px;border-radius:5px;background:rgba(100,255,218,.07);border:1px solid rgba(100,255,218,.2);text-decoration:none">Open</a>` : '';
       const rmBtn = a.saved
         ? `<button type="button" data-action="removeSavedAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`
         : `<button type="button" data-action="removePendingAttach" data-idx="${a.idx}" style="font-size:.6rem;color:var(--invalid);padding:3px 8px;border-radius:5px;border:1px solid rgba(255,107,138,.18);background:rgba(255,107,138,.05);cursor:pointer;font-family:'DM Sans',sans-serif">Remove</button>`;
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:.88rem;flex-shrink:0">${icon}</span>
-        <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_he(a.name || 'Document')}${badge}</span>
+        <span style="flex:1;font-size:.73rem;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(a.name || 'Document')}${badge}</span>
         <div style="display:flex;gap:5px;flex-shrink:0">${openBtn}${rmBtn}</div>
       </div>`;
     }).join('');

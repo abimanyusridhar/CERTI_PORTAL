@@ -42,7 +42,14 @@
     const list = allGroups.filter(g => !q || g.name.toLowerCase().includes(q) || (g.vesselIMOs||[]).some(i => i.toLowerCase().includes(q)));
     const grid  = document.getElementById('groupsGrid');
     const empty = document.getElementById('groupsEmpty');
-    if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; qvPopulateSelect(); return; }
+    if (!list.length) {
+      grid.innerHTML = '';
+      const msgEl = empty.querySelector('div');
+      if (msgEl) msgEl.textContent = q ? 'No groups match your search.' : 'No groups yet. Create a group and assign vessel IMOs to get started.';
+      empty.style.display = 'block';
+      qvPopulateSelect();
+      return;
+    }
     empty.style.display = 'none';
     const fmtDt = s => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     const escH  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');

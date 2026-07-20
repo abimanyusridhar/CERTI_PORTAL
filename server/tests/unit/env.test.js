@@ -11,8 +11,9 @@ const BASE_CFG = {
   routes: {
     cst:      '/CST',
     vpt:      '/VAPT',
-    cstAdmin: '/CST/misecure',
-    vptAdmin: '/VAPT/misecure',
+    cstAdmin: '/console/cst',
+    vptAdmin: '/console/vapt',
+    portal:   '/console/portal',
   },
 };
 

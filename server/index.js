@@ -2812,6 +2812,8 @@ async function handleAPI(req, res, parsed) {
   if (route === '/import-csv' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulCstImport = checkRateLimit(ip, 'cert-create');
+    if (!_ulCstImport.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulCstImport.retryAfter), ...corsH });
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
@@ -2821,7 +2823,7 @@ async function handleAPI(req, res, parsed) {
     let added = 0, skipped = 0, failed = 0;
     const results = [];
     const now = new Date().toISOString();
-    for (const cert of records) {
+    for (let cert of records) {
       const certId = sanitiseCertId(cert.id);
       if (!certId) {
         results.push({ id: cert.id || '(blank)', status: 'failed', reason: 'Invalid or missing certificate ID' });
@@ -2838,6 +2840,7 @@ async function handleAPI(req, res, parsed) {
       }
       // Normalise
       cert.id = certId;
+      cert = sanitiseCertBody(cert);
       ['recipientName','vesselName','vesselIMO','chiefEngineer','trainingMode','complianceQuarter'].forEach(k => {
         if (typeof cert[k] === 'string') cert[k] = cert[k].trim();
       });
@@ -3270,6 +3273,8 @@ async function handleAPI(req, res, parsed) {
   if (route === '/vapt/import-csv' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulVaptImport = checkRateLimit(ip, 'cert-create');
+    if (!_ulVaptImport.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulVaptImport.retryAfter), ...corsH });
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const records = Array.isArray(body) ? body : [];
@@ -3637,7 +3642,6 @@ async function handleAPI(req, res, parsed) {
     const rl = checkRateLimit(ip, 'verify');
     if (!rl.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, corsH);
     const imo = normalizeVesselIMO(route.replace('/docs/by-vessel/', ''));
-    const authHdr = req.headers['authorization'] || '';
 
     // UserSession (superintendent) — only access path
     const sessUser = getUserFromSession(req);
@@ -4496,9 +4500,12 @@ async function handleRequest(req, res) {
   // Old bookmarks/links still resolve via a 301 — checked by literal string
   // since CFG.routes.* now holds the NEW values, not these.
   const LEGACY_ADMIN_PREFIXES = [
-    { old: '/CST/misecure',   dest: CFG.routes.cstAdmin },
-    { old: '/VAPT/misecure',  dest: CFG.routes.vptAdmin },
-    { old: '/misecure/portal', dest: CFG.routes.portal },
+    // Most specific first — /CST/misecure/portal must land on the portal
+    // directly rather than /console/cst/portal → a second redirect.
+    { old: '/CST/misecure/portal', dest: CFG.routes.portal },
+    { old: '/CST/misecure',        dest: CFG.routes.cstAdmin },
+    { old: '/VAPT/misecure',       dest: CFG.routes.vptAdmin },
+    { old: '/misecure/portal',     dest: CFG.routes.portal },
   ];
   const legacyAdminMatch = LEGACY_ADMIN_PREFIXES.find(({ old }) => p === old || p.startsWith(old + '/'));
 
@@ -4532,10 +4539,10 @@ async function handleRequest(req, res) {
   // unauthenticated). Gated on the resolved filename so it applies uniformly
   // regardless of which routing block resolved the path.
   const GATED_ADMIN_PAGES = new Set(['index.html']);
-  function gateAdminPage(filePath) {
+  function gateAdminPage(filePath, homeRoute) {
     if (GATED_ADMIN_PAGES.has(path.basename(filePath)) && !authCheck(req)) {
       log.warn(`[admin-access] unauthenticated request for gated admin page — ip=${getClientIp(req)} path=${p}`);
-      res.writeHead(302, { ...SECURITY_HEADERS, Location: CFG.routes.cstAdmin + '/' });
+      res.writeHead(302, { ...SECURITY_HEADERS, Location: (homeRoute || CFG.routes.cstAdmin) + '/' });
       res.end();
       return true;
     }
@@ -4626,7 +4633,7 @@ async function handleRequest(req, res) {
     if (!filePath.startsWith(adminDir + path.sep) && filePath !== adminDir) {
       res.writeHead(403, SECURITY_HEADERS); return res.end('Forbidden');
     }
-    if (gateAdminPage(filePath)) return;
+    if (gateAdminPage(filePath, CFG.routes.vptAdmin)) return;
     return sendAdminAppShell(res, filePath, req);
   }
 

@@ -409,19 +409,27 @@ async function openVessel(imo) {
   const vaptList = _certCache[imo].vapt || [];
   renderCstTable(cstList);
   renderVaptTable(vaptList);
-  // Populate vessel analytics bar
+  updateVesselStats(cstList, vaptList);
+  // Load docs if not cached
+  if (!_docCache[imo]) loadDocs(imo);
+  else { renderDocList(_docCache[imo]); document.getElementById('vaDocs').textContent = _docCache[imo].length; }
+}
+
+// Vessel analytics bar (vaTotal/vaValid/vaExpiring/vaVapt/vaVaptValid) — must
+// reflect whatever quarter filter is currently active, same as the tables
+// below it, so the numbers never contradict the visible rows.
+function updateVesselStats(cstList, vaptList) {
+  const cstFiltered  = filterByQuarter(cstList,  'issuedDate');
+  const vaptFiltered = filterByQuarter(vaptList, 'assessmentDate');
   const now  = Date.now();
   const soon = now + 90 * 24 * 60 * 60 * 1000;
   const _st = c => (c.status || '').toUpperCase();
   const _ts = c => c.validUntil ? new Date(c.validUntil).getTime() : Infinity;
-  document.getElementById('vaTotal').textContent     = cstList.length;
-  document.getElementById('vaValid').textContent     = cstList.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
-  document.getElementById('vaExpiring').textContent  = cstList.filter(c => _st(c) === 'VALID' && _ts(c) > now && _ts(c) <= soon).length;
-  document.getElementById('vaVapt').textContent      = vaptList.length;
-  document.getElementById('vaVaptValid').textContent = vaptList.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
-  // Load docs if not cached
-  if (!_docCache[imo]) loadDocs(imo);
-  else { renderDocList(_docCache[imo]); document.getElementById('vaDocs').textContent = _docCache[imo].length; }
+  document.getElementById('vaTotal').textContent     = cstFiltered.length;
+  document.getElementById('vaValid').textContent     = cstFiltered.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
+  document.getElementById('vaExpiring').textContent  = cstFiltered.filter(c => _st(c) === 'VALID' && _ts(c) > now && _ts(c) <= soon).length;
+  document.getElementById('vaVapt').textContent      = vaptFiltered.length;
+  document.getElementById('vaVaptValid').textContent = vaptFiltered.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
 }
 
 function qBadge(q) {
@@ -466,7 +474,7 @@ function renderCstTable(certs) {
       </tr></thead>
       <tbody>${filtered.map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
-        const isExpired = c.status === 'VALID' && vu && vu < now;
+        const isExpired = (c.status || '').toUpperCase() === 'VALID' && vu && vu < now;
         const effStatus = isExpired ? 'EXPIRED' : (c.status || 'PENDING');
         const daysLeft  = vu ? Math.ceil((vu - now) / 86400000) : null;
         const validStr  = vu ? `${fmtDate(c.validUntil)}${daysLeft !== null && daysLeft > 0 ? ` <span style="font-size:.6rem;color:var(--text-sec);opacity:.8">· ${daysLeft}d</span>` : ''}` : '—';
@@ -513,7 +521,7 @@ function renderVaptTable(certs) {
       </tr></thead>
       <tbody>${certs.map(c => {
         const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
-        const isExpired = c.status === 'VALID' && vu && vu < now;
+        const isExpired = (c.status || '').toUpperCase() === 'VALID' && vu && vu < now;
         const effStatus = isExpired ? 'EXPIRED' : (c.status || 'PENDING');
         const daysLeft  = vu ? Math.ceil((vu - now) / 86400000) : null;
         const validStr  = vu ? `${fmtDate(c.validUntil)}${daysLeft !== null && daysLeft > 0 ? ` <span style="font-size:.6rem;color:var(--text-sec);opacity:.8">· ${daysLeft}d</span>` : ''}` : '—';
@@ -602,8 +610,11 @@ function setQuarter(q) {
     el.className = 'q-btn' + (i === 0 ? ' all' : '') + (qVal === q ? ' active' : '');
   });
   if (_currentIMO && _certCache[_currentIMO]) {
-    renderCstTable(_certCache[_currentIMO].cst || []);
-    renderVaptTable(_certCache[_currentIMO].vapt || []);
+    const cstList  = _certCache[_currentIMO].cst  || [];
+    const vaptList = _certCache[_currentIMO].vapt || [];
+    renderCstTable(cstList);
+    renderVaptTable(vaptList);
+    updateVesselStats(cstList, vaptList);
   }
 }
 window.setQuarter = setQuarter;

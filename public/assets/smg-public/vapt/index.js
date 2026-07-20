@@ -69,6 +69,7 @@
         const retryAfter = parseInt(res.headers.get('Retry-After') || '60', 10);
         renderRateLimit(retryAfter);
         hideDesc(); scroll();
+        return; // keep btn/input disabled until the countdown clears them — see renderRateLimit
       } else {
         // Safe JSON parse — a reverse proxy (Nginx/Cloudflare) returning an HTML
         // error page on 502/503/504 would cause res.json() to throw a SyntaxError,
@@ -111,6 +112,13 @@
     if (_rlTimer) clearInterval(_rlTimer);
     let remaining = seconds || 60;
     const _email = (window.APP_CONFIG && window.APP_CONFIG.contact) ? window.APP_CONFIG.contact.vaptEmail : '';
+    const btn = document.getElementById('verifyBtn');
+    const input = document.getElementById('certInput');
+    // Keep the button/input disabled for the full countdown — verify() returns
+    // early on 429 without re-enabling them, so this is the only place that does.
+    _verifying = true;
+    if (btn) btn.disabled = true;
+    if (input) input.disabled = true;
     function update() {
       document.getElementById('result').innerHTML = `
       <div style="display:flex;align-items:center;gap:14px;padding:20px 24px;background:rgba(255,179,71,0.05);border:1px solid rgba(255,179,71,0.28);border-radius:14px;animation:fadeUp .4s ease" role="alert">
@@ -125,7 +133,12 @@
     scroll();
     _rlTimer = setInterval(() => {
       remaining--;
-      if (remaining <= 0) { clearInterval(_rlTimer); update(); } else { update(); }
+      if (remaining <= 0) {
+        clearInterval(_rlTimer);
+        _verifying = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Verify'; }
+        if (input) input.disabled = false;
+      } else { update(); }
     }, 1000);
   }
 
@@ -249,7 +262,7 @@
           </div>
           <div class="sdname">${escH(c.recipientName)}</div>
           <div class="sdsub">${escH(c.vesselName || '')}${c.vesselIMO ? ' · IMO ' + escH(c.vesselIMO) : ''}</div>
-          <button class="btn-dl" id="dlBtn" data-action="downloadCertificate" data-id="${c.id}">
+          <button class="btn-dl" id="dlBtn" data-action="downloadCertificate" data-id="${escH(c.id)}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             Download Certificate
           </button>
@@ -281,7 +294,7 @@
             Copy Verification Link
           </button>
           <div class="vrow-lbl">Certificate ID</div>
-          <div class="cert-id-mono">${c.id}</div>
+          <div class="cert-id-mono">${escH(c.id)}</div>
         </div>
       </div>
 

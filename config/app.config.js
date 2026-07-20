@@ -51,8 +51,8 @@
     routeVPT:  '/VAPT',
 
     // Certificate ID prefixes
-    cstPrefix:  'CST',                          
-    vaptPrefix: 'VAP',                          
+    cstPrefix:  'CST',
+    vaptPrefix: 'VAP',
 
     // Training programme label
     trainingTitle: 'Cyber Security Threat Intelligence Awareness Training',
