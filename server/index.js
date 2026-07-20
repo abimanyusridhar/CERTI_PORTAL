@@ -475,6 +475,12 @@ const RATE_LIMITS = {
   // shells, so this bucket exists to slow down + surface automated scanning
   // or brute-forcing of the admin entry points, not to gate normal reloads.
   'admin-page': { max: 30,  window: 60_000  },
+  // Authenticated admin mutations that aren't a create (cert PUT/DELETE, doc
+  // PUT/DELETE, users/groups PUT/DELETE) had no rate limit at all, unlike
+  // their POST-create siblings — a leaked/compromised admin token could
+  // otherwise update/delete without limit. One shared bucket since these are
+  // all the same actor class (authenticated admin) and same risk class.
+  'admin-mutate': { max: 60, window: 300_000 },
   default:     { max: 120, window: 60_000  },
 };
 
@@ -2682,6 +2688,8 @@ async function handleAPI(req, res, parsed) {
   if (route.startsWith('/certs/') && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulCstUpdate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulCstUpdate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulCstUpdate.retryAfter), ...corsH });
     const certId = sanitiseCertId(route.replace('/certs/', '').replace('/send-email', '').split('/')[0]);
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
     // Guard: don't match send-email sub-route
@@ -2879,6 +2887,8 @@ async function handleAPI(req, res, parsed) {
     if (segments.length === 2) {
       if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
       if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+      const _ulCstDelete = checkRateLimit(ip, 'admin-mutate');
+      if (!_ulCstDelete.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulCstDelete.retryAfter), ...corsH });
       const certId = sanitiseCertId(segments[1]);
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const data = loadData();
@@ -3340,6 +3350,8 @@ async function handleAPI(req, res, parsed) {
   if (route.startsWith('/vapt/certs/') && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulVaptUpdate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulVaptUpdate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulVaptUpdate.retryAfter), ...corsH });
     if (route.includes('/send-email')) return sendJSON(res, 404, { error: 'Not found.' }, corsH);
     const certId = sanitiseCertId(route.replace('/vapt/certs/', ''));
     if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
@@ -3464,6 +3476,8 @@ async function handleAPI(req, res, parsed) {
     if (segments.length === 3) {
       if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
       if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+      const _ulVaptDelete = checkRateLimit(ip, 'admin-mutate');
+      if (!_ulVaptDelete.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulVaptDelete.retryAfter), ...corsH });
       const certId = sanitiseCertId(segments[2]);
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const data = loadVaptData();
@@ -3494,6 +3508,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulCstAttDel = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulCstAttDel.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulCstAttDel.retryAfter), ...corsH });
     const parts  = route.split('/');
     const certId = sanitiseCertId(parts[2]);
     const idx    = parseInt(parts[4], 10);
@@ -3518,6 +3534,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/vapt\/certs\/[^/]+\/attachments\/\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulVaptAttDel = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulVaptAttDel.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulVaptAttDel.retryAfter), ...corsH });
     const parts  = route.split('/');
     const certId = sanitiseCertId(parts[3]);
     const idx    = parseInt(parts[5], 10);
@@ -3608,6 +3626,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/docs\/DOC-\d+$/) && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulDocUpdate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulDocUpdate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulDocUpdate.retryAfter), ...corsH });
     const docId = route.replace('/docs/', '');
     const docs = loadDocs();
     if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
@@ -3626,6 +3646,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/docs\/DOC-\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulDocDelete = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulDocDelete.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulDocDelete.retryAfter), ...corsH });
     const docId = route.replace('/docs/', '');
     const docs = loadDocs();
     if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
@@ -3854,6 +3876,8 @@ async function handleAPI(req, res, parsed) {
   if (route === '/admin/users' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulUserCreate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulUserCreate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulUserCreate.retryAfter), ...corsH });
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name     = (body.name     || '').trim().slice(0, 120);
@@ -3894,6 +3918,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulUserUpdate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulUserUpdate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulUserUpdate.retryAfter), ...corsH });
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -3917,6 +3943,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/admin\/users\/(?:USR-\d+|usr_[0-9a-f]+)$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulUserDelete = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulUserDelete.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulUserDelete.retryAfter), ...corsH });
     const userId = route.replace('/admin/users/', '');
     const users = loadUsers();
     if (!users[userId]) return sendJSON(res, 404, { error: 'User not found.' }, corsH);
@@ -4005,6 +4033,8 @@ async function handleAPI(req, res, parsed) {
   if (route === '/admin/groups' && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulGroupCreate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulGroupCreate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulGroupCreate.retryAfter), ...corsH });
     let body;
     try { body = JSON.parse(await getBody(req)); } catch { return sendJSON(res, 400, { error: 'Invalid JSON' }, corsH); }
     const name       = (body.name || '').trim().slice(0, 120);
@@ -4023,6 +4053,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'PUT') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulGroupUpdate = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulGroupUpdate.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulGroupUpdate.retryAfter), ...corsH });
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -4040,6 +4072,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels$/) && method === 'POST') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulGroupAddVessel = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulGroupAddVessel.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulGroupAddVessel.retryAfter), ...corsH });
     const groupId = route.replace('/admin/groups/', '').replace('/vessels', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);
@@ -4060,6 +4094,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/admin\/groups\/GRP-\d+\/vessels\/[A-Z0-9]+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulGroupRemoveVessel = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulGroupRemoveVessel.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulGroupRemoveVessel.retryAfter), ...corsH });
     const parts   = route.split('/');
     const groupId = parts[3];
     const imo     = parts[5].toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -4075,6 +4111,8 @@ async function handleAPI(req, res, parsed) {
   if (route.match(/^\/admin\/groups\/GRP-\d+$/) && method === 'DELETE') {
     if (!authCheck(req)) return sendJSON(res, 401, { error: 'Access denied.' }, corsH);
     if (!hasAdminRole(req)) return sendJSON(res, 403, { error: 'Read-only access.' }, corsH);
+    const _ulGroupDelete = checkRateLimit(ip, 'admin-mutate');
+    if (!_ulGroupDelete.ok) return sendJSON(res, 429, { error: 'Too many requests. Try again later.' }, { 'Retry-After': String(_ulGroupDelete.retryAfter), ...corsH });
     const groupId = route.replace('/admin/groups/', '');
     const groups = loadGroups();
     if (!groups[groupId]) return sendJSON(res, 404, { error: 'Group not found.' }, corsH);

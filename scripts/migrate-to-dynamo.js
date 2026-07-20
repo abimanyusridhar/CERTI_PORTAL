@@ -100,32 +100,23 @@ const groups = loadCollection('groups.json');
 const errors = [];   // hard violations — abort unless --force
 const skipped = [];  // records dropped when --force is used
 
-function tagType(collection, type) {
-  const out = {};
-  for (const [id, rec] of Object.entries(collection)) out[id] = { ...rec, type: rec.type || type };
-  return out;
-}
-
-const cstTagged  = tagType(cst, 'CST');
-const vaptTagged = tagType(vapt, 'VAPT');
-
-// Gate: every record must have a stable id; certificate IDs must be unique
-// across CST and VAPT after adding type.
+// CST and VAPT certs are kept as two SEPARATE collections here (never
+// merged into one `type`-tagged bucket) so they land under the exact same
+// entity prefixes — CST_CERT / VAPT_CERT — that server/index.js's live
+// dual-write path already uses (cstStore/vaptStore). A prior version of
+// this script merged them under a single 'CERT' prefix with a `type`
+// field neither the local JSON files nor the live dual-write path ever
+// write — importing that way would leave the live app unable to find any
+// of this data once DUAL_WRITE_DYNAMO/SHADOW_READ_DYNAMO is enabled.
 const certificates = {};
-const idCollisions = [];
-for (const [id, rec] of Object.entries(cstTagged)) {
+for (const [id, rec] of Object.entries(cst)) {
   if (!id || !rec.id) { errors.push(`certificates.json: record missing id (key="${id}")`); continue; }
   certificates[id] = rec;
 }
-for (const [id, rec] of Object.entries(vaptTagged)) {
+const vaptCertificates = {};
+for (const [id, rec] of Object.entries(vapt)) {
   if (!id || !rec.id) { errors.push(`vapt_certificates.json: record missing id (key="${id}")`); continue; }
-  if (certificates[id]) {
-    idCollisions.push(id);
-    if (FORCE) { skipped.push(`VAPT certificate ${id} — id collides with a CST certificate`); continue; }
-    errors.push(`Certificate id "${id}" exists in BOTH certificates.json and vapt_certificates.json — not unique after adding type.`);
-    continue;
-  }
-  certificates[id] = rec;
+  vaptCertificates[id] = rec;
 }
 
 // Gate: every document must have vesselIMO, fileName, filePath.
@@ -193,9 +184,6 @@ console.log(`  Mode   : ${DRY_RUN ? 'DRY RUN (no writes)' : 'LIVE'}${FORCE ? ' +
 console.log('═══════════════════════════════════════════════════════════');
 console.log('');
 
-if (idCollisions.length && !FORCE) {
-  console.log(`  Certificate id collisions between CST and VAPT: ${idCollisions.join(', ')}`);
-}
 if (errors.length) {
   console.log(`STEP 1 — Data quality gate: ${errors.length} violation(s) found`);
   console.log('─────────────────────────────────────────────────────────');
@@ -214,7 +202,8 @@ if (skipped.length) {
 
 console.log('STEP 2 — Records ready to import');
 console.log('─────────────────────────────────────────────────────────');
-console.log(`  Certificates (CST+VAPT) : ${Object.keys(certificates).length}`);
+console.log(`  CST certificates        : ${Object.keys(certificates).length}`);
+console.log(`  VAPT certificates       : ${Object.keys(vaptCertificates).length}`);
 console.log(`  Documents               : ${Object.keys(documents).length}`);
 console.log(`  Users                   : ${Object.keys(usersOut).length}`);
 console.log(`  Groups                  : ${Object.keys(groupsOut).length}`);
@@ -252,7 +241,8 @@ async function main() {
   console.log('─────────────────────────────────────────────────────────');
 
   const results = await Promise.all([
-    importCollection('CERT', 'Certificates', certificates),
+    importCollection('CST_CERT', 'CST Certificates', certificates),
+    importCollection('VAPT_CERT', 'VAPT Certificates', vaptCertificates),
     importCollection('DOC', 'Documents', documents),
     importCollection('USER', 'Users', usersOut),
     importCollection('GROUP', 'Groups', groupsOut),

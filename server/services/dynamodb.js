@@ -105,7 +105,11 @@ function _request(target, params) {
 
 function marshal(value) {
   if (value === null || value === undefined) return { NULL: true };
-  if (typeof value === 'string') return value === '' ? { NULL: true } : { S: value };
+  // DynamoDB has supported empty-string S values since 2020 — do not collapse
+  // '' to NULL. Doing so silently turns e.g. recipientEmail: "" into null on
+  // every round-trip, a real drift a shadow-read diff would flag as a
+  // mismatch against the JSON-file copy, which keeps '' as-is.
+  if (typeof value === 'string') return { S: value };
   if (typeof value === 'number' && Number.isFinite(value)) return { N: String(value) };
   if (typeof value === 'boolean') return { BOOL: value };
   if (Array.isArray(value)) return { L: value.map(marshal) };

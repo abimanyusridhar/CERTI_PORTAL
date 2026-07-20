@@ -91,7 +91,10 @@ test('dynamodb service - marshal/unmarshal round-trips every supported type', ()
     };
     const marshalled = dynamodb.marshalItem(input);
     assert.deepEqual(marshalled.name, { S: 'Alice' });
-    assert.deepEqual(marshalled.empty, { NULL: true });
+    // Empty string stays S: '' — DynamoDB has supported empty-string values
+    // since 2020, and collapsing '' to NULL would silently corrupt fields
+    // like recipientEmail: "" into null on every round-trip.
+    assert.deepEqual(marshalled.empty, { S: '' });
     assert.deepEqual(marshalled.count, { N: '3' });
     assert.deepEqual(marshalled.active, { BOOL: true });
     assert.deepEqual(marshalled.tags, { L: [{ S: 'a' }, { S: 'b' }] });
@@ -101,7 +104,7 @@ test('dynamodb service - marshal/unmarshal round-trips every supported type', ()
 
     const roundTripped = dynamodb.unmarshalItem(marshalled);
     assert.equal(roundTripped.name, 'Alice');
-    assert.equal(roundTripped.empty, null);
+    assert.equal(roundTripped.empty, '');
     assert.equal(roundTripped.count, 3);
     assert.equal(roundTripped.active, true);
     assert.deepEqual(roundTripped.tags, ['a', 'b']);
