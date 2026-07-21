@@ -206,11 +206,14 @@
       cisoDisplay:     cisoDisplay,
       heroSub:         'Enter a Vulnerability &amp; Penetration Testing (VAPT) certificate number '
                          + 'to get real-time verification of vessel cybersecurity assessment status '
-                         + 'for maritime compliance and vetting inspectors.',
+                         + 'for maritime compliance, PSC, and vetting inspectors.',
       readOnlyNote:    'This record is read-only \u00b7 verified directly from the '
                          + A.companyShort + ' VAPT registry',
+      // NOTE: intentionally does NOT say "ISO Lead Auditor Supervision" \u2014 that claim is
+      // specific to CST training (see cst.registryBanner) and does not apply to VAPT
+      // assessments, which are conducted and reviewed by the Cybersecurity Team / CISO.
       registryBanner:  A.companyShort + ' VAPT Certificate Registry'
-                         + ' &nbsp;&middot;&nbsp; ISO Lead Auditor Supervision',
+                         + ' &nbsp;&middot;&nbsp; CISO-Verified Assessment',
       footerCredit:    A.company + ' &middot; VAPT Certificate Registry',
     },
 

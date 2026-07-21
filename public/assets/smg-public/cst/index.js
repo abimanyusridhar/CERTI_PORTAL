@@ -126,7 +126,11 @@
           } catch { /* fallback to current URL */ }
           _lastShareUrl = shareUrl;
           renderCert(data);
-          history.replaceState({ certId: raw }, '', shareUrl);
+          // Best-effort address-bar update — shareUrl is server-built from BASE_ORIGIN,
+          // which throws a SecurityError if it doesn't exactly match this document's
+          // origin (e.g. BASE_ORIGIN misconfigured, or the site reached via an alternate
+          // host/IP). That must never take down an already-successful render.
+          try { history.replaceState({ certId: raw }, '', shareUrl); } catch { /* address bar not updated — non-fatal */ }
         }
       }
     } catch (e) { clearTimeout(_timeout); renderError(e && e.name === 'AbortError' ? 'timeout' : undefined); }
@@ -304,9 +308,7 @@
         <!-- Meta Row -->
         <div class="meta-row">
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div class="meta-lbl">Type</div><div class="meta-val">Training</div></div>
-          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div><div class="meta-lbl">Level</div><div class="meta-val">Intermediate</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div><div class="meta-lbl">Format</div><div class="meta-val">${escH(cert.trainingMode || 'Online')}</div></div>
-          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg></div><div class="meta-lbl">Duration</div><div class="meta-val">50 Min</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div><div class="meta-lbl">Quarter</div><div class="meta-val" style="color:var(--gold)">${escH(cert.complianceQuarter)}</div></div>
         </div>
 
@@ -314,6 +316,7 @@
         <div class="info-card">
           <div class="sect-title">Certificate Details</div>
           <div class="info-grid">
+            ${cert.trainingTitle ? `<div class="ii fw"><span class="ilbl">Training Programme</span><span class="ival">${escH(cert.trainingTitle)}</span></div>` : ''}
             <div class="ii"><span class="ilbl">Vessel Name</span><span class="ival">${escH(cert.vesselName)}</span></div>
             <div class="ii"><span class="ilbl">Vessel IMO</span><span class="ival mono">${escH(cert.vesselIMO)}</span></div>
             <div class="ii"><span class="ilbl">Compliance Date</span><span class="ival">${fmt(cert.complianceDate)}</span></div>
@@ -541,6 +544,7 @@
     if ((el=document.getElementById('footerEmail')))  el.textContent = C.contact.cstEmail;
     // Description block brand names
     if ((el=document.getElementById('descCstTeam')))    el.textContent = C.brand.cstTeam;
+    if ((el=document.getElementById('descTrainingTitle'))) el.textContent = C.cst.trainingTitle;
     if ((el=document.getElementById('descCompanyName'))) el.textContent = C.brand.name;
     var t=document.getElementById('navTabCST'); if(t) t.href=C.routes.cst;
     var v=document.getElementById('navTabVPT'); if(v) v.href=C.routes.vpt;

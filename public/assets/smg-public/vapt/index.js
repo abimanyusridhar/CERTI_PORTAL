@@ -96,7 +96,11 @@
           } catch { /* fallback to current URL */ }
           _lastShareUrl = shareUrl;
           renderCert(data);
-          history.replaceState({ certId: raw }, '', shareUrl);
+          // Best-effort address-bar update — shareUrl is server-built from BASE_ORIGIN,
+          // which throws a SecurityError if it doesn't exactly match this document's
+          // origin (e.g. BASE_ORIGIN misconfigured, or the site reached via an alternate
+          // host/IP). That must never take down an already-successful render.
+          try { history.replaceState({ certId: raw }, '', shareUrl); } catch { /* address bar not updated — non-fatal */ }
         }
       }
     } catch (e) { clearTimeout(_timeout); renderError(e && e.name === 'AbortError' ? 'timeout' : undefined); }
@@ -331,7 +335,6 @@
         <!-- Meta -->
         <div class="meta-row">
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div><div class="meta-lbl">Type</div><div class="meta-val">VAPT</div></div>
-          <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div><div class="meta-lbl">Level</div><div class="meta-val">Advanced</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1"/></svg></div><div class="meta-lbl">Location</div><div class="meta-val">On-Vessel</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/></svg></div><div class="meta-lbl">Validity</div><div class="meta-val">1 Year</div></div>
           <div class="meta-card"><div class="meta-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div><div class="meta-lbl">IMO</div><div class="meta-val" style="color:var(--teal)">${escH(c.vesselIMO || '—')}</div></div>
@@ -631,6 +634,7 @@
       if ((el=document.getElementById('vaptComplianceStandards')))   el.textContent = C.compliance.standards || el.textContent;
       if ((el=document.getElementById('vaptComplianceJurisdiction'))) el.textContent = C.compliance.jurisdiction || 'Singapore MPA';
       if ((el=document.getElementById('vaptCompliancePrivacy')))      { el.href = 'mailto:' + (C.compliance.privacyContact||''); el.textContent = 'Privacy / DPO (' + (C.compliance.privacyContact||'') + ')'; }
+      if ((el=document.getElementById('vaptComplianceRetention'))) el.textContent = 'Records retained ' + (C.compliance.dataRetentionYears || 5) + ' years per maritime compliance obligations';
     }
     var fEmail = document.getElementById('footerEmail');
     if (fEmail && C.contact && C.contact.vaptEmail) { fEmail.textContent = C.contact.vaptEmail; fEmail.href = 'mailto:' + C.contact.vaptEmail; }
