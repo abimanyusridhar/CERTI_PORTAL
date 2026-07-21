@@ -107,6 +107,13 @@ async function main() {
     { name: 'doc_access_requests.json',s3Key: `data/${TENANT_ID}/doc_access_requests.json` },
     { name: 'users.json',              s3Key: `data/${TENANT_ID}/users.json` },
     { name: 'groups.json',             s3Key: `data/${TENANT_ID}/groups.json` },
+    { name: 'email_log.json',          s3Key: `data/${TENANT_ID}/email_log.json` },
+    { name: 'vapt_email_log.json',     s3Key: `data/${TENANT_ID}/vapt_email_log.json` },
+    { name: 'tracking_events.json',    s3Key: `data/${TENANT_ID}/tracking_events.json` },
+    // .keys.json is CRITICAL and handled separately below (merge-safe, never
+    // blindly overwritten) — see STEP 1b. If this file's keys are lost or
+    // replaced, every previously-issued cert verification URL and admin/
+    // superintendent session becomes invalid the moment S3 goes live.
   ];
 
   for (const { name, s3Key } of dataFiles) {
@@ -117,12 +124,55 @@ async function main() {
     }
     const data = loadJson(fp);
     if (!data) { console.log(`  [SKIP] ${name} — could not parse`); continue; }
-    const count = Object.keys(data).length;
+    // Merge into whatever's already in S3 rather than blindly overwriting —
+    // safe to re-run, and safe if the app already wrote a few records to S3
+    // before this script ran (local data wins on key conflicts, since local
+    // is what's been authoritative all along).
+    let existing = {};
+    try { existing = await s3.getJson(s3Key); } catch { /* key doesn't exist yet */ }
+    const merged = { ...(existing || {}), ...data };
+    const count = Object.keys(merged).length;
     try {
-      await putJson(s3Key, data);
+      await putJson(s3Key, merged);
       console.log(`  [OK]   ${name} → s3://${BUCKET}/${s3Key}  (${count} records)`);
     } catch (e) {
       console.error(`  [FAIL] ${name}: ${e.message}`);
+    }
+  }
+
+  console.log('');
+
+  // ── STEP 1b: Crypto keys (CRITICAL — never overwrite existing S3 keys) ──
+  // If S3 already has a canonical .keys.json (e.g. from a previous partial
+  // migration, or the app already generated+pushed one), that copy MUST win —
+  // overwriting it with local keys would only be correct if local is in fact
+  // canonical, which this script cannot verify. Only push local keys if S3
+  // has none yet.
+  console.log('STEP 1b — Syncing crypto keys (.keys.json)');
+  console.log('─────────────────────────────────────────────────────────');
+  {
+    const keysS3Key = `data/${TENANT_ID}/.keys.json`;
+    const keysFp = findFile(path.join(tenantDataDir, '.keys.json'), path.join(rootDataDir, '.keys.json'));
+    let existingKeys = null;
+    try { existingKeys = await s3.getJson(keysS3Key); } catch { /* not in S3 yet */ }
+    if (existingKeys && existingKeys.jwtSecret) {
+      console.log('  [SKIP] .keys.json already present in S3 — left as canonical, not overwritten');
+    } else if (!keysFp) {
+      console.log('  [WARN] .keys.json not found locally and not in S3 — the app will generate a');
+      console.log('         fresh one on first S3-backed boot. Any previously-issued cert URLs,');
+      console.log('         admin sessions, and CSRF tokens will stop validating.');
+    } else {
+      const keys = loadJson(keysFp);
+      if (!keys || !keys.jwtSecret) {
+        console.log('  [SKIP] .keys.json could not be parsed');
+      } else {
+        try {
+          await putJson(keysS3Key, keys);
+          console.log(`  [OK]   .keys.json → s3://${BUCKET}/${keysS3Key} (preserved as canonical)`);
+        } catch (e) {
+          console.error(`  [FAIL] .keys.json: ${e.message}`);
+        }
+      }
     }
   }
 
