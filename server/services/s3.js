@@ -44,6 +44,12 @@ function _sha256(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
 }
 
+function _canonicalQuerystring(params) {
+  return Object.keys(params).sort()
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+    .join('&');
+}
+
 function _sign(method, path, querystring, headers, payload, dateTime) {
   const dateStamp   = dateTime.slice(0, 8);
   const sortedHdrs  = Object.entries(headers)
@@ -63,10 +69,12 @@ function _sign(method, path, querystring, headers, payload, dateTime) {
 
 // ── Core S3 request ───────────────────────────────────────────────────────────
 
-function _s3Request({ method, key, body, contentType, extraHeaders }) {
+function _s3Request({ method, key, body, contentType, extraHeaders, query }) {
   return new Promise((resolve, reject) => {
     const host     = `${BUCKET}.s3.${REGION}.amazonaws.com`;
-    const path     = '/' + encodeURIComponent(key).replace(/%2F/g, '/');
+    // key === null is a bucket-root request (e.g. ListObjectsV2 — GET /?list-type=2&...)
+    const path     = key != null ? '/' + encodeURIComponent(key).replace(/%2F/g, '/') : '/';
+    const qs       = query ? _canonicalQuerystring(query) : '';
     const payload  = body || Buffer.alloc(0);
     const dateTime = new Date().toISOString().replace(/[:-]/g, '').replace(/\.\d+/, '');
     const hdrs     = {
@@ -83,9 +91,9 @@ function _s3Request({ method, key, body, contentType, extraHeaders }) {
     if (method !== 'GET' && method !== 'HEAD' && method !== 'DELETE') {
       hdrs['content-length'] = String(Buffer.byteLength(payload));
     }
-    hdrs['authorization'] = _sign(method, path, '', hdrs, payload, dateTime);
+    hdrs['authorization'] = _sign(method, path, qs, hdrs, payload, dateTime);
 
-    const reqOpts = { hostname: host, path, method, headers: hdrs };
+    const reqOpts = { hostname: host, path: qs ? `${path}?${qs}` : path, method, headers: hdrs };
     const req = https.request(reqOpts, res => {
       const chunks = [];
       res.on('data', c => chunks.push(c));
@@ -94,7 +102,7 @@ function _s3Request({ method, key, body, contentType, extraHeaders }) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve({ ok: true, status: res.statusCode, body: buf, headers: res.headers });
         } else {
-          reject(new Error(`S3 ${method} ${key} → ${res.statusCode}: ${buf.toString().slice(0, 200)}`));
+          reject(new Error(`S3 ${method} ${key != null ? key : path} → ${res.statusCode}: ${buf.toString().slice(0, 200)}`));
         }
       });
     });
@@ -162,6 +170,30 @@ async function getJson(dataKey) {
   return JSON.parse(result.body.toString('utf8'));
 }
 
+/**
+ * List object keys under a prefix (ListObjectsV2). Returns keys with S3_PREFIX
+ * already stripped, so they're directly comparable to the keys passed to
+ * uploadFile/putJson/deleteFile elsewhere in the app. Used for bulk cleanup
+ * (e.g. deleting everything under a tenant's data/uploads prefix) where the
+ * exact set of object keys isn't known in advance.
+ * @param {string} prefix
+ * @returns {Promise<string[]>}
+ */
+async function listObjects(prefix) {
+  if (!S3_ENABLED) throw new Error('S3 not configured');
+  const result = await _s3Request({ method: 'GET', key: null, query: { 'list-type': '2', prefix: PREFIX + prefix } });
+  const xml = result.body.toString('utf8');
+  const keys = [];
+  const re = /<Key>([^<]*)<\/Key>/g;
+  let m;
+  while ((m = re.exec(xml))) {
+    const k = m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+    keys.push(PREFIX && k.startsWith(PREFIX) ? k.slice(PREFIX.length) : k);
+  }
+  return keys;
+}
+
 module.exports = {
   S3_ENABLED,
   BUCKET,
@@ -172,4 +204,5 @@ module.exports = {
   deleteFile,
   putJson,
   getJson,
+  listObjects,
 };

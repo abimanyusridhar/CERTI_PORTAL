@@ -16,6 +16,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+const { cleanupTenantS3Data, fetchTenantKeys } = require('./helpers/s3TestHelpers');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -139,7 +140,7 @@ async function waitForHealth(port, timeoutMs = 12000) {
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await requestJson({ port, urlPath: '/api/health' });
-      if (res.status === 200 && res.json && res.json.ok) return;
+      if (res.status === 200 && res.json && res.json.ok && res.json.status === 'operational') return;
     } catch {
       // retry
     }
@@ -193,18 +194,18 @@ test.before(async () => {
   });
   await waitForHealth(PORT);
 
-  const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-  const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+  const keys = await fetchTenantKeys(tenantId);
   jwtSecret = keys.jwtSecret;
   urlMacKey = keys.urlMacKey;
   adminToken = mintAdminToken('admin_test');
 });
 
-test.after(() => {
+test.after(async () => {
   if (child) child.kill('SIGTERM');
   for (const dir of [path.join(ROOT, 'data', tenantId), path.join(ROOT, 'uploads', tenantId)]) {
     if (dir.startsWith(ROOT + path.sep)) fs.rmSync(dir, { recursive: true, force: true });
   }
+  await cleanupTenantS3Data(tenantId);
 });
 
 // ─── API-003: duplicate certificate ID rejected with 409 ────────────────────

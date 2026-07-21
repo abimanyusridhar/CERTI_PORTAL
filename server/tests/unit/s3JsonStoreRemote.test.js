@@ -2,9 +2,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const https = require('node:https');
 const { EventEmitter } = require('node:events');
 
@@ -66,16 +63,13 @@ function mockHttps() {
   };
 }
 
-test('s3JsonStore - S3-enabled init pulls remote data and save mirrors to S3', async () => {
+test('s3JsonStore - S3-enabled init pulls remote data and save PUTs to S3 (no local disk involved)', async () => {
   const env = withS3Enabled();
   const mock = mockHttps();
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'synergy-s3-remote-store-'));
-  const filePath = path.join(dir, 'store.json');
 
   try {
     const { createS3JsonStore } = require('../../repositories/s3JsonStore');
     const store = createS3JsonStore({
-      filePath,
       s3Key: 'data/store.json',
       seedData: { seed: true },
       debounceMs: 1,
@@ -83,7 +77,6 @@ test('s3JsonStore - S3-enabled init pulls remote data and save mirrors to S3', a
 
     await store.init();
     assert.deepEqual(store.load(), { fromRemote: true });
-    assert.deepEqual(JSON.parse(fs.readFileSync(filePath, 'utf8')), { fromRemote: true });
 
     store.save({ localChange: true });
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -92,7 +85,6 @@ test('s3JsonStore - S3-enabled init pulls remote data and save mirrors to S3', a
     assert.ok(mock.calls.some(c => c.method === 'GET' && c.path === '/data/store.json'));
     assert.ok(mock.calls.some(c => c.method === 'PUT' && c.body.toString('utf8').includes('localChange')));
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
     mock.restore();
     env.restore();
   }

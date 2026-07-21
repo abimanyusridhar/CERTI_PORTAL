@@ -38,7 +38,18 @@ const path   = require('path');
 const crypto = require('crypto');
 const { log } = require('./logger');
 const { loadDotEnv, validateRuntimeConfig } = require('./config/env');
-const { createJsonStore } = require('./repositories/jsonStore');
+
+// ─── ENV LOADER ──────────────────────────────────────────────────────────────
+// Must run BEFORE requiring services/s3.js and services/dynamodb.js below —
+// both read their AWS credentials from process.env at module load time (as a
+// set of top-level `const`s), so requiring them before .env is loaded leaves
+// S3_ENABLED/DYNAMO_ENABLED permanently false for the rest of the process,
+// even once .env's values land in process.env moments later. This is exactly
+// how S3/DynamoDB ended up silently inactive despite valid credentials on
+// disk — nothing failed loudly because the old JSON/S3 store silently fell
+// back to local disk whenever S3_ENABLED read false.
+loadDotEnv(log, __dirname);
+
 const { createS3JsonStore } = require('./repositories/s3JsonStore');
 const { createSecurityService, validation } = require('./services/security');
 const { createMetrics } = require('./ops/metrics');
@@ -50,16 +61,16 @@ const dynamodb = require('./services/dynamodb');
 const { createDynamoStore } = require('./repositories/dynamoStore');
 const { createDualWriteStore } = require('./repositories/dualWriteStore');
 
-// When S3_BUCKET + keys are set, use S3-backed stores; otherwise fall back to local JSON files.
+// S3 is the mandatory, sole persistent store — no local disk fallback (see the
+// boot-time S3_ENABLED check below; the server refuses to start without it).
 // When opts.dynamoEntityPrefix is set AND DynamoDB is configured AND at least
-// one of the rollout flags above is on, the JSON/S3 store is wrapped so it
-// also dual-writes to / shadow-reads from DynamoDB. Omitting dynamoEntityPrefix
+// one of the rollout flags above is on, the S3 store is wrapped so it also
+// dual-writes to / shadow-reads from DynamoDB. Omitting dynamoEntityPrefix
 // (docAccessStore, email log stores, trackStore) means "never touch DynamoDB
 // for this collection" — those don't have a defined DynamoDB schema yet.
 function _makeStore(opts) {
   const refreshIntervalMs = opts.refreshIntervalMs != null ? opts.refreshIntervalMs : STORE_REFRESH_INTERVAL_MS;
-  const storeOpts = { ...opts, refreshIntervalMs };
-  const primary = (s3.S3_ENABLED && opts.s3Key) ? createS3JsonStore(storeOpts) : createJsonStore(opts);
+  const primary = createS3JsonStore({ ...opts, refreshIntervalMs });
   const dynamoRolloutActive = DUAL_WRITE_DYNAMO || SHADOW_READ_DYNAMO;
   if (!opts.dynamoEntityPrefix || !dynamoRolloutActive || !dynamodb.DYNAMO_ENABLED) {
     return primary;
@@ -88,9 +99,6 @@ function _makeStore(opts) {
 // ─── CENTRALIZED CONFIG ──────────────────────────────────────────────────────
 let CFG = require('../config/app.config');
 
-// ─── ENV LOADER ──────────────────────────────────────────────────────────────
-loadDotEnv(log, __dirname);
-
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT           = parseInt(process.env.PORT || '3000', 10);
 // Set TRUST_PROXY=1 in .env when running behind a reverse proxy (nginx, ALB, CloudFront).
@@ -102,21 +110,18 @@ if (!TRUST_PROXY && (process.env.BASE_ORIGIN || '').startsWith('https://')) {
     'rate limiting will use socket IP instead of the real client IP. ' +
     'Set TRUST_PROXY=1 in .env to fix this.');
 }
-let DATA_FILE        = path.join(__dirname, '..', 'data', 'certificates.json');
-let VAPT_DATA_FILE   = path.join(__dirname, '..', 'data', 'vapt_certificates.json');
+// UPLOADS_DIR is kept as a namespacing constant ONLY — it is never read from or
+// written to on local disk. It exists purely so upload-related code can derive
+// consistent relative paths (for S3 key construction and path-traversal
+// validation) the same way it always has; every actual byte lives in S3.
 let UPLOADS_DIR      = path.join(__dirname, '..', 'uploads');
-let KEYS_FILE        = path.join(__dirname, '..', 'data', '.keys.json');
-let DOCS_FILE        = path.join(__dirname, '..', 'data', 'documents.json');
-let DOC_ACCESS_FILE  = path.join(__dirname, '..', 'data', 'doc_access_requests.json');
-let USERS_FILE       = path.join(__dirname, '..', 'data', 'users.json');
-let GROUPS_FILE      = path.join(__dirname, '..', 'data', 'groups.json');
 let TENANT_CFG_FILE  = null;
 
 // ─── TENANT ISOLATION (SaaS Phase 1) ────────────────────────────────────────
 // When TENANT_ID is set, all tenant data (CST/VAPT JSON, tracking JSONL,
 // crypto keys, and uploads) are persisted under:
-//   data/<TENANT_ID>/...
-//   uploads/<TENANT_ID>/...
+//   data/<TENANT_ID>/... (S3 key prefix, not a local path)
+//   uploads/<TENANT_ID>/... (S3 key prefix, not a local path)
 function sanitiseTenantId(raw) {
   if (!raw && raw !== '') return null;
   if (typeof raw !== 'string') return null;
@@ -133,15 +138,7 @@ if (typeof TENANT_ID_RAW === 'string' && TENANT_ID_RAW.trim() !== '' && !TENANT_
   process.exit(1);
 }
 if (TENANT_ID) {
-  const TENANT_DATA_DIR = path.join(__dirname, '..', 'data', TENANT_ID);
-  DATA_FILE      = path.join(TENANT_DATA_DIR, 'certificates.json');
-  VAPT_DATA_FILE = path.join(TENANT_DATA_DIR, 'vapt_certificates.json');
-  UPLOADS_DIR       = path.join(__dirname, '..', 'uploads', TENANT_ID);
-  KEYS_FILE         = path.join(TENANT_DATA_DIR, '.keys.json');
-  DOCS_FILE         = path.join(TENANT_DATA_DIR, 'documents.json');
-  DOC_ACCESS_FILE   = path.join(TENANT_DATA_DIR, 'doc_access_requests.json');
-  USERS_FILE        = path.join(TENANT_DATA_DIR, 'users.json');
-  GROUPS_FILE       = path.join(TENANT_DATA_DIR, 'groups.json');
+  UPLOADS_DIR = path.join(__dirname, '..', 'uploads', TENANT_ID);
   log.info('Tenant isolation enabled:', TENANT_ID);
 
   // Optional: tenant-specific branding + email templates + route labels
@@ -227,29 +224,22 @@ if (DYNAMO_PRIMARY_READ && !DUAL_WRITE_DYNAMO) {
 // 20s; set to 0 to disable (matches old behavior exactly).
 const STORE_REFRESH_INTERVAL_MS = parseInt(process.env.STORE_REFRESH_INTERVAL_MS ?? '20000', 10);
 
-[path.dirname(DATA_FILE), UPLOADS_DIR].forEach(d => {
-  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-});
-
 // ─── PERSISTENT CRYPTO KEYS ──────────────────────────────────────────────────
-function loadOrCreateKeys() {
-  if (fs.existsSync(KEYS_FILE)) {
-    try {
-      const k = JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
-      if (k.urlEncKey && k.urlMacKey && k.jwtSecret && k.pwdSalt) return k;
-    } catch { /* fall through to create */ }
-  }
-  const keys = {
+// Generates a throwaway in-memory placeholder — never touches disk. The real
+// canonical keys (or these, if this is the very first deploy) are resolved
+// against S3 by _syncKeysWithS3() during initialiseRuntimePrerequisites(),
+// BEFORE hashPassword(ADMIN_PASS) runs and BEFORE the server starts accepting
+// requests. Object.assign there mutates this same KEYS object in place, so
+// `security` (built from this reference below) always sees the final values.
+function generatePlaceholderKeys() {
+  return {
     urlEncKey: crypto.randomBytes(32).toString('hex'),
     urlMacKey: crypto.randomBytes(32).toString('hex'),
     jwtSecret: crypto.randomBytes(48).toString('hex'),
     pwdSalt:   crypto.randomBytes(32).toString('hex'),
   };
-  fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2), { encoding: 'utf8', mode: 0o600 });
-  log.info('New cryptographic keys generated and persisted.');
-  return keys;
 }
-const KEYS = loadOrCreateKeys();
+const KEYS = generatePlaceholderKeys();
 const security = createSecurityService({ keys: KEYS, cfg: CFG });
 const metrics = createMetrics();
 let _reqSeq = 0;
@@ -278,6 +268,18 @@ const COGNITO_IAM_SECRET_KEY = process.env.COGNITO_SECRET_ACCESS_KEY || process.
 
 if (!ADMIN_USER || !ADMIN_PASS) {
   log.error('ADMIN_USER and ADMIN_PASS must be set in your .env file before starting the server.');
+  process.exit(1);
+}
+
+// ─── STORAGE: S3 REQUIRED, NO LOCAL FALLBACK ─────────────────────────────────
+// All application data (certificates, users, groups, documents, uploaded
+// files, crypto keys) lives in S3 (optionally dual-written to DynamoDB via
+// the rollout flags above) — never on local disk. There is no local-JSON
+// fallback mode; S3 must be configured for the server to start at all.
+if (!s3.S3_ENABLED) {
+  log.error('S3_BUCKET + AWS credentials are required — this deployment stores all data in ' +
+    'S3/DynamoDB only, with no local-disk fallback. Set S3_BUCKET, AWS_ACCESS_KEY_ID, and ' +
+    'AWS_SECRET_ACCESS_KEY (or the S3_ACCESS_KEY/S3_SECRET_KEY equivalents) in .env. Refusing to start.');
   process.exit(1);
 }
 
@@ -318,11 +320,12 @@ let isShuttingDown = false;
 let _shutdownTimer = null;
 
 // ─── S3 KEY SYNC ─────────────────────────────────────────────────────────────
-// On a fresh EC2 instance, loadOrCreateKeys() generates NEW keys from scratch.
-// New keys would invalidate ALL existing encrypted cert URLs and active tokens.
-// This function restores the canonical keys from S3 if available, or persists
-// the current keys to S3 on first deploy — ensuring every instance uses the
-// same cryptographic material regardless of ephemeral disk state.
+// generatePlaceholderKeys() above always produces fresh random secrets in
+// memory. New keys would invalidate ALL existing encrypted cert URLs and
+// active tokens, so this function resolves the CANONICAL keys against S3:
+// restores them if S3 already has a copy, or persists these freshly-generated
+// ones on first deploy — ensuring every instance/restart uses the same
+// cryptographic material with no local disk involved at any point.
 //
 // Must be called BEFORE hashPassword(ADMIN_PASS) since it may mutate KEYS.pwdSalt.
 async function _syncKeysWithS3() {
@@ -334,17 +337,15 @@ async function _syncKeysWithS3() {
 
   if (s3Keys && s3Keys.urlEncKey && s3Keys.urlMacKey && s3Keys.jwtSecret && s3Keys.pwdSalt) {
     if (s3Keys.jwtSecret !== KEYS.jwtSecret || s3Keys.urlEncKey !== KEYS.urlEncKey) {
-      // S3 has the canonical keys; we generated fresh ones on this instance
+      // S3 has the canonical keys; this instance generated a fresh placeholder
       // → swap KEYS in-place so all security closures see the correct values
       Object.assign(KEYS, s3Keys);
-      try {
-        fs.writeFileSync(KEYS_FILE, JSON.stringify(KEYS, null, 2), { encoding: 'utf8', mode: 0o600 });
-      } catch (e) { log.warn('Could not write S3 keys to local disk:', e.message); }
       log.info('[Keys] Restored canonical crypto keys from S3. Existing cert URLs remain valid.');
     }
-    // else: local keys already match S3 — nothing to do
+    // else: this instance's placeholder already matches S3 (extremely unlikely, but harmless)
   } else {
-    // S3 has no keys yet → push current local keys so future instances can recover
+    // S3 has no keys yet → push this instance's freshly-generated keys so
+    // every future instance/restart recovers the SAME canonical material.
     try {
       await s3.putJson(s3KeyPath, KEYS);
       log.info('[Keys] Crypto keys synced to S3 (first deploy).');
@@ -356,40 +357,31 @@ async function _syncKeysWithS3() {
 
 async function initialiseRuntimePrerequisites() {
   // 1. Recover/sync crypto keys with S3 FIRST — must run before hashPassword
-  //    because S3 recovery may mutate KEYS.pwdSalt.
-  if (s3.S3_ENABLED) {
-    await _syncKeysWithS3();
-  }
+  //    because S3 recovery may mutate KEYS.pwdSalt. S3 is guaranteed enabled
+  //    (checked at boot above), so this always runs.
+  await _syncKeysWithS3();
 
   // 2. Hash admin password with the now-confirmed canonical keys.
   ADMIN_PASS_HASH = await hashPassword(ADMIN_PASS);
 
-  // 3. Ensure writable runtime directories exist.
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  fs.mkdirSync(path.dirname(VAPT_DATA_FILE), { recursive: true });
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  fs.mkdirSync(path.join(UPLOADS_DIR, 'documents'), { recursive: true });
+  // 3. Pre-load every S3/DynamoDB-backed store before serving requests
+  // (prevents a race on fresh instance start, and — for the DynamoDB
+  // dual-write rollout — ensures the DynamoDB secondary's diff baseline is
+  // seeded from what's actually in the table before the first save() runs).
+  await Promise.all([
+    cstStore.init(),
+    vaptStore.init(),
+    docsStore.init(),
+    docAccessStore.init(),
+    usersStore.init(),
+    groupsStore.init(),
+    cstEmailLogStore.init(),
+    vaptEmailLogStore.init(),
+    trackStore.init(),
+  ]);
+  log.info('S3/DynamoDB stores pre-loaded.');
 
-  // 4. Pre-load ALL S3/DynamoDB-backed stores before serving requests (prevents
-  // a race on fresh EC2 start, and — for the DynamoDB dual-write rollout —
-  // ensures the DynamoDB secondary's diff baseline is seeded from what's
-  // actually in the table before the first save() runs).
-  if (s3.S3_ENABLED || DUAL_WRITE_DYNAMO || SHADOW_READ_DYNAMO) {
-    await Promise.all([
-      cstStore.init          && cstStore.init(),
-      vaptStore.init         && vaptStore.init(),
-      docsStore.init         && docsStore.init(),
-      docAccessStore.init    && docAccessStore.init(),
-      usersStore.init        && usersStore.init(),
-      groupsStore.init       && groupsStore.init(),
-      cstEmailLogStore.init  && cstEmailLogStore.init(),
-      vaptEmailLogStore.init && vaptEmailLogStore.init(),
-      trackStore.init        && trackStore.init(),
-    ]);
-    log.info('S3/DynamoDB stores pre-loaded.');
-  }
-
-  // 5. Warm in-memory caches so the first request hits no I/O.
+  // 4. Warm in-memory caches so the first request hits no I/O.
   loadData();
   loadVaptData();
   loadDocs();
@@ -660,7 +652,6 @@ const SEED = {
 // ─── DATA STORE ──────────────────────────────────────────────────────────────
 let _certCache = null;
 const cstStore = _makeStore({
-  filePath: DATA_FILE,
   s3Key:    `data/${TENANT_ID || 'default'}/certificates.json`,
   seedData: SEED,
   onError: (err) => log.error('Failed to persist certificate data:', err.message),
@@ -711,7 +702,6 @@ const VAPT_SEED = {
 // ─── VAPT DATA STORE ─────────────────────────────────────────────────────────
 let _vaptCache = null;
 const vaptStore = _makeStore({
-  filePath: VAPT_DATA_FILE,
   s3Key:    `data/${TENANT_ID || 'default'}/vapt_certificates.json`,
   seedData: VAPT_SEED,
   onError: (err) => log.error('Failed to persist VAPT certificate data:', err.message),
@@ -735,7 +725,6 @@ function buildVaptCertUrl(certId, baseUrl) {
 // ─── DOCUMENTS STORE ─────────────────────────────────────────────────────────
 let _docsCache = null;
 const docsStore = _makeStore({
-  filePath: DOCS_FILE,
   s3Key:    `data/${TENANT_ID || 'default'}/documents.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist documents data:', err.message),
@@ -878,7 +867,6 @@ function resolveCertificateAttachment(attId) {
 // ─── DOC ACCESS REQUESTS STORE ───────────────────────────────────────────────
 let _docAccessCache = null;
 const docAccessStore = _makeStore({
-  filePath: DOC_ACCESS_FILE,
   s3Key:    `data/${TENANT_ID || 'default'}/doc_access_requests.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist doc access data:', err.message),
@@ -890,7 +878,6 @@ function saveDocAccess(data) { _docAccessCache = data; docAccessStore.save(data)
 // ─── USERS STORE ─────────────────────────────────────────────────────────────
 let _usersCache = null;
 const usersStore = _makeStore({
-  filePath: USERS_FILE,
   s3Key:    `data/${TENANT_ID || 'default'}/users.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist users data:', err.message),
@@ -1068,7 +1055,6 @@ function cognitoAdminCreateUser(email, name) {
 // ─── GROUPS STORE ─────────────────────────────────────────────────────────────
 let _groupsCache = null;
 const groupsStore = _makeStore({
-  filePath: GROUPS_FILE,
   s3Key:    `data/${TENANT_ID || 'default'}/groups.json`,
   seedData: {},
   onError: (err) => log.error('Failed to persist groups data:', err.message),
@@ -1081,21 +1067,18 @@ function saveGroups(data)  { _groupsCache = data; groupsStore.save(data); }
 
 // ─── OPERATIONAL LOG STORES (email audit + engagement — S3 backed) ───────────
 const cstEmailLogStore = _makeStore({
-  filePath: path.join(path.dirname(DATA_FILE), 'email_log.json'),
   s3Key:    `data/${TENANT_ID || 'default'}/email_log.json`,
   seedData: {},
   onError: (err) => log.warn('Email log persist error:', err.message),
   debounceMs: 2000,
 });
 const vaptEmailLogStore = _makeStore({
-  filePath: path.join(path.dirname(DATA_FILE), 'vapt_email_log.json'),
   s3Key:    `data/${TENANT_ID || 'default'}/vapt_email_log.json`,
   seedData: {},
   onError: (err) => log.warn('VAPT email log persist error:', err.message),
   debounceMs: 2000,
 });
 const trackStore = _makeStore({
-  filePath: path.join(path.dirname(DATA_FILE), 'tracking_events.json'),
   s3Key:    `data/${TENANT_ID || 'default'}/tracking_events.json`,
   seedData: {},
   onError: (err) => log.warn('Track log persist error:', err.message),
@@ -1731,24 +1714,17 @@ async function sendCstEmail({ to, from, cert, verifyUrl, baseUrl }) {
   const subject          = `Congratulations! Your CST Certificate — ${cert.id} — ${CFG.brand.name}`;
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'cst');
 
-  // Load certificate image for attachment — try local disk first, then S3
+  // Load certificate image for attachment — S3 is the only copy that exists.
   let certImageData = null, certImageName = null, certImageMime = null;
   if (cert.certificateImage) {
     const imgFname = path.basename(cert.certificateImage);
-    const imgPath  = path.join(UPLOADS_DIR, imgFname);
     const mimeMap  = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
     const imgExt   = path.extname(imgFname).toLowerCase();
     try {
-      if (fs.existsSync(imgPath)) {
-        certImageData = fs.readFileSync(imgPath);
+      certImageData = await s3.downloadFile(s3FileKey(imgFname));
+      if (certImageData) {
         certImageMime = mimeMap[imgExt] || 'image/png';
         certImageName = `certificate-${cert.id}${imgExt}`;
-      } else if (s3.S3_ENABLED) {
-        certImageData = await s3.downloadFile(s3FileKey(imgFname));
-        if (certImageData) {
-          certImageMime = mimeMap[imgExt] || 'image/png';
-          certImageName = `certificate-${cert.id}${imgExt}`;
-        }
       }
     } catch (e) { log.warn('Could not load cert image for CST email attachment:', e.message); }
   }
@@ -1775,24 +1751,17 @@ async function sendVaptEmail({ to, from, cert, verifyUrl, baseUrl }) {
   }
   const trackingPixelUrl = buildTrackingPixelUrl(cert.id, BASE_ORIGIN, 'vapt');
 
-  // Load certificate image for attachment — try local disk first, then S3
+  // Load certificate image for attachment — S3 is the only copy that exists.
   let certImageData = null, certImageName = null, certImageMime = null;
   if (cert.certificateImage) {
     const imgFname = path.basename(cert.certificateImage);
-    const imgPath  = path.join(UPLOADS_DIR, imgFname);
     const mimeMap  = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
     const imgExt   = path.extname(imgFname).toLowerCase();
     try {
-      if (fs.existsSync(imgPath)) {
-        certImageData = fs.readFileSync(imgPath);
+      certImageData = await s3.downloadFile(s3FileKey(imgFname));
+      if (certImageData) {
         certImageMime = mimeMap[imgExt] || 'image/png';
         certImageName = `certificate-${cert.id}${imgExt}`;
-      } else if (s3.S3_ENABLED) {
-        certImageData = await s3.downloadFile(s3FileKey(imgFname));
-        if (certImageData) {
-          certImageMime = mimeMap[imgExt] || 'image/png';
-          certImageName = `certificate-${cert.id}${imgExt}`;
-        }
       }
     } catch (e) { log.warn('Could not load cert image for VAPT email attachment:', e.message); }
   }
@@ -1836,17 +1805,13 @@ function s3FileKey(fname) { return TENANT_ID ? `uploads/${TENANT_ID}/${fname}` :
 function s3DocKey(fname)  { return TENANT_ID ? `uploads/${TENANT_ID}/documents/${fname}` : `uploads/documents/${fname}`; }
 function s3DeleteAsync(key) { if (s3.S3_ENABLED && key) s3.deleteFile(key).catch(e => log.warn('S3 delete failed: ' + e.message)); }
 
-// Reads a previously-uploaded file for serving: local disk first, then S3 if this
-// instance's ephemeral disk doesn't have it (e.g. it was uploaded on a different
-// instance). Mirrors the fallback already used by the generic /uploads/* static
-// handler, applied here too since /api/docs/download and /api/docs/open read the
-// file directly instead of going through that handler.
-async function readUploadedFileWithS3Fallback(fp, s3Key) {
-  if (fs.existsSync(fp)) return fs.readFileSync(fp);
-  if (s3.S3_ENABLED && s3Key) {
-    try { return await s3.downloadFile(s3Key); } catch { /* not in S3 either */ }
-  }
-  return null;
+// Reads a previously-uploaded file for serving. S3 is the only copy that
+// exists — nothing is ever written to local disk. Shared by /api/docs/download
+// and /api/docs/open, which read the file directly instead of going through
+// the generic /uploads/* handler.
+async function readUploadedFile(s3Key) {
+  if (!s3Key) return null;
+  try { return await s3.downloadFile(s3Key); } catch { return null; }
 }
 
 // Per-extension upload size limits (enforced before disk write)
@@ -1858,7 +1823,10 @@ const FILE_SIZE_LIMITS = {
   '.xls': 5 * 1024 * 1024, '.xlsx': 5 * 1024 * 1024,
 };
 
-function saveCertImageFile(files, prefix, existingPath) {
+// S3 is the only copy of the uploaded file that will ever exist — the upload
+// is awaited so a genuine S3 failure surfaces as an error to the caller
+// instead of silently reporting success with the file stored nowhere.
+async function saveCertImageFile(files, prefix, existingPath) {
   const f = files && files.certificateImage;
   if (!f || !f.data || !f.data.length) return null;
   const origExt = path.extname(f.filename || '').toLowerCase();
@@ -1867,17 +1835,9 @@ function saveCertImageFile(files, prefix, existingPath) {
   if (!malwareScan.scanBuffer(f.data, { filename: f.filename, ext: origExt }).clean) throw new Error('Uploaded image failed malware scan.');
   const _imgMaxBytes = FILE_SIZE_LIMITS[origExt] || 5 * 1024 * 1024;
   if (f.data.length > _imgMaxBytes) throw new Error(`Image exceeds ${Math.round(_imgMaxBytes / 1024 / 1024)}MB limit.`);
-  if (existingPath) {
-    const old = path.join(UPLOADS_DIR, path.basename(existingPath));
-    if (fs.existsSync(old)) try { fs.unlinkSync(old); } catch { /* non-fatal */ }
-    s3DeleteAsync(s3FileKey(path.basename(existingPath)));
-  }
+  if (existingPath) s3DeleteAsync(s3FileKey(path.basename(existingPath)));
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
-  fs.writeFileSync(path.join(UPLOADS_DIR, fname), f.data);
-  if (s3.S3_ENABLED) {
-    s3.uploadFile(s3FileKey(fname), f.data, f.contentType || 'application/octet-stream')
-      .catch(err => log.warn('S3 cert image mirror failed: ' + err.message));
-  }
+  await s3.uploadFile(s3FileKey(fname), f.data, f.contentType || 'application/octet-stream');
   return '/uploads/' + fname;
 }
 
@@ -1922,7 +1882,7 @@ function vaptPublicFields(cert) {
 // ─── ATTACHMENT HELPERS ──────────────────────────────────────────────────────
 const ALLOWED_ATTACHMENT_EXTS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.doc', '.docx', '.xls', '.xlsx'];
 
-function saveAttachmentFile(fileObj, prefix) {
+async function saveAttachmentFile(fileObj, prefix) {
   const origExt = path.extname(fileObj.filename || '').toLowerCase();
   if (!ALLOWED_ATTACHMENT_EXTS.includes(origExt)) throw new Error(`Attachment type '${origExt || 'unknown'}' is not allowed.`);
   if (!validateFileMagic(fileObj.data, origExt)) throw new Error('Attachment content does not match its declared file type.');
@@ -1930,15 +1890,11 @@ function saveAttachmentFile(fileObj, prefix) {
   const _attMaxBytes = FILE_SIZE_LIMITS[origExt] || 5 * 1024 * 1024;
   if (fileObj.data.length > _attMaxBytes) throw new Error(`Attachment exceeds ${Math.round(_attMaxBytes / 1024 / 1024)}MB limit.`);
   const fname = prefix + '_' + crypto.randomBytes(12).toString('hex') + origExt;
-  fs.writeFileSync(path.join(UPLOADS_DIR, fname), fileObj.data);
-  if (s3.S3_ENABLED) {
-    s3.uploadFile(s3FileKey(fname), fileObj.data, fileObj.contentType || 'application/octet-stream')
-      .catch(err => log.warn('S3 attachment mirror failed: ' + err.message));
-  }
+  await s3.uploadFile(s3FileKey(fname), fileObj.data, fileObj.contentType || 'application/octet-stream');
   return { name: fileObj.filename || fname, url: '/uploads/' + fname, size: fileObj.data.length };
 }
 
-function extractAttachments(fields, files, prefix, existingAttachments = []) {
+async function extractAttachments(fields, files, prefix, existingAttachments = []) {
   let result = existingAttachments.slice();
   if (fields.attachments) {
     try { result = JSON.parse(fields.attachments); } catch { /* ignore */ }
@@ -1947,7 +1903,7 @@ function extractAttachments(fields, files, prefix, existingAttachments = []) {
   for (const key of fileKeys) {
     const f = files[key];
     if (f && f.data && f.data.length > 0) {
-      result.push(saveAttachmentFile(f, prefix));
+      result.push(await saveAttachmentFile(f, prefix));
     }
   }
   return result;
@@ -2669,9 +2625,9 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         cert = { ...fields };
-        const imgPath = saveCertImageFile(files, 'cert');
+        const imgPath = await saveCertImageFile(files, 'cert');
         if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = extractAttachments(fields, files, 'cert');
+        cert.attachments = await extractAttachments(fields, files, 'cert');
       } else {
         cert = JSON.parse(await getBody(req));
         if (!Array.isArray(cert.attachments)) cert.attachments = [];
@@ -2733,9 +2689,9 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         updates = { ...fields };
-        const imgPath = saveCertImageFile(files, 'cert', data[certId].certificateImage);
+        const imgPath = await saveCertImageFile(files, 'cert', data[certId].certificateImage);
         if (imgPath) updates.certificateImage = imgPath;
-        updates.attachments = extractAttachments(fields, files, 'cert', data[certId].attachments || []);
+        updates.attachments = await extractAttachments(fields, files, 'cert', data[certId].attachments || []);
       } else {
         updates = JSON.parse(await getBody(req));
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
@@ -2924,20 +2880,13 @@ async function handleAPI(req, res, parsed) {
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const data = loadData();
       if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-      // Clean up certificate image from disk + S3
+      // Clean up certificate image + attachments from S3
       if (data[certId].certificateImage) {
-        const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-        if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
         s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
       }
-      // Clean up all attachments from disk + S3
       if (Array.isArray(data[certId].attachments)) {
         for (const att of data[certId].attachments) {
-          if (att && att.url) {
-            const fp = path.join(UPLOADS_DIR, path.basename(att.url));
-            if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
-            s3DeleteAsync(s3FileKey(path.basename(att.url)));
-          }
+          if (att && att.url) s3DeleteAsync(s3FileKey(path.basename(att.url)));
         }
       }
       delete data[certId];
@@ -3263,9 +3212,9 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         cert = { ...fields };
-        const imgPath = saveCertImageFile(files, 'vapt');
+        const imgPath = await saveCertImageFile(files, 'vapt');
         if (imgPath) cert.certificateImage = imgPath;
-        cert.attachments = extractAttachments(fields, files, 'vapt');
+        cert.attachments = await extractAttachments(fields, files, 'vapt');
       } else {
         cert = JSON.parse(await getBody(req));
         if (!Array.isArray(cert.attachments)) cert.attachments = [];
@@ -3396,9 +3345,9 @@ async function handleAPI(req, res, parsed) {
       if (ct.includes('multipart/form-data')) {
         const { fields, files } = await parseMultipart(req);
         updates = { ...fields };
-        const imgPath = saveCertImageFile(files, 'vapt', data[certId].certificateImage);
+        const imgPath = await saveCertImageFile(files, 'vapt', data[certId].certificateImage);
         if (imgPath) updates.certificateImage = imgPath;
-        updates.attachments = extractAttachments(fields, files, 'vapt', data[certId].attachments || []);
+        updates.attachments = await extractAttachments(fields, files, 'vapt', data[certId].attachments || []);
       } else {
         updates = JSON.parse(await getBody(req));
         if (updates.attachments !== undefined && !Array.isArray(updates.attachments)) updates.attachments = [];
@@ -3515,20 +3464,13 @@ async function handleAPI(req, res, parsed) {
       if (!certId) return sendJSON(res, 400, { error: 'Invalid certificate ID' }, corsH);
       const data = loadVaptData();
       if (!data[certId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-      // Clean up certificate image from disk + S3
+      // Clean up certificate image + attachments from S3
       if (data[certId].certificateImage) {
-        const imgPath = path.join(UPLOADS_DIR, path.basename(data[certId].certificateImage));
-        if (fs.existsSync(imgPath)) { try { fs.unlinkSync(imgPath); } catch { /* non-fatal */ } }
         s3DeleteAsync(s3FileKey(path.basename(data[certId].certificateImage)));
       }
-      // Clean up all attachments from disk + S3
       if (Array.isArray(data[certId].attachments)) {
         for (const att of data[certId].attachments) {
-          if (att && att.url) {
-            const fp = path.join(UPLOADS_DIR, path.basename(att.url));
-            if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); } catch { /* non-fatal */ } }
-            s3DeleteAsync(s3FileKey(path.basename(att.url)));
-          }
+          if (att && att.url) s3DeleteAsync(s3FileKey(path.basename(att.url)));
         }
       }
       delete data[certId];
@@ -3552,11 +3494,7 @@ async function handleAPI(req, res, parsed) {
     const atts = Array.isArray(data[certId].attachments) ? data[certId].attachments : [];
     if (isNaN(idx) || idx < 0 || idx >= atts.length) return sendJSON(res, 400, { error: 'Invalid attachment index' }, corsH);
     const removed = atts.splice(idx, 1)[0];
-    if (removed && removed.url) {
-      const fp = path.join(UPLOADS_DIR, path.basename(removed.url));
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
-      s3DeleteAsync(s3FileKey(path.basename(removed.url)));
-    }
+    if (removed && removed.url) s3DeleteAsync(s3FileKey(path.basename(removed.url)));
     data[certId].attachments = atts;
     data[certId].updatedAt   = new Date().toISOString();
     saveData(data);
@@ -3578,11 +3516,7 @@ async function handleAPI(req, res, parsed) {
     const atts = Array.isArray(data[certId].attachments) ? data[certId].attachments : [];
     if (isNaN(idx) || idx < 0 || idx >= atts.length) return sendJSON(res, 400, { error: 'Invalid attachment index' }, corsH);
     const removed = atts.splice(idx, 1)[0];
-    if (removed && removed.url) {
-      const fp = path.join(UPLOADS_DIR, path.basename(removed.url));
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
-      s3DeleteAsync(s3FileKey(path.basename(removed.url)));
-    }
+    if (removed && removed.url) s3DeleteAsync(s3FileKey(path.basename(removed.url)));
     data[certId].attachments = atts;
     data[certId].updatedAt   = new Date().toISOString();
     saveVaptData(data);
@@ -3631,13 +3565,13 @@ async function handleAPI(req, res, parsed) {
     const safeOrig = path.basename(fileObj.filename || 'upload').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80);
     const uid = crypto.randomBytes(8).toString('hex');
     const fname = `DOC-${vesselIMO}-${uid}-${safeOrig}`;
-    const docsUploadDir = path.join(UPLOADS_DIR, 'documents');
-    fs.mkdirSync(docsUploadDir, { recursive: true });
-    const fpath = path.join(docsUploadDir, fname);
-    fs.writeFileSync(fpath, fileObj.data);
-    if (s3.S3_ENABLED) {
-      s3.uploadFile(s3DocKey(fname), fileObj.data, fileObj.contentType || 'application/octet-stream')
-        .catch(err => log.warn('S3 doc mirror failed: ' + err.message));
+    // S3 is the only copy that will ever exist — await it so a genuine
+    // failure surfaces as an error instead of reporting success with the
+    // file stored nowhere.
+    try {
+      await s3.uploadFile(s3DocKey(fname), fileObj.data, fileObj.contentType || 'application/octet-stream');
+    } catch (e) {
+      return sendJSON(res, 502, { error: 'Upload failed: ' + e.message }, corsH);
     }
     const docs = loadDocs();
     const docId = nextSequentialId(docs, 'DOC');
@@ -3684,8 +3618,6 @@ async function handleAPI(req, res, parsed) {
     const docId = route.replace('/docs/', '');
     const docs = loadDocs();
     if (!docs[docId]) return sendJSON(res, 404, { error: 'Not found' }, corsH);
-    const fp = docs[docId].filePath ? path.join(UPLOADS_DIR, 'documents', path.basename(docs[docId].filePath)) : null;
-    if (fp && fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch { /* ignore */ }
     if (docs[docId].filePath) s3DeleteAsync(s3DocKey(path.basename(docs[docId].filePath)));
     delete docs[docId];
     saveDocs(docs);
@@ -3737,7 +3669,7 @@ async function handleAPI(req, res, parsed) {
     const allowedRoot = certAttachment ? UPLOADS_DIR : path.join(UPLOADS_DIR, 'documents');
     if (!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) return sendJSON(res, 404, { error: 'File not found' }, corsH);
     const s3Key = certAttachment ? s3FileKey(path.basename(fp)) : s3DocKey(path.basename(fp));
-    const data = await readUploadedFileWithS3Fallback(fp, s3Key);
+    const data = await readUploadedFile(s3Key);
     if (!data) return sendJSON(res, 404, { error: 'File not found' }, corsH);
     const mime = doc.mimeType || 'application/octet-stream';
     const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
@@ -3821,7 +3753,7 @@ async function handleAPI(req, res, parsed) {
     const allowedRoot = certAttachment ? UPLOADS_DIR : path.join(UPLOADS_DIR, 'documents');
     if (!fp.startsWith(allowedRoot + path.sep) && fp !== allowedRoot) return sendJSON(res, 404, { error: 'File not found on disk' }, corsH);
     const s3Key = certAttachment ? s3FileKey(path.basename(fp)) : s3DocKey(path.basename(fp));
-    const data = await readUploadedFileWithS3Fallback(fp, s3Key);
+    const data = await readUploadedFile(s3Key);
     if (!data) return sendJSON(res, 404, { error: 'File not found on disk' }, corsH);
     const mime = doc.mimeType || 'application/octet-stream';
     const isViewable = mime === 'application/pdf' || mime.startsWith('image/');
@@ -4442,22 +4374,13 @@ async function handleRequest(req, res) {
     // Extract relative path while protecting against traversal attacks
     const relPath = p.slice('/uploads/'.length);
 
-    // Reject path traversal attempts
-    if (relPath.includes('..') || relPath.startsWith('/')) {
-      res.writeHead(403, SECURITY_HEADERS);
-      return res.end('Forbidden');
-    }
-    
-    // Resolve the full path
-    const fpath = path.resolve(UPLOADS_DIR, relPath);
-
-    // Verify the resolved path is within UPLOADS_DIR (another traversal check)
-    if (!fpath.startsWith(UPLOADS_DIR + path.sep) && fpath !== UPLOADS_DIR) {
-      res.writeHead(403, SECURITY_HEADERS);
-      return res.end('Forbidden');
-    }
-    // Reject directory traversal to actual directories
-    if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
+    // Reject path traversal attempts. There is no local directory to resolve
+    // against anymore (S3 is the only store), so this is validated purely as
+    // a string: normalising must not change it or escape above the uploads/
+    // prefix, and it must name an actual file (not be empty / directory-like).
+    const normalisedRel = path.posix.normalize(relPath);
+    if (!relPath || relPath !== normalisedRel || relPath.startsWith('..') ||
+        relPath.startsWith('/') || relPath.endsWith('/')) {
       res.writeHead(403, SECURITY_HEADERS);
       return res.end('Forbidden');
     }
@@ -4473,27 +4396,19 @@ async function handleRequest(req, res) {
       return res.end('Forbidden');
     }
 
-    if (!fs.existsSync(fpath)) {
-      // Try S3 fallback (for files uploaded before local disk was available,
-      // or after an instance replacement where the local uploads/ dir is empty)
-      if (s3.S3_ENABLED) {
-        try {
-          const s3Key = TENANT_ID ? `uploads/${TENANT_ID}/${relPath}` : `uploads/${relPath}`;
-          const buf   = await s3.downloadFile(s3Key);
-          const ext2  = path.extname(relPath).toLowerCase();
-          const mime2 = MIME[ext2] || 'application/octet-stream';
-          res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': mime2, 'Cache-Control': 'public, max-age=86400' });
-          return res.end(buf);
-        } catch { /* not in S3 either — fall through to 404 */ }
-      }
+    const ext   = path.extname(relPath).toLowerCase();
+    const mime  = MIME[ext] || 'application/octet-stream';
+    const isPdf = ext === '.pdf';
+    const fname = path.basename(relPath);
+
+    const s3Key = TENANT_ID ? `uploads/${TENANT_ID}/${relPath}` : `uploads/${relPath}`;
+    let content;
+    try {
+      content = await s3.downloadFile(s3Key);
+    } catch {
       res.writeHead(404, SECURITY_HEADERS);
       return res.end('Not found');
     }
-
-    const ext   = path.extname(fpath).toLowerCase();
-    const mime  = MIME[ext] || 'application/octet-stream';
-    const isPdf = ext === '.pdf';
-    const fname = path.basename(fpath);
 
     // ── Track document download: only real downloads, not image thumbnail loads ──
     // Rules:
@@ -4553,25 +4468,19 @@ async function handleRequest(req, res) {
       }
     }
 
-    try {
-      const content = fs.readFileSync(fpath);
-      // Images (cert thumbnails) served inline; all other files forced to download
-      // to prevent XSS via PDF JS injection or malicious office macros.
-      const serveInline = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext);
-      const disposition  = serveInline ? `inline; filename="${fname}"` : `attachment; filename="${fname}"`;
-      res.writeHead(200, {
-        ...SECURITY_HEADERS,
-        'Content-Type':        mime,
-        'Content-Length':      content.length,
-        'Cache-Control':       serveInline ? 'private, max-age=3600' : 'private, no-store',
-        'X-Frame-Options':     'DENY',
-        'Content-Disposition': disposition,
-      });
-      return res.end(content);
-    } catch {
-      res.writeHead(404, SECURITY_HEADERS);
-      return res.end('Not found');
-    }
+    // Images (cert thumbnails) served inline; all other files forced to download
+    // to prevent XSS via PDF JS injection or malicious office macros.
+    const serveInline = isImageExt;
+    const disposition  = serveInline ? `inline; filename="${fname}"` : `attachment; filename="${fname}"`;
+    res.writeHead(200, {
+      ...SECURITY_HEADERS,
+      'Content-Type':        mime,
+      'Content-Length':      content.length,
+      'Cache-Control':       serveInline ? 'private, max-age=3600' : 'private, no-store',
+      'X-Frame-Options':     'DENY',
+      'Content-Disposition': disposition,
+    });
+    return res.end(content);
   }
 
   // ── Config (browser-side app.config.js) ──────────────────────────────────

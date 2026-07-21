@@ -7,6 +7,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+const { cleanupTenantS3Data, fetchTenantKeys } = require('./helpers/s3TestHelpers');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -44,7 +45,7 @@ async function waitForHealth(port, timeoutMs = 12000) {
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await requestJson({ port, urlPath: '/api/health' });
-      if (res.status === 200 && res.json && res.json.ok) return;
+      if (res.status === 200 && res.json && res.json.ok && res.json.status === 'operational') return;
     } catch {
       // retry
     }
@@ -117,8 +118,7 @@ test('client role — mutating routes 403, read routes 200, admin/legacy tokens 
   try {
     await waitForHealth(port);
 
-    const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-    const { jwtSecret } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+    const { jwtSecret } = await fetchTenantKeys(tenantId);
 
     function mintToken(username, role) {
       const nowS = Math.floor(Date.now() / 1000);
@@ -153,5 +153,6 @@ test('client role — mutating routes 403, read routes 200, admin/legacy tokens 
     }
   } finally {
     child.kill();
+    await cleanupTenantS3Data(tenantId);
   }
 });

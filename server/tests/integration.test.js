@@ -7,6 +7,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+const { cleanupTenantS3Data, fetchTenantKeys } = require('./helpers/s3TestHelpers');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -127,7 +128,7 @@ async function waitForHealth(port, timeoutMs = 12000) {
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await requestJson({ port, urlPath: '/api/health' });
-      if (res.status === 200 && res.json && res.json.ok) return;
+      if (res.status === 200 && res.json && res.json.ok && res.json.status === 'operational') return;
     } catch {
       // retry
     }
@@ -199,8 +200,7 @@ test('server critical API flows', async () => {
     // directly using the spawned instance's own signing key, the same way
     // /auth/sso/callback does, rather than going through a browser-only Cognito
     // round-trip this test harness can't simulate.
-    const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-    const { jwtSecret, urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+    const { jwtSecret, urlMacKey } = await fetchTenantKeys(tenantId);
     function mintAdminToken(username) {
       const nowS = Math.floor(Date.now() / 1000);
       const payload = { sub: username, iat: nowS, exp: nowS + 8 * 60 * 60, jti: crypto.randomBytes(16).toString('hex') };
@@ -517,5 +517,6 @@ test('server critical API flows', async () => {
     for (const dir of [path.join(ROOT, 'data', tenantId), path.join(ROOT, 'uploads', tenantId)]) {
       if (dir.startsWith(ROOT + path.sep)) fs.rmSync(dir, { recursive: true, force: true });
     }
+    await cleanupTenantS3Data(tenantId);
   }
 });

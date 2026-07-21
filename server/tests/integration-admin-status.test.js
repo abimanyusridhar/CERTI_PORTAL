@@ -8,6 +8,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+const { cleanupTenantS3Data, fetchTenantKeys, readRealS3Env } = require('./helpers/s3TestHelpers');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(ROOT, 'server', 'index.js');
@@ -131,7 +132,7 @@ async function waitForHealth(port, timeoutMs = 12000) {
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await requestJson({ port, urlPath: '/api/health' });
-      if (res.status === 200 && res.json && res.json.ok) return;
+      if (res.status === 200 && res.json && res.json.ok && res.json.status === 'operational') return;
     } catch {
       // retry
     }
@@ -205,21 +206,26 @@ before(async () => {
       AWS_SECRET_ACCESS_KEY: '',
       AWS_SES_ACCESS_KEY: '',
       AWS_SES_SECRET_KEY: '',
+      // The server now refuses to start at all without S3 configured (no local
+      // disk fallback), so give it working S3 credentials through the
+      // separate S3_* var names — independent of the AWS_* ones just blanked
+      // above, which Cognito/SES read but S3 only falls back to.
+      ...readRealS3Env(),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   await waitForHealth(PORT);
 
-  const keysPath = path.join(ROOT, 'data', tenantId, '.keys.json');
-  ({ jwtSecret, urlMacKey } = JSON.parse(fs.readFileSync(keysPath, 'utf8')));
+  ({ jwtSecret, urlMacKey } = await fetchTenantKeys(tenantId));
   adminToken = mintAdminToken('admin_test');
 });
 
-after(() => {
+after(async () => {
   if (child) child.kill('SIGTERM');
   for (const dir of [path.join(ROOT, 'data', tenantId), path.join(ROOT, 'uploads', tenantId)]) {
     if (dir.startsWith(ROOT + path.sep)) fs.rmSync(dir, { recursive: true, force: true });
   }
+  await cleanupTenantS3Data(tenantId);
 });
 
 // ── 1. GET /api/stats — public ──────────────────────────────────────────────
@@ -292,14 +298,19 @@ test('GET /api/cognito-status requires admin and reports unconfigured Cognito', 
 
 // ── 6. GET /api/s3-status — admin ───────────────────────────────────────────
 
-test('GET /api/s3-status requires admin and reports S3 disabled', async () => {
+test('GET /api/s3-status requires admin and reports S3 enabled', async () => {
   const unauth = await requestJson({ port: PORT, urlPath: '/api/s3-status' });
   assert.equal(unauth.status, 401);
 
   const res = await requestJson({ port: PORT, urlPath: '/api/s3-status', token: adminToken });
   assert.equal(res.status, 200);
-  assert.equal(res.json.enabled, false, 'no S3 env vars set in test env');
-  assert.ok(Array.isArray(res.json.missing));
+  // The server now refuses to start at all without S3 configured (no local-disk
+  // fallback) — this suite's spawned instance gets working S3 credentials via
+  // readRealS3Env() specifically so it can boot despite blanking AWS_* creds
+  // for the Cognito/SES "not configured" assertions elsewhere in this file.
+  // "S3 disabled" is therefore not a reachable state to test here anymore.
+  assert.equal(res.json.enabled, true, 'S3 is mandatory for the server to boot at all');
+  assert.deepEqual(res.json.missing, []);
 });
 
 // ── 7. GET /api/ses-status — admin ──────────────────────────────────────────
