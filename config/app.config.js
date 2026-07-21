@@ -327,7 +327,7 @@
           + 'To verify the authenticity of this certificate at any time, use the link below\n'
           + 'or enter Certificate No. ' + c.id + ' at the Synergy Cyber Security Certificate Portal:\n\n'
           + verifyUrl + '\n\n'
-          + 'This training was organized by the ' + cstTeam + ' and conducted\n'
+          + 'This training was organised by the ' + cstTeam + ' and conducted\n'
           + 'under the supervision of ISO Lead Auditor and Cyber Security trainers.\n\n'
           + 'We commend the vessel crew for their commitment to maritime cyber security and look\n'
           + 'forward to your continued participation in future training programmes.\n\n'

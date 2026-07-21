@@ -332,7 +332,7 @@
           <div class="comp-list">
             <div class="comp-item"><div class="comp-lbl">Regulatory Frameworks</div><div class="comp-desc">Proficiency in navigating ISM Code, ISPS, and NIS2 compliance requirements.</div></div>
             <div class="comp-item"><div class="comp-lbl">Threat Intelligence</div><div class="comp-desc">Ability to identify maritime-specific risks, including AIS/GPS manipulation and OT-targeted ransomware.</div></div>
-            <div class="comp-item"><div class="comp-lbl">Operational Security</div><div class="comp-desc">Mastery of maritime cyber hygiene, including secure media handling and social engineering defense.</div></div>
+            <div class="comp-item"><div class="comp-lbl">Operational Security</div><div class="comp-desc">Mastery of maritime cyber hygiene, including secure media handling and social engineering defence.</div></div>
             <div class="comp-item"><div class="comp-lbl">Emergency Preparedness</div><div class="comp-desc">Knowledge of incident response and recovery protocols to ensure vessel safety and operational continuity.</div></div>
           </div>
         </div>
@@ -341,7 +341,7 @@
         <div class="info-card">
           <div class="sect-title">Skills</div>
           <div class="skills-wrap">
-            <span class="skill-tag">Cybersecurity Compliance</span><span class="skill-tag">Cyber Hygiene</span><span class="skill-tag">Cyber Incident Response</span><span class="skill-tag">Cyber Safety</span><span class="skill-tag">Cyber Security Assessment</span><span class="skill-tag">Cyber Security Management</span><span class="skill-tag">Cyber Threat Intelligence</span><span class="skill-tag">Social Engineering Defense</span><span class="skill-tag">ISM / ISPS Compliance</span>
+            <span class="skill-tag">Cybersecurity Compliance</span><span class="skill-tag">Cyber Hygiene</span><span class="skill-tag">Cyber Incident Response</span><span class="skill-tag">Cyber Safety</span><span class="skill-tag">Cyber Security Assessment</span><span class="skill-tag">Cyber Security Management</span><span class="skill-tag">Cyber Threat Intelligence</span><span class="skill-tag">Social Engineering Defence</span><span class="skill-tag">ISM / ISPS Compliance</span>
           </div>
         </div>
 
