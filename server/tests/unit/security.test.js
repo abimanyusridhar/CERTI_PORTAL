@@ -380,6 +380,29 @@ test('buildCertUrl — returns URL containing token and signature', () => {
   assert.ok(url.includes('?s='));
 });
 
+test('buildVaptCertUrl — returns URL containing token and signature', () => {
+  const url = sec.buildVaptCertUrl('VAP-9999999-0126', 'https://example.com');
+  assert.ok(url.startsWith('https://example.com'));
+  assert.ok(url.includes('/cert/'));
+  assert.ok(url.includes('?s='));
+});
+
+test('buildCertUrl vs buildVaptCertUrl — diverge onto distinct route prefixes for the same cert ID', () => {
+  const cstUrl  = sec.buildCertUrl('CST-12345-AB', 'https://example.com');
+  const vaptUrl = sec.buildVaptCertUrl('CST-12345-AB', 'https://example.com');
+  assert.ok(cstUrl.includes(CFG.routes.cst + '/cert/'));
+  assert.ok(vaptUrl.includes(CFG.routes.vpt + '/cert/'));
+  assert.notEqual(cstUrl, vaptUrl);
+});
+
+test('signCertUrl does not bind cert type — a token/signature pair validates regardless of which route it is checked against (regression guard for the route-side type check in server/index.js)', () => {
+  // This documents WHY the /verify/ and /vapt/verify/ handlers must independently
+  // check the decrypted cert ID's prefix: the signature alone would accept either.
+  const token = sec.encryptCertToken('CST-12345-AB');
+  const sig   = sec.signCertUrl(token);
+  assert.ok(sec.verifyCertUrlSignature(token, sig));
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // retryWithBackoff
 // ─────────────────────────────────────────────────────────────────────────────

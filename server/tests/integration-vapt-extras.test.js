@@ -368,6 +368,42 @@ test('CST public-cert-url + cert-url + verify/:encToken — happy path and tampe
   assert.match(verifyTampered.json.error, /Invalid or tampered verification link/i);
 });
 
+// ── Cross-type token rejection ────────────────────────────────────────────────
+//
+// signCertUrl/verifyCertUrlSignature sign only the token, not the cert type, so a
+// CST token+signature pair passes signature verification just as well under
+// /vapt/verify/ as it does under /verify/ (same HMAC key, same input). The route
+// handlers must independently reject a decrypted ID that doesn't match their own
+// cert-type prefix — this is what stops a CST link from being replayed against
+// the VAPT verify endpoint (or vice versa) and getting anywhere past a 400.
+
+test('a valid CST verify link is rejected by the VAPT verify endpoint, and vice versa', async () => {
+  const cstAdminUrl = await requestJson({ port: PORT, urlPath: `/api/cert-url/${cstId}`, token });
+  assert.equal(cstAdminUrl.status, 200);
+  const cstParsed = new URL(cstAdminUrl.json.url);
+  const cstSegs = cstParsed.pathname.split('/').filter(Boolean);
+  const cstEncToken = cstSegs[cstSegs.length - 1];
+  const cstSig = cstParsed.searchParams.get('s');
+
+  const vaptAdminUrl = await requestJson({ port: PORT, urlPath: `/api/vapt/cert-url/${vaptId}`, token });
+  assert.equal(vaptAdminUrl.status, 200);
+  const vaptParsed = new URL(vaptAdminUrl.json.url);
+  const vaptSegs = vaptParsed.pathname.split('/').filter(Boolean);
+  const vaptEncToken = vaptSegs[vaptSegs.length - 1];
+  const vaptSig = vaptParsed.searchParams.get('s');
+
+  // CST token+sig replayed against the VAPT endpoint: signature is valid (same
+  // key/input), so this must be rejected by the cert-type prefix guard, not the
+  // signature check — confirm it's a 400 (type mismatch), not a 403 (bad sig).
+  const cstOnVapt = await requestJson({ port: PORT, urlPath: `/api/vapt/verify/${cstEncToken}?s=${encodeURIComponent(cstSig)}` });
+  assert.equal(cstOnVapt.status, 400);
+  assert.match(cstOnVapt.json.error, /Invalid verification token/i);
+
+  const vaptOnCst = await requestJson({ port: PORT, urlPath: `/api/verify/${vaptEncToken}?s=${encodeURIComponent(vaptSig)}` });
+  assert.equal(vaptOnCst.status, 400);
+  assert.match(vaptOnCst.json.error, /Invalid verification token/i);
+});
+
 // ── POST /api/vapt/import-csv ─────────────────────────────────────────────────
 //
 // KNOWN BUG (confirmed, not a test bug): server/index.js:2975-2992 —

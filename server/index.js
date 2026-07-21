@@ -2604,7 +2604,10 @@ async function handleAPI(req, res, parsed) {
     if (!verifyCertUrlSignature(encToken, sig))
       return sendJSON(res, 403, { error: 'Invalid or tampered verification link' }, corsH);
     const certId = decryptCertToken(encToken);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
+    // signCertUrl/verifyCertUrlSignature don't bind the cert type, so a CST-minted
+    // token+signature would also pass signature verification under /vapt/verify/ —
+    // reject anything whose decrypted ID isn't shaped like a CST cert ID.
+    if (!certId || !certId.startsWith('CST-')) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
     recordEngagement(loadData(), certId, 'cert_viewed', { src: 'token_link' }, saveData);
@@ -3197,7 +3200,9 @@ async function handleAPI(req, res, parsed) {
     if (!verifyCertUrlSignature(encToken, sig))
       return sendJSON(res, 403, { error: 'Invalid or tampered verification link' }, corsH);
     const certId = decryptCertToken(encToken);
-    if (!certId) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
+    // Mirrors the CST /verify/ guard — reject tokens whose decrypted ID isn't
+    // shaped like a VAPT cert ID, since the signature alone doesn't bind cert type.
+    if (!certId || !certId.startsWith('VAP-')) return sendJSON(res, 400, { error: 'Invalid verification token' }, corsH);
     const cert = loadVaptData()[certId];
     if (!cert) return sendJSON(res, 404, { error: 'Certificate not found' }, corsH);
     recordEngagement(loadVaptData(), certId, 'cert_viewed', { src: 'token_link' }, saveVaptData);

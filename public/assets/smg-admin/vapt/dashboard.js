@@ -942,6 +942,17 @@
           <span class="pill ${c.emailStatus==='SENT'?'sent':'not-sent'}">${c.emailStatus==='SENT'?'✓ Sent':'Pending'}</span>
         </div>
       </div>
+      <div style="background:rgba(100,255,218,.04);border:1px solid rgba(100,255,218,.18);border-radius:10px;padding:12px 16px;margin-bottom:${c.certificateImage ? '18px' : '4px'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:.5rem;letter-spacing:.16em;color:var(--teal);text-transform:uppercase;display:flex;align-items:center;gap:6px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            Unique Verification URL
+          </div>
+          <button id="viewCopyUrlBtn" data-action="copyViewUrl" style="background:var(--gold-dim);border:1px solid var(--border-gold);color:var(--gold);border-radius:7px;padding:4px 12px;font-size:.6rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.08em;transition:background .15s">⎘ Copy Link</button>
+        </div>
+        <div id="viewPublicUrl" style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--text);word-break:break-all;background:var(--navy);border:1px solid var(--border);border-radius:7px;padding:8px 12px;user-select:all">Generating secure link…</div>
+        <div style="margin-top:8px;font-size:.62rem;color:var(--text-sec)">Share this URL with recipients, auditors, or inspectors for instant certificate verification.</div>
+      </div>
       ${c.certificateImage?`<img src="${c.certificateImage}" style="width:100%;border-radius:10px;border:1px solid var(--border-gold);cursor:zoom-in;margin-bottom:${atts.length?'14px':'0'}" data-action="openLB" />`:''}
       ${buildViewAttachments(atts)}
       ${(function() {
@@ -953,7 +964,6 @@
     document.getElementById('viewFoot').innerHTML=`
       ${(c.status||'').toUpperCase()==='PENDING' ? `<button class="btn" style="background:rgba(100,255,218,.1);border:1px solid rgba(100,255,218,.3);color:var(--teal);display:inline-flex;align-items:center;gap:7px" data-action="closeViewActivate" data-id="${c.id}"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/></svg> Activate</button>` : ''}
       <button class="btn btn-teal btn-sm" data-action="closeViewEdit" data-id="${c.id}">Edit</button>
-      <button class="btn btn-ghost btn-sm" data-action="copyEncUrl" data-id="${c.id}">🔒 Copy URL</button>
       <button class="btn" data-action="viewCertNewTab" data-id="${c.id}" style="background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);color:var(--gold);display:inline-flex;align-items:center;gap:6px"><svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'/></svg> New Tab</button>
       ${c.recipientEmail&&c.emailStatus!=='SENT'?`<button class="btn btn-issue btn-sm" data-action="closeViewIssue" data-id="${c.id}">Send Credential</button>`:''}
     `;
@@ -978,6 +988,19 @@
         engagement
       );
     } catch(e) { /* silent — stale data from cache is fine */ }
+  })(id);
+
+  // ── Async: fetch encrypted URL and update URL display ──
+  (async function loadViewUrlVapt(certId) {
+    const urlEl  = document.getElementById('viewPublicUrl');
+    const copyEl = document.getElementById('viewCopyUrlBtn');
+    if (!urlEl) return;
+    urlEl.style.color = 'var(--text-sec)';
+    urlEl.textContent = 'Generating secure link…';
+    const url = await getVaptCertEncryptedUrl(certId);
+    urlEl.textContent = url;
+    urlEl.style.color = '';
+    if (copyEl) copyEl.dataset.url = url;
   })(id);
   }
   function closeView(){document.getElementById('viewOverlay').style.display='none';}
@@ -1066,6 +1089,25 @@
   }
 
   // ── COPY URL ──
+  // Fetch the encrypted+signed shareable URL for display in the view modal
+  // (mirrors CST dashboard.js's getCertEncryptedUrl — same fetch copyEncUrl uses,
+  // but returns the string instead of writing straight to the clipboard).
+  async function getVaptCertEncryptedUrl(certId) {
+    var base = (window.APP_CONFIG ? window.APP_CONFIG.routes.vpt : '/VAPT');
+    try {
+      const r = await fetch(`${API}/vapt/cert-url/${encodeURIComponent(certId)}`, { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (!r.ok) return window.location.origin + base + '/cert/' + encodeURIComponent(certId);
+      const d = await r.json();
+      return d.url;
+    } catch { return window.location.origin + base + '/cert/' + encodeURIComponent(certId); }
+  }
+  function copyViewUrl(btn) {
+    const url = btn.dataset.url || document.getElementById('viewPublicUrl').textContent;
+    if (!url || url === 'Generating secure link…') return;
+    navigator.clipboard.writeText(url).catch(() => {});
+    const orig = btn.textContent; btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  }
   async function copyEncUrl(id, btn) {
     try {
       const r=await fetch(`${API}/vapt/cert-url/${encodeURIComponent(id)}`,{headers:{Authorization:'Bearer '+TOKEN}});
