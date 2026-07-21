@@ -182,6 +182,48 @@ test('dynamoStore - errors during debounced flush are reported via onError, not 
   }
 });
 
+// ─── Background refresh (multi-instance correctness) ─────────────────────────
+
+test('dynamoStore - background refresh picks up new remote data while idle', async () => {
+  let queryCalls = 0;
+  const mock = withMockedDynamo({
+    queryImpl: async () => {
+      queryCalls += 1;
+      // First call is init()'s own query; subsequent calls are background refresh.
+      return queryCalls === 1
+        ? [{ PK: 'TENANT#acme', SK: 'USER#u1', id: 'u1', name: 'Alice' }]
+        : [{ PK: 'TENANT#acme', SK: 'USER#u1', id: 'u1', name: 'Alice Updated Remotely' }];
+    },
+  });
+  try {
+    const store = createDynamoStore({ tenantId: 'acme', entityPrefix: 'USER', seedData: {}, debounceMs: 5, refreshIntervalMs: 15 });
+    await store.init();
+    assert.deepEqual(store.load(), { u1: { id: 'u1', name: 'Alice' } });
+    await wait(40); // let at least one background refresh tick fire
+    assert.deepEqual(store.load(), { u1: { id: 'u1', name: 'Alice Updated Remotely' } });
+    store.stopBackgroundRefresh();
+  } finally {
+    mock.restore();
+  }
+});
+
+test('dynamoStore - background refresh never clobbers a pending local write', async () => {
+  const mock = withMockedDynamo({
+    queryImpl: async () => [{ PK: 'TENANT#acme', SK: 'USER#u1', id: 'u1', name: 'Stale Remote' }],
+  });
+  try {
+    const store = createDynamoStore({ tenantId: 'acme', entityPrefix: 'USER', seedData: {}, debounceMs: 500, refreshIntervalMs: 15 });
+    await store.init();
+    store.save({ u1: { id: 'u1', name: 'Local Write' } }); // dirty=true, debounce pending for 500ms
+    await wait(40); // background refresh ticks at least twice while the write is still pending
+    assert.deepEqual(store.load(), { u1: { id: 'u1', name: 'Local Write' } }, 'stale remote query must not overwrite a pending local write');
+    store.stopBackgroundRefresh();
+    await store.flush();
+  } finally {
+    mock.restore();
+  }
+});
+
 test('dynamoStore - defaults tenantId to "default" when not provided', async () => {
   const mock = withMockedDynamo({
     queryImpl: async (params) => {

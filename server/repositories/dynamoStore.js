@@ -25,11 +25,21 @@
  * Errors surface via onError (matching jsonStore/s3JsonStore) — writes are
  * fire-and-forget from the caller's point of view, never thrown back into
  * the request path that called save().
+ *
+ * Multi-instance correctness (refreshIntervalMs):
+ *   Same gap as s3JsonStore.js: the cache is built once at init() and never
+ *   refreshed afterwards except by this process's own save() calls, so a
+ *   second instance's writes stay invisible here until this instance
+ *   restarts. Passing refreshIntervalMs > 0 starts a background re-query on
+ *   that interval, skipped whenever a local write is pending/in-flight (via
+ *   the `dirty` flag) so a stale re-query can never clobber this instance's
+ *   own uncommitted change. Default 0 (disabled) — existing callers/tests
+ *   are unaffected unless they opt in.
  */
 
 const dynamodb = require('../services/dynamodb');
 
-function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounceMs = 50 }) {
+function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounceMs = 50, refreshIntervalMs = 0 }) {
   const pk = `TENANT#${tenantId || 'default'}`;
   const skPrefix = `${entityPrefix}#`;
 
@@ -38,11 +48,12 @@ function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounce
   let timer = null;
   let flushing = null;      // in-flight batchWrite Promise, or null
   let pendingAgain = false; // a save() arrived while a flush was in flight
+  let dirty = false;        // true while a local write is pending or in-flight
+  let refreshTimer = null;
 
   function skFor(id) { return `${skPrefix}${id}`; }
 
-  async function init() {
-    if (cache) return;
+  async function queryAll() {
     const items = await dynamodb.query({
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
       ExpressionAttributeValues: {
@@ -55,8 +66,32 @@ function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounce
       const { PK, SK, ...record } = item;
       if (record.id) loaded[record.id] = record;
     }
+    return loaded;
+  }
+
+  async function init() {
+    if (cache) { startBackgroundRefresh(); return; }
+    const loaded = await queryAll();
     cache = loaded;
     persisted = { ...loaded };
+    startBackgroundRefresh();
+  }
+
+  // ── Background refresh (multi-instance correctness — see file header) ────
+  async function backgroundRefresh() {
+    if (dirty || timer || flushing) return; // local write pending/in-flight — never clobber it
+    const loaded = await queryAll();
+    if (dirty || timer || flushing) return; // re-check: a write may have started mid-query
+    cache = loaded;
+    persisted = { ...loaded };
+  }
+  function startBackgroundRefresh() {
+    if (!refreshIntervalMs || refreshTimer) return;
+    refreshTimer = setInterval(() => { backgroundRefresh().catch(() => {}); }, refreshIntervalMs);
+    refreshTimer.unref(); // background polling must never keep the process alive on its own
+  }
+  function stopBackgroundRefresh() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   }
 
   function load() {
@@ -69,6 +104,7 @@ function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounce
 
   function save(data) {
     cache = data;
+    dirty = true;
     clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
@@ -104,6 +140,7 @@ function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounce
       .then(() => {
         flushing = null;
         if (pendingAgain) { pendingAgain = false; return scheduleFlush(); }
+        dirty = false; // no more follow-up work queued — safe for background refresh again
       });
     return flushing;
   }
@@ -113,7 +150,7 @@ function createDynamoStore({ tenantId, entityPrefix, seedData, onError, debounce
     return scheduleFlush();
   }
 
-  return { init, load, save, flush };
+  return { init, load, save, flush, stopBackgroundRefresh };
 }
 
 module.exports = { createDynamoStore };

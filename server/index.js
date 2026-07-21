@@ -57,7 +57,9 @@ const { createDualWriteStore } = require('./repositories/dualWriteStore');
 // (docAccessStore, email log stores, trackStore) means "never touch DynamoDB
 // for this collection" — those don't have a defined DynamoDB schema yet.
 function _makeStore(opts) {
-  const primary = (s3.S3_ENABLED && opts.s3Key) ? createS3JsonStore(opts) : createJsonStore(opts);
+  const refreshIntervalMs = opts.refreshIntervalMs != null ? opts.refreshIntervalMs : STORE_REFRESH_INTERVAL_MS;
+  const storeOpts = { ...opts, refreshIntervalMs };
+  const primary = (s3.S3_ENABLED && opts.s3Key) ? createS3JsonStore(storeOpts) : createJsonStore(opts);
   const dynamoRolloutActive = DUAL_WRITE_DYNAMO || SHADOW_READ_DYNAMO;
   if (!opts.dynamoEntityPrefix || !dynamoRolloutActive || !dynamodb.DYNAMO_ENABLED) {
     return primary;
@@ -68,6 +70,7 @@ function _makeStore(opts) {
     seedData: opts.seedData,
     onError: opts.onError,
     debounceMs: opts.debounceMs,
+    refreshIntervalMs,
   });
   return createDualWriteStore({
     primary,
@@ -211,6 +214,18 @@ if (DYNAMO_PRIMARY_READ && !DUAL_WRITE_DYNAMO) {
     'receives new writes and reads would serve permanently stale data. Refusing to start.');
   process.exit(1);
 }
+
+// ─── MULTI-INSTANCE CACHE CORRECTNESS ────────────────────────────────────────
+// s3JsonStore/dynamoStore cache in memory after first load and never refresh
+// except via this process's own save() calls — fine for one instance, but a
+// second instance behind a load balancer would never see the first one's
+// writes. STORE_REFRESH_INTERVAL_MS (ms) makes every S3/DynamoDB-backed store
+// periodically re-pull from its backing store, bounding cross-instance
+// staleness to roughly this window; it always skips a cycle while a local
+// write is pending so it can never clobber this instance's own uncommitted
+// change (see the "dirty" flag in s3JsonStore.js / dynamoStore.js). Default
+// 20s; set to 0 to disable (matches old behavior exactly).
+const STORE_REFRESH_INTERVAL_MS = parseInt(process.env.STORE_REFRESH_INTERVAL_MS ?? '20000', 10);
 
 [path.dirname(DATA_FILE), UPLOADS_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });

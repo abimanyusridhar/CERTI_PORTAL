@@ -13,6 +13,19 @@
  * On fresh EC2 launch (empty ephemeral disk):
  *   init() pulls the latest data from S3 and caches it locally, so the first
  *   request sees the correct data without hitting S3 again.
+ *
+ * Multi-instance correctness (refreshIntervalMs):
+ *   Without this, the in-memory cache is populated once at cold start and
+ *   NEVER refreshed afterwards except by this same process's own save()
+ *   calls. Run more than one instance behind a load balancer and instance
+ *   A's writes become permanently invisible to instance B until B restarts
+ *   — a silent, unbounded data-divergence bug. Passing refreshIntervalMs > 0
+ *   starts a background poll that re-pulls from S3 on that interval, bounding
+ *   cross-instance staleness to roughly that window. It always skips a cycle
+ *   while a local write is pending/in-flight (the `dirty` flag) so a slightly
+ *   stale remote read can never clobber this instance's own uncommitted
+ *   change. Default 0 (disabled) — existing callers/tests are unaffected
+ *   unless they opt in.
  */
 
 const fs   = require('fs');
@@ -31,9 +44,11 @@ async function writeFileAtomic(filePath, data) {
   await fs.promises.rename(tmpPath, filePath);
 }
 
-function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50 }) {
+function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50, refreshIntervalMs = 0 }) {
   let cache = null;
   let timer = null;
+  let dirty = false;       // true while a local write is pending or in-flight
+  let refreshTimer = null;
 
   // ── Local disk helpers ────────────────────────────────────────────────────
   function readFromDisk() {
@@ -78,15 +93,32 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
   // ── Startup pre-load ─────────────────────────────────────────────────────
   // Call before server.listen() to ensure cache is warm before the first request.
   async function init() {
-    if (cache) return; // already warmed (e.g. called twice)
+    if (cache) { startBackgroundRefresh(); return; } // already warmed (e.g. called twice)
     const fromDisk = readFromDisk();
     if (fromDisk) {
       cache = fromDisk;
+      startBackgroundRefresh();
       return;
     }
     // Fresh instance — no local data, pull authoritative copy from S3
     const remote = await pullFromS3();
     cache = (remote && Object.keys(remote).length > 0) ? remote : { ...(seedData || {}) };
+    startBackgroundRefresh();
+  }
+
+  // ── Background refresh (multi-instance correctness — see file header) ────
+  async function backgroundRefresh() {
+    if (dirty || timer) return; // a local write is pending/in-flight — never clobber it
+    const remote = await pullFromS3();
+    if (remote && !dirty && !timer) cache = remote; // re-check: a write may have started mid-fetch
+  }
+  function startBackgroundRefresh() {
+    if (!refreshIntervalMs || refreshTimer) return;
+    refreshTimer = setInterval(() => { backgroundRefresh().catch(() => {}); }, refreshIntervalMs);
+    refreshTimer.unref(); // background polling must never keep the process alive on its own
+  }
+  function stopBackgroundRefresh() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   }
 
   // ── Public API (matches createJsonStore interface + init) ─────────────────
@@ -111,14 +143,15 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
 
   function save(data) {
     cache = data;
+    dirty = true;
     clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
       const serialized = JSON.stringify(data, null, 2);
       // Disk and S3 writes are INDEPENDENT — disk failure does NOT block S3 sync.
-      writeFileAtomic(filePath, serialized)
-        .catch(err => onError && onError(err));
-      if (s3.S3_ENABLED) pushToS3(data);
+      const diskWrite = writeFileAtomic(filePath, serialized).catch(err => onError && onError(err));
+      const s3Write = s3.S3_ENABLED ? pushToS3(data) : Promise.resolve();
+      Promise.all([diskWrite, s3Write]).finally(() => { dirty = false; });
     }, debounceMs);
   }
 
@@ -128,11 +161,12 @@ function createS3JsonStore({ filePath, s3Key, seedData, onError, debounceMs = 50
   function flush() {
     if (timer) { clearTimeout(timer); timer = null; }
     if (!cache) return Promise.resolve();
+    dirty = true;
     writeToDisk(cache);
-    return s3.S3_ENABLED ? pushToS3(cache) : Promise.resolve();
+    return (s3.S3_ENABLED ? pushToS3(cache) : Promise.resolve()).finally(() => { dirty = false; });
   }
 
-  return { init, load, save, flush };
+  return { init, load, save, flush, stopBackgroundRefresh };
 }
 
 module.exports = { createS3JsonStore };
