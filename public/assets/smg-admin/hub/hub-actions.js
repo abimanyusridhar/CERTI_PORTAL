@@ -27,6 +27,7 @@
     onFileSelect:       (el) => [el],
     qvSearch:           (el) => [el.value],
     onVesselSearch:     (el) => [el.value],
+    openVesselRecords:  (el) => [el.dataset.imo],
   };
 
   // Defense in depth for the read-only "client" role — see role-client.css, which hides
