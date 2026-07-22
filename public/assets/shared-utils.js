@@ -442,7 +442,6 @@ function trackEvent(action, data = {}) {
       ...data,
     }));
   }
-  // Fallback to fetch
   else {
     try {
       fetchWithTimeout('/api/track', {
@@ -460,14 +459,12 @@ function trackEvent(action, data = {}) {
  * ─ INITIALIZATION ──────────────────────────────────────────────────────
  */
 
-// Initialize theme on script load if not already done
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initTheme);
 } else {
   initTheme();
 }
 
-// Export for module systems (if used)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     el, elAll, toggle, show, hide, addClass, removeClass, toggleClass, setAttrs,

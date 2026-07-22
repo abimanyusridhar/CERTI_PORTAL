@@ -389,7 +389,6 @@ async function openVessel(imo) {
   document.getElementById('btnBackToDash').style.display = 'flex';
   showView('vessel');
   switchTab('cst');
-  // Load certs if not cached
   if (!_certCache[imo]) {
     document.getElementById('cstContent').innerHTML  = '<div class="loading-center"><div class="spinner"></div> Loading…</div>';
     document.getElementById('vaptContent').innerHTML = '<div class="loading-center"><div class="spinner"></div> Loading…</div>';
@@ -410,7 +409,6 @@ async function openVessel(imo) {
   renderCstTable(cstList);
   renderVaptTable(vaptList);
   updateVesselStats(cstList, vaptList);
-  // Load docs if not cached
   if (!_docCache[imo]) loadDocs(imo);
   else { renderDocList(_docCache[imo]); document.getElementById('vaDocs').textContent = _docCache[imo].length; }
 }

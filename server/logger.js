@@ -97,7 +97,7 @@ const log = {
   
   // Audit logging
   auditLog,
-  audit: auditLog, // Alias
+  audit: auditLog,
   
   // Configuration
   setAuditLogFile,

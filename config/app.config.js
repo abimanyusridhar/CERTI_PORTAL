@@ -101,7 +101,7 @@
     // ── CONFIG VERSION ───────────────────────────────────────────────────
     // Increment when making structural changes so pages can detect stale
     // cached configs.  Format: "<major>.<minor>.<patch>"
-    version: '2.0.0',  // Added: compliance, session, resilience, maintenance, health, support sections
+    version: '2.0.0',
 
     // ── STORAGE KEYS ─────────────────────────────────────────────────────
     // Centralised so all pages share the same key — never diverge silently.
@@ -160,7 +160,6 @@
       vaptBrandSub:   'VAPT Assessment Registry',
       cstTabLabel:    'CST Training',
       vptTabLabel:    'VAPT Assessment',
-      // FIX: was 'Synergy VPT' — corrected to 'Synergy VAPT' for consistency
       cstSidebarName: A.companyShort + ' CST',
       vptSidebarName: A.companyShort + ' VAPT',
       cstLoginSub:    A.companyShort + ' Certificate Control Panel',
@@ -220,7 +219,6 @@
     // ── COMPLIANCE & LEGAL ───────────────────────────────────────────────
     // Maritime regulatory framework alignment and data governance declarations.
     compliance: {
-      // Applicable regulatory / standards frameworks
       standards:          'IMO MSC-FAL.1/Circ.3 · ISO 27001:2022 · ISO 9001:2015 · NIST CSF · OWASP · MLC 2006',
       // Data classification for certificates issued via this portal
       dataClassification: 'RESTRICTED — Maritime Personnel & Vessel Security Records',
@@ -228,23 +226,19 @@
       dataRetentionYears: 5,
       // GDPR / privacy contact
       privacyContact:     'dpo@synergyship.com',
-      // Legal jurisdiction
       jurisdiction:       'Republic of Singapore (MPA-registered flag state authority)',
-      // Applicable law
       governingLaw:       'Singapore Merchant Shipping Act · ISM Code · ISPS Code',
       // Certificate disclaimer shown on public verification pages
       publicDisclaimer:   'Certificate records are issued and maintained by Synergy Marine Group. '
                           + 'Verification results are provided for information only and do not constitute '
                           + 'a legal opinion. Fraudulent use or alteration of certificates may be subject '
                           + 'to criminal prosecution under applicable maritime law.',
-      // Admin data notice
       adminDataNotice:    'All administrative actions on this panel are logged and audited. '
                           + 'Unauthorised access is prohibited. By continuing you acknowledge '
                           + 'your activity may be monitored.',
       // Cookie / tracking notice (public portals)
       cookieNotice:       'This portal does not use marketing cookies. '
                           + 'Essential session data is stored only for verification functionality.',
-      // VAPT-specific notice
       vaptDisclaimer:     'VAPT assessment records contain sensitive cybersecurity findings. '
                           + 'Access is restricted to authorised maritime compliance personnel.',
     },

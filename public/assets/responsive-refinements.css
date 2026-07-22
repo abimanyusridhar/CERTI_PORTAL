@@ -486,6 +486,14 @@
     margin-top: 10px;
   }
 
+  /* Footer credit row — without flex-wrap, the credit text's flex item gets
+     squeezed narrower than its content and wraps one word per line instead
+     of the row wrapping as whole icon/text/link chunks. */
+  footer > div:first-of-type {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
   /* Navigation adjustments */
   nav {
     height: 56px;
@@ -509,9 +517,14 @@
     font-size: 0.5rem;
   }
 
-  /* Hide non-essential nav items */
-  .nav-tab:last-of-type {
-    margin-right: auto;
+  /* Hide non-essential nav items — labels only, icons stay so the tabs are
+     still tappable; the nav otherwise overflows horizontally on mobile. */
+  .nav-tab span {
+    display: none;
+  }
+
+  .tt-label {
+    display: none;
   }
 
   /* Search container */

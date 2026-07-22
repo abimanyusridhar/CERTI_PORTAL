@@ -95,14 +95,12 @@ class LazyListRenderer {
     const startIndex = this.visibleRange.start;
     const endIndex = this.visibleRange.end;
 
-    // Add spacer for items before visible range
     if (startIndex > 0) {
       const spacer = document.createElement('div');
       spacer.style.height = startIndex * this.itemHeight + 'px';
       fragment.appendChild(spacer);
     }
 
-    // Add visible items
     for (let i = startIndex; i < endIndex; i++) {
       const item = this.items[i];
       if (item) {
@@ -110,7 +108,6 @@ class LazyListRenderer {
       }
     }
 
-    // Add spacer for items after visible range
     if (endIndex < this.items.length) {
       const spacer = document.createElement('div');
       spacer.style.height = (this.items.length - endIndex) * this.itemHeight + 'px';
@@ -200,7 +197,7 @@ class TableRenderer {
 
   setData(data) {
     if (this._hashData(data) === this.dataHash) {
-      return; // No changes
+      return;
     }
 
     clearTimeout(this.pendingRender);
@@ -220,7 +217,6 @@ class TableRenderer {
   }
 
   _hashData(data) {
-    // Simple hash for detecting changes
     return JSON.stringify(data).substring(0, 20);
   }
 
@@ -406,7 +402,6 @@ class EventBus {
     }
     this.events.get(event).add(handler);
 
-    // Return unsubscribe function
     return () => this.off(event, handler);
   }
 
@@ -448,7 +443,6 @@ const DashboardOptimizations = {
   EventBus,
 };
 
-// Create global instances for convenience
 if (typeof window !== 'undefined') {
   window.dashboardRequestCache = new RequestCache(5000);
   window.dashboardModals = new ModalStateManager();
@@ -458,7 +452,6 @@ if (typeof window !== 'undefined') {
   window.dashboardEvents = new EventBus();
 }
 
-// Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = DashboardOptimizations;
 }
