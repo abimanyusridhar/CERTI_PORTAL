@@ -61,11 +61,10 @@
     #loginWrap {
       min-height: 100vh;
       display: flex;
-      justify-content: center;
     }
 
     .login-brand-panel {
-      flex: 0 1 46%;
+      flex: 1 1 46%;
       max-width: 560px;
       position: relative;
       display: flex;
@@ -122,8 +121,7 @@
     }
 
     .login-form-panel {
-      flex: 0 1 54%;
-      max-width: 620px;
+      flex: 1 1 54%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -230,7 +228,7 @@
       #loginWrap { flex-direction: column; }
       .login-brand-panel { flex: 0 0 auto; max-width: none; padding: 36px 24px; min-height: 220px; }
       .login-brand-title { font-size: 1.5rem; }
-      .login-form-panel { flex: 1; max-width: none; padding: 32px 24px; }
+      .login-form-panel { flex: 1; padding: 32px 24px; }
     }
 
     /* ── APP SHELL ── */
