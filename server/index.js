@@ -3876,7 +3876,8 @@ async function handleAPI(req, res, parsed) {
       }
     }
 
-    return sendJSON(res, 201, { ...users[id], cognitoCreated, cognitoError }, corsH);
+    const createdSafe = users[id];
+    return sendJSON(res, 201, { id: createdSafe.id, name: createdSafe.name, email: createdSafe.email, role: createdSafe.role, groupIds: createdSafe.groupIds, active: createdSafe.active, createdAt: createdSafe.createdAt, cognitoCreated, cognitoError }, corsH);
   }
 
   // ── PUT /api/admin/users/:id ── (admin — update user)
@@ -3901,7 +3902,8 @@ async function handleAPI(req, res, parsed) {
     delete users[userId].passwordHash; // scrub legacy password-login field — SSO is the only login path now
     users[userId].updatedAt = new Date().toISOString();
     saveUsers(users);
-    return sendJSON(res, 200, users[userId], corsH);
+    const updatedSafe = users[userId];
+    return sendJSON(res, 200, { id: updatedSafe.id, name: updatedSafe.name, email: updatedSafe.email, role: updatedSafe.role, groupIds: updatedSafe.groupIds, active: updatedSafe.active, createdAt: updatedSafe.createdAt, updatedAt: updatedSafe.updatedAt }, corsH);
   }
 
   // ── DELETE /api/admin/users/:id ── (admin — remove user)
