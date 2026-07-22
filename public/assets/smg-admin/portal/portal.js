@@ -430,12 +430,10 @@ function updateVesselStats(cstList, vaptList) {
   document.getElementById('vaVaptValid').textContent = vaptFiltered.filter(c => _st(c) === 'VALID' && _ts(c) > now).length;
 }
 
-// Same palette as the CST admin dashboard's certificate list (dashboard.js) —
-// Q3 is purple rather than orange so it isn't confused with Q2's gold at a glance.
 function qBadge(q) {
   const v = (q || '').toUpperCase();
-  const color = { Q1:'#64FFDA', Q2:'#D4A843', Q3:'#B47EFF', Q4:'#FF5C7A' }[v] || 'var(--text-sec)';
-  const bg    = { Q1:'rgba(100,255,218,0.12)', Q2:'rgba(212,168,67,0.12)', Q3:'rgba(180,126,255,0.12)', Q4:'rgba(255,107,138,0.12)' }[v] || 'transparent';
+  const color = { Q1:'#7689AE', Q2:'#64FFDA', Q3:'#FFAA2E', Q4:'#FF5C7A' }[v] || 'var(--text-sec)';
+  const bg    = { Q1:'rgba(118,137,174,0.12)', Q2:'rgba(100,255,218,0.10)', Q3:'rgba(255,170,46,0.12)', Q4:'rgba(255,107,138,0.12)' }[v] || 'transparent';
   return v ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:700;letter-spacing:.1em;background:${bg};border:1px solid ${color};color:${color}">${v}</span>`
            : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
 }
@@ -487,8 +485,8 @@ function renderCstTable(certs) {
         <td>${modeBadge(c.trainingMode)}</td>
         <td>${statusPill(effStatus)}</td>
         <td style="white-space:nowrap;font-size:.73rem">${validStr}</td>
-        <td><button class="btn-view" data-action="viewCertDetail" data-id="${escHtml(c.id)}" data-type="cst">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <td><button class="btn-view" data-action="viewCertPublic" data-id="${escHtml(c.id)}" data-type="cst">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           View
         </button></td>
       </tr>`;
@@ -533,8 +531,8 @@ function renderVaptTable(certs) {
         <td>${riskPill(c.riskLevel)}</td>
         <td>${statusPill(effStatus)}</td>
         <td style="white-space:nowrap;font-size:.73rem">${validStr}</td>
-        <td><button class="btn-view vapt" data-action="viewCertDetail" data-id="${escHtml(c.id)}" data-type="vapt">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <td><button class="btn-view vapt" data-action="viewCertPublic" data-id="${escHtml(c.id)}" data-type="vapt">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           View
         </button></td>
       </tr>`;
@@ -658,54 +656,15 @@ function showDashboard() {
   showView('dashboard');
 }
 
-// ─── VIEW CERT DETAIL (in-place — superintendents/client admins should never
-// need to leave this portal to see a certificate they already have access to;
-// the public verify portal is for external parties without a login) ─────────
-function _certRow(label, value) {
-  return `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)">
-    <span style="font-size:.68rem;color:var(--text-sec);letter-spacing:.06em;text-transform:uppercase;flex-shrink:0">${label}</span>
-    <span style="font-size:.82rem;color:var(--text-bright);text-align:right">${value}</span>
-  </div>`;
+// ─── VIEW CERT IN PUBLIC PORTAL ────────────────────────────────────────────────
+function viewCertPublic(certId, type) {
+  const cfg     = window.APP_CONFIG && window.APP_CONFIG.routes;
+  const cstBase = (cfg && cfg.cst) || '/CST';
+  const vptBase = (cfg && cfg.vpt) || '/VAPT';
+  const base    = (type === 'vapt') ? vptBase : cstBase;
+  window.open(base + '?id=' + encodeURIComponent(certId), '_blank', 'noopener,noreferrer');
 }
-
-function viewCertDetail(certId, type) {
-  if (!_currentIMO || !_certCache[_currentIMO]) return;
-  const list = (type === 'vapt') ? (_certCache[_currentIMO].vapt || []) : (_certCache[_currentIMO].cst || []);
-  const c = list.find(x => x.id === certId);
-  if (!c) return;
-
-  document.getElementById('certDetailTitle').textContent = (type === 'vapt' ? 'VAPT Assessment' : 'CST Certificate') + ' · ' + (c.certId || c.id);
-
-  const now = new Date(), vu = c.validUntil ? new Date(c.validUntil) : null;
-  const isExpired = (c.status || '').toUpperCase() === 'VALID' && vu && vu < now;
-  const effStatus = isExpired ? 'EXPIRED' : (c.status || 'PENDING');
-
-  const rows = [
-    _certRow('Certificate ID', `<span class="mono">${escHtml(c.certId || c.id || '—')}</span>`),
-    _certRow('Vessel', escHtml(c.vesselName || '—')),
-    _certRow('IMO', `<span class="mono">${escHtml(c.vesselIMO || '—')}</span>`),
-    _certRow('Recipient', escHtml(c.recipientName || '—')),
-  ];
-  if (type === 'vapt') {
-    rows.push(_certRow('Assessed', fmtDate(c.assessmentDate || c.issuedDate)));
-    rows.push(_certRow('Risk Level', riskPill(c.riskLevel)));
-  } else {
-    rows.push(_certRow('Chief Engineer', escHtml(c.chiefEngineer || '—')));
-    rows.push(_certRow('Compliance Quarter', qBadge(c.complianceQuarter)));
-    rows.push(_certRow('Training Mode', modeBadge(c.trainingMode)));
-  }
-  rows.push(_certRow('Status', statusPill(effStatus)));
-  rows.push(_certRow('Valid Until', fmtDate(c.validUntil)));
-
-  document.getElementById('certDetailBody').innerHTML = rows.join('');
-  document.getElementById('certDetailOverlay').style.display = 'flex';
-}
-window.viewCertDetail = viewCertDetail;
-
-function closeCertDetail() {
-  document.getElementById('certDetailOverlay').style.display = 'none';
-}
-window.closeCertDetail = closeCertDetail;
+window.viewCertPublic = viewCertPublic;
 
 // ─── XSS GUARD ─────────────────────────────────────────────────────────────────
 function escHtml(s) {
@@ -725,21 +684,12 @@ const ACTION_HANDLERS = {
   switchTab:       (el) => switchTab(el.dataset.tab),
   setQuarter:      (el) => setQuarter(el.dataset.quarter ? Number(el.dataset.quarter) : null),
   openVessel:      (el) => openVessel(el.dataset.imo),
-  viewCertDetail:  (el) => viewCertDetail(el.dataset.id, el.dataset.type),
-  closeCertDetail: () => closeCertDetail(),
+  viewCertPublic:  (el) => viewCertPublic(el.dataset.id, el.dataset.type),
 };
-
-// Backdrop-close: only fires when the click landed on the overlay itself,
-// not a descendant (so clicking inside the modal doesn't close it).
-const BACKDROP_ACTIONS = { closeCertDetailBackdrop: closeCertDetail };
 
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
-  if (Object.prototype.hasOwnProperty.call(BACKDROP_ACTIONS, el.dataset.action)) {
-    if (e.target === el) BACKDROP_ACTIONS[el.dataset.action]();
-    return;
-  }
   const handler = ACTION_HANDLERS[el.dataset.action];
   if (handler) handler(el, e);
 });
