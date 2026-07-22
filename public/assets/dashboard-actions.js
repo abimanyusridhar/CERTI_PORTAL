@@ -71,6 +71,17 @@
     clearCsvFile:            (el, e) => call('clearCsvFile', e),
     clearImg:                (el, e) => call('clearImg', e),
     openElementPicker:       (el) => { const t = document.getElementById(el.dataset.target); if (t) t.click(); },
+    // "Switch to CST/VAPT" sidebar links — same-tab navigation with a brief
+    // fade-out so it reads as moving between sections of one app instead of
+    // an abrupt hard cut. The destination fades back in via .fade-in on
+    // #appWrap in that page's own boot sequence.
+    switchAdminDashboard:    (el, e) => {
+      e.preventDefault();
+      const href = el.href;
+      document.body.style.transition = 'opacity .18s ease';
+      document.body.style.opacity = '0';
+      setTimeout(() => { window.location.href = href; }, 180);
+    },
   };
 
   // Shared between 'input' and 'change' listeners — several fields in the same

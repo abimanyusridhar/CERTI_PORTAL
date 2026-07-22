@@ -1880,6 +1880,7 @@
   if (_appWrapEl && _appWrapEl.children.length > 0) {
     document.getElementById('loginWrap').style.display='none';
     _appWrapEl.style.display='flex';
+    _appWrapEl.classList.add('fade-in');
     scheduleTokenExpiryWarning();
     initApp();
   } else if (_appWrapEl) {

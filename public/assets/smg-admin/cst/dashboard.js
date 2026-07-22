@@ -862,8 +862,11 @@
           ? `<span class="eng-badge" style="background:rgba(255,170,46,.08);border:1px solid rgba(255,170,46,.22);color:var(--warn);font-size:.57rem;opacity:.85" title="Email sent — awaiting recipient interaction">⏳ Awaiting</span>`
           : `<span style="color:var(--text-sec);font-size:.6rem;font-style:italic;opacity:.6">No activity</span>`);
         const qVal = (c.complianceQuarter || '').toUpperCase();
-        const qColors = { Q1: '#64FFDA', Q2: '#D4A843', Q3: '#FFAA2E', Q4: '#FF5C7A' };
-        const qBg    = { Q1: 'rgba(100,255,218,0.12)', Q2: 'rgba(212,168,67,0.12)', Q3: 'rgba(255,170,46,0.12)', Q4: 'rgba(255,92,122,0.12)' };
+        // Q3 was orange (#FFAA2E) — too close to Q2's gold to tell apart at a
+        // glance as a thin badge outline; swapped to purple for a hue that's
+        // clearly distinct from all three siblings (teal/gold/red).
+        const qColors = { Q1: '#64FFDA', Q2: '#D4A843', Q3: '#B47EFF', Q4: '#FF5C7A' };
+        const qBg    = { Q1: 'rgba(100,255,218,0.12)', Q2: 'rgba(212,168,67,0.12)', Q3: 'rgba(180,126,255,0.12)', Q4: 'rgba(255,92,122,0.12)' };
         const qBadge = qVal
           ? `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.6rem;font-weight:700;letter-spacing:.1em;background:${qBg[qVal]||'rgba(255,255,255,.06)'};border:1px solid ${qColors[qVal]||'var(--border)'};color:${qColors[qVal]||'var(--text-sec)'};">${qVal}</span>`
           : `<span style="color:var(--text-sec);font-size:.7rem">—</span>`;
@@ -2501,6 +2504,7 @@
     if (_appWrapEl && _appWrapEl.children.length > 0) {
       document.getElementById('loginWrap').style.display = 'none';
       _appWrapEl.style.display = 'flex';
+      _appWrapEl.classList.add('fade-in');
       initApp();
       // Both read #f* form fields that only exist inside #appWrap — calling
       // them unconditionally throws for unauthenticated requests, since the
