@@ -48,9 +48,13 @@
       }).catch(() => {});
       sessionStorage.removeItem('adminToken'); TOKEN = '';
       if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
-      document.getElementById('loginWrap').style.display = 'flex';
-      document.getElementById('appWrap').style.display = 'none';
-      if (window.syncButtons) window.syncButtons();
+      // POST /api/auth/logout revokes the session server-side (jti blacklist)
+      // and clears the httpOnly adminToken cookie — the actual session
+      // credential — not just hidden client-side. Then reload to re-render
+      // the (now unauthenticated) login shell.
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {}).finally(() => {
+        window.location.reload();
+      });
     }
 
     // ════════════════════════════════════════════════════
@@ -1098,20 +1102,17 @@
       await navigator.clipboard.writeText(url).catch(() => {});
       btn.textContent = '✓'; setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1800);
     }
-    // Token expiry check — warn admin 30 min before expiry
-    function scheduleTokenExpiryWarning() {
-      try {
-        const parts = TOKEN.split('.');
-        if (parts.length !== 3) return;
-        const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-        const msLeft = payload.exp * 1000 - Date.now();
-        if (msLeft <= 0) { doLogout(); return; }
-        // Auto-logout at expiry
-        setTimeout(doLogout, msLeft);
-        // Warn at 30 min before expiry
-        const warnAt = msLeft - 30 * 60 * 1000;
-        if (warnAt > 0) setTimeout(() => toast('⚠ Session expires in 30 minutes. Save your work.', 'warn'), warnAt);
-      } catch { }
+    // Session expiry check — warn admin 30 min before expiry. `exp` (unix seconds)
+    // comes from GET /api/auth/verify (server-side, cookie-backed) — see boot block.
+    function scheduleTokenExpiryWarning(exp) {
+      if (typeof exp !== 'number') return;
+      const msLeft = exp * 1000 - Date.now();
+      if (msLeft <= 0) { doLogout(); return; }
+      // Auto-logout at expiry
+      setTimeout(doLogout, msLeft);
+      // Warn at 30 min before expiry
+      const warnAt = msLeft - 30 * 60 * 1000;
+      if (warnAt > 0) setTimeout(() => toast('⚠ Session expires in 30 minutes. Save your work.', 'warn'), warnAt);
     }
 
     // ════════════════════════════════════════════════════
@@ -2492,30 +2493,30 @@
     // ════════════════════════════════════════════════════
     // MODULE: Boot
     // ════════════════════════════════════════════════════
-    if (TOKEN) {
-      // Validate token hasn't expired before restoring session
-      try {
-        const parts = TOKEN.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-          if (Date.now() > payload.exp * 1000) {
-            sessionStorage.removeItem('adminToken'); TOKEN = '';
-          }
-        } else { sessionStorage.removeItem('adminToken'); TOKEN = ''; }
-      } catch { sessionStorage.removeItem('adminToken'); TOKEN = ''; }
-    }
-    if (TOKEN) {
+    // Authenticated/not is decided by whether the server actually delivered the
+    // app markup — for unauthenticated requests, sendAdminAppShell() strips
+    // everything between the SERVER-GATED:APPWRAP markers, leaving an empty
+    // #appWrap shell. No client-side token decode needed for this decision.
+    const _appWrapEl = document.getElementById('appWrap');
+    if (_appWrapEl && _appWrapEl.children.length > 0) {
       document.getElementById('loginWrap').style.display = 'none';
-      document.getElementById('appWrap').style.display = 'flex';
-      scheduleTokenExpiryWarning();
+      _appWrapEl.style.display = 'flex';
       initApp();
       // Both read #f* form fields that only exist inside #appWrap — calling
       // them unconditionally throws for unauthenticated requests, since the
       // server strips that markup entirely when there's no valid session.
       livePreview();
       updateCompletionChecklistFull();
-    } else {
-      document.getElementById('appWrap').style.display = 'none';
+      // Role + expiry now come from the server (httpOnly-cookie-backed
+      // /api/auth/verify) instead of decoding a raw JWT client-side — nothing
+      // JS-readable holds a valid session credential any more.
+      fetch(API + '/auth/verify').then(r => r.ok ? r.json() : null).then(info => {
+        if (!info) return;
+        document.documentElement.classList.toggle('role-client', info.role === 'client');
+        scheduleTokenExpiryWarning(info.exp);
+      }).catch(() => {});
+    } else if (_appWrapEl) {
+      _appWrapEl.style.display = 'none';
     }
   
 
@@ -2687,11 +2688,10 @@ function applyConfig() {
     startIdleTimeout();
   };
 
-  // Called by "Extend Session" button — re-verify token with server
+  // Called by "Extend Session" button — re-verify session with server
+  // (httpOnly cookie-backed; no client-held token needed).
   window.refreshSession = function () {
-    const tok = sessionStorage.getItem('adminToken') || '';
-    if (!tok) return;
-    fetch('/api/auth/verify', { headers: { Authorization: 'Bearer ' + tok } })
+    fetch('/api/auth/verify')
       .then(function (r) {
         if (r.ok) {
           hideSessionWarn();

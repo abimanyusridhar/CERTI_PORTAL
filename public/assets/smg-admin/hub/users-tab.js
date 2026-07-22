@@ -202,5 +202,7 @@
     setTimeout(() => el.remove(), 3200);
   }
 
-  if (TOKEN) loadUsersData();
+  // This tab only loads on the already server-gated hub page (unauthenticated
+  // requests never reach here), so no client-side token check is needed.
+  loadUsersData();
 })();

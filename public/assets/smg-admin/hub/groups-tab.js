@@ -426,5 +426,7 @@
   }
   window.qvRemoveVessel = qvRemoveVessel;
 
-  if (TOKEN) loadGroupsData();
+  // This tab only loads on the already server-gated hub page (unauthenticated
+  // requests never reach here), so no client-side token check is needed.
+  loadGroupsData();
 })();

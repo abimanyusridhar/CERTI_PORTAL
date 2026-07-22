@@ -52,13 +52,28 @@ test('auth routes - verify returns 401 when unauthenticated', () => {
   assert.equal(res.headers['X-Cors'], 'yes');
 });
 
-test('auth routes - verify returns ok when authenticated', () => {
-  const { routes } = makeRoutes({ authCheck: () => true });
+test('auth routes - verify returns ok + role/exp/iat when authenticated', () => {
+  const { routes } = makeRoutes({
+    authCheck: () => true,
+    verifyToken: token => token === 'valid-token' ? { role: 'client', exp: 111, iat: 222 } : null,
+  });
   const res = createRes();
-  const handled = routes.handleVerify({}, res, 'GET', '/auth/verify', {});
+  const handled = routes.handleVerify({ headers: { authorization: 'Bearer valid-token' } }, res, 'GET', '/auth/verify', {});
   assert.equal(handled, true);
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body, { ok: true });
+  assert.deepEqual(res.body, { ok: true, role: 'client', exp: 111, iat: 222 });
+});
+
+test('auth routes - verify defaults role to admin when the token carries no role claim', () => {
+  const { routes } = makeRoutes({
+    authCheck: () => true,
+    verifyToken: token => token === 'valid-token' ? { exp: 111, iat: 222 } : null,
+  });
+  const res = createRes();
+  const handled = routes.handleVerify({ headers: { authorization: 'Bearer valid-token' } }, res, 'GET', '/auth/verify', {});
+  assert.equal(handled, true);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { ok: true, role: 'admin', exp: 111, iat: 222 });
 });
 
 test('auth routes - verify ignores non-matching request', () => {

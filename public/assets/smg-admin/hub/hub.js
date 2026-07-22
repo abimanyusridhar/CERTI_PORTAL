@@ -2,11 +2,11 @@
 
 (function () {
   var API = '/api';
-  // Read SSO cookie if present (hub page may be landing target after SSO redirect)
+  // Clear the short-lived SSO handoff cookie if present (hub page may be the
+  // landing target after an SSO redirect) — its value is never persisted to
+  // sessionStorage; admin auth relies solely on the httpOnly adminToken cookie.
   (function () {
-    var m = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
-    if (m) {
-      sessionStorage.setItem('adminToken', decodeURIComponent(m[1]));
+    if (document.cookie.indexOf('sso_admin_token=') !== -1) {
       document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Lax';
     }
   })();
@@ -123,38 +123,39 @@
   var _ssoError = !!_ssoErrorCode;
 
   function doLogout() {
-    sessionStorage.removeItem('adminToken');
-    redirectToSso();
+    // POST /api/auth/logout revokes the session server-side (jti blacklist)
+    // and clears the httpOnly adminToken cookie — the actual session
+    // credential — not just hidden client-side. Then reload; the page is
+    // server-gated (gateAdminPage), so a reload while unauthenticated
+    // 302-redirects to the admin login screen on its own.
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {}).finally(() => {
+      window.location.reload();
+    });
   }
   window.doLogout = doLogout;
 
   function loadStats() {
-    if (!TOKEN) {
-      if (_ssoError) {
-        // Show the specific reason without looping back into another SSO attempt
-        setStatsFallback();
-        var hero = document.querySelector('.hub-hero-sub');
-        if (hero) { hero.textContent = SSO_MSGS[_ssoErrorCode] || 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#FF5C7A)'; }
-        return;
-      }
-      redirectToSso();
+    if (_ssoError) {
+      // Show the specific reason without looping back into another SSO attempt
+      setStatsFallback();
+      var hero = document.querySelector('.hub-hero-sub');
+      if (hero) { hero.textContent = SSO_MSGS[_ssoErrorCode] || 'SSO sign-in failed. Please contact your administrator or try again.'; hero.style.color = 'var(--invalid,#FF5C7A)'; }
       return;
     }
-    try {
-      var parts = TOKEN.split('.');
-      if (parts.length !== 3) { sessionStorage.removeItem('adminToken'); TOKEN = ''; redirectToSso(); return; }
-      var payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-      if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp * 1000) {
-        sessionStorage.removeItem('adminToken');
-        TOKEN = '';
-        redirectToSso();
-        return;
-      }
-    } catch (e) { sessionStorage.removeItem('adminToken'); TOKEN = ''; redirectToSso(); return; }
+    // Session identity/expiry now comes from the server (httpOnly cookie-backed
+    // /api/auth/verify) instead of decoding a raw JWT out of sessionStorage —
+    // nothing JS-readable holds a valid session credential any more.
+    fetch(API + '/auth/verify')
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (info) {
+        document.documentElement.classList.toggle('role-client', info.role === 'client');
+        loadStatsAuthenticated();
+      })
+      .catch(function () { redirectToSso(); });
+  }
 
-    document.documentElement.classList.toggle('role-client', payload.role === 'client');
-
-    var headers = { Authorization: 'Bearer ' + TOKEN };
+  function loadStatsAuthenticated() {
+    var headers = TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {};
 
     Promise.all([
       fetch(API + '/certs', { headers: headers }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),

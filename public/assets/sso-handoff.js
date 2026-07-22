@@ -1,9 +1,12 @@
 'use strict';
 // ── SSO: read short-lived cookie set by /auth/sso/callback ─────────────────
 (function () {
+  // The short-lived handoff cookie's value is no longer copied into
+  // sessionStorage — admin auth now relies solely on the httpOnly adminToken
+  // cookie the server already set alongside it, so nothing JS-readable ever
+  // holds a valid session credential. Just clear the handoff cookie.
   var match = document.cookie.match(/(?:^|;\s*)sso_admin_token=([^;]+)/);
   if (match) {
-    sessionStorage.setItem('adminToken', decodeURIComponent(match[1]));
     document.cookie = 'sso_admin_token=; Path=/; Max-Age=0; SameSite=Lax';
   }
   var ssoErr = new URLSearchParams(location.search).get('sso_error');

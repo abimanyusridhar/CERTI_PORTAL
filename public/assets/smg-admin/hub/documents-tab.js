@@ -284,5 +284,7 @@
     if (vessel) { const el = document.getElementById('uVessel'); if (el) el.value = vessel; }
   })();
 
-  if (TOKEN) loadDocsData();
+  // This tab only loads on the already server-gated hub page (unauthenticated
+  // requests never reach here), so no client-side token check is needed.
+  loadDocsData();
 })();

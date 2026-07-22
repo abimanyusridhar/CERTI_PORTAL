@@ -15,13 +15,26 @@ function createAuthRoutes(deps) {
     return true;
   }
 
+  // Returns role/exp/iat alongside the liveness check so the client never needs
+  // to decode a raw JWT itself — used for the boot-time role check, expiry
+  // countdown, and the "Extend Session" button. Bearer-or-cookie extraction
+  // mirrors handleLogout below; authCheck() already covers the revocation-list
+  // check, so re-decoding the same token here for its fields is race-free.
   function handleVerify(req, res, method, route, corsH) {
     if (!(route === '/auth/verify' && method === 'GET')) return false;
     if (!authCheck(req)) {
       sendJSON(res, 401, { error: 'Access denied. Please log in to continue.' }, corsH);
       return true;
     }
-    sendJSON(res, 200, { ok: true }, corsH);
+    let token = null;
+    const auth = req.headers['authorization'] || '';
+    if (auth.startsWith('Bearer ')) token = auth.slice(7);
+    if (!token) {
+      const m = (req.headers.cookie || '').match(/(?:^|;\s*)adminToken=([^;]+)/);
+      if (m) token = decodeURIComponent(m[1]);
+    }
+    const payload = (token && verifyToken(token)) || {};
+    sendJSON(res, 200, { ok: true, role: payload.role || 'admin', exp: payload.exp, iat: payload.iat }, corsH);
     return true;
   }
 
