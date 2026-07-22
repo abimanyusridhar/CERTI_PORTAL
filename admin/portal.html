@@ -24,8 +24,8 @@
     body { min-height: 100vh; background: var(--navy); font-family: 'DM Sans', sans-serif; }
 
     /* ── LOGIN — split panel: brand identity left, sign-in right ── */
-    #loginWrap { display: flex; min-height: 100vh; }
-    .login-brand-panel { flex: 1 1 46%; max-width: 560px; position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; background: linear-gradient(160deg, #0A1628 0%, #123B36 55%, #184F47 100%); overflow: hidden; }
+    #loginWrap { display: flex; min-height: 100vh; justify-content: center; }
+    .login-brand-panel { flex: 0 1 46%; max-width: 560px; position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; background: linear-gradient(160deg, #0A1628 0%, #123B36 55%, #184F47 100%); overflow: hidden; }
     .login-brand-panel::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(100,255,218,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(100,255,218,.05) 1px,transparent 1px); background-size: 48px 48px; pointer-events: none; }
     .login-brand-panel::after { content: ''; position: absolute; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(100,255,218,.18), transparent 70%); top: -100px; right: -140px; pointer-events: none; }
     .login-brand-content { position: relative; z-index: 1; text-align: center; max-width: 340px; }
@@ -37,7 +37,7 @@
     .login-brand-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 10px; line-height: 1.15; }
     .login-brand-sub { font-size: .82rem; color: rgba(255,255,255,.65); line-height: 1.6; }
 
-    .login-form-panel { flex: 1 1 54%; display: flex; align-items: center; justify-content: center; background: var(--surface); padding: 48px 32px; }
+    .login-form-panel { flex: 0 1 54%; max-width: 620px; display: flex; align-items: center; justify-content: center; background: var(--surface); padding: 48px 32px; }
     .login-form-inner { width: 100%; max-width: 400px; }
     .login-welcome { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: var(--text-bright); margin-bottom: 6px; }
     .login-welcome-sub { font-size: .82rem; color: var(--text-sec); margin-bottom: 28px; }
@@ -60,7 +60,7 @@
       #loginWrap { flex-direction: column; }
       .login-brand-panel { flex: 0 0 auto; max-width: none; padding: 36px 24px; min-height: 220px; }
       .login-brand-title { font-size: 1.4rem; }
-      .login-form-panel { flex: 1; padding: 32px 24px; }
+      .login-form-panel { flex: 1; max-width: none; padding: 32px 24px; }
     }
 
     /* ── APP LAYOUT ── */
