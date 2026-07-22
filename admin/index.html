@@ -380,14 +380,63 @@
         Admin Management
       </div>
       <div class="admin-tabs">
-        <button class="admin-tab-btn active" id="adminTabBtnUsers" data-action="switchAdminTab" data-tab="users">Users</button>
+        <button class="admin-tab-btn active" id="adminTabBtnRecords" data-action="switchAdminTab" data-tab="records">Records</button>
+        <button class="admin-tab-btn" id="adminTabBtnUsers" data-action="switchAdminTab" data-tab="users">Users</button>
         <button class="admin-tab-btn" id="adminTabBtnGroups" data-action="switchAdminTab" data-tab="groups">Groups</button>
         <button class="admin-tab-btn" id="adminTabBtnDocs" data-action="switchAdminTab" data-tab="docs">Documents <span id="badgeDocsTab" style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.3);color:var(--gold);font-size:.58rem;font-weight:700;border-radius:9px;margin-left:4px">0</span></button>
       </div>
     </div>
 
+    <!-- ── RECORDS PANE (combined CST + VAPT view) ── -->
+    <div class="admin-tab-pane active" id="paneRecords">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num" id="recStatTotal">—</div><div class="stat-lbl">Total Records</div></div>
+        <div class="stat-card"><div class="stat-num gold" id="recStatCst">—</div><div class="stat-lbl">CST Training</div></div>
+        <div class="stat-card"><div class="stat-num teal" id="recStatVapt">—</div><div class="stat-lbl">VAPT Assessment</div></div>
+        <div class="stat-card"><div class="stat-num ok" id="recStatValid">—</div><div class="stat-lbl">Valid</div></div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" style="opacity:.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+          <input type="search" id="recSearch" class="filter-search" placeholder="Search cert ID, recipient, or vessel…" data-input-action="renderRecords" />
+        </div>
+        <select id="recTypeFilter" class="filter-inp" style="width:auto" data-change-action="renderRecords">
+          <option value="">All Types</option>
+          <option value="CST">CST Training</option>
+          <option value="VAPT">VAPT Assessment</option>
+        </select>
+        <select id="recStatusFilter" class="filter-inp" style="width:auto" data-change-action="renderRecords">
+          <option value="">All Statuses</option>
+          <option value="VALID">Valid</option>
+          <option value="PENDING">Pending</option>
+          <option value="EXPIRED">Expired</option>
+          <option value="REVOKED">Revoked</option>
+        </select>
+        <button class="btn-sm" data-action="loadRecordsData">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+      <!-- overflow-x:auto (not :hidden, unlike the Users/Groups tables above) —
+           this table has more columns and clips content on mobile otherwise. -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow-x:auto">
+        <table class="user-table" id="recTable">
+          <thead>
+            <tr>
+              <th>Type</th><th>Cert ID</th><th>Recipient / Vessel</th><th>Vessel IMO</th><th>Quarter / Risk</th><th>Status</th><th>Valid Until</th>
+            </tr>
+          </thead>
+          <tbody id="recTbody"></tbody>
+        </table>
+        <div id="recEmpty" class="empty-state" style="display:none">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="1.5" style="margin-bottom:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <div id="recEmptyMsg">No certificate records yet.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── USERS PANE ── -->
-    <div class="admin-tab-pane active" id="paneUsers">
+    <div class="admin-tab-pane" id="paneUsers">
       <div class="stats-row">
         <div class="stat-card"><div class="stat-num gold" id="uStatTotal">—</div><div class="stat-lbl">Total Users</div></div>
         <div class="stat-card"><div class="stat-num ok" id="uStatActive">—</div><div class="stat-lbl">Active</div></div>
@@ -700,6 +749,8 @@
 
 <script src="/assets/smg-admin/hub/admin-tab-switcher.js"></script>
 <script src="/assets/smg-admin/hub/hub-actions.js"></script>
+
+<script src="/assets/smg-admin/hub/records-tab.js"></script>
 
 <script src="/assets/smg-admin/hub/users-tab.js"></script>
 
