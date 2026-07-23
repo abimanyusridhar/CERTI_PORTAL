@@ -693,7 +693,16 @@
     const st = (c.status || 'PENDING').toUpperCase();
     const stColor = st === 'VALID' ? 'var(--teal)' : st === 'REVOKED' ? 'var(--invalid)' : st === 'EXPIRED' ? 'var(--warn)' : 'var(--text-sec)';
     const stBg    = st === 'VALID' ? 'rgba(100,255,218,.1)' : st === 'REVOKED' ? 'rgba(255,107,138,.1)' : st === 'EXPIRED' ? 'rgba(255,170,46,.1)' : 'rgba(255,255,255,.05)';
+    const img = c.certificateImage || '';
+    const imgCell = img
+      ? `<img src="${img}" loading="lazy" style="width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer" data-action="openLB" title="View certificate" />`
+      : `<div style="width:34px;height:34px;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-sec);font-size:.6rem">—</div>`;
+    const actionsCell = img
+      ? `<button class="btn btn-ghost btn-sm" data-action="openLB" data-url="${img}" title="View certificate" style="padding:5px 9px">👁 View</button>
+         <a class="btn btn-ghost btn-sm" href="${img}" download="${escHtml(c.id)}.png" title="Download certificate" style="padding:5px 9px;text-decoration:none">⬇</a>`
+      : `<span style="font-size:.62rem;color:var(--text-sec);opacity:.6">No image</span>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border)">
+      ${imgCell}
       <div style="flex:1;min-width:0">
         <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:${isCst ? 'var(--gold)' : 'var(--teal)'}">${escHtml(c.id)}</div>
         <div style="font-size:.72rem;color:var(--text-sec);margin-top:2px">${escHtml(c.recipientName || '—')}</div>
@@ -701,6 +710,7 @@
       ${badge}
       <span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.62rem;font-weight:700;letter-spacing:.05em;background:${stBg};border:1px solid ${stColor}66;color:${stColor}">${st}</span>
       <span style="font-size:.68rem;color:var(--text-sec);min-width:78px;text-align:right">${fmt(c.validUntil)}</span>
+      <div style="display:flex;gap:5px;flex-shrink:0">${actionsCell}</div>
     </div>`;
   }
   function _clientCertSection(title, color, list, isCst) {
