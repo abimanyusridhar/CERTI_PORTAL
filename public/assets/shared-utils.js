@@ -197,7 +197,12 @@ function getTheme() {
 function setTheme(theme) {
   localStorage.setItem(THEME_KEY, theme);
   const html = document.documentElement;
-  html.className = theme === 'light' ? 'light' : '';
+  // Toggle only the theme class — an outright html.className overwrite wiped
+  // out any other class already on <html> (e.g. role-client, set by an async
+  // /api/auth/verify callback that can resolve either before or after this
+  // runs on DOMContentLoaded), silently disabling the read-only client role's
+  // CSS restrictions on a race-dependent fraction of page loads.
+  html.classList.toggle('light', theme === 'light');
   document.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
 }
 

@@ -63,6 +63,14 @@
 .role-client #navLinkGroups,
 .role-client #navLinkUsers,
 
+/* ── "Switch to CST"/"Switch to VAPT" sidebar link — client admins now get
+   both cert types combined in the All Certificates vessel view on whichever
+   dashboard they're on, so switching dashboards to see the other type is no
+   longer necessary. Admins keep this link; they still use the two dashboards
+   as separate, fully-featured toolsets. ── */
+.role-client #sbLinkVPTAdmin,
+.role-client #sbLinkCSTAdmin,
+
 /* ── Pending Activation + Emails Not Sent — stat tiles and detail panels ── */
 .role-client [data-panel="panelPending"],
 .role-client [data-panel="panelEmailPending"],

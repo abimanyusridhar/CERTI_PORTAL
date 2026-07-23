@@ -57,8 +57,8 @@
     closeViewIssue:      (el) => { call('closeView'); call('goIssue', el.dataset.id); },
     closeViewActivate:   (el) => { call('closeView'); call('activateCert', el.dataset.id); },
 
-    // ── Combined CST+VAPT records section (client role only, see combined-vessel-records.js) ──
-    openCcrModal:        (el) => call('openCcrModal', el.dataset.imo),
+    // ── Client role's vessel-grouped All Certificates view ──
+    toggleClientVesselRow: (el) => call('toggleClientVesselRow', el.dataset.imo),
 
     // ── Static page chrome (admin/dashboard.html + admin/vapt-dashboard.html) ──
     // data-nav lets a toolbar button mark a DIFFERENT sidebar nav-item active
@@ -126,7 +126,6 @@
     closePdfModalBackdrop:    'closePdfModal',
     closePdfViewerBackdrop:   'closePdfViewer',
     closeAssignGroupBackdrop: 'closeAssignGroup',
-    closeCcrModalBackdrop:    'closeCcrModal',
   };
 
   const CHANGE_HANDLERS = {

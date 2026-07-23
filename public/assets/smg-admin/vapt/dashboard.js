@@ -50,7 +50,16 @@
   function scheduleTokenExpiryWarning() {
     fetch(API + '/auth/verify').then(r => r.ok ? r.json() : null).then(info => {
       if (!info) return;
-      document.documentElement.classList.toggle('role-client', info.role === 'client');
+      const isClient = info.role === 'client';
+      document.documentElement.classList.toggle('role-client', isClient);
+      if (isClient) {
+        loadClientOtherCerts().then(() => {
+          const certsPage = document.getElementById('page-certs');
+          if (certsPage && certsPage.style.display !== 'none') {
+            renderTbl('allTbl', document.getElementById('allQ')?.value || '');
+          }
+        });
+      }
       if (window._startSessionTimers && typeof info.iat === 'number') window._startSessionTimers(info.iat * 1000);
       const msLeft = info.exp * 1000 - Date.now();
       if (msLeft <= 0) { doLogout(); return; }
@@ -510,6 +519,14 @@
   }
   function renderTbl(id, q, statusFilter, emailFilter, riskFilter, quarterFilter) {
     const el = document.getElementById(id);
+    // Client role sees All Certificates grouped by vessel (CST + VAPT nested
+    // together, expand-in-place) instead of the flat per-cert admin table —
+    // avoids switching to the CST dashboard just to see the other cert type.
+    // Admins are completely unaffected; only 'allTbl' branches here.
+    if (id === 'allTbl' && document.documentElement.classList.contains('role-client')) {
+      renderClientVesselTbl(q, statusFilter, emailFilter, riskFilter, quarterFilter);
+      return;
+    }
     let list = CERTS;
     if (q) { const ql=q.toLowerCase(); list=list.filter(c=>c.id.toLowerCase().includes(ql)||(c.recipientName||'').toLowerCase().includes(ql)||(c.vesselIMO||'').includes(ql)||(c.vesselName||'').toLowerCase().includes(ql)); }
     if (statusFilter) {
@@ -631,6 +648,166 @@
         </div></td>
       </tr>`;
     }).join('') + '</tbody></table></div>';
+  }
+
+  // ── Client role — combined CST+VAPT vessel view (All Certificates) ──
+  // The "other" cert type, fetched only once we know the session is client
+  // role (see scheduleTokenExpiryWarning's /api/auth/verify check above) —
+  // normal admins never trigger this extra request.
+  let CLIENT_OTHER_CERTS = [];
+  let _clientVesselExpanded = new Set();
+
+  async function loadClientOtherCerts() {
+    try {
+      const r = await fetch(API + '/certs', { headers: { Authorization: 'Bearer ' + TOKEN } });
+      if (r.ok) CLIENT_OTHER_CERTS = await r.json();
+    } catch { /* All Certificates still renders with whatever loaded so far */ }
+  }
+
+  function _clientVesselKey(c) { return (c.vesselIMO || c.vesselName || 'unknown').toString().toUpperCase(); }
+  function _clientIsValid(c) {
+    if (c.status !== 'VALID') return false;
+    const vu = c.validUntil ? new Date(c.validUntil) : null;
+    return !vu || vu >= new Date();
+  }
+
+  const CLIENT_RISK_STYLE = {
+    CRITICAL: { emoji: '🔴', color: 'var(--invalid)' },
+    HIGH:     { emoji: '🟠', color: 'var(--warn)' },
+    MEDIUM:   { emoji: '🟡', color: 'var(--warn)' },
+    LOW:      { emoji: '🟢', color: 'var(--teal)' },
+  };
+  const CLIENT_Q_COLORS = { Q1: '#64FFDA', Q2: '#D4A843', Q3: '#B47EFF', Q4: '#FF5C7A' };
+
+  function _clientCertRow(c, isCst) {
+    let badge;
+    if (isCst && c.complianceQuarter) {
+      const qc = CLIENT_Q_COLORS[c.complianceQuarter.toUpperCase()] || 'var(--text-sec)';
+      badge = `<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.62rem;font-weight:700;letter-spacing:.06em;background:${qc}1F;border:1px solid ${qc};color:${qc}">${escHtml(c.complianceQuarter)}</span>`;
+    } else if (!isCst && c.riskLevel) {
+      const ri = CLIENT_RISK_STYLE[c.riskLevel.toUpperCase()] || { emoji: '', color: 'var(--text-sec)' };
+      badge = `<span style="font-size:.72rem;color:${ri.color}">${ri.emoji} ${escHtml(c.riskLevel)}</span>`;
+    } else {
+      badge = '<span style="color:var(--text-sec);font-size:.7rem">—</span>';
+    }
+    const st = (c.status || 'PENDING').toUpperCase();
+    const stColor = st === 'VALID' ? 'var(--teal)' : st === 'REVOKED' ? 'var(--invalid)' : st === 'EXPIRED' ? 'var(--warn)' : 'var(--text-sec)';
+    const stBg    = st === 'VALID' ? 'rgba(100,255,218,.1)' : st === 'REVOKED' ? 'rgba(255,107,138,.1)' : st === 'EXPIRED' ? 'rgba(255,170,46,.1)' : 'rgba(255,255,255,.05)';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:${isCst ? 'var(--gold)' : 'var(--teal)'}">${escHtml(c.id)}</div>
+        <div style="font-size:.72rem;color:var(--text-sec);margin-top:2px">${escHtml(c.recipientName || '—')}</div>
+      </div>
+      ${badge}
+      <span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.62rem;font-weight:700;letter-spacing:.05em;background:${stBg};border:1px solid ${stColor}66;color:${stColor}">${st}</span>
+      <span style="font-size:.68rem;color:var(--text-sec);min-width:78px;text-align:right">${fmt(c.validUntil)}</span>
+    </div>`;
+  }
+  function _clientCertSection(title, color, list, isCst) {
+    const rows = list.length
+      ? list.map(c => _clientCertRow(c, isCst)).join('')
+      : `<div style="padding:10px 4px;font-size:.72rem;color:var(--text-sec)">No ${escHtml(title)} records for this vessel.</div>`;
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:.64rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${color};margin-bottom:6px">${escHtml(title)} (${list.length})</div>
+      ${rows}
+    </div>`;
+  }
+
+  function toggleClientVesselRow(key) {
+    if (_clientVesselExpanded.has(key)) _clientVesselExpanded.delete(key);
+    else _clientVesselExpanded.add(key);
+    renderTbl('allTbl',
+      document.getElementById('allQ')?.value || '',
+      document.getElementById('allStatusSel')?.value || '',
+      document.getElementById('allEmailSel')?.value || '',
+      document.getElementById('allRiskSel')?.value || '',
+      document.getElementById('allQuarterSel')?.value || '');
+  }
+  window.toggleClientVesselRow = toggleClientVesselRow;
+
+  function renderClientVesselTbl(q, statusFilter, emailFilter, riskFilter, quarterFilter) {
+    const el = document.getElementById('allTbl');
+    if (!el) return;
+
+    let list = [...(CERTS || []).map(c => Object.assign({ _type: 'VAPT' }, c)),
+                ...(CLIENT_OTHER_CERTS || []).map(c => Object.assign({ _type: 'CST' }, c))];
+    if (q) {
+      const ql = q.toLowerCase();
+      list = list.filter(c => c.id.toLowerCase().includes(ql) || (c.recipientName || '').toLowerCase().includes(ql) || (c.vesselIMO || '').toLowerCase().includes(ql) || (c.vesselName || '').toLowerCase().includes(ql));
+    }
+    if (statusFilter) {
+      if (statusFilter === 'EXPIRED') {
+        const now = new Date();
+        list = list.filter(c => (c.status === 'VALID' && c.validUntil && new Date(c.validUntil) < now) || c.status === 'EXPIRED');
+      } else if (statusFilter === 'VALID') {
+        const now = new Date();
+        list = list.filter(c => c.status === 'VALID' && (!c.validUntil || new Date(c.validUntil) >= now));
+      } else {
+        list = list.filter(c => c.status === statusFilter);
+      }
+    }
+    if (emailFilter === 'SENT') list = list.filter(c => c.emailStatus === 'SENT');
+    else if (emailFilter === 'NOT_SENT') list = list.filter(c => c.emailStatus !== 'SENT');
+    // Risk/quarter are VAPT/CST-specific fields — filtering by either narrows
+    // to that cert type, but a vessel still shows if it has any matching
+    // record (its other-type records for that vessel stay visible nested).
+    if (riskFilter) list = list.filter(c => c._type === 'VAPT' && (c.riskLevel || '').toUpperCase() === riskFilter.toUpperCase());
+    if (quarterFilter) {
+      const qNum = parseInt(quarterFilter, 10);
+      list = list.filter(c => {
+        if (c._type !== 'VAPT') return false;
+        const d = c.assessmentDate || c.issuedAt;
+        if (!d) return false;
+        const month = new Date(d).getMonth() + 1;
+        const cq = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+        return cq === qNum;
+      });
+    }
+
+    const vessels = new Map();
+    list.forEach(c => {
+      const key = _clientVesselKey(c);
+      if (!vessels.has(key)) vessels.set(key, { imo: c.vesselIMO || '', name: c.vesselName || c.vesselIMO || 'Unknown Vessel', cst: [], vapt: [] });
+      const v = vessels.get(key);
+      if (!v.imo && c.vesselIMO) v.imo = c.vesselIMO;
+      (c._type === 'CST' ? v.cst : v.vapt).push(c);
+    });
+
+    const countEl = document.getElementById('allCertCount');
+    if (countEl) countEl.innerHTML = `<strong>${vessels.size}</strong> vessel${vessels.size !== 1 ? 's' : ''}`;
+    const cb = document.getElementById('allClearFilters');
+    if (cb) cb.style.display = (q || statusFilter || emailFilter || riskFilter || quarterFilter) ? '' : 'none';
+
+    if (!vessels.size) {
+      el.innerHTML = '<div class="empty-state"><h3>No vessels match these filters</h3><p style="font-size:.8rem;color:var(--text-sec);margin-top:4px">Try adjusting your search or clearing filters.</p></div>';
+      return;
+    }
+
+    const rows = [...vessels.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
+    el.innerHTML = `<div class="tbl-scroll-wrap" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+      <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Vessel</th>
+      <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">IMO</th>
+      <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold)">CST</th>
+      <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--teal)">VAPT</th>
+      <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Valid</th>
+      <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">View</th>
+    </tr></thead><tbody>` + rows.map(([key, v]) => {
+      const total = v.cst.length + v.vapt.length;
+      const validCount = v.cst.filter(_clientIsValid).length + v.vapt.filter(_clientIsValid).length;
+      const expanded = _clientVesselExpanded.has(key);
+      const mainRow = `<tr style="border-bottom:1px solid var(--border);cursor:pointer" data-action="toggleClientVesselRow" data-imo="${escHtml(key)}">
+        <td style="padding:10px;font-weight:600;color:var(--text-bright)">${escHtml(v.name)}</td>
+        <td style="padding:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${escHtml(v.imo || '—')}</td>
+        <td style="padding:10px;color:var(--gold);font-weight:600">${v.cst.length}</td>
+        <td style="padding:10px;color:var(--teal);font-weight:600">${v.vapt.length}</td>
+        <td style="padding:10px;color:var(--teal)">${validCount}/${total}</td>
+        <td style="padding:10px"><button class="btn btn-ghost btn-sm" data-action="toggleClientVesselRow" data-imo="${escHtml(key)}">${expanded ? '▲ Hide' : '▼ View'}</button></td>
+      </tr>`;
+      const nestedRow = expanded
+        ? `<tr><td colspan="6" style="padding:16px 20px;background:var(--navy-mid)">${_clientCertSection('CST Training', 'var(--gold)', v.cst, true)}${_clientCertSection('VAPT Assessment', 'var(--teal)', v.vapt, false)}</td></tr>`
+        : '';
+      return mainRow + nestedRow;
+    }).join('') + `</tbody></table></div>`;
   }
 
   // ── PAGES ──
