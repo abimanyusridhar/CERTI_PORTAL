@@ -701,16 +701,18 @@
       ? `<button class="btn btn-ghost btn-sm" data-action="openLB" data-url="${img}" title="View certificate" style="padding:5px 9px">👁 View</button>
          <a class="btn btn-ghost btn-sm" href="${img}" download="${escHtml(c.id)}.png" title="Download certificate" style="padding:5px 9px;text-decoration:none">⬇</a>`
       : `<span style="font-size:.62rem;color:var(--text-sec);opacity:.6">No image</span>`;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border)">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       ${imgCell}
-      <div style="flex:1;min-width:0">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:${isCst ? 'var(--gold)' : 'var(--teal)'}">${escHtml(c.id)}</div>
-        <div style="font-size:.72rem;color:var(--text-sec);margin-top:2px">${escHtml(c.recipientName || '—')}</div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:${isCst ? 'var(--gold)' : 'var(--teal)'};white-space:normal;overflow-wrap:break-word">${escHtml(c.id)}</div>
+        <div style="font-size:.72rem;color:var(--text-sec);margin-top:2px;white-space:normal;overflow-wrap:break-word">${escHtml(c.recipientName || '—')}</div>
       </div>
-      ${badge}
-      <span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.62rem;font-weight:700;letter-spacing:.05em;background:${stBg};border:1px solid ${stColor}66;color:${stColor}">${st}</span>
-      <span style="font-size:.68rem;color:var(--text-sec);min-width:78px;text-align:right">${fmt(c.validUntil)}</span>
-      <div style="display:flex;gap:5px;flex-shrink:0">${actionsCell}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto">
+        ${badge}
+        <span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.62rem;font-weight:700;letter-spacing:.05em;background:${stBg};border:1px solid ${stColor}66;color:${stColor}">${st}</span>
+        <span style="font-size:.68rem;color:var(--text-sec);white-space:nowrap">${fmt(c.validUntil)}</span>
+        <div style="display:flex;gap:5px">${actionsCell}</div>
+      </div>
     </div>`;
   }
   function _clientCertSection(title, color, list, isCst) {
@@ -794,7 +796,13 @@
     }
 
     const rows = [...vessels.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
-    el.innerHTML = `<div class="tbl-scroll-wrap" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:640px"><thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+    // table-layout:fixed + colgroup keeps columns to their assigned share
+    // regardless of content — without it, one long vessel name stretches
+    // the Vessel column and pushes IMO/CST/VAPT/Valid/View off-screen for
+    // every row, not just its own (auto layout sizes columns from content).
+    el.innerHTML = `<div class="tbl-scroll-wrap" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:560px;table-layout:fixed"><colgroup>
+      <col style="width:34%"><col style="width:15%"><col style="width:9%"><col style="width:9%"><col style="width:11%"><col style="width:22%">
+    </colgroup><thead><tr style="border-bottom:1px solid var(--border);text-align:left">
       <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Vessel</th>
       <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">IMO</th>
       <th style="padding:8px 10px;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold)">CST</th>
@@ -806,8 +814,8 @@
       const validCount = v.cst.filter(_clientIsValid).length + v.vapt.filter(_clientIsValid).length;
       const expanded = _clientVesselExpanded.has(key);
       const mainRow = `<tr style="border-bottom:1px solid var(--border);cursor:pointer" data-action="toggleClientVesselRow" data-imo="${escHtml(key)}">
-        <td style="padding:10px;font-weight:600;color:var(--text-bright)">${escHtml(v.name)}</td>
-        <td style="padding:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec)">${escHtml(v.imo || '—')}</td>
+        <td style="padding:10px;font-weight:600;color:var(--text-bright);white-space:normal;overflow-wrap:break-word;word-break:break-word">${escHtml(v.name)}</td>
+        <td style="padding:10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--text-sec);white-space:normal;overflow-wrap:break-word">${escHtml(v.imo || '—')}</td>
         <td style="padding:10px;color:var(--gold);font-weight:600">${v.cst.length}</td>
         <td style="padding:10px;color:var(--teal);font-weight:600">${v.vapt.length}</td>
         <td style="padding:10px;color:var(--teal)">${validCount}/${total}</td>
