@@ -2103,6 +2103,12 @@
         document.getElementById('prevName').textContent = 'Existing image';
         const tag = document.getElementById('imgRequiredTag');
         if (tag) { tag.style.background = 'rgba(100,255,218,.08)'; tag.style.color = 'var(--teal)'; tag.style.borderColor = 'rgba(100,255,218,.2)'; tag.textContent = '✓ Attached'; }
+      } else {
+        // This cert has no image of its own — without this branch, the
+        // preview kept showing whatever image the previously edited cert
+        // (one that DID have an image) had left on screen, mislabeling it
+        // as this vessel's "Existing image" (same bug as the VAPT dashboard).
+        clearImgSilent();
       }
       // Load existing attachments
       pendingPdfs = []; savedAttachments = Array.isArray(c.attachments) ? c.attachments : []; renderAttachList();
