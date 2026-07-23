@@ -907,6 +907,9 @@
     document.getElementById('fNotes').value='Re-assessment recommended within 2 weeks from date of participation.';
     document.getElementById('uploadDefault').style.display='block';
     document.getElementById('uploadPrev').style.display='none';
+    document.getElementById('prevImg').src='';
+    const imgTag=document.getElementById('imgRequiredTag');
+    if (imgTag) imgTag.style.display='';
     imgFile=null;
     pendingPdfs=[]; savedAttachments=[]; renderAttachList();
   }
@@ -939,6 +942,17 @@
       document.getElementById('prevImg').src=c.certificateImage;
       document.getElementById('prevName').textContent='Existing image';
       document.getElementById('imgRequiredTag').style.display='none';
+    } else {
+      // This cert has no image of its own — without this branch, the preview
+      // area kept showing whatever image was left on screen from the last
+      // cert edited (uploadPrev/prevImg.src were never reset for the "no
+      // image" case), mislabeling a previous vessel's certificate as this
+      // one's "Existing image".
+      document.getElementById('uploadDefault').style.display='block';
+      document.getElementById('uploadPrev').style.display='none';
+      document.getElementById('prevImg').src='';
+      const tag=document.getElementById('imgRequiredTag');
+      if (tag) tag.style.display='';
     }
     // Load existing attachments
     pendingPdfs=[]; savedAttachments=Array.isArray(c.attachments)?c.attachments:[]; renderAttachList();
